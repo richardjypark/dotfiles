@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# exit on error, undefined variables, and pipe failures
-set -euo pipefail
+# exit on error (pipefail is bash-specific, removing it for POSIX compliance)
+set -e
 
 # detect OS and architecture
 detect_os() {
@@ -29,7 +29,7 @@ error() {
 
 # Check for required commands
 check_requirements() {
-    if ! command -v curl >/dev/null && ! command -v wget >/dev/null; then
+    if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
         error "Either curl or wget is required for installation"
     fi
 }
@@ -37,7 +37,7 @@ check_requirements() {
 # Clean existing chezmoi installation
 clean_existing_chezmoi() {
     echo "Checking for existing chezmoi configuration..."
-    
+
     # Check for existing chezmoi config directory
     if [ -d "$HOME/.config/chezmoi" ]; then
         echo "Found existing chezmoi configuration"
@@ -59,24 +59,25 @@ clean_existing_chezmoi() {
 
 # Install chezmoi if not present
 install_chezmoi() {
-    if ! command -v chezmoi >/dev/null; then
+    if ! command -v chezmoi >/dev/null 2>&1; then
         echo "Installing chezmoi..."
         bin_dir="$HOME/.local/bin"
         chezmoi="$bin_dir/chezmoi"
-        
+
         # Create bin directory if it doesn't exist
         mkdir -p "$bin_dir"
-        
-        if command -v curl >/dev/null; then
+
+        if command -v curl >/dev/null 2>&1; then
             sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b "$bin_dir"
         else
             sh -c "$(wget -qO- https://git.io/chezmoi)" -- -b "$bin_dir"
         fi
-        
+
         # Add to PATH if not already there
-        if ! echo "$PATH" | grep -q "$bin_dir"; then
-            export PATH="$PATH:$bin_dir"
-        fi
+        case ":$PATH:" in
+            *":$bin_dir:"*) ;; # already there
+            *) PATH="$PATH:$bin_dir" ;;
+        esac
     else
         chezmoi="chezmoi"
     fi
@@ -84,7 +85,7 @@ install_chezmoi() {
 
 # Reset chezmoi state
 reset_chezmoi() {
-    if command -v chezmoi >/dev/null; then
+    if command -v chezmoi >/dev/null 2>&1; then
         echo "Purging existing chezmoi state..."
         chezmoi purge --force
     fi
@@ -92,30 +93,30 @@ reset_chezmoi() {
 
 # Main installation function
 main() {
-    # Get script directory
-    script_dir="$(cd -P -- "$(dirname -- "$(command -v -- "$0")")" && pwd -P)"
-    
+    # Get script directory (POSIX-compliant version)
+    script_dir=$(cd "$(dirname "$0")" && pwd)
+
     # Detect system information
     OS=$(detect_os)
     ARCH=$(detect_arch)
-    
+
     echo "Detected OS: $OS"
     echo "Detected architecture: $ARCH"
-    
+
     # Check requirements
     check_requirements
-    
+
     # Clean existing chezmoi setup
     clean_existing_chezmoi
-    
+
     # Install chezmoi if needed
     install_chezmoi
-    
+
     # Reset any existing state
     reset_chezmoi
-    
+
     echo "Initializing fresh dotfiles..."
-    
+
     # Initialize chezmoi with the current directory as source
     if [ "$OS" = "windows" ]; then
         # Windows-specific configuration
@@ -124,7 +125,7 @@ main() {
         # Unix-like systems configuration
         "$chezmoi" init --apply "--source=$script_dir"
     fi
-    
+
     echo "Installation complete! Please restart your shell."
 }
 
