@@ -6,6 +6,7 @@ set -e
 REPO_URL="https://github.com/richardjypark/dotfiles.git"
 CHEZMOI_BIN_DIR="$HOME/.local/bin"
 CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
+BACKUP_DIR="$HOME/.local/share/chezmoi.backup.$(date +%Y%m%d_%H%M%S)"
 
 # Function to output error messages
 error() {
@@ -46,20 +47,29 @@ install_chezmoi() {
     fi
 }
 
+# Backup existing chezmoi configuration
+backup_existing_config() {
+    if [ -d "$CHEZMOI_SOURCE_DIR" ]; then
+        info "Backing up existing chezmoi configuration..."
+        mkdir -p "$BACKUP_DIR"
+
+        # Copy files maintaining relative structure but in a flat backup directory
+        cd "$CHEZMOI_SOURCE_DIR"
+        find . -type f -exec cp --parents {} "$BACKUP_DIR" \; 2>/dev/null || \
+        find . -type f -exec sh -c 'mkdir -p "$2/$(dirname "$1")" && cp "$1" "$2/$(dirname "$1")/"' _ {} "$BACKUP_DIR" \;
+
+        info "Backup created at: $BACKUP_DIR"
+
+        # Remove existing source directory
+        rm -rf "$CHEZMOI_SOURCE_DIR"
+    fi
+}
+
 # Initialize or update chezmoi repository
 setup_chezmoi_repo() {
-    if [ -d "$CHEZMOI_SOURCE_DIR" ]; then
-        info "Existing chezmoi source directory found"
-        # Backup existing directory
-        backup_dir="$CHEZMOI_SOURCE_DIR.backup.$(date +%Y%m%d_%H%M%S)"
-        info "Creating backup at $backup_dir"
-        mv "$CHEZMOI_SOURCE_DIR" "$backup_dir"
-    fi
-
     info "Cloning dotfiles repository..."
     git clone --depth=1 "$REPO_URL" "$CHEZMOI_SOURCE_DIR"
 
-    # Setup git branch tracking
     cd "$CHEZMOI_SOURCE_DIR"
     git checkout -b master 2>/dev/null || true
     git branch --set-upstream-to=origin/master master || \
@@ -72,7 +82,6 @@ setup_chezmoi_repo() {
 # Apply chezmoi configuration
 apply_chezmoi() {
     info "Applying dotfiles..."
-    # Force refresh of external files and apply changes
     chezmoi apply --refresh-externals
 }
 
@@ -80,19 +89,14 @@ apply_chezmoi() {
 main() {
     info "Starting dotfiles installation..."
 
-    # Check requirements
     check_requirements
-
-    # Install chezmoi if needed
     install_chezmoi
-
-    # Setup or update repository
+    backup_existing_config
     setup_chezmoi_repo
-
-    # Apply configuration
     apply_chezmoi
 
     info "Installation complete! Please restart your shell."
+    info "Your previous configuration has been backed up to: $BACKUP_DIR"
 }
 
 # Run main function
