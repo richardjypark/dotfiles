@@ -1,5 +1,4 @@
 #!/bin/sh
-
 set -e
 
 # Setup fzf
@@ -11,27 +10,25 @@ FZF_TARGET="$FZF_BIN_PATH/fzf"
 # Create bin directory if it doesn't exist
 mkdir -p "$FZF_BIN_PATH"
 
-# Wait briefly for files to be available
-sleep 1
-
-# Install fzf binary and shell integration
-if [ -d "$FZF_REPO_PATH" ]; then
-    cd "$FZF_REPO_PATH" || exit 1
-
-    # Install binary
-    ./install --bin
-
-    # Create symlink if needed
-    if [ ! -e "$FZF_TARGET" ]; then
-        ln -s "$FZF_REPO_PATH/bin/fzf" "$FZF_TARGET"
-    fi
-
-    # Install shell integrations
-    ./install --key-bindings --completion --no-bash --no-fish --no-update-rc
-else
-    echo "Warning: fzf repository not found at $FZF_REPO_PATH"
-    ls -la "$HOME/.local/share"
+# Verify that chezmoi has properly cloned the repository
+if [ ! -d "$FZF_REPO_PATH" ] || [ ! -f "$FZF_REPO_PATH/install" ]; then
+    echo "Error: fzf repository not properly initialized at $FZF_REPO_PATH"
+    echo "This might indicate that chezmoi external file setup hasn't completed yet."
+    echo "Try running 'chezmoi apply --refresh-externals' first."
     exit 1
 fi
+
+cd "$FZF_REPO_PATH" || exit 1
+
+# Install binary
+./install --bin
+
+# Create symlink if needed
+if [ ! -e "$FZF_TARGET" ]; then
+    ln -s "$FZF_REPO_PATH/bin/fzf" "$FZF_TARGET"
+fi
+
+# Install shell integrations
+./install --key-bindings --completion --no-bash --no-fish --no-update-rc
 
 echo "fzf setup complete!"

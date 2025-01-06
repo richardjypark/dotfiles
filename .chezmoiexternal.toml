@@ -25,5 +25,6 @@ exclude = ["*/.editorconfig", "*/.gitattributes", "*/.github", "*/.gitignore"]
 [".local/share/fzf"]
 type = "git-repo"
 url = "https://github.com/junegunn/fzf.git"
+exact = true
 refreshPeriod = "168h"
 clone.args = ["--depth=1"]
