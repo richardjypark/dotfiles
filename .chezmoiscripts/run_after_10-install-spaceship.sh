@@ -1,42 +1,25 @@
 #!/bin/sh
-set -e
+#
+# Configures the spaceship theme symlink and compilation
+# This script runs after the external archive is downloaded
 
-echo "Setting up spaceship theme..."
+set -e  # Exit on any error
+
+# Define key paths
 SPACESHIP_ROOT="${HOME}/.oh-my-zsh/custom/themes/spaceship-prompt"
 SPACESHIP_ZSH="${SPACESHIP_ROOT}/spaceship.zsh"
 SPACESHIP_THEME="${HOME}/.oh-my-zsh/custom/themes/spaceship.zsh-theme"
 
-# Ensure parent directories exist with proper permissions
-mkdir -p "${HOME}/.oh-my-zsh/custom/themes"
-chmod 755 "${HOME}/.oh-my-zsh/custom/themes"
+echo "Setting up spaceship theme symlink..."
 
-# Remove existing spaceship directory and theme if they exist
-rm -rf "$SPACESHIP_ROOT"
-rm -f "$SPACESHIP_THEME"
-
-# Clone the repository
-echo "Cloning spaceship-prompt..."
-git clone --depth=1 https://github.com/spaceship-prompt/spaceship-prompt.git "$SPACESHIP_ROOT"
-
-# Verify the clone was successful
-if [ ! -d "$SPACESHIP_ROOT" ]; then
-    echo "Error: Failed to clone spaceship-prompt repository"
-    exit 1
-fi
-
-# Verify spaceship.zsh exists
-if [ ! -f "$SPACESHIP_ZSH" ]; then
-    echo "Error: spaceship.zsh not found at $SPACESHIP_ZSH"
-    ls -la "$SPACESHIP_ROOT"
-    exit 1
-fi
-
-echo "Creating spaceship theme symlink..."
+# Create symlink for the theme
 ln -sf "$SPACESHIP_ZSH" "$SPACESHIP_THEME"
 
 echo "Compiling theme files..."
-cd "$SPACESHIP_ROOT" || exit 1
+
+# Compile the theme files if zsh is available
 if command -v zsh >/dev/null 2>&1; then
+    cd "$SPACESHIP_ROOT" || exit 1
     zsh -c "zcompile spaceship.zsh"
     zsh -c "for f in lib/*.zsh; do zcompile \$f; done"
 else
