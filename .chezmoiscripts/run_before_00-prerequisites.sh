@@ -46,7 +46,7 @@ done
 # Add .local/bin to PATH if not already there
 if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
     if ! grep -q '$HOME/.local/bin' "$HOME/.profile" 2>/dev/null; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.profile"
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$HOME/.profile"
         echo "Added .local/bin to PATH"
     fi
 fi
