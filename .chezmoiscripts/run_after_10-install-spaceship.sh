@@ -3,7 +3,7 @@
 # Configures the spaceship theme symlink and compilation
 # This script runs after the external archive is downloaded
 
-set -e  # Exit on any error
+set -e # Exit on any error
 
 # Define key paths
 SPACESHIP_ROOT="${HOME}/.oh-my-zsh/custom/themes/spaceship-prompt"
