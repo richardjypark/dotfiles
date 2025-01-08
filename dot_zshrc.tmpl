@@ -11,7 +11,6 @@ ZSH_THEME="spaceship"
 zstyle :omz:plugins:ssh-agent identities id_ed25519
 zstyle :omz:plugins:ssh-agent lifetime 1h
 
-
 # Plugins
 plugins=(
 	fzf
@@ -29,5 +28,5 @@ bindkey -v
 
 # Load all shell configurations
 for conf in "$HOME/.config/shell/"*.sh; do
-    [ -f "$conf" ] && . "$conf"
+	[ -f "$conf" ] && . "$conf"
 done
