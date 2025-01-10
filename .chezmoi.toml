@@ -1,0 +1,12 @@
+[diff]
+pager = "delta"
+
+[merge]
+command = "vimdiff"
+
+[git]
+autoCommit = true
+autoPush = false
+
+[cd]
+command = "zsh"

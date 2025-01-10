@@ -31,7 +31,21 @@ for conf in "$HOME/.config/shell/"*.sh; do
 	[ -f "$conf" ] && . "$conf"
 done
 
-# NVM Setup
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+# Lazy load NVM
+nvm() {
+    unset -f nvm
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+    nvm "$@"
+}
+
+# Lazy load specific plugins
+lazy_load() {
+    local plugin_path="$1"
+    local plugin_name="$2"
+    if [ -f "$plugin_path" ]; then
+        source "$plugin_path"
+    else
+        log_warning "Plugin $plugin_name not found at $plugin_path"
+    fi
+}
