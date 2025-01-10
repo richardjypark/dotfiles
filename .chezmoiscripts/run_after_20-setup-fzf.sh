@@ -31,4 +31,11 @@ fi
 # Install shell integrations
 ./install --key-bindings --completion --no-bash --no-fish --no-update-rc
 
-echo "fzf setup complete!"
+# Verify installation
+if ! command -v fzf >/dev/null 2>&1; then
+    echo "Error: fzf installation failed"
+    exit 1
+fi
+
+FZF_VERSION=$(fzf --version)
+echo "fzf setup complete! Version: $FZF_VERSION"
