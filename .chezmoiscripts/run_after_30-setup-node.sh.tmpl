@@ -22,11 +22,14 @@ fi
 # Load NVM
 . "$NVM_DIR/nvm.sh"
 
-# Install specified Node version if not already installed
-if ! nvm which "$NODE_VERSION" >/dev/null 2>&1; then
+# Check if the correct Node version is already installed and set as default
+CURRENT_NODE_VERSION=$(nvm current 2>/dev/null || echo "none")
+if [ "$CURRENT_NODE_VERSION" != "$NODE_VERSION" ]; then
     echo "Installing Node.js $NODE_VERSION..."
     nvm install "$NODE_VERSION"
     nvm alias default "$NODE_VERSION"
+else
+    echo "Node.js $NODE_VERSION is already installed and set as default"
 fi
 
 # Use the default version
@@ -38,25 +41,25 @@ if ! command -v node >/dev/null 2>&1; then
     exit 1
 fi
 
-# Install essential global packages
-echo "Installing essential global npm packages..."
-npm install -g npm@latest >/dev/null 2>&1 # Update npm itself
-npm install -g yarn >/dev/null 2>&1
-npm install -g pnpm >/dev/null 2>&1
+# Function to check if global package needs to be installed/updated
+needs_package_update() {
+    local package=$1
+    local current_version
+    if ! command -v "$package" >/dev/null 2>&1; then
+        return 0 # Package not installed
+    fi
+    return 1
+}
 
-# Verify installation
-NODE_VERSION=$(node --version)
-NPM_VERSION=$(npm --version)
-YARN_VERSION=$(yarn --version)
-PNPM_VERSION=$(pnpm --version)
+# Install global packages only if needed
+echo "Checking global npm packages..."
+for package in npm yarn pnpm; do
+    if needs_package_update "$package"; then
+        echo "Installing/updating $package..."
+        npm install -g "$package@latest" >/dev/null 2>&1
+    else
+        echo "$package is already installed"
+    fi
+done
 
-echo "Node.js setup complete!"
-echo "Node.js version: $NODE_VERSION"
-echo "npm version: $NPM_VERSION"
-echo "yarn version: $YARN_VERSION"
-echo "pnpm version: $PNPM_VERSION"
-
-# Add helpful message about shell restart
-echo "\nIMPORTANT: To use Node.js in your current session, either:"
-echo "1. Restart your shell:    exec zsh"
-echo "2. Or source NVM:         source ~/.nvm/nvm.sh"
+echo "Node.js setup is up to date!"
