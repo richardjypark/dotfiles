@@ -1,0 +1,3 @@
+[nvm]
+version = "v0.39.7"   # Pins NVM to a specific version
+nodeVersion = "lts/*" # Specifies which Node.js version to install
