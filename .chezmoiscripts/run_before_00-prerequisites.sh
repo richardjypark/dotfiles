@@ -23,10 +23,10 @@ if [ "$(id -u)" = 0 ] || is_installed sudo; then
         echo "Installing missing packages:$MISSING_PACKAGES"
         if [ "$(id -u)" = 0 ]; then
             apt-get update
-            apt-get install -y $MISSING_PACKAGES
+            echo "$MISSING_PACKAGES" | xargs -n1 | xargs -P4 apt-get install -y
         else
             sudo apt-get update
-            sudo apt-get install -y $MISSING_PACKAGES
+            echo "$MISSING_PACKAGES" | xargs -n1 | sudo xargs -P4 apt-get install -y
         fi
     else
         echo "All required packages are already installed"
