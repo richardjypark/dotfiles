@@ -31,15 +31,36 @@ plugins=(
 	zsh-syntax-highlighting
 )
 
-# Immediately load NVM to ensure node (and npm) are available on startup
+# Lazy load NVM for faster shell startup
 NVM_DIR="$HOME/.nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
-	source "$NVM_DIR/nvm.sh"
-fi
-
-# Optionally load NVM bash completion if needed
-if [ -s "$NVM_DIR/bash_completion" ]; then
-	source "$NVM_DIR/bash_completion"
+	export NVM_DIR="$HOME/.nvm"
+	
+	# Create a function to load NVM only once
+	load_nvm() {
+		# Remove this function and all placeholder functions
+		unset -f load_nvm nvm node npm npx yarn pnpm
+		
+		# Load NVM
+		source "$NVM_DIR/nvm.sh"
+		
+		# Load bash completion if available
+		[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
+		
+		# Return true so commands can be executed
+		return 0
+	}
+	
+	# Create placeholder functions for all Node-related commands
+	for cmd in nvm node npm npx yarn pnpm; do
+		# Create a function for each command
+		eval "$cmd() { 
+			# Load NVM first time any command is used
+			load_nvm
+			# Then execute the original command by using command to bypass the function
+			command $cmd \"\$@\"
+		}"
+	done
 fi
 
 # Load Oh My Zsh
