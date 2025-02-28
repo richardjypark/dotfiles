@@ -32,36 +32,43 @@ plugins=(
 	zsh-syntax-highlighting
 )
 
-# Lazy load NVM for faster shell startup
-NVM_DIR="$HOME/.nvm"
+# Set up NVM and Node-related commands
+export NVM_DIR="$HOME/.nvm"
+
+# Directly load NVM, Node and pnpm (no lazy loading)
 if [ -s "$NVM_DIR/nvm.sh" ]; then
-	export NVM_DIR="$HOME/.nvm"
-	
-	# Create a function to load NVM only once
-	load_nvm() {
-		# Remove this function and all placeholder functions
-		unset -f load_nvm nvm node npm npx yarn pnpm
-		
-		# Load NVM
-		source "$NVM_DIR/nvm.sh"
-		
-		# Load bash completion if available
-		[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
-		
-		# Return true so commands can be executed
-		return 0
-	}
-	
-	# Create placeholder functions for all Node-related commands
-	for cmd in nvm node npm npx yarn pnpm; do
-		# Create a function for each command
-		eval "$cmd() { 
-			# Load NVM first time any command is used
-			load_nvm
-			# Then execute the original command by using command to bypass the function
-			command $cmd \"\$@\"
-		}"
-	done
+    # Source NVM and load the default Node version
+    source "$NVM_DIR/nvm.sh"
+    
+    # Source bash completion if available
+    [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
+    
+    # Ensure node and pnpm are available immediately
+    if command -v node >/dev/null 2>&1; then
+        # Node is now directly available for use
+        NODE_VERSION=$(node --version)
+        echo "Node.js $NODE_VERSION is ready"
+    fi
+    
+    # Lazy load the remaining Node-related commands for faster shell startup
+    load_remaining_cmds() {
+        # Remove this function and all placeholder functions
+        unset -f load_remaining_cmds npm npx yarn
+        
+        # Return true so commands can be executed
+        return 0
+    }
+    
+    # Create placeholder functions for other Node-related commands (excluding node and pnpm)
+    for cmd in npm npx yarn; do
+        # Create a function for each command
+        eval "$cmd() { 
+            # Load remaining commands first time any is used
+            load_remaining_cmds
+            # Then execute the original command
+            command $cmd \"\$@\"
+        }"
+    done
 fi
 
 # Load Oh My Zsh
