@@ -44,51 +44,22 @@ fi
 # Function to check if global package needs to be installed/updated
 needs_package_update() {
     local package=$1
-    local desired_version=$2
     local current_version
-    
     if ! command -v "$package" >/dev/null 2>&1; then
         return 0 # Package not installed
     fi
-    
-    # For packages with version flag, check version
-    if [ -n "$desired_version" ]; then
-        current_version=$($package --version 2>/dev/null)
-        if [ "$current_version" != "$desired_version" ]; then
-            return 0 # Version mismatch, needs update
-        fi
-    fi
-    
-    return 1 # Up to date
+    return 1
 }
 
-# Install npm and yarn only if needed
+# Install global packages only if needed
 echo "Checking global npm packages..."
-for package in npm yarn; do
-    if needs_package_update "$package" ""; then
+for package in npm yarn pnpm; do
+    if needs_package_update "$package"; then
         echo "Installing/updating $package..."
         npm install -g "$package@latest" >/dev/null 2>&1
     else
         echo "$package is already installed"
     fi
 done
-
-# Ensure pnpm is installed and available
-echo "Setting up pnpm for immediate availability..."
-if needs_package_update "pnpm" ""; then
-    echo "Installing/updating pnpm..."
-    npm install -g pnpm@latest
-    
-    # Verify pnpm installation
-    if ! command -v pnpm >/dev/null 2>&1; then
-        echo "Warning: pnpm installation may have failed. Check manually."
-    else
-        pnpm_version=$(pnpm --version)
-        echo "Successfully installed pnpm version $pnpm_version"
-    fi
-else
-    pnpm_version=$(pnpm --version)
-    echo "pnpm version $pnpm_version is already installed"
-fi
 
 echo "Node.js setup is up to date!"
