@@ -67,6 +67,15 @@ fi
 # Load Oh My Zsh
 source "$ZSH/oh-my-zsh.sh"
 
+# Auto-start tmux
+if [[ -z "$TMUX" ]] && [[ ! -n "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
+    # Allow bypassing tmux by setting NOTMUX=1
+    if [[ -z "$NOTMUX" ]]; then
+        # Attempt to attach to existing session or create a new one
+        exec tmux new-session -A
+    fi
+fi
+
 # Enable vi mode keybindings
 bindkey -v
 
