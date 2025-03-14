@@ -32,6 +32,16 @@ plugins=(
 	zsh-syntax-highlighting
 )
 
+# Load Oh My Zsh
+source "$ZSH/oh-my-zsh.sh"
+
+# Enable vi mode keybindings
+bindkey -v
+
+# OCaml/opam configuration
+# This loads opam configuration and environment variables
+[[ ! -r "$HOME/.opam/opam-init/init.zsh" ]] || source "$HOME/.opam/opam-init/init.zsh" > /dev/null 2> /dev/null
+
 # Lazy load NVM for faster shell startup
 NVM_DIR="$HOME/.nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
@@ -64,10 +74,12 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
 	done
 fi
 
-# Load Oh My Zsh
-source "$ZSH/oh-my-zsh.sh"
+# Load additional shell configurations from your config directory.
+for conf in "$HOME/.config/shell/"*.sh; do
+	[ -f "$conf" ] && . "$conf"
+done
 
-# Auto-start tmux
+# Auto-start tmux (placed at the end to ensure all environment is set up first)
 if [[ -z "$TMUX" ]] && [[ ! -n "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
     # Allow bypassing tmux by setting NOTMUX=1
     if [[ -z "$NOTMUX" ]]; then
@@ -75,11 +87,3 @@ if [[ -z "$TMUX" ]] && [[ ! -n "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]
         exec tmux new-session -A
     fi
 fi
-
-# Enable vi mode keybindings
-bindkey -v
-
-# Load additional shell configurations from your config directory.
-for conf in "$HOME/.config/shell/"*.sh; do
-	[ -f "$conf" ] && . "$conf"
-done
