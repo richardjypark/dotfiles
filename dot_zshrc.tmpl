@@ -75,15 +75,6 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
 	done
 fi
 
-# asdf configuration
-if [ -d "$HOME/.asdf" ]; then
-	. "$HOME/.asdf/asdf.sh"
-	# Append completions to fpath
-	fpath=(${ASDF_DIR}/completions $fpath)
-	# Initialize completions
-	autoload -Uz compinit && compinit
-fi
-
 # Load additional shell configurations from your config directory.
 for conf in "$HOME/.config/shell/"*.sh; do
 	[ -f "$conf" ] && . "$conf"
