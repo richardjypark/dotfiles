@@ -53,4 +53,7 @@ This dotfiles configuration includes the following tools:
   - ssh-agent
 - **Node.js Environment**:
   - nvm (Node Version Manager)
+- **Elixir Environment**:
+  - asdf (version manager)
+  - Erlang & Elixir via asdf
 - **Terminal**: Ghostty
