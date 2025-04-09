@@ -42,10 +42,3 @@ url = "https://github.com/nvm-sh/nvm.git"
 exact = true
 refreshPeriod = "168h"
 clone.args = ["--depth=1"]
-
-[".asdf"]
-type = "git-repo"
-url = "https://github.com/asdf-vm/asdf.git"
-exact = true
-refreshPeriod = "168h"
-clone.args = ["--depth=1"]
