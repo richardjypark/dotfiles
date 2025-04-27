@@ -53,13 +53,15 @@ needs_package_update() {
 
 # Install global packages only if needed
 echo "Checking global npm packages..."
-for package in npm yarn pnpm; do
+# npm is installed with Node, only check for yarn and pnpm
+for package in yarn pnpm; do
     if needs_package_update "$package"; then
         echo "Installing/updating $package..."
+        # Use the npm managed by nvm
         npm install -g "$package@latest" >/dev/null 2>&1
     else
         echo "$package is already installed"
     fi
 done
 
-echo "Node.js setup is up to date!"
+echo "Node.js setup complete!"
