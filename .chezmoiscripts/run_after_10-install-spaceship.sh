@@ -28,10 +28,11 @@ if [ -z "$CHEZMOI" ] && command -v zsh >/dev/null 2>&1; then
     zsh -c "zcompile spaceship.zsh"
     zsh -c "for f in lib/*.zsh; do zcompile \$f; done"
 elif command -v zsh >/dev/null 2>&1; then
-    # When chezmoi is running this script, we still want to clean up any .zwc files
-    # but we won't regenerate them during the chezmoi apply process
+    # When chezmoi is running this script, clean up and compile theme files
     find "$SPACESHIP_ROOT" -name "*.zwc" -delete
-    echo "Note: Skipping zsh compilation during chezmoi apply to avoid tracking issues"
+    cd "$SPACESHIP_ROOT" || exit 1
+    zsh -c "zcompile spaceship.zsh"
+    zsh -c "for f in lib/*.zsh; do zcompile \$f; done"
 else
     echo "Warning: zsh not available for compilation"
 fi
