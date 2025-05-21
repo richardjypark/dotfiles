@@ -28,12 +28,10 @@ if [ "$CURRENT_NODE_VERSION" != "$NODE_VERSION" ]; then
     echo "Installing Node.js $NODE_VERSION..."
     nvm install "$NODE_VERSION"
     nvm alias default "$NODE_VERSION"
+    nvm use default
 else
     echo "Node.js $NODE_VERSION is already installed and set as default"
 fi
-
-# Use the default version
-nvm use default >/dev/null
 
 # Verify node is available
 if ! command -v node >/dev/null 2>&1; then
@@ -44,7 +42,6 @@ fi
 # Function to check if global package needs to be installed/updated
 needs_package_update() {
     local package=$1
-    local current_version
     if ! command -v "$package" >/dev/null 2>&1; then
         return 0 # Package not installed
     fi
@@ -58,10 +55,23 @@ for package in yarn pnpm; do
     if needs_package_update "$package"; then
         echo "Installing/updating $package..."
         # Use the npm managed by nvm
-        npm install -g "$package@latest" >/dev/null 2>&1
+        npm install -g "$package@latest"
     else
         echo "$package is already installed"
     fi
 done
 
-echo "Node.js setup complete!"
+# Create a simple test to verify everything is working
+echo "\nVerifying Node.js ecosystem installation:"
+echo "----------------------------------------"
+echo "Node.js version:    $(node -v)"
+echo "npm version:        $(npm -v)"
+if command -v yarn >/dev/null 2>&1; then
+    echo "Yarn version:       $(yarn -v)"
+fi
+if command -v pnpm >/dev/null 2>&1; then
+    echo "pnpm version:       $(pnpm -v)"
+fi
+echo "----------------------------------------"
+
+echo "\nNode.js setup complete! ✨"
