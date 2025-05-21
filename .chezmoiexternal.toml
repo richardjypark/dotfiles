@@ -35,6 +35,7 @@ url = "https://github.com/spaceship-prompt/spaceship-prompt/archive/master.tar.g
 exact = true
 stripComponents = 1
 refreshPeriod = "168h"
+exclude = ["**/*.zwc"]
 
 [".nvm"]
 type = "git-repo"
