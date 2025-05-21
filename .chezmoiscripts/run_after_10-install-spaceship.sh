@@ -17,11 +17,21 @@ ln -sf "$SPACESHIP_ZSH" "$SPACESHIP_THEME"
 
 echo "Compiling theme files..."
 
-# Compile the theme files if zsh is available
-if command -v zsh >/dev/null 2>&1; then
+# Only compile theme files if not running from chezmoi apply
+if [ -z "$CHEZMOI" ] && command -v zsh >/dev/null 2>&1; then
     cd "$SPACESHIP_ROOT" || exit 1
+    
+    # Remove any existing .zwc files first to ensure clean compilation
+    find "$SPACESHIP_ROOT" -name "*.zwc" -delete
+    
+    # Compile files
     zsh -c "zcompile spaceship.zsh"
     zsh -c "for f in lib/*.zsh; do zcompile \$f; done"
+elif command -v zsh >/dev/null 2>&1; then
+    # When chezmoi is running this script, we still want to clean up any .zwc files
+    # but we won't regenerate them during the chezmoi apply process
+    find "$SPACESHIP_ROOT" -name "*.zwc" -delete
+    echo "Note: Skipping zsh compilation during chezmoi apply to avoid tracking issues"
 else
     echo "Warning: zsh not available for compilation"
 fi
