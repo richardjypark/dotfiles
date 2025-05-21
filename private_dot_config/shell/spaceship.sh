@@ -20,9 +20,8 @@ if [ -d "$SPACESHIP_ROOT" ] && command -v zsh >/dev/null 2>&1; then
     if [ "$NEED_COMPILE" -eq 1 ]; then
         (
             cd "$SPACESHIP_ROOT" || return
-            # Compile in the background to avoid slowing down shell startup
             zsh -c "zcompile spaceship.zsh" >/dev/null 2>&1
             zsh -c "for f in lib/*.zsh; do zcompile \$f; done" >/dev/null 2>&1
-        ) &
+        ) &!
     fi
 fi 
