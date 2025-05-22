@@ -1,3 +1,4 @@
 README*
 # Ignore compiled zsh files for spaceship theme
 .oh-my-zsh/custom/themes/spaceship-prompt/**/*.zwc
+.oh-my-zsh/cache/completions
