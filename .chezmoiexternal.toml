@@ -4,7 +4,7 @@ url = "https://github.com/ohmyzsh/ohmyzsh/archive/master.tar.gz"
 exact = true
 stripComponents = 1
 refreshPeriod = "168h"
-exclude = ["*/.*", "*/templates", "*/themes/**", "*/custom/themes/**"]
+exclude = ["*/custom"]
 
 [".oh-my-zsh/custom/plugins/zsh-syntax-highlighting"]
 type = "archive"
@@ -22,20 +22,19 @@ stripComponents = 1
 refreshPeriod = "168h"
 exclude = ["*/.editorconfig", "*/.gitattributes", "*/.github", "*/.gitignore"]
 
+[".oh-my-zsh/custom/themes/powerlevel10k"]
+type = "git-repo"
+url = "https://github.com/romkatv/powerlevel10k.git"
+exact = true
+refreshPeriod = "168h"
+clone.args = ["--depth=1"]
+
 [".local/share/fzf"]
 type = "git-repo"
 url = "https://github.com/junegunn/fzf.git"
 exact = true
 refreshPeriod = "168h"
 clone.args = ["--depth=1"]
-
-[".oh-my-zsh/custom/themes/spaceship-prompt"]
-type = "archive"
-url = "https://github.com/spaceship-prompt/spaceship-prompt/archive/master.tar.gz"
-exact = true
-stripComponents = 1
-refreshPeriod = "168h"
-exclude = ["**/*.zwc"]
 
 [".nvm"]
 type = "git-repo"
