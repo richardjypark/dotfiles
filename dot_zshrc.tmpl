@@ -11,8 +11,8 @@ export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 # Path to your Oh My Zsh installation
 export ZSH="$HOME/.oh-my-zsh"
 
-# Theme - Using powerlevel10k (installed via chezmoi externals)
-ZSH_THEME="powerlevel10k/powerlevel10k"
+# Theme - Using agnoster (built-in Oh My Zsh theme)
+ZSH_THEME="agnoster"
 
 # Load zsh fixes before Oh My Zsh initialization
 [[ -f "$HOME/.config/shell/zsh-fix.sh" ]] && source "$HOME/.config/shell/zsh-fix.sh"
@@ -45,8 +45,9 @@ if [[ -d "$ZSH" ]]; then
 		unset _ifs_restore_needed
 	fi
 	
-	# Load Powerlevel10k configuration
-	[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+	# Load agnoster theme customizations
+	[[ -f "$HOME/.config/shell/agnoster-custom.sh" ]] && source "$HOME/.config/shell/agnoster-custom.sh"
+
 else
 	echo "Warning: Oh My Zsh not found at $ZSH"
 fi
