@@ -1,6 +1,5 @@
 [versions]
 fzf = "0.48.1"
-spaceship = "4.15.1"
 
 [update_schedule]
 check_interval = "168h" # Weekly
