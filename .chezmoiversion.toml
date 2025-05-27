@@ -1,6 +1,4 @@
 [versions]
-nvm = "0.39.7"
-node = "20.11.1"
 fzf = "0.48.1"
 spaceship = "4.15.1"
 
