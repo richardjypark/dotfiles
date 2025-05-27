@@ -44,7 +44,7 @@ This dotfiles configuration includes the following tools:
 - **Tmux Plugins**:
   - tmux-resurrect (session saving)
   - tmux-continuum (automatic session management)
-- **Theme**: Spaceship Prompt
+- **Theme**: Agnoster
 - **Zsh Plugins**:
   - zsh-syntax-highlighting
   - zsh-autosuggestions
