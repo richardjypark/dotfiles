@@ -1,2 +1,19 @@
-confirm-close-surface = false
+font-family = "Hack"
+font-size = 14
+
+# Window and Display
 theme = catppuccin-frappe
+background-opacity = 0.95
+alpha-blending = "native" 
+cursor-style = block
+cursor-opacity = 0.8
+
+# Terminal Behavior
+scrollback-limit = 10000
+confirm-close-surface = false
+mouse-hide-while-typing = true
+mouse-scroll-multiplier = 3.0
+
+# Terminal compatibility
+term = "xterm-256color"
+shell-integration = zsh 
