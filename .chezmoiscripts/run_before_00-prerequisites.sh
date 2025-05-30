@@ -1,12 +1,33 @@
 #!/bin/sh
 set -e
 
-echo "Checking prerequisites..."
+# Quiet mode by default - only essential output unless VERBOSE is set
+VERBOSE=${VERBOSE:-false}
+
+# Function to print only if verbose
+vecho() {
+    if [ "$VERBOSE" = "true" ]; then
+        echo "$@"
+    fi
+}
+
+# Function to print essential information always
+eecho() {
+    echo "$@"
+}
+
+vecho "Checking prerequisites..."
 
 # Function to check if a package is installed
 is_installed() {
     command -v "$1" >/dev/null 2>&1
 }
+
+# Fast exit if all essential tools are already available
+if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi; then
+    vecho "All essential prerequisites are already installed"
+    exit 0
+fi
 
 # Only attempt package installations if we have sudo rights
 if [ "$(id -u)" = 0 ] || is_installed sudo; then
@@ -20,26 +41,34 @@ if [ "$(id -u)" = 0 ] || is_installed sudo; then
 
     # Only run apt-get if we actually need packages
     if [ -n "$MISSING_PACKAGES" ]; then
-        echo "Installing missing packages:$MISSING_PACKAGES"
-        if [ "$(id -u)" = 0 ]; then
-            apt-get update
-            echo "$MISSING_PACKAGES" | xargs -n1 | xargs -P4 apt-get install -y
+        eecho "Installing missing packages:$MISSING_PACKAGES"
+        # Use apt-get only if it exists (Linux)
+        if command -v apt-get >/dev/null 2>&1; then
+            if [ "$(id -u)" = 0 ]; then
+                apt-get update -qq
+                echo "$MISSING_PACKAGES" | xargs -n1 | xargs -P4 apt-get install -y
+            else
+                sudo apt-get update -qq
+                echo "$MISSING_PACKAGES" | xargs -n1 | sudo xargs -P4 apt-get install -y
+            fi
+        elif command -v brew >/dev/null 2>&1; then
+            # macOS with Homebrew
+            echo "$MISSING_PACKAGES" | xargs -n1 | xargs -P4 brew install
         else
-            sudo apt-get update
-            echo "$MISSING_PACKAGES" | xargs -n1 | sudo xargs -P4 apt-get install -y
+            eecho "Warning: No supported package manager found. Please install packages manually."
         fi
     else
-        echo "All required packages are already installed"
+        vecho "All required packages are already installed"
     fi
 else
-    echo "Note: Skipping package installation (no root/sudo access)"
+    vecho "Note: Skipping package installation (no root/sudo access)"
 fi
 
 # Create directories if they don't exist (no root needed)
-for dir in "$HOME/.local/bin" "$HOME/.local/share" "$HOME/.oh-my-zsh/custom/themes" "$HOME/.oh-my-zsh/custom/plugins"; do
+for dir in "$HOME/.local/bin" "$HOME/.local/share"; do
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
-        echo "Created directory: $dir"
+        vecho "Created directory: $dir"
     fi
 done
 
@@ -47,29 +76,17 @@ done
 if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
     if ! grep -q '$HOME/.local/bin' "$HOME/.profile" 2>/dev/null; then
         echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$HOME/.profile"
-        echo "Added .local/bin to PATH"
+        vecho "Added .local/bin to PATH"
     fi
 fi
 
 # Install chezmoi only if not present
 if ! is_installed chezmoi; then
-    echo "Installing chezmoi..."
+    eecho "Installing chezmoi..."
     sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b "$HOME/.local/bin"
     export PATH="$HOME/.local/bin:$PATH"
 else
-    echo "chezmoi is already installed"
+    vecho "chezmoi is already installed"
 fi
 
-# Only change shell if not already zsh
-if [ "$SHELL" != "$(which zsh)" ] && is_installed zsh; then
-    echo "Changing default shell to zsh..."
-    if [ "$(id -u)" = 0 ]; then
-        chsh -s "$(which zsh)" "$(whoami)"
-    else
-        sudo chsh -s "$(which zsh)" "$(whoami)"
-    fi
-else
-    echo "Shell is already set to zsh"
-fi
-
-echo "Prerequisites check complete!"
+vecho "Prerequisites check complete!"

@@ -1,41 +1,70 @@
 #!/bin/sh
 set -e
 
+# Quiet mode by default
+VERBOSE=${VERBOSE:-false}
+vecho() { 
+    if [ "$VERBOSE" = "true" ]; then
+        echo "$@"
+    fi
+}
+eecho() { echo "$@"; }
+
 # Setup fzf
-echo "Setting up fzf..."
+vecho "Setting up fzf..."
 FZF_REPO_PATH="$HOME/.local/share/fzf"
 FZF_BIN_PATH="$HOME/.local/bin"
 FZF_TARGET="$FZF_BIN_PATH/fzf"
+
+# Fast exit if fzf is already properly installed
+if command -v fzf >/dev/null 2>&1 && [ -f "$FZF_TARGET" ]; then
+    vecho "fzf is already installed and configured"
+    exit 0
+fi
 
 # Create bin directory if it doesn't exist
 mkdir -p "$FZF_BIN_PATH"
 
 # Verify that chezmoi has properly cloned the repository
 if [ ! -d "$FZF_REPO_PATH" ] || [ ! -f "$FZF_REPO_PATH/install" ]; then
-    echo "Error: fzf repository not properly initialized at $FZF_REPO_PATH"
-    echo "This might indicate that chezmoi external file setup hasn't completed yet."
-    echo "Try running 'chezmoi apply --refresh-externals' first."
+    eecho "Error: fzf repository not properly initialized at $FZF_REPO_PATH"
+    eecho "This might indicate that chezmoi external file setup hasn't completed yet."
+    eecho "Try running 'chezmoi apply --refresh-externals' first."
     exit 1
 fi
 
 cd "$FZF_REPO_PATH" || exit 1
 
-# Install binary
-./install --bin
+# Install binary (suppress output unless verbose)
+if [ "$VERBOSE" = "true" ]; then
+    ./install --bin
+else
+    ./install --bin >/dev/null 2>&1
+fi
 
 # Create symlink if needed
 if [ ! -e "$FZF_TARGET" ]; then
     ln -s "$FZF_REPO_PATH/bin/fzf" "$FZF_TARGET"
 fi
 
-# Install shell integrations
-./install --key-bindings --completion --no-bash --no-fish --no-update-rc
+# Install shell integrations (only if not already done)
+if [ ! -f "$HOME/.fzf.zsh" ]; then
+    if [ "$VERBOSE" = "true" ]; then
+        ./install --key-bindings --completion --no-bash --no-fish --no-update-rc
+    else
+        ./install --key-bindings --completion --no-bash --no-fish --no-update-rc >/dev/null 2>&1
+    fi
+else
+    vecho "fzf shell integrations already installed"
+fi
 
 # Verify installation
 if ! command -v fzf >/dev/null 2>&1; then
-    echo "Error: fzf installation failed"
+    eecho "Error: fzf installation failed"
     exit 1
 fi
 
-FZF_VERSION=$(fzf --version)
-echo "fzf setup complete! Version: $FZF_VERSION"
+if [ "$VERBOSE" = "true" ]; then
+    FZF_VERSION=$(fzf --version)
+    vecho "fzf setup complete! Version: $FZF_VERSION"
+fi
