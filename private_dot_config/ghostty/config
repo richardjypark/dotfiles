@@ -2,7 +2,8 @@ font-family = "Hack"
 font-size = 14
 
 # Window and Display
-theme = catppuccin-frappe
+# theme = catppuccin-frappe
+theme = GruvboxDarkHard
 background-opacity = 0.95
 alpha-blending = "native" 
 cursor-style = block
