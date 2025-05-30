@@ -1,8 +1,17 @@
 #!/bin/sh
 set -e
 
+# Quiet mode by default
+VERBOSE=${VERBOSE:-false}
+vecho() { 
+    if [ "$VERBOSE" = "true" ]; then
+        echo "$@"
+    fi
+}
+eecho() { echo "$@"; }
+
 # Setup Node.js via NVM
-echo "Setting up Node.js via NVM..."
+vecho "Setting up Node.js via NVM..."
 NVM_DIR="$HOME/.nvm"
 
 # Use chezmoi template syntax with proper spacing
@@ -11,11 +20,44 @@ NVM_VERSION="{{ .version }}"
 NODE_VERSION="{{ .nodeVersion }}"
 {{- end }}
 
+# Fast exit if Node.js is already properly set up
+if [ -f "$NVM_DIR/nvm.sh" ] && command -v node >/dev/null 2>&1; then
+    . "$NVM_DIR/nvm.sh" >/dev/null 2>&1
+    CURRENT_NODE_VERSION=$(nvm current 2>/dev/null || echo "none")
+    
+    # Handle LTS version comparison
+    if [ "$NODE_VERSION" = "lts/*" ]; then
+        # For LTS, check if current version is an LTS version (even numbers)
+        if echo "$CURRENT_NODE_VERSION" | grep -q "^v[0-9]*[02468]\." && [ "$CURRENT_NODE_VERSION" != "none" ]; then
+            NODE_SETUP_COMPLETE=true
+        else
+            NODE_SETUP_COMPLETE=false
+        fi
+    else
+        # For specific versions, do exact match
+        if [ "$CURRENT_NODE_VERSION" = "$NODE_VERSION" ]; then
+            NODE_SETUP_COMPLETE=true
+        else
+            NODE_SETUP_COMPLETE=false
+        fi
+    fi
+    
+    if [ "$NODE_SETUP_COMPLETE" = "true" ]; then
+        # Quick check for global packages
+        if command -v yarn >/dev/null 2>&1 && command -v pnpm >/dev/null 2>&1; then
+            vecho "Node.js and packages are already installed and configured"
+            exit 0
+        else
+            vecho "Node.js is installed, checking global packages..."
+        fi
+    fi
+fi
+
 # Verify that chezmoi has properly cloned the repository
 if [ ! -d "$NVM_DIR" ] || [ ! -f "$NVM_DIR/nvm.sh" ]; then
-    echo "Error: NVM repository not properly initialized at $NVM_DIR"
-    echo "This might indicate that chezmoi external file setup hasn't completed yet."
-    echo "Try running 'chezmoi apply --refresh-externals' first."
+    eecho "Error: NVM repository not properly initialized at $NVM_DIR"
+    eecho "This might indicate that chezmoi external file setup hasn't completed yet."
+    eecho "Try running 'chezmoi apply --refresh-externals' first."
     exit 1
 fi
 
@@ -24,18 +66,39 @@ fi
 
 # Check if the correct Node version is already installed and set as default
 CURRENT_NODE_VERSION=$(nvm current 2>/dev/null || echo "none")
-if [ "$CURRENT_NODE_VERSION" != "$NODE_VERSION" ]; then
-    echo "Installing Node.js $NODE_VERSION..."
-    nvm install "$NODE_VERSION"
-    nvm alias default "$NODE_VERSION"
-    nvm use default
+
+# Determine if we need to install/switch Node version
+NEED_NODE_INSTALL=false
+if [ "$NODE_VERSION" = "lts/*" ]; then
+    # For LTS, check if current version is an LTS version
+    if ! echo "$CURRENT_NODE_VERSION" | grep -q "^v[0-9]*[02468]\." || [ "$CURRENT_NODE_VERSION" = "none" ]; then
+        NEED_NODE_INSTALL=true
+    fi
 else
-    echo "Node.js $NODE_VERSION is already installed and set as default"
+    # For specific versions, do exact match
+    if [ "$CURRENT_NODE_VERSION" != "$NODE_VERSION" ]; then
+        NEED_NODE_INSTALL=true
+    fi
+fi
+
+if [ "$NEED_NODE_INSTALL" = "true" ]; then
+    eecho "Installing Node.js $NODE_VERSION..."
+    if [ "$VERBOSE" = "true" ]; then
+        nvm install "$NODE_VERSION"
+        nvm alias default "$NODE_VERSION"
+        nvm use default
+    else
+        nvm install "$NODE_VERSION" >/dev/null 2>&1
+        nvm alias default "$NODE_VERSION" >/dev/null 2>&1
+        nvm use default >/dev/null 2>&1
+    fi
+else
+    vecho "Node.js $CURRENT_NODE_VERSION is already installed and set as default"
 fi
 
 # Verify node is available
 if ! command -v node >/dev/null 2>&1; then
-    echo "Error: Node.js installation failed"
+    eecho "Error: Node.js installation failed"
     exit 1
 fi
 
@@ -49,29 +112,38 @@ needs_package_update() {
 }
 
 # Install global packages only if needed
-echo "Checking global npm packages..."
-# npm is installed with Node, only check for yarn and pnpm
+vecho "Checking global npm packages..."
+PACKAGES_TO_INSTALL=""
 for package in yarn pnpm; do
     if needs_package_update "$package"; then
-        echo "Installing/updating $package..."
-        # Use the npm managed by nvm
-        npm install -g "$package@latest"
+        PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $package"
     else
-        echo "$package is already installed"
+        vecho "$package is already installed"
     fi
 done
 
-# Create a simple test to verify everything is working
-echo "\nVerifying Node.js ecosystem installation:"
-echo "----------------------------------------"
-echo "Node.js version:    $(node -v)"
-echo "npm version:        $(npm -v)"
-if command -v yarn >/dev/null 2>&1; then
-    echo "Yarn version:       $(yarn -v)"
+# Install all missing packages in one go
+if [ -n "$PACKAGES_TO_INSTALL" ]; then
+    eecho "Installing packages:$PACKAGES_TO_INSTALL"
+    if [ "$VERBOSE" = "true" ]; then
+        npm install -g $PACKAGES_TO_INSTALL
+    else
+        npm install -g $PACKAGES_TO_INSTALL >/dev/null 2>&1
+    fi
 fi
-if command -v pnpm >/dev/null 2>&1; then
-    echo "pnpm version:       $(pnpm -v)"
-fi
-echo "----------------------------------------"
 
-echo "\nNode.js setup complete! ✨"
+# Create a simple test to verify everything is working (only if verbose)
+if [ "$VERBOSE" = "true" ]; then
+    echo "\nVerifying Node.js ecosystem installation:"
+    echo "----------------------------------------"
+    echo "Node.js version:    $(node -v)"
+    echo "npm version:        $(npm -v)"
+    if command -v yarn >/dev/null 2>&1; then
+        echo "Yarn version:       $(yarn -v)"
+    fi
+    if command -v pnpm >/dev/null 2>&1; then
+        echo "pnpm version:       $(pnpm -v)"
+    fi
+    echo "----------------------------------------"
+    echo "\nNode.js setup complete! ✨"
+fi
