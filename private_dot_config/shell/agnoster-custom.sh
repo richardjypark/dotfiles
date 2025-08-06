@@ -35,6 +35,16 @@ prompt_context() {
 # You can customize this to your preferred username
 export DEFAULT_USER="user"
 
+# Inline virtualenv segment that appears after the path segment
+env_inline() {
+  if [[ -n "$VIRTUAL_ENV" ]]; then
+    local envname="${${VIRTUAL_ENV:t}#.}"
+    # Space-prefixed, magenta colored, with snake emoji and wrapped in parentheses
+    echo " %{%F{magenta}%}🐍(${envname})%{%f%}"
+  fi
+}
+
+
 # Override the agnoster theme's prompt_context function after Oh My Zsh loads
 # This ensures our custom function takes precedence
 if [[ "$ZSH_THEME" == "agnoster" ]]; then
@@ -49,11 +59,18 @@ if [[ "$ZSH_THEME" == "agnoster" ]]; then
       true
     fi
     
-    # Override the PROMPT to add a newline before the cursor
+    # Override the PROMPT to add env name inline (after path) and a newline before the cursor
     if typeset -f build_prompt >/dev/null 2>&1; then
-      PROMPT='%{%f%b%k%}$(build_prompt)
+      PROMPT='%{%f%b%k%}$(build_prompt)$(env_inline)
 %{%F{blue}%}❯%{%f%} '
     fi
+
+    # Disable the original left-hand virtualenv segment from agnoster
+    prompt_virtualenv() { : }
+
+    # No right prompt for virtualenv anymore
+    RPROMPT=''
+
   }
   
   # Apply customization when the prompt is first set up
