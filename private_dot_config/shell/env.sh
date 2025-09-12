@@ -16,3 +16,8 @@ alias terminfo='echo "➜ echo \$TERM" && echo $TERM'
 ssh() {
     TERM=xterm-256color command ssh "$@"
 }
+
+# Java (Homebrew OpenJDK 17)
+if [[ -d "/opt/homebrew/opt/openjdk@17" ]]; then
+  export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
+fi
