@@ -1,11 +1,10 @@
-font-family = "Hack"
+# Font
+font-family = Hack
 font-size = 14
 
 # Window and Display
-# theme = catppuccin-frappe
-theme = GruvboxDarkHard
+theme = Catppuccin Frappe
 background-opacity = 0.95
-alpha-blending = "native" 
 cursor-style = block
 cursor-opacity = 0.8
 
@@ -15,5 +14,5 @@ confirm-close-surface = false
 mouse-hide-while-typing = true
 
 # Terminal compatibility
-term = "xterm-256color"
-shell-integration = zsh 
+term = xterm-256color
+shell-integration = zsh
