@@ -30,8 +30,7 @@ clear_setup_state() {
     rm -f "$STATE_DIR/$1.done"
 }
 
-# Export functions for use in other scripts
-export -f is_setup_complete mark_setup_complete clear_setup_state
+# Export environment variables for use in other scripts
 export STATE_DIR
 
 vecho "State tracking initialized in $STATE_DIR" 
