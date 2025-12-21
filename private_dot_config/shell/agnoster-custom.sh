@@ -10,9 +10,16 @@
 prompt_context() {
   # Always show the context with generic names (remove the DEFAULT_USER check)
   # Determine generic username and hostname
-  local generic_user="user"
+  local generic_user
   local generic_host
-  
+
+  # Check if current user is root - hide user if root, show actual user otherwise
+  if [[ "$USER" == "root" ]] || [[ "$EUID" -eq 0 ]]; then
+    generic_user=""  # Hide user for root
+  else
+    generic_user="$USER"  # Show actual username for non-root users
+  fi
+
   if [[ -n "$SSH_CLIENT" ]] || [[ -n "$SSH_TTY" ]] || [[ -n "$SSH_CONNECTION" ]]; then
     # Remote connection - use server1, server2, etc. based on actual hostname hash
     local host_hash=$(echo "$HOSTNAME" | md5sum 2>/dev/null | cut -c1-1 || echo "1")
@@ -26,9 +33,17 @@ prompt_context() {
     # Local connection - use localhost
     generic_host="localhost"
   fi
-  
-  # Display generic_user@generic_host with agnoster styling
-  prompt_segment "${AGNOSTER_CONTEXT_BG:-black}" "${AGNOSTER_CONTEXT_FG:-default}" "%(!.%{%F{${AGNOSTER_STATUS_ROOT_FG:-yellow}}%}.)$generic_user@$generic_host"
+
+  # Display user@host or just host if user is root
+  local display_text
+  if [[ -n "$generic_user" ]]; then
+    display_text="$generic_user@$generic_host"
+  else
+    display_text="$generic_host"
+  fi
+
+  # Display with agnoster styling, highlight in yellow if root
+  prompt_segment "${AGNOSTER_CONTEXT_BG:-black}" "${AGNOSTER_CONTEXT_FG:-default}" "%(!.%{%F{${AGNOSTER_STATUS_ROOT_FG:-yellow}}%}.)$display_text"
 }
 
 # Set a default user to hide username when it matches
