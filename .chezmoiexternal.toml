@@ -28,7 +28,8 @@ type = "git-repo"
 url = "https://github.com/junegunn/fzf.git"
 exact = true
 refreshPeriod = "168h"
-clone.args = ["--depth=1"]
+clone.args = ["--depth=1", "--branch", "v0.57.0"]
+pull.args = ["--ff-only"]
 
 [".nvm"]
 type = "archive"

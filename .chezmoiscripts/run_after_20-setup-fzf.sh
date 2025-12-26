@@ -16,8 +16,20 @@ FZF_REPO_PATH="$HOME/.local/share/fzf"
 FZF_BIN_PATH="$HOME/.local/bin"
 FZF_TARGET="$FZF_BIN_PATH/fzf"
 
-# Fast exit if fzf is already properly installed
-if command -v fzf >/dev/null 2>&1 && [ -f "$FZF_TARGET" ]; then
+# Check if fzf needs reinstalling (version mismatch or missing)
+NEEDS_INSTALL=false
+if ! command -v fzf >/dev/null 2>&1 || [ ! -f "$FZF_TARGET" ]; then
+    NEEDS_INSTALL=true
+elif [ -f "$FZF_REPO_PATH/version.txt" ]; then
+    REPO_VERSION=$(head -1 "$FZF_REPO_PATH/version.txt" 2>/dev/null || echo "")
+    INSTALLED_VERSION=$(fzf --version 2>/dev/null | awk '{print $1}')
+    if [ "$REPO_VERSION" != "$INSTALLED_VERSION" ]; then
+        vecho "Version mismatch: repo=$REPO_VERSION installed=$INSTALLED_VERSION"
+        NEEDS_INSTALL=true
+    fi
+fi
+
+if [ "$NEEDS_INSTALL" = "false" ]; then
     vecho "fzf is already installed and configured"
     exit 0
 fi
@@ -42,10 +54,9 @@ else
     ./install --bin >/dev/null 2>&1
 fi
 
-# Create symlink if needed
-if [ ! -e "$FZF_TARGET" ]; then
-    ln -s "$FZF_REPO_PATH/bin/fzf" "$FZF_TARGET"
-fi
+# Create or update symlink
+rm -f "$FZF_TARGET"
+ln -s "$FZF_REPO_PATH/bin/fzf" "$FZF_TARGET"
 
 # Shell integrations are loaded directly from $FZF_BASE/shell/ in fzf.sh
 vecho "fzf shell integrations loaded from repository files"
