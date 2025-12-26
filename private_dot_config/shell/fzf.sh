@@ -31,10 +31,10 @@ rgf() {
       --preview-window 'up,60%,border-bottom,+{2}+3/3,~3'
 }
 export FZF_DEFAULT_OPTS="
-  --height 80% 
-  --layout reverse 
-  --border 
-  --preview-window 'right,50%,border-left' 
+  --height=~80%
+  --layout=reverse
+  --border
+  --preview-window 'right,50%,border-left'
   --bind 'ctrl-/:toggle-preview'
 "
 
