@@ -6,6 +6,7 @@ nodeVersion = "lts/*" # Specifies which Node.js version to install (lts/* is rec
 
 # Python configuration
 [python]
+version = "3.12"  # Python version to install via uv (can be "3.12", "3.11", "latest", etc.)
 # uv is installed via the official installer (https://astral.sh/uv)
 # Provides fast Python package management
 
