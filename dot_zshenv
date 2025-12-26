@@ -3,7 +3,7 @@
 
 # Load NVM for all shell contexts
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" --no-use
 
 # Bun
 export BUN_INSTALL="$HOME/.bun"

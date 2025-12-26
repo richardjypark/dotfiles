@@ -1,5 +1,7 @@
-#!/bin/sh
-# FZF configuration
+#!/bin/zsh
+# FZF configuration - zsh only
+[ -n "$ZSH_VERSION" ] || return
+
 export FZF_BASE="$HOME/.local/share/fzf"
 
 # Interactive ripgrep with file preview and vim integration
@@ -36,4 +38,6 @@ export FZF_DEFAULT_OPTS="
   --bind 'ctrl-/:toggle-preview'
 "
 
-source <(fzf --zsh)
+# Load fzf shell integrations from installed files (more portable than process substitution)
+[ -f "$FZF_BASE/shell/key-bindings.zsh" ] && source "$FZF_BASE/shell/key-bindings.zsh"
+[ -f "$FZF_BASE/shell/completion.zsh" ] && source "$FZF_BASE/shell/completion.zsh"
