@@ -31,8 +31,8 @@ refreshPeriod = "168h"
 clone.args = ["--depth=1"]
 
 [".nvm"]
-type = "git-repo"
-url = "https://github.com/nvm-sh/nvm.git"
+type = "archive"
+url = "https://github.com/nvm-sh/nvm/archive/v0.40.3.tar.gz"
 exact = true
+stripComponents = 1
 refreshPeriod = "168h"
-clone.args = ["--depth=1"]
