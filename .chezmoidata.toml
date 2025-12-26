@@ -3,3 +3,12 @@
 [nvm]
 version = "v0.39.7"   # Pins NVM to a specific version
 nodeVersion = "lts/*" # Specifies which Node.js version to install (lts/* is recommended for stability)
+
+# Python configuration
+[python]
+# uv is installed via the official installer (https://astral.sh/uv)
+# Provides fast Python package management
+
+# Global npm packages installed alongside Node.js
+[npm]
+packages = ["yarn", "pnpm", "@anthropic-ai/claude-code"]

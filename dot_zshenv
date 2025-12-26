@@ -12,3 +12,7 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 # Cargo/Rust
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 
+# uv (Python package manager) - adds ~/.local/bin to PATH
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
+
+

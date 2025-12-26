@@ -25,6 +25,15 @@ if command -v tmux &> /dev/null && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; t
     exit 0
 fi
 
+# Helper function to run commands with sudo if needed
+run_privileged() {
+    if [ "$(id -u)" = 0 ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
 # Check if tmux is installed
 if ! command -v tmux &> /dev/null; then
     eecho "Installing tmux..."
@@ -41,12 +50,18 @@ if ! command -v tmux &> /dev/null; then
         fi
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
         if command -v apt-get &> /dev/null; then
-            sudo apt-get update -qq
-            sudo apt-get install -y tmux
+            run_privileged apt-get update -qq
+            run_privileged apt-get install -y -qq tmux
         elif command -v dnf &> /dev/null; then
-            sudo dnf install -y tmux
+            run_privileged dnf install -y -q tmux
+        elif command -v yum &> /dev/null; then
+            run_privileged yum install -y -q tmux
         elif command -v pacman &> /dev/null; then
-            sudo pacman -S --noconfirm tmux
+            run_privileged pacman -S --noconfirm --quiet tmux
+        elif command -v zypper &> /dev/null; then
+            run_privileged zypper install -y -q tmux
+        elif command -v apk &> /dev/null; then
+            run_privileged apk add --quiet tmux
         else
             eecho "Unsupported Linux distribution. Please install tmux manually."
             exit 1
