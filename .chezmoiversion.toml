@@ -1,5 +1,5 @@
 [versions]
-fzf = "0.57.0"
+fzf = "0.67.0"
 
 [update_schedule]
 check_interval = "168h" # Weekly
