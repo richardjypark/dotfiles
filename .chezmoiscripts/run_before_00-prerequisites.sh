@@ -29,6 +29,15 @@ if is_installed zsh && is_installed git && is_installed curl && is_installed che
     exit 0
 fi
 
+# Helper function to run commands with sudo if needed
+run_privileged() {
+    if [ "$(id -u)" = 0 ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
 # Only attempt package installations if we have sudo rights
 if [ "$(id -u)" = 0 ] || is_installed sudo; then
     # Check if essential packages are missing
@@ -39,23 +48,43 @@ if [ "$(id -u)" = 0 ] || is_installed sudo; then
         fi
     done
 
-    # Only run apt-get if we actually need packages
+    # Only install if we actually need packages
     if [ -n "$MISSING_PACKAGES" ]; then
         eecho "Installing missing packages:$MISSING_PACKAGES"
-        # Use apt-get only if it exists (Linux)
+
         if command -v apt-get >/dev/null 2>&1; then
-            if [ "$(id -u)" = 0 ]; then
-                apt-get update -qq
-                echo "$MISSING_PACKAGES" | xargs -n1 | xargs -P4 apt-get install -y
-            else
-                sudo apt-get update -qq
-                echo "$MISSING_PACKAGES" | xargs -n1 | sudo xargs -P4 apt-get install -y
-            fi
+            # Debian/Ubuntu
+            run_privileged apt-get update -qq
+            for pkg in $MISSING_PACKAGES; do
+                run_privileged apt-get install -y -qq "$pkg"
+            done
+        elif command -v dnf >/dev/null 2>&1; then
+            # Fedora/RHEL/CentOS
+            for pkg in $MISSING_PACKAGES; do
+                run_privileged dnf install -y -q "$pkg"
+            done
+        elif command -v yum >/dev/null 2>&1; then
+            # Older RHEL/CentOS
+            for pkg in $MISSING_PACKAGES; do
+                run_privileged yum install -y -q "$pkg"
+            done
+        elif command -v pacman >/dev/null 2>&1; then
+            # Arch Linux
+            run_privileged pacman -Sy --noconfirm --quiet $MISSING_PACKAGES
+        elif command -v zypper >/dev/null 2>&1; then
+            # openSUSE
+            run_privileged zypper install -y -q $MISSING_PACKAGES
+        elif command -v apk >/dev/null 2>&1; then
+            # Alpine Linux
+            run_privileged apk add --quiet $MISSING_PACKAGES
         elif command -v brew >/dev/null 2>&1; then
             # macOS with Homebrew
-            echo "$MISSING_PACKAGES" | xargs -n1 | xargs -P4 brew install
+            for pkg in $MISSING_PACKAGES; do
+                brew install --quiet "$pkg"
+            done
         else
-            eecho "Warning: No supported package manager found. Please install packages manually."
+            eecho "Warning: No supported package manager found. Please install packages manually:"
+            eecho "  $MISSING_PACKAGES"
         fi
     else
         vecho "All required packages are already installed"
