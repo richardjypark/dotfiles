@@ -1,0 +1,77 @@
+#!/bin/sh
+set -e
+
+# Quiet mode by default
+VERBOSE=${VERBOSE:-false}
+vecho() {
+    if [ "$VERBOSE" = "true" ]; then
+        echo "$@"
+    fi
+}
+eecho() { echo "$@"; }
+
+vecho "Setting up uv (Python package manager)..."
+
+UV_DIR="$HOME/.local/bin"
+
+# Use chezmoi template syntax to read Python version
+{{- with .python }}
+PYTHON_VERSION="{{ .version }}"
+{{- else }}
+PYTHON_VERSION="3.12"
+{{- end }}
+
+# Check if uv is already installed
+if command -v uv >/dev/null 2>&1; then
+    vecho "uv is already installed: $(uv --version)"
+else
+    # Ensure .local/bin exists
+    mkdir -p "$UV_DIR"
+
+    # Install uv using the official installer
+    eecho "Installing uv..."
+    if [ "$VERBOSE" = "true" ]; then
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+    else
+        curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1
+    fi
+
+    # Verify installation
+    if command -v uv >/dev/null 2>&1 || [ -x "$UV_DIR/uv" ]; then
+        if [ "$VERBOSE" = "true" ]; then
+            echo "uv installed successfully: $(uv --version 2>/dev/null || $UV_DIR/uv --version)"
+        fi
+    else
+        eecho "Warning: uv installation may have failed. Check manually."
+        exit 1
+    fi
+fi
+
+# Ensure uv is in PATH
+export PATH="$HOME/.local/bin:$PATH"
+
+# Check if Python is already installed via uv
+if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
+    vecho "Python $PYTHON_VERSION is already installed via uv"
+    exit 0
+fi
+
+# Install Python via uv
+vecho "Installing Python $PYTHON_VERSION via uv..."
+if [ "$VERBOSE" = "true" ]; then
+    uv python install "$PYTHON_VERSION"
+else
+    uv python install "$PYTHON_VERSION" >/dev/null 2>&1
+fi
+
+# Verify Python installation
+if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
+    if [ "$VERBOSE" = "true" ]; then
+        echo "Python $PYTHON_VERSION installed successfully via uv"
+        uv python list
+    fi
+else
+    eecho "Warning: Python $PYTHON_VERSION installation may have failed. Check manually."
+fi
+
+vecho "uv and Python setup complete!"
