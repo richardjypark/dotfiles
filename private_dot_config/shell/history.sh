@@ -1,4 +1,7 @@
-#!/bin/sh
+#!/bin/zsh
+# History configuration - zsh only
+[ -n "$ZSH_VERSION" ] || return
+
 # History file configuration
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=50000                  # Maximum events for internal history

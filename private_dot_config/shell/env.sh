@@ -3,11 +3,7 @@
 export LANG=en_US.UTF-8
 
 # Editor settings
-if [[ -n $SSH_CONNECTION ]]; then
-  export EDITOR='vim'
-else
-  export EDITOR='vim'
-fi
+export EDITOR='vim'
 
 # Terminal settings
 alias terminfo='echo "➜ echo \$TERM" && echo $TERM'

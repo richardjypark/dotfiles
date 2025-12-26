@@ -47,16 +47,8 @@ if [ ! -e "$FZF_TARGET" ]; then
     ln -s "$FZF_REPO_PATH/bin/fzf" "$FZF_TARGET"
 fi
 
-# Install shell integrations (only if not already done)
-if [ ! -f "$HOME/.fzf.zsh" ]; then
-    if [ "$VERBOSE" = "true" ]; then
-        ./install --key-bindings --completion --no-bash --no-fish --no-update-rc
-    else
-        ./install --key-bindings --completion --no-bash --no-fish --no-update-rc >/dev/null 2>&1
-    fi
-else
-    vecho "fzf shell integrations already installed"
-fi
+# Shell integrations are loaded directly from $FZF_BASE/shell/ in fzf.sh
+vecho "fzf shell integrations loaded from repository files"
 
 # Verify installation
 if ! command -v fzf >/dev/null 2>&1; then

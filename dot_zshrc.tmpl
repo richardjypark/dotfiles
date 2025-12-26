@@ -85,5 +85,12 @@ fi
 # bun completions (bun PATH is set in ~/.zshenv)
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
-# uv completions (uv is set up in ~/.zshenv)
-command -v uv >/dev/null 2>&1 && eval "$(uv generate-shell-completion zsh)"
+# uv completions (uv is set up in ~/.zshenv) - cached for performance
+if command -v uv >/dev/null 2>&1; then
+    local uv_comp="$HOME/.cache/uv-completion.zsh"
+    if [[ ! -f "$uv_comp" ]] || [[ "$(command -v uv)" -nt "$uv_comp" ]]; then
+        mkdir -p "$HOME/.cache"
+        uv generate-shell-completion zsh > "$uv_comp"
+    fi
+    source "$uv_comp"
+fi
