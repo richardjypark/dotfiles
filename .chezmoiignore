@@ -2,3 +2,5 @@ README*
 # Ignore compiled zsh files
 *.zwc
 .oh-my-zsh/cache/*
+
+.jj/
