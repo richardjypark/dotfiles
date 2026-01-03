@@ -89,6 +89,9 @@ This dotfiles configuration includes the following tools:
   - terraform
 - **Node.js Environment**:
   - nvm (Node Version Manager)
+- **AI Coding Agents**:
+  - Claude Code (@anthropic-ai/claude-code)
+  - OpenCode AI (opencode-ai)
 - **Terminal**: Ghostty
 
 ## Applying Changes and Testing Plugins

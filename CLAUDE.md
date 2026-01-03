@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a chezmoi-managed dotfiles repository optimized for performance with sophisticated state tracking and external resource management. The dotfiles configure Zsh with Oh My Zsh, Tmux with session persistence, and development tools (Node.js via NVM, Python via uv, fzf).
+This is a chezmoi-managed dotfiles repository optimized for performance with sophisticated state tracking and external resource management. The dotfiles configure Zsh with Oh My Zsh, Tmux with session persistence, and development tools (Node.js via NVM, Python via uv, fzf, OpenCode, Claude Code).
 
 ## Core Architecture
 
@@ -76,8 +76,9 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
 6. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
 7. `run_after_30-change-shell.sh` - Change default shell to zsh
 8. `run_after_35-setup-claude-code.sh` - Install Claude Code
-9. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
-10. `run_after_99-performance-summary.sh` - Show performance summary
+9. `run_after_36-setup-opencode.sh` - Install OpenCode AI coding agent
+10. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
+11. `run_after_99-performance-summary.sh` - Show performance summary
 
 **Script Patterns:**
 - Early exit if task already completed
