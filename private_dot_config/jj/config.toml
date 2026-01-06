@@ -23,7 +23,7 @@ auto-track-bookmarks = "glob:*"
 
 [revset-aliases]
 # Useful revset shortcuts
-"trunk()" = "latest(main@origin | master@origin)"
+"trunk()" = "latest(present(main@origin) | present(master@origin))"
 "mine" = "author(exact:'rich')"
 "wip" = "description(glob:'wip*')"
 
