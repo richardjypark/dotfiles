@@ -1,6 +1,9 @@
 # ~/.zshenv - Loaded for ALL shells (interactive and non-interactive)
 # This ensures Node.js tools (npm, pnpm, node) are available in IDE terminals
 
+# Ensure ~/.local/bin is in PATH for tools like jj, uv, etc.
+export PATH="$HOME/.local/bin:$PATH"
+
 # Load NVM for all shell contexts
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" --no-use
@@ -12,10 +15,5 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 # Cargo/Rust
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 
-# uv (Python package manager) - adds ~/.local/bin to PATH
+# uv (Python package manager) - may set additional variables
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
-
-
-
-
-
