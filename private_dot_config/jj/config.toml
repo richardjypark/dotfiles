@@ -8,7 +8,37 @@ name = "rich"
 default-command = "log"
 # Always use color
 color = "auto"
+# Use pager for long output
+pager = "less -FRX"
+# Editor for commit messages
+editor = "vim"
 
 [git]
 # Push all bookmarks by default
 push-all-bookmarks = false
+
+[remotes.origin]
+# Auto-track all bookmarks from origin
+auto-track-bookmarks = "glob:*"
+
+[revset-aliases]
+# Useful revset shortcuts
+"trunk()" = "latest(main@origin | master@origin)"
+"mine" = "author(exact:'rich')"
+"wip" = "description(glob:'wip*')"
+
+[aliases]
+# Common workflow shortcuts
+l = ["log", "-r", "@::"]
+la = ["log", "-r", "all()"]
+ll = ["log", "--limit", "20"]
+s = ["status"]
+d = ["diff"]
+ds = ["diff", "--stat"]
+c = ["commit"]
+n = ["new"]
+e = ["edit"]
+sq = ["squash"]
+push = ["git", "push"]
+fetch = ["git", "fetch"]
+sync = ["git", "fetch", "--all-remotes"]
