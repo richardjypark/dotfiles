@@ -78,7 +78,9 @@ install_via_binary() {
     LATEST_VERSION=$(curl -sL https://api.github.com/repos/jj-vcs/jj/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
 
     if [ -z "$LATEST_VERSION" ]; then
-        eecho "Warning: Could not determine latest jj version"
+        eecho "Error: Could not determine latest jj version from GitHub API"
+        eecho "  This may be due to rate limiting or network issues"
+        eecho "  Try: curl -sL https://api.github.com/repos/jj-vcs/jj/releases/latest | grep tag_name"
         return 1
     fi
 
@@ -95,7 +97,7 @@ install_via_binary() {
                     BINARY_NAME="jj-v${LATEST_VERSION}-aarch64-unknown-linux-musl.tar.gz"
                     ;;
                 *)
-                    eecho "Warning: Unsupported architecture: $ARCH"
+                    eecho "Error: Unsupported Linux architecture: $ARCH"
                     return 1
                     ;;
             esac
@@ -109,13 +111,13 @@ install_via_binary() {
                     BINARY_NAME="jj-v${LATEST_VERSION}-aarch64-apple-darwin.tar.gz"
                     ;;
                 *)
-                    eecho "Warning: Unsupported architecture: $ARCH"
+                    eecho "Error: Unsupported macOS architecture: $ARCH"
                     return 1
                     ;;
             esac
             ;;
         *)
-            eecho "Warning: Unsupported OS: $OS"
+            eecho "Error: Unsupported OS: $OS (expected Linux or Darwin)"
             return 1
             ;;
     esac
@@ -147,7 +149,9 @@ install_via_binary() {
                 mv "$JJ_BIN" "$INSTALL_DIR/jj"
                 chmod +x "$INSTALL_DIR/jj"
             else
-                eecho "Warning: Could not find jj binary in downloaded archive"
+                eecho "Error: Could not find jj binary in downloaded archive"
+                eecho "  Archive contents:"
+                ls -la "$TEMP_DIR" 2>&1 | while read line; do eecho "    $line"; done
                 rm -rf "$TEMP_DIR"
                 return 1
             fi
@@ -156,7 +160,9 @@ install_via_binary() {
         rm -rf "$TEMP_DIR"
         return 0
     else
-        eecho "Warning: Failed to download jj binary"
+        eecho "Error: Failed to download jj binary from: $DOWNLOAD_URL"
+        eecho "  Check network connectivity and try manually:"
+        eecho "  curl -L '$DOWNLOAD_URL' -o /tmp/jj.tar.gz"
         rm -rf "$TEMP_DIR"
         return 1
     fi
@@ -170,8 +176,8 @@ elif install_via_homebrew; then
 elif install_via_binary; then
     vecho "Installed via pre-built binary"
 else
-    eecho "Warning: Could not install Jujutsu. Please install manually from https://docs.jj-vcs.dev/latest/install-and-setup/"
-    exit 0
+    eecho "Error: Could not install Jujutsu. Please install manually from https://docs.jj-vcs.dev/latest/install-and-setup/"
+    exit 1
 fi
 
 # Verify installation
