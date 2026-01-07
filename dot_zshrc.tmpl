@@ -74,12 +74,10 @@ for conf in "$HOME/.config/shell/"*.sh; do
 done
 
 # Auto-start tmux (placed at the end to ensure all environment is set up first)
-if [[ -z "$TMUX" ]] && [[ ! -n "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
-    # Allow bypassing tmux by setting NOTMUX=1
-    if [[ -z "$NOTMUX" ]]; then
-        # Attempt to attach to existing session or create a new one
-        exec tmux new-session -A
-    fi
+# Skipped for: SSH sessions, VSCode terminals, already in tmux, or NOTMUX=1
+if [[ -z "$TMUX" ]] && [[ -z "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]] && [[ -z "$NOTMUX" ]]; then
+    # Attempt to attach to existing session or create a new one
+    exec tmux new-session -A
 fi
 
 # bun completions (bun PATH is set in ~/.zshenv)
