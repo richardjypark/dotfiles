@@ -11,7 +11,9 @@ vecho() {
 eecho() { echo "$@"; }
 
 # Fast exit if shell is already zsh
-if [ "$SHELL" = "$(command -v zsh 2>/dev/null)" ]; then
+# Check actual shell from passwd database (more reliable than $SHELL env var)
+CURRENT_SHELL=$(getent passwd "$(whoami)" | cut -d: -f7)
+if [ "$(basename "$CURRENT_SHELL")" = "zsh" ]; then
     vecho "Shell is already set to zsh"
     exit 0
 fi
