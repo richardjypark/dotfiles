@@ -159,3 +159,117 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
 - **State files:** Clear `~/.cache/chezmoi-state/` to force script re-runs
 - **External refresh:** Weekly by default (168h), use `--refresh-externals` to force
 - **fzf version pinned:** v0.67.0 to avoid errors; update carefully in `.chezmoiversion.toml`
+
+## Version Control with Jujutsu (jj)
+
+**IMPORTANT:** Always use `jj` instead of `git` for version control operations. Jujutsu is a Git-compatible VCS with enhanced features. See [official docs](https://docs.jj-vcs.dev/latest/cli-reference/).
+
+### Key Concepts
+
+- **Change ID**: Stable identifier (e.g., `kntqzsqt`) - survives rewrites
+- **Commit ID**: Content hash (e.g., `5d39e19d`) - changes when amended
+- **Working copy (`@`)**: Always a commit, auto-updated by jj
+- **No staging area**: All file changes are automatically tracked
+- **`@-`**: Parent of working copy
+
+### Quick Reference
+
+```bash
+# Status & Inspection
+jj status                    # Show working copy status
+jj log                       # Show commit history graph
+jj diff                      # Show changes in working copy
+jj show                      # Show commit details
+
+# Creating & Modifying Changes
+jj new -m "feat: description"   # Create new change with message
+jj new                          # Create empty change (scratch/index)
+jj describe -m "message"        # Update current change description
+jj edit <change-id>             # Resume editing a specific change
+jj next --edit                  # Move to child change and edit
+
+# Restructuring
+jj squash                    # Move all changes to parent (like --amend)
+jj squash -i                 # Interactive squash (select hunks)
+jj split                     # Split change into multiple
+jj abandon                   # Discard current change
+jj rebase -s <src> -d <dst>  # Rebase changes
+
+# Bookmarks (Branches)
+jj bookmark create <name>    # Create bookmark at current change
+jj bookmark move <name>      # Move bookmark to current change
+jj bookmark list             # List all bookmarks
+jj bookmark delete <name>    # Delete bookmark
+
+# Git Integration
+jj git fetch                 # Fetch from remote
+jj git push                  # Push to remote
+jj git push -b <bookmark>    # Push specific bookmark
+
+# Undo/Redo
+jj undo                      # Undo last operation
+jj redo                      # Redo undone operation
+jj op log                    # View operation history
+```
+
+### Workflow: Squash (use `@` like staging area)
+
+Use when you want a clean commit with a scratch change on top:
+
+```bash
+jj describe -m "feat: implement X"  # Describe the real change
+jj new                              # Create scratch change on top
+# ... make edits ...
+jj squash                           # Move changes from @ into @- (parent)
+jj squash -i                        # Interactive: pick files/hunks
+```
+
+### Workflow: Edit (insert prerequisite change)
+
+Use when you need a refactor before your current change:
+
+```bash
+jj new -m "feat: implement X"       # Start main change
+jj new -B -m "refactor: prep work"  # Insert change BEFORE current (-B flag)
+# ... do prerequisite work ...
+jj next --edit                      # Return to original change
+```
+
+### Workflow: New Feature
+
+```bash
+jj new -m "feat: add feature X"
+jj bookmark create feature-x
+# ... make changes (auto-tracked) ...
+jj status && jj diff                # Review
+jj git push -b feature-x            # Push bookmark
+```
+
+### Workflow: Quick Fix
+
+```bash
+jj new -m "fix: correct typo"
+# ... make fix ...
+jj git push                         # Push directly
+```
+
+### Common Revsets
+
+| Revset | Description |
+|--------|-------------|
+| `@` | Current working copy |
+| `@-` | Parent of working copy |
+| `@--` | Grandparent |
+| `root()` | Root commit |
+| `trunk()` | Main branch (main/master) |
+| `bookmarks()` | All bookmarks |
+
+### Commit Message Convention
+
+Use conventional commits:
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation
+- `refactor:` - Code refactoring
+- `test:` - Adding tests
+- `chore:` - Maintenance
