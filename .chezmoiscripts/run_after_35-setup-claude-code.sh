@@ -12,10 +12,15 @@ eecho() { echo "$@"; }
 
 vecho "Setting up Claude Code..."
 
-# Fast exit if claude is already installed
+# Fast exit if claude is already installed and working
 if command -v claude >/dev/null 2>&1; then
-    vecho "Claude Code is already installed: $(claude --version 2>/dev/null || echo 'installed')"
-    exit 0
+    # Verify it actually works (not just exists in PATH)
+    if claude --version >/dev/null 2>&1; then
+        vecho "Claude Code is already installed: $(claude --version 2>/dev/null || echo 'installed')"
+        exit 0
+    else
+        vecho "Claude Code binary found but not working, reinstalling..."
+    fi
 fi
 
 # Check if npm is available (preferred method)
