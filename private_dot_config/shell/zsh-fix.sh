@@ -41,11 +41,13 @@ if [[ -o zle ]]; then
     fi
 fi
 
-# Set autosuggestions configuration to be more robust
+# Set autosuggestions configuration to be more robust and memory-efficient
 export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
 export ZSH_AUTOSUGGEST_USE_ASYNC=1
 export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 export ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+# Limit history search depth for suggestions (memory optimization)
+export ZSH_AUTOSUGGEST_HISTORY_IGNORE="?(#c100,)"
 
 # Disable problematic completion features that might cause ZLE errors
 export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"

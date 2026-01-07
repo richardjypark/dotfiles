@@ -36,12 +36,12 @@ if [ "$OS" = "Darwin" ]; then
         exit 0
     fi
 elif [ "$OS" = "Linux" ]; then
-    # Linux: Use official install script
+    # Linux: Use official install script with retry
     eecho "Installing Tailscale via official install script..."
     if [ "$VERBOSE" = "true" ]; then
-        curl -fsSL https://tailscale.com/install.sh | sh
+        curl -fsSL --retry 3 --retry-delay 2 https://tailscale.com/install.sh | sh
     else
-        curl -fsSL https://tailscale.com/install.sh | sh >/dev/null 2>&1
+        curl -fsSL --retry 3 --retry-delay 2 https://tailscale.com/install.sh | sh >/dev/null 2>&1
     fi
 else
     eecho "Warning: Unsupported OS ($OS). Please install Tailscale manually from https://tailscale.com/download"

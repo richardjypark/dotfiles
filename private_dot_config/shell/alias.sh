@@ -43,3 +43,6 @@ alias jundo='jj undo'                             # Undo last operation
 # Legacy git aliases (keep for non-jj repos)
 alias gaa="git add -A"
 alias gcam='git commit --amend --no-edit'
+
+# AI Tools
+alias c='claude'                              # Claude Code CLI

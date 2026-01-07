@@ -2,6 +2,9 @@
 # History configuration - zsh only
 [ -n "$ZSH_VERSION" ] || return
 
+# Security: Restrict history file permissions (readable only by owner)
+[[ -f "$HOME/.zsh_history" ]] && chmod 600 "$HOME/.zsh_history"
+
 # History file configuration
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=50000                  # Maximum events for internal history

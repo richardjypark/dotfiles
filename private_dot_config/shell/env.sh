@@ -1,4 +1,7 @@
 #!/bin/sh
+# Security: Set restrictive umask (files: 644, dirs: 755)
+umask 022
+
 # Language
 export LANG=en_US.UTF-8
 

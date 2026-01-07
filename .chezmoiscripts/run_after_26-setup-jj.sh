@@ -10,6 +10,15 @@ vecho() {
 }
 eecho() { echo "$@"; }
 
+# Cleanup trap for reliable temp directory removal
+TEMP_DIR=""
+cleanup() {
+    if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+        rm -rf "$TEMP_DIR"
+    fi
+}
+trap cleanup EXIT INT TERM
+
 vecho "Setting up Jujutsu (jj)..."
 
 # Fast exit if jj is already installed
@@ -128,11 +137,11 @@ install_via_binary() {
     # Ensure install directory exists
     mkdir -p "$INSTALL_DIR"
 
-    # Download and extract
+    # Download and extract (TEMP_DIR cleaned up by trap)
     TEMP_DIR=$(mktemp -d)
     vecho "Downloading from: $DOWNLOAD_URL"
 
-    if curl -sL "$DOWNLOAD_URL" -o "$TEMP_DIR/jj.tar.gz"; then
+    if curl -fsSL --retry 3 --retry-delay 2 "$DOWNLOAD_URL" -o "$TEMP_DIR/jj.tar.gz"; then
         tar -xzf "$TEMP_DIR/jj.tar.gz" -C "$TEMP_DIR"
 
         # Find and install the jj binary
@@ -152,18 +161,15 @@ install_via_binary() {
                 eecho "Error: Could not find jj binary in downloaded archive"
                 eecho "  Archive contents:"
                 ls -la "$TEMP_DIR" 2>&1 | while read line; do eecho "    $line"; done
-                rm -rf "$TEMP_DIR"
                 return 1
             fi
         fi
 
-        rm -rf "$TEMP_DIR"
         return 0
     else
         eecho "Error: Failed to download jj binary from: $DOWNLOAD_URL"
         eecho "  Check network connectivity and try manually:"
         eecho "  curl -L '$DOWNLOAD_URL' -o /tmp/jj.tar.gz"
-        rm -rf "$TEMP_DIR"
         return 1
     fi
 }

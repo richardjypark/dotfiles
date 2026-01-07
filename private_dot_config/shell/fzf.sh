@@ -30,12 +30,23 @@ rgf() {
       --preview 'bat --color=always {1} --highlight-line {2}' \
       --preview-window 'up,60%,border-bottom,+{2}+3/3,~3'
 }
+# Use fd or rg for faster file searching (respects .gitignore)
+if command -v fd >/dev/null 2>&1; then
+  export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+  export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
+elif command -v rg >/dev/null 2>&1; then
+  export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+fi
+
 export FZF_DEFAULT_OPTS="
   --height=~80%
   --layout=reverse
   --border
   --preview-window 'right,50%,border-left'
   --bind 'ctrl-/:toggle-preview'
+  --ansi
 "
 
 # Load fzf shell integrations from installed files (more portable than process substitution)
