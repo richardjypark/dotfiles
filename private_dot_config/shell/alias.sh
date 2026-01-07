@@ -28,6 +28,9 @@ alias jgp='jj git push'                           # Push to remote
 alias jgf='jj git fetch'                          # Fetch from remote
 alias jgc='jj git clone'                          # Clone a repo
 
+# Chezmoi with jj (avoids detached HEAD issues)
+alias czu='jj -R ~/.local/share/chezmoi git fetch && chezmoi apply'  # Update dotfiles via jj
+
 # Navigation
 alias je='jj edit'                                # Edit a specific revision
 alias jnext='jj next'                             # Move to child commit
