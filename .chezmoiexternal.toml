@@ -36,3 +36,11 @@ type = "archive"
 url = "https://github.com/nvm-sh/nvm/archive/v0.40.3.tar.gz"
 stripComponents = 1
 refreshPeriod = "168h"
+
+[".local/share/ralph-claude-code"]
+type = "git-repo"
+url = "https://github.com/frankbria/ralph-claude-code.git"
+exact = true
+refreshPeriod = "168h"
+clone.args = ["--depth=1"]
+pull.args = ["--ff-only"]
