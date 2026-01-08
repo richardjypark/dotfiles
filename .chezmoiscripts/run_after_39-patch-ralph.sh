@@ -297,8 +297,8 @@ if [ -f "$RALPH_HOME/ralph_loop.sh" ]; then
     if ! grep -q 'commit_changes "\$loop_count"' "$RALPH_HOME/ralph_loop.sh"; then
         vecho "Adding commit_changes call after successful execution..."
 
-        # Find the line with "log_status \"SUCCESS\" \"🎯 Loop" and add commit_changes after it
-        sed -i.bak '/log_status "SUCCESS" "🎯 Loop #$loop_count completed\./a\
+        # Find the line with "Claude Code execution completed successfully" and add commit_changes after it
+        sed -i.bak '/log_status "SUCCESS" "✅ Claude Code execution completed successfully"/a\
 \
             # Auto-commit changes after successful execution\
             commit_changes "$loop_count"
