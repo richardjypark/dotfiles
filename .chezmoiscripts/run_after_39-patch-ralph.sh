@@ -224,4 +224,93 @@ if [ -f "$RALPH_HOME/ralph_loop.sh" ]; then
     fi
 fi
 
+# =============================================================================
+# Patch 4: Add commit_changes function for auto-committing after each loop
+# =============================================================================
+if [ -f "$RALPH_HOME/ralph_loop.sh" ]; then
+    # Check if already patched (look for commit_changes function)
+    if ! grep -q 'commit_changes()' "$RALPH_HOME/ralph_loop.sh"; then
+        vecho "Patching ralph_loop.sh with commit_changes function..."
+
+        # Create the commit_changes function
+        mkdir -p /tmp/claude 2>/dev/null || true
+        cat > /tmp/claude/ralph_commit_patch.txt << 'COMMITEOF'
+# Commit changes after successful loop execution
+commit_changes() {
+    local loop_count=$1
+
+    # Check if jj is available (preferred) or fall back to git
+    if command -v jj &> /dev/null; then
+        # Check if there are changes to commit
+        local changed_files=$(jj diff --stat 2>/dev/null | grep -E "^\s*[0-9]+ file" | head -1)
+        if [[ -n "$changed_files" ]]; then
+            # Get summary from @fix_plan.md or generate one
+            local completed_count=$(grep -c "^\s*- \[x\]" @fix_plan.md 2>/dev/null || echo "0")
+            local total_count=$(grep -c "^\s*- \[" @fix_plan.md 2>/dev/null || echo "0")
+
+            # Update commit message with progress
+            jj describe -m "wip: Ralph loop #$loop_count ($completed_count/$total_count tasks)" 2>/dev/null
+            log_status "SUCCESS" "📝 Committed changes (Loop #$loop_count, $completed_count/$total_count tasks)"
+        fi
+    elif command -v git &> /dev/null; then
+        # Git fallback
+        local changed_files=$(git diff --name-only 2>/dev/null | wc -l)
+        if [[ $changed_files -gt 0 ]]; then
+            local completed_count=$(grep -c "^\s*- \[x\]" @fix_plan.md 2>/dev/null || echo "0")
+            local total_count=$(grep -c "^\s*- \[" @fix_plan.md 2>/dev/null || echo "0")
+
+            git add -A 2>/dev/null
+            git commit -m "wip: Ralph loop #$loop_count ($completed_count/$total_count tasks)" 2>/dev/null
+            log_status "SUCCESS" "📝 Committed changes (Loop #$loop_count, $completed_count/$total_count tasks)"
+        fi
+    fi
+}
+
+COMMITEOF
+
+        # Insert the function before "# Check if we can make another call"
+        awk '
+        /^# Check if we can make another call$/ {
+            while ((getline line < "/tmp/claude/ralph_commit_patch.txt") > 0) {
+                print line
+            }
+            close("/tmp/claude/ralph_commit_patch.txt")
+        }
+        { print }
+        ' "$RALPH_HOME/ralph_loop.sh" > "$RALPH_HOME/ralph_loop.sh.tmp"
+
+        mv "$RALPH_HOME/ralph_loop.sh.tmp" "$RALPH_HOME/ralph_loop.sh"
+        chmod +x "$RALPH_HOME/ralph_loop.sh"
+        rm -f /tmp/claude/ralph_commit_patch.txt
+
+        vecho "commit_changes function added"
+    else
+        vecho "commit_changes function already exists"
+    fi
+fi
+
+# =============================================================================
+# Patch 5: Add call to commit_changes after successful Claude Code execution
+# =============================================================================
+if [ -f "$RALPH_HOME/ralph_loop.sh" ]; then
+    # Check if already patched (look for the commit_changes call)
+    if ! grep -q 'commit_changes "\$loop_count"' "$RALPH_HOME/ralph_loop.sh"; then
+        vecho "Adding commit_changes call after successful execution..."
+
+        # Find the line with "log_status \"SUCCESS\" \"🎯 Loop" and add commit_changes after it
+        sed -i.bak '/log_status "SUCCESS" "🎯 Loop #$loop_count completed\./a\
+\
+            # Auto-commit changes after successful execution\
+            commit_changes "$loop_count"
+' "$RALPH_HOME/ralph_loop.sh"
+
+        rm -f "$RALPH_HOME/ralph_loop.sh.bak"
+        chmod +x "$RALPH_HOME/ralph_loop.sh"
+
+        vecho "commit_changes call added"
+    else
+        vecho "commit_changes call already exists"
+    fi
+fi
+
 vecho "Ralph patches applied!"
