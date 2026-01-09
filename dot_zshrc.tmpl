@@ -1,6 +1,9 @@
 # Exit if not running interactively (but allow for testing)
 [[ $- != *i* ]] && [[ -z "$ZSH_TEST_MODE" ]] && return
 
+# Disable terminal bell (prevents tmux ! indicator and annoying beeps)
+unsetopt BEEP
+
 # Disable Oh My Zsh automatic updates and skip compfix check for speed
 export DISABLE_AUTO_UPDATE=true
 export ZSH_DISABLE_COMPFIX=true
