@@ -59,6 +59,13 @@ source ~/.zshrc                  # Reload shell configuration
 exec zsh                         # Restart shell
 ```
 
+**Profiling shell startup:**
+```bash
+ZSH_PROFILE_STARTUP=1 exec zsh   # Profile with detailed checkpoints
+zsh_startup_time                 # Quick benchmark (5 runs average)
+zsh_profile_report               # Show last profiling results
+```
+
 ## Performance Optimization System
 
 The repository uses a sophisticated state tracking system to achieve ~95% speed improvement on subsequent runs (from 1-2 minutes to <3 seconds).
@@ -104,25 +111,111 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
   - `zsh-fix.sh` - IFS fixes for Oh My Zsh compatibility
   - `agnoster-custom.sh` - Theme customizations
   - `gpg.sh` - GPG configuration
+  - `profile.sh` - Shell startup profiling utilities
 
 **ZSH Plugins (via Oh My Zsh):**
 - git, terraform, ansible, ssh-agent, tmux, virtualenv
 - zsh-autosuggestions, zsh-syntax-highlighting
 
+**Shell Startup Profiling:**
+
+Enable profiling to identify slow startup components:
+```bash
+# Profile startup with detailed checkpoints
+ZSH_PROFILE_STARTUP=1 exec zsh
+
+# Quick benchmark (5 runs, shows average)
+zsh_startup_time
+
+# View last profiling results
+zsh_profile_report
+```
+
+Profiling tracks timing for:
+- zshenv loading (NVM, paths, environment setup)
+- zsh-fix.sh loading
+- Oh My Zsh initialization
+- Theme loading
+- NVM bash completion
+- Additional shell configs (~/.config/shell/*.sh)
+- Completions (bun, uv)
+
+Results show:
+- Total startup time
+- Individual checkpoint timings with deltas
+- Top 5 slowest sections
+
+Typical startup times:
+- Excellent: < 200ms
+- Good: < 500ms
+- Acceptable: < 1s
+- Needs optimization: > 1s
+
 ## Tmux Configuration
 
-**Key features:**
-- Auto-start tmux (skipped for SSH sessions and VSCode)
-- Session persistence via tmux-resurrect and tmux-continuum
-- Auto-save every 15 minutes, auto-restore on start
-- Vi mode keybindings, mouse support
-- Status bar: red for SSH sessions, green for local
+**Configuration files:**
+- `dot_tmux.conf` → `~/.tmux.conf` - Main tmux configuration
+- `dot_zshrc.tmpl` - Auto-start logic at end of file
+- `.chezmoiscripts/run_after_40-setup-tmux.sh` - Installs tmux and TPM
+
+**Auto-start behavior:**
+- Tmux auto-starts for interactive shells in `~/.zshrc`
+- Skipped when: inside SSH (`$SSH_TTY`), in VSCode (`$TERM_PROGRAM`), already in tmux (`$TMUX`), or `NOTMUX=1`
+- Uses `exec tmux new-session -A` to attach to existing session or create new one
+
+**Session persistence (via plugins):**
+- `tmux-resurrect` - Manual save/restore of sessions
+- `tmux-continuum` - Automatic save every 15 minutes, auto-restore on tmux start
+- Processes restored: vim, nvim, less, more, tail, top, htop, man, ssh
+- Pane contents NOT captured (reduces session file size)
+
+**Terminal settings:**
+- `tmux-256color` terminal type (better italics/strikethrough/truecolor)
+- RGB color support enabled
+- Focus events enabled (for Vim/Neovim integration)
+- Escape time: 10ms (reduces delay for Vim mode switching)
+- History limit: 50,000 lines
+- Bell monitoring disabled (prevents `!` indicator in window names)
+
+**Window/pane numbering:**
+- Windows and panes start at index 1 (not 0)
+- Windows automatically renumber when one is closed
+
+**Status bar:**
+- SSH sessions: Red background (`colour52`) with hostname displayed
+- Local sessions: Green background (`colour22`)
+- Right side shows: time, date (and hostname for SSH)
 
 **Custom keybindings:**
-- `Alt + h/j/k/l` - Navigate panes
-- `Prefix + |` - Split vertically
-- `Prefix + -` - Split horizontally
-- `Prefix + Ctrl + s/r` - Manual save/restore
+- `Alt + h/j/k/l` - Navigate panes (vim-style, no prefix needed)
+- `Prefix + |` - Split window vertically (side-by-side panes)
+- `Prefix + -` - Split window horizontally (stacked panes)
+- `Prefix + Ctrl + s` - Manual save session (tmux-resurrect)
+- `Prefix + Ctrl + r` - Manual restore session (tmux-resurrect)
+
+**Plugin management (TPM):**
+- Plugins installed to `~/.tmux/plugins/`
+- Install new plugins: Add to `~/.tmux.conf`, then `Prefix + I`
+- Update plugins: `Prefix + U`
+- Uninstall removed plugins: `Prefix + Alt + u`
+
+**Troubleshooting:**
+```bash
+# Disable auto-start for current session
+export NOTMUX=1
+
+# Reload tmux config
+tmux source-file ~/.tmux.conf
+
+# Check if tmux is running
+tmux ls
+
+# Kill all tmux sessions
+tmux kill-server
+
+# Force reinstall TPM and plugins
+rm -rf ~/.tmux/plugins && chezmoi apply
+```
 
 ## Version Management
 
