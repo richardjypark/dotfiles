@@ -4,3 +4,29 @@ README*
 .oh-my-zsh/cache/*
 
 .jj/
+
+# Ralph agent state files (runtime state tracking)
+.call_count
+.circuit_breaker_history
+.circuit_breaker_state
+.exit_signals
+.last_reset
+.response_analysis
+
+# Ralph agent files (session-specific agent tasks)
+@AGENT.md
+@fix_plan.md
+PROMPT.md
+fix_plan.md
+
+# Ralph progress tracking (session-specific)
+progress.json
+status.json
+
+# Ralph logs
+logs/ralph.log
+logs/claude_output_*.log
+
+# Ralph specs (agent-generated specifications)
+specs/*
+logs/*
