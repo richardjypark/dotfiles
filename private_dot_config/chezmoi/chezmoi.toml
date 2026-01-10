@@ -8,5 +8,9 @@ command = "vimdiff"
 autoCommit = true
 autoPush = false
 
+[update]
+command = "git"
+args = ["pull", "--autostash", "--rebase", "origin", "master"]
+
 [cd]
 command = "zsh"
