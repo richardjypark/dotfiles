@@ -3,11 +3,12 @@ set -e
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
-vecho() { 
+vecho() {
     if [ "$VERBOSE" = "true" ]; then
         echo "$@"
     fi
 }
+eecho() { echo "$@"; }
 
 # State tracking for chezmoi scripts
 # This creates a simple state tracking system to avoid redundant work
@@ -33,4 +34,4 @@ clear_setup_state() {
 # Export environment variables for use in other scripts
 export STATE_DIR
 
-vecho "State tracking initialized in $STATE_DIR" 
+vecho "State tracking initialized in $STATE_DIR"

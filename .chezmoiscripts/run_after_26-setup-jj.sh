@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -eu
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
@@ -9,6 +9,16 @@ vecho() {
     fi
 }
 eecho() { echo "$@"; }
+
+# State tracking
+STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
+STATE_FILE="$STATE_DIR/jj-setup.done"
+
+# Fast exit if already completed via state tracking
+if [ -f "$STATE_FILE" ]; then
+    vecho "Jujutsu setup already completed (state tracked)"
+    exit 0
+fi
 
 # Cleanup trap for reliable temp directory removal
 TEMP_DIR=""
@@ -21,9 +31,11 @@ trap cleanup EXIT INT TERM
 
 vecho "Setting up Jujutsu (jj)..."
 
-# Fast exit if jj is already installed
+# Fast exit if jj is already installed (but mark state)
 if command -v jj >/dev/null 2>&1; then
     vecho "Jujutsu is already installed: $(jj --version 2>/dev/null || echo 'installed')"
+    mkdir -p "$STATE_DIR"
+    touch "$STATE_FILE"
     exit 0
 fi
 
@@ -193,8 +205,14 @@ if command -v jj >/dev/null 2>&1; then
         echo "Jujutsu installed successfully"
         jj --version 2>/dev/null || true
     fi
+    # Mark setup as complete
+    mkdir -p "$STATE_DIR"
+    touch "$STATE_FILE"
 else
     vecho "Jujutsu installation complete. You may need to restart your shell."
+    # Still mark as complete since installation succeeded
+    mkdir -p "$STATE_DIR"
+    touch "$STATE_FILE"
 fi
 
 vecho "Jujutsu setup complete!"
