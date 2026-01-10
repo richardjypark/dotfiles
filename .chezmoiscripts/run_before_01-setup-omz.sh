@@ -3,11 +3,12 @@ set -e
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
-vecho() { 
+vecho() {
     if [ "$VERBOSE" = "true" ]; then
         echo "$@"
     fi
 }
+eecho() { echo "$@"; }
 
 vecho "Setting up Oh My Zsh structure..."
 

@@ -4,12 +4,22 @@ set -eufo pipefail
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
-vecho() { 
+vecho() {
     if [ "$VERBOSE" = "true" ]; then
         echo -e "$@"
     fi
 }
 eecho() { echo -e "$@"; }
+
+# State tracking
+STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
+STATE_FILE="$STATE_DIR/tmux-setup.done"
+
+# Fast exit if already completed via state tracking
+if [ -f "$STATE_FILE" ]; then
+    vecho "tmux setup already completed (state tracked)"
+    exit 0
+fi
 
 # Colors for output (only used in verbose mode)
 GREEN='\033[0;32m'
@@ -18,10 +28,12 @@ NC='\033[0m' # No Color
 
 vecho "${BLUE}Setting up tmux and tmux plugin manager...${NC}"
 
-# Fast exit if tmux and TPM are already properly set up
+# Fast exit if tmux and TPM are already properly set up (but mark state)
 TPM_DIR="$HOME/.tmux/plugins/tpm"
 if command -v tmux &> /dev/null && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; then
     vecho "${GREEN}tmux and TPM are already installed and configured${NC}"
+    mkdir -p "$STATE_DIR"
+    touch "$STATE_FILE"
     exit 0
 fi
 
@@ -96,4 +108,8 @@ else
     vecho "TPM install script not found, skipping plugin installation"
 fi
 
-vecho "${GREEN}Tmux setup complete!${NC}" 
+# Mark setup as complete
+mkdir -p "$STATE_DIR"
+touch "$STATE_FILE"
+
+vecho "${GREEN}Tmux setup complete!${NC}"

@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(chmod:*)",
+      "Bash(chezmoi:*)",
+      "Bash(git:*)",
+      "Bash(tmux:*)",
+      "Bash(zsh:*)",
+      "Bash(jj:*)",
+      "Bash(mkdir:*)",
+      "Bash(cat:*)",
+      "Bash(dscl:*)",
+      "Bash(source:*)",
+      "Bash(czu:*)",
+      "WebSearch",
+      "WebFetch(domain:*)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": false
+  }
+}

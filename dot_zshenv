@@ -1,12 +1,37 @@
 # ~/.zshenv - Loaded for ALL shells (interactive and non-interactive)
 # This ensures Node.js tools (npm, pnpm, node) are available in IDE terminals
 
+# Shell startup profiling (optional, enable with ZSH_PROFILE_STARTUP=1)
+if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
+    # Initialize profiling arrays and start time
+    typeset -ga _zsh_profile_times
+    _zsh_profile_start=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || echo 0)
+
+    # Checkpoint function
+    _zsh_profile_checkpoint() {
+        local name="$1"
+        local now=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || echo 0)
+        _zsh_profile_times+=("$name:$now")
+    }
+
+    _zsh_profile_checkpoint "zshenv start"
+fi
+
+# PATH Management Strategy:
+# - ~/.zshenv (this file): Sets only ~/.local/bin for ALL shells (interactive + non-interactive)
+#   This ensures IDE terminals and scripts can find tools like jj, uv, node, npm, etc.
+# - ~/.config/shell/path.sh: Manages full PATH with deduplication (loaded by ~/.zshrc)
+#   This handles all other paths and ensures no duplicates accumulate
+
 # Ensure ~/.local/bin is in PATH for tools like jj, uv, etc.
 export PATH="$HOME/.local/bin:$PATH"
 
 # Load NVM for all shell contexts
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" --no-use
+
+# Profile NVM load
+[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "nvm loaded"
 
 # Bun
 export BUN_INSTALL="$HOME/.bun"
@@ -17,3 +42,6 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 
 # uv (Python package manager) - may set additional variables
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
+
+# Profile zshenv completion
+[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "zshenv complete"
