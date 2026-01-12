@@ -37,50 +37,60 @@ if command -v tmux &> /dev/null && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; t
     exit 0
 fi
 
-# Helper function to run commands with sudo if needed
+# Helper function to run commands with sudo if needed (non-interactively)
 run_privileged() {
     if [ "$(id -u)" = 0 ]; then
         "$@"
-    else
+    elif sudo -n true 2>/dev/null; then
         sudo "$@"
+    else
+        return 1
     fi
 }
 
 # Check if tmux is installed
 if ! command -v tmux &> /dev/null; then
-    eecho "Installing tmux..."
+    TMUX_INSTALLED=false
     if [[ "$OSTYPE" == "darwin"* ]]; then
         if command -v brew &> /dev/null; then
+            eecho "Installing tmux via Homebrew..."
             if [ "$VERBOSE" = "true" ]; then
-                brew install tmux
+                brew install tmux && TMUX_INSTALLED=true
             else
-                brew install tmux >/dev/null 2>&1
+                brew install tmux >/dev/null 2>&1 && TMUX_INSTALLED=true
             fi
-        else
-            eecho "Homebrew not found. Please install tmux manually."
-            exit 1
         fi
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        if command -v apt-get &> /dev/null; then
-            run_privileged apt-get update -qq
-            run_privileged apt-get install -y -qq tmux
-        elif command -v dnf &> /dev/null; then
-            run_privileged dnf install -y -q tmux
-        elif command -v yum &> /dev/null; then
-            run_privileged yum install -y -q tmux
-        elif command -v pacman &> /dev/null; then
-            run_privileged pacman -S --noconfirm --quiet tmux
-        elif command -v zypper &> /dev/null; then
-            run_privileged zypper install -y -q tmux
-        elif command -v apk &> /dev/null; then
-            run_privileged apk add --quiet tmux
-        else
-            eecho "Unsupported Linux distribution. Please install tmux manually."
-            exit 1
+        # Check if we can use sudo
+        CAN_SUDO=false
+        if [ "$(id -u)" = 0 ]; then
+            CAN_SUDO=true
+        elif sudo -n true 2>/dev/null; then
+            CAN_SUDO=true
         fi
-    else
-        eecho "Unsupported OS. Please install tmux manually."
-        exit 1
+
+        if [ "$CAN_SUDO" = "true" ]; then
+            eecho "Installing tmux..."
+            if command -v apt-get &> /dev/null; then
+                run_privileged apt-get update -qq && run_privileged apt-get install -y -qq tmux && TMUX_INSTALLED=true
+            elif command -v dnf &> /dev/null; then
+                run_privileged dnf install -y -q tmux && TMUX_INSTALLED=true
+            elif command -v yum &> /dev/null; then
+                run_privileged yum install -y -q tmux && TMUX_INSTALLED=true
+            elif command -v pacman &> /dev/null; then
+                run_privileged pacman -S --noconfirm --quiet tmux && TMUX_INSTALLED=true
+            elif command -v zypper &> /dev/null; then
+                run_privileged zypper install -y -q tmux && TMUX_INSTALLED=true
+            elif command -v apk &> /dev/null; then
+                run_privileged apk add --quiet tmux && TMUX_INSTALLED=true
+            fi
+        fi
+    fi
+
+    if [ "$TMUX_INSTALLED" = "false" ]; then
+        eecho "Note: tmux not installed (requires sudo or manual install)"
+        eecho "Install manually: sudo apt-get install tmux"
+        # Continue to set up TPM anyway for when tmux becomes available
     fi
 fi
 
