@@ -29,17 +29,27 @@ if is_installed zsh && is_installed git && is_installed curl && is_installed che
     exit 0
 fi
 
-# Helper function to run commands with sudo if needed
+# Helper function to run commands with sudo if needed (non-interactively)
 run_privileged() {
     if [ "$(id -u)" = 0 ]; then
         "$@"
-    else
+    elif sudo -n true 2>/dev/null; then
         sudo "$@"
+    else
+        return 1
     fi
 }
 
-# Only attempt package installations if we have sudo rights
-if [ "$(id -u)" = 0 ] || is_installed sudo; then
+# Check if we can run privileged commands
+CAN_SUDO=false
+if [ "$(id -u)" = 0 ]; then
+    CAN_SUDO=true
+elif sudo -n true 2>/dev/null; then
+    CAN_SUDO=true
+fi
+
+# Only attempt package installations if we have passwordless sudo rights
+if [ "$CAN_SUDO" = "true" ]; then
     # Check if essential packages are missing
     MISSING_PACKAGES=""
     for pkg in zsh git curl wget make gcc; do
@@ -90,7 +100,18 @@ if [ "$(id -u)" = 0 ] || is_installed sudo; then
         vecho "All required packages are already installed"
     fi
 else
-    vecho "Note: Skipping package installation (no root/sudo access)"
+    # Check if any packages are actually missing before warning
+    MISSING=""
+    for pkg in zsh git curl wget make gcc; do
+        if ! is_installed "$pkg"; then
+            MISSING="$MISSING $pkg"
+        fi
+    done
+    if [ -n "$MISSING" ]; then
+        eecho "Note: Cannot install packages without passwordless sudo:$MISSING"
+    else
+        vecho "All required packages are already installed"
+    fi
 fi
 
 # Create directories if they don't exist (no root needed)
