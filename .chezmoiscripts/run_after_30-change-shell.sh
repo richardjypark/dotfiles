@@ -39,13 +39,27 @@ fi
 
 # Change shell to zsh
 eecho "Changing default shell to zsh..."
+ZSH_PATH="$(command -v zsh)"
+
 if [ "$(uname)" = "Darwin" ]; then
     # macOS: chsh prompts for password, no sudo needed
-    chsh -s "$(command -v zsh)"
+    chsh -s "$ZSH_PATH"
 elif [ "$(id -u)" = 0 ]; then
-    chsh -s "$(command -v zsh)" "$(whoami)"
+    chsh -s "$ZSH_PATH" "$(whoami)"
 else
-    sudo chsh -s "$(command -v zsh)" "$(whoami)"
+    # Check if we can use sudo non-interactively
+    if sudo -n true 2>/dev/null; then
+        sudo chsh -s "$ZSH_PATH" "$(whoami)"
+    else
+        # Try chsh without sudo (some systems allow users to change their own shell)
+        if chsh -s "$ZSH_PATH" 2>/dev/null; then
+            vecho "Changed shell without sudo"
+        else
+            eecho "Note: Cannot change shell without sudo password."
+            eecho "Run manually: sudo chsh -s $ZSH_PATH $(whoami)"
+            exit 0
+        fi
+    fi
 fi
 
 vecho "Shell setup complete!"
