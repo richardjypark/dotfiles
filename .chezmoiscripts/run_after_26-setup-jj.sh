@@ -39,12 +39,14 @@ if command -v jj >/dev/null 2>&1; then
     exit 0
 fi
 
-# Helper function to run commands with sudo if needed
+# Helper function to run commands with sudo if needed (non-interactively)
 run_privileged() {
     if [ "$(id -u)" = 0 ]; then
         "$@"
-    else
+    elif sudo -n true 2>/dev/null; then
         sudo "$@"
+    else
+        return 1
     fi
 }
 
