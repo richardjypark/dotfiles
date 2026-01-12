@@ -27,7 +27,6 @@ This is a chezmoi-managed dotfiles repository optimized for performance with sop
 - zsh-syntax-highlighting and zsh-autosuggestions (archives)
 - fzf (git-repo pinned to v0.67.0)
 - nvm (archive v0.40.3)
-- ralph-claude-code (git-repo from master)
 
 ## Common Commands
 
@@ -87,9 +86,8 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
 9. `run_after_35-setup-claude-code.sh` - Install Claude Code
 10. `run_after_36-setup-opencode.sh` - Install OpenCode AI coding agent
 11. `run_after_37-setup-tailscale.sh` - Install Tailscale VPN
-12. `run_after_38-setup-ralph.sh` - Install Ralph autonomous dev framework
-13. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
-14. `run_after_99-performance-summary.sh` - Show performance summary
+12. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
+13. `run_after_99-performance-summary.sh` - Show performance summary
 
 **Script Patterns:**
 - Early exit if task already completed
