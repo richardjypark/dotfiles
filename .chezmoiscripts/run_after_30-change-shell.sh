@@ -52,11 +52,12 @@ else
         sudo chsh -s "$ZSH_PATH" "$(whoami)"
     else
         # Try chsh without sudo (some systems allow users to change their own shell)
-        if chsh -s "$ZSH_PATH" 2>/dev/null; then
+        # Use </dev/null to prevent hanging on password prompt
+        if chsh -s "$ZSH_PATH" </dev/null 2>/dev/null; then
             vecho "Changed shell without sudo"
         else
-            eecho "Note: Cannot change shell without sudo password."
-            eecho "Run manually: sudo chsh -s $ZSH_PATH $(whoami)"
+            vecho "Note: Cannot change shell without sudo password."
+            vecho "Run manually: sudo chsh -s $ZSH_PATH $(whoami)"
             exit 0
         fi
     fi
