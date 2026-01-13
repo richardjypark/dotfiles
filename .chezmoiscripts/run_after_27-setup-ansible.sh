@@ -30,14 +30,24 @@ if command -v ansible >/dev/null 2>&1; then
     exit 0
 fi
 
-# Helper function to run commands with sudo if needed
+# Helper function to run commands with sudo if needed (non-interactively)
 run_privileged() {
     if [ "$(id -u)" = 0 ]; then
         "$@"
-    else
+    elif sudo -n true 2>/dev/null; then
         sudo "$@"
+    else
+        return 1
     fi
 }
+
+# Check if we can run privileged commands
+CAN_SUDO=false
+if [ "$(id -u)" = 0 ]; then
+    CAN_SUDO=true
+elif sudo -n true 2>/dev/null; then
+    CAN_SUDO=true
+fi
 
 # Detect OS
 OS="$(uname -s)"
@@ -56,6 +66,11 @@ install_via_homebrew() {
 }
 
 install_via_package_manager() {
+    # Skip if we don't have passwordless sudo
+    if [ "$CAN_SUDO" != "true" ]; then
+        return 1
+    fi
+
     if [ "$OS" = "Linux" ]; then
         if command -v apt-get >/dev/null 2>&1; then
             # Debian/Ubuntu
