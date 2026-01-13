@@ -1,0 +1,20 @@
+[diff]
+{{- if lookPath "delta" }}
+pager = "delta"
+{{- else }}
+pager = "less"
+{{- end }}
+
+[merge]
+command = "vimdiff"
+
+[git]
+autoCommit = true
+autoPush = false
+
+[update]
+command = "git"
+args = ["pull", "--autostash", "--rebase", "origin", "master"]
+
+[cd]
+command = "zsh"
