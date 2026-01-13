@@ -50,7 +50,7 @@ prompt_context() {
 
   # Display with agnoster styling, highlight in yellow if root
   # Use dynamic colors: amber/orange for SSH, black for local
-  prompt_segment "${AGNOSTER_CONTEXT_BG:-$context_bg}" "${AGNOSTER_CONTEXT_FG:-$context_fg}" "%(!.%{%F{${AGNOSTER_STATUS_ROOT_FG:-yellow}}%}.)$display_text"
+  prompt_segment "$context_bg" "$context_fg" "%(!.%{%F{yellow}%}.)$display_text"
 }
 
 # Set a default user to hide username when it matches
