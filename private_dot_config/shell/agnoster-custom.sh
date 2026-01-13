@@ -20,6 +20,9 @@ prompt_context() {
     generic_user="$USER"  # Show actual username for non-root users
   fi
 
+  local context_bg="black"
+  local context_fg="default"
+
   if [[ -n "$SSH_CLIENT" ]] || [[ -n "$SSH_TTY" ]] || [[ -n "$SSH_CONNECTION" ]]; then
     # Remote connection - use server1, server2, etc. based on actual hostname hash
     local host_hash=$(echo "$HOSTNAME" | md5sum 2>/dev/null | cut -c1-1 || echo "1")
@@ -29,6 +32,9 @@ prompt_context() {
       [8-b]) generic_host="server3" ;;
       *) generic_host="server4" ;;
     esac
+    # SSH: amber/orange background with black text
+    context_bg="208"
+    context_fg="black"
   else
     # Local connection - use localhost
     generic_host="localhost"
@@ -43,7 +49,8 @@ prompt_context() {
   fi
 
   # Display with agnoster styling, highlight in yellow if root
-  prompt_segment "${AGNOSTER_CONTEXT_BG:-black}" "${AGNOSTER_CONTEXT_FG:-default}" "%(!.%{%F{${AGNOSTER_STATUS_ROOT_FG:-yellow}}%}.)$display_text"
+  # Use dynamic colors: amber/orange for SSH, black for local
+  prompt_segment "${AGNOSTER_CONTEXT_BG:-$context_bg}" "${AGNOSTER_CONTEXT_FG:-$context_fg}" "%(!.%{%F{${AGNOSTER_STATUS_ROOT_FG:-yellow}}%}.)$display_text"
 }
 
 # Set a default user to hide username when it matches
