@@ -30,6 +30,7 @@ alias jgc='jj git clone'                          # Clone a repo
 
 # Chezmoi with jj (avoids detached HEAD issues)
 alias czu='jj -R ~/.local/share/chezmoi git fetch && jj -R ~/.local/share/chezmoi new master && chezmoi apply'  # Update dotfiles via jj
+alias czuf='jj -R ~/.local/share/chezmoi git fetch && jj -R ~/.local/share/chezmoi new master && chezmoi apply --refresh-externals --force'  # Full update with externals
 
 # Navigation
 alias je='jj edit'                                # Edit a specific revision
