@@ -15,7 +15,8 @@
       "Bash(source:*)",
       "Bash(czu:*)",
       "WebSearch",
-      "WebFetch(domain:*)"
+      "WebFetch(domain:*)",
+      "Bash(alias:*)"
     ]
   },
   "sandbox": {
