@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -eu
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
