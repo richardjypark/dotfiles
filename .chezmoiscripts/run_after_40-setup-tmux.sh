@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eufo pipefail
+set -euo pipefail
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
