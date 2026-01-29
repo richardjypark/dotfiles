@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -eu
 
 # Health check script to verify environment integrity
 # Run with: chezmoi apply (included automatically)
@@ -145,6 +145,14 @@ if command -v claude >/dev/null 2>&1; then
     check_pass "Claude Code installed"
 else
     check_warn "Claude Code not installed"
+fi
+
+# Bun
+if command -v bun >/dev/null 2>&1; then
+    BUN_VERSION=$(bun --version 2>/dev/null || echo "unknown")
+    check_pass "bun: $BUN_VERSION"
+else
+    check_warn "bun not installed"
 fi
 
 # Tmux
