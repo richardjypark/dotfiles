@@ -26,12 +26,23 @@ fi
 # Ensure ~/.local/bin is in PATH for tools like jj, uv, etc.
 export PATH="$HOME/.local/bin:$PATH"
 
-# Load NVM for all shell contexts
+# NVM lazy loading - sourced on first use of nvm/node/npm/npx
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" --no-use
 
-# Profile NVM load
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "nvm loaded"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+    _nvm_lazy_load() {
+        unset -f nvm node npm npx
+        source "$NVM_DIR/nvm.sh"
+        [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
+    }
+    nvm()  { _nvm_lazy_load; nvm  "$@"; }
+    node() { _nvm_lazy_load; node "$@"; }
+    npm()  { _nvm_lazy_load; npm  "$@"; }
+    npx()  { _nvm_lazy_load; npx  "$@"; }
+fi
+
+# Profile NVM setup (lazy wrappers only, no actual load)
+[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "nvm lazy wrappers defined"
 
 # Bun
 export BUN_INSTALL="$HOME/.bun"
