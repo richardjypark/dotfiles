@@ -76,11 +76,9 @@ fi
 # This loads opam configuration and environment variables
 [[ ! -r "$HOME/.opam/opam-init/init.zsh" ]] || source "$HOME/.opam/opam-init/init.zsh" > /dev/null 2> /dev/null
 
-# NVM is loaded in ~/.zshenv for all shell contexts (including non-interactive IDE terminals)
-# Only load bash completion here for interactive shells
-[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
+# NVM is lazy-loaded in ~/.zshenv — completion loads on first use of nvm/node/npm/npx
 
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "nvm completion loaded"
+[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "nvm (lazy, skipped)"
 
 # Load additional shell configurations from your config directory.
 for conf in "$HOME/.config/shell/"*.sh; do
