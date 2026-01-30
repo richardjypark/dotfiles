@@ -35,50 +35,11 @@ if command -v claude >/dev/null 2>&1; then
     fi
 fi
 
-# On macOS, prefer Homebrew; on other platforms, use npm
-if [ "$(uname)" = "Darwin" ]; then
-    # macOS: use Homebrew
-    if command -v brew >/dev/null 2>&1; then
-        eecho "Installing Claude Code via Homebrew..."
-        if [ "$VERBOSE" = "true" ]; then
-            brew install claude-code
-        else
-            brew install claude-code >/dev/null 2>&1
-        fi
-    else
-        eecho "Warning: Homebrew not available. Please install Homebrew first, then run: brew install claude-code"
-        exit 0
-    fi
+eecho "Installing Claude Code via official installer..."
+if [ "$VERBOSE" = "true" ]; then
+    curl -fsSL https://claude.ai/install.sh | bash
 else
-    # Linux/other: use npm
-    if command -v npm >/dev/null 2>&1; then
-        eecho "Installing Claude Code via npm..."
-        if [ "$VERBOSE" = "true" ]; then
-            npm install -g @anthropic-ai/claude-code
-        else
-            npm install -g @anthropic-ai/claude-code >/dev/null 2>&1
-        fi
-    else
-        # Fallback: Try to load NVM and use npm from there
-        NVM_DIR="$HOME/.nvm"
-        if [ -s "$NVM_DIR/nvm.sh" ]; then
-            . "$NVM_DIR/nvm.sh"
-            if command -v npm >/dev/null 2>&1; then
-                eecho "Installing Claude Code via npm (via NVM)..."
-                if [ "$VERBOSE" = "true" ]; then
-                    npm install -g @anthropic-ai/claude-code
-                else
-                    npm install -g @anthropic-ai/claude-code >/dev/null 2>&1
-                fi
-            else
-                eecho "Warning: npm not available. Please install Node.js first, then run: npm install -g @anthropic-ai/claude-code"
-                exit 0
-            fi
-        else
-            eecho "Warning: npm not available. Please install Node.js first, then run: npm install -g @anthropic-ai/claude-code"
-            exit 0
-        fi
-    fi
+    curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1
 fi
 
 # Verify installation
