@@ -90,7 +90,7 @@ This dotfiles configuration includes the following tools:
 - **Node.js Environment**:
   - nvm (Node Version Manager)
 - **AI Coding Agents**:
-  - Claude Code (@anthropic-ai/claude-code)
+  - Claude Code (claude.ai/install.sh)
   - OpenCode AI (opencode-ai)
 - **Terminal**: Ghostty
 
