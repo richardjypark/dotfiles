@@ -17,8 +17,8 @@ export ZSH_DISABLE_COMPFIX=true
 # Path to your Oh My Zsh installation
 export ZSH="$HOME/.oh-my-zsh"
 
-# Theme - Using agnoster (built-in Oh My Zsh theme)
-ZSH_THEME="agnoster"
+# Theme - Disabled (using Starship prompt instead)
+ZSH_THEME=""
 
 # Load zsh fixes before Oh My Zsh initialization
 [[ -f "$HOME/.config/shell/zsh-fix.sh" ]] && source "$HOME/.config/shell/zsh-fix.sh"
@@ -36,7 +36,6 @@ plugins=(
 	ansible
 	ssh-agent
 	tmux
-	virtualenv
 	zsh-autosuggestions
 	zsh-syntax-highlighting
 )
@@ -56,14 +55,27 @@ if [[ -d "$ZSH" ]]; then
 		unset _ifs_restore_needed
 	fi
 
-	# Load agnoster theme customizations
-	[[ -f "$HOME/.config/shell/agnoster-custom.sh" ]] && source "$HOME/.config/shell/agnoster-custom.sh"
-
 else
 	echo "Warning: Oh My Zsh not found at $ZSH"
 fi
 
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "theme loaded"
+# SSH host detection for Starship prompt (generic hostname for privacy)
+if [[ -n "$SSH_CLIENT" ]] || [[ -n "$SSH_TTY" ]] || [[ -n "$SSH_CONNECTION" ]]; then
+    _starship_host_hash=$(echo "$HOSTNAME" | (md5sum 2>/dev/null || md5 2>/dev/null || echo "1") | cut -c1-1)
+    case $_starship_host_hash in
+        [0-3]) export STARSHIP_SSH_HOST="server1" ;;
+        [4-7]) export STARSHIP_SSH_HOST="server2" ;;
+        [8-b]) export STARSHIP_SSH_HOST="server3" ;;
+        *) export STARSHIP_SSH_HOST="server4" ;;
+    esac
+    unset _starship_host_hash
+    unset STARSHIP_LOCAL_HOST
+else
+    export STARSHIP_LOCAL_HOST="localhost"
+    unset STARSHIP_SSH_HOST
+fi
+
+[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "host detection done"
 
 # Enable vi mode keybindings (only if ZLE is available)
 if [[ -n "${ZLE_VERSION:-}" ]] || zmodload zsh/zle 2>/dev/null; then
@@ -86,6 +98,13 @@ for conf in "$HOME/.config/shell/"*.sh; do
 done
 
 [[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "shell configs loaded"
+
+# Initialize Starship prompt
+if command -v starship >/dev/null 2>&1; then
+    eval "$(starship init zsh)"
+fi
+
+[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "starship init"
 
 # Auto-start tmux (placed at the end to ensure all environment is set up first)
 # Skipped for: SSH sessions, VSCode terminals, already in tmux, or NOTMUX=1

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a chezmoi-managed dotfiles repository optimized for performance with sophisticated state tracking and external resource management. The dotfiles configure Zsh with Oh My Zsh, Tmux with session persistence, and development tools (Node.js via NVM, Python via uv, fzf, Jujutsu, OpenCode, Claude Code, Tailscale).
+This is a chezmoi-managed dotfiles repository optimized for performance with sophisticated state tracking and external resource management. The dotfiles configure Zsh with Oh My Zsh, Starship prompt (with native Jujutsu support), Tmux with session persistence, and development tools (Node.js via NVM, Python via uv, fzf, Jujutsu, OpenCode, Claude Code, Tailscale).
 
 ## Core Architecture
 
@@ -78,16 +78,17 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
 1. `run_before_00-state-tracker.sh` - Initialize state tracking
 2. `run_before_00-prerequisites.sh` - Install system packages (apt-get, git, curl, etc.)
 3. `run_before_01-setup-omz.sh` - Set up Oh My Zsh
-4. `run_after_20-setup-fzf.sh` - Install fzf from repository
-5. `run_after_25-setup-uv.sh.tmpl` - Install Python uv package manager
-6. `run_after_26-setup-jj.sh` - Install Jujutsu (jj) version control
-7. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
-8. `run_after_30-change-shell.sh` - Change default shell to zsh
-9. `run_after_35-setup-claude-code.sh` - Install Claude Code
-10. `run_after_36-setup-opencode.sh` - Install OpenCode AI coding agent
-11. `run_after_37-setup-tailscale.sh` - Install Tailscale VPN
-12. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
-13. `run_after_99-performance-summary.sh` - Show performance summary
+4. `run_after_12-setup-starship.sh` - Install Starship prompt
+5. `run_after_20-setup-fzf.sh` - Install fzf from repository
+6. `run_after_25-setup-uv.sh.tmpl` - Install Python uv package manager
+7. `run_after_26-setup-jj.sh` - Install Jujutsu (jj) version control
+8. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
+9. `run_after_30-change-shell.sh` - Change default shell to zsh
+10. `run_after_35-setup-claude-code.sh` - Install Claude Code
+11. `run_after_36-setup-opencode.sh` - Install OpenCode AI coding agent
+12. `run_after_37-setup-tailscale.sh` - Install Tailscale VPN
+13. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
+14. `run_after_99-performance-summary.sh` - Show performance summary
 
 **Script Patterns:**
 - Early exit if task already completed
@@ -99,7 +100,8 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
 
 **Multi-file shell setup:**
 - `~/.zshenv` - Loaded for ALL shells (NVM, Bun, Cargo paths)
-- `~/.zshrc` - Interactive shells only (Oh My Zsh, plugins, aliases)
+- `~/.zshrc` - Interactive shells only (Oh My Zsh, plugins, Starship init)
+- `~/.config/starship.toml` - Starship prompt configuration (modules, colors, layout)
 - `~/.config/shell/*.sh` - Modular configurations:
   - `path.sh` - PATH modifications
   - `alias.sh` - Custom aliases
@@ -107,13 +109,19 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
   - `history.sh` - History configuration
   - `fzf.sh` - fzf key bindings and completion
   - `zsh-fix.sh` - IFS fixes for Oh My Zsh compatibility
-  - `agnoster-custom.sh` - Theme customizations
   - `gpg.sh` - GPG configuration
   - `profile.sh` - Shell startup profiling utilities
 
 **ZSH Plugins (via Oh My Zsh):**
-- git, terraform, ansible, ssh-agent, tmux, virtualenv
+- git, terraform, ansible, ssh-agent, tmux
 - zsh-autosuggestions, zsh-syntax-highlighting
+
+**Prompt (Starship):**
+- Starship replaces the Agnoster Oh My Zsh theme for native Jujutsu (jj) support
+- Configuration: `~/.config/starship.toml` (source: `private_dot_config/starship.toml`)
+- SSH host privacy: generic hostnames (server1-4) via `STARSHIP_SSH_HOST` env var
+- Modules: username, hostname, directory, git, jj_status, python virtualenv, cmd_duration
+- Multiline prompt with blue `❯` (success) / red `❯` (error)
 
 **Shell Startup Profiling:**
 
@@ -133,9 +141,10 @@ Profiling tracks timing for:
 - zshenv loading (NVM, paths, environment setup)
 - zsh-fix.sh loading
 - Oh My Zsh initialization
-- Theme loading
+- Host detection (SSH/local)
 - NVM bash completion
 - Additional shell configs (~/.config/shell/*.sh)
+- Starship init
 - Completions (bun, uv)
 
 Results show:
