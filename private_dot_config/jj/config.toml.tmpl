@@ -2,6 +2,11 @@
 
 [user]
 name = "rich"
+# Optional: set JJ_EMAIL in your environment; it will be inserted here at apply time.
+{{ $jjEmail := env "JJ_EMAIL" }}
+{{ if $jjEmail }}
+email = "{{ $jjEmail }}"
+{{ end }}
 
 [ui]
 # Default command when jj is run without arguments
