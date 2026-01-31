@@ -47,3 +47,6 @@ desc = ["describe"]
 push = ["git", "push"]
 fetch = ["git", "fetch"]
 sync = ["git", "fetch", "--all-remotes"]
+
+[snapshot]
+auto-update-stale = true
