@@ -29,9 +29,11 @@ ZSH_THEME=""
 zstyle :omz:plugins:ssh-agent identities id_ed25519
 zstyle :omz:plugins:ssh-agent lifetime 1h
 zstyle :omz:plugins:ssh-agent quiet yes
+zstyle :omz:plugins:jj ignore-working-copy yes
 
 plugins=(
 	git
+	jj
 	terraform
 	ansible
 	ssh-agent

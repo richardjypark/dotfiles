@@ -54,9 +54,10 @@ style = "bold red"
 
 # Jujutsu status via custom module (native jj_status not yet in Starship)
 # Uses --ignore-working-copy to avoid snapshotting on every prompt
+# detect_folders avoids spawning a subprocess on every prompt in non-jj dirs
 [custom.jj]
 command = "jj log -r @ --no-graph --ignore-working-copy -T 'separate(\" \", change_id.shortest(4), if(bookmarks, bookmarks.join(\",\")), if(conflict, \"×\"), if(empty, \"∅\"), if(divergent, \"◇\"))'"
-when = "jj root 2>/dev/null"
+detect_folders = [".jj"]
 format = "[jj $output]($style) "
 style = "bold bright-magenta"
 
