@@ -49,7 +49,7 @@ check_fail() {
 }
 
 # Run health checks only in verbose mode or if explicitly requested
-if [ "$VERBOSE" != "true" ] && [ "$CHEZMOI_HEALTH_CHECK" != "true" ]; then
+if [ "$VERBOSE" != "true" ] && [ "${CHEZMOI_HEALTH_CHECK:-false}" != "true" ]; then
     exit 0
 fi
 
