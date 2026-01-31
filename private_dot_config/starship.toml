@@ -1,0 +1,100 @@
+# Starship prompt configuration
+# Replaces agnoster theme with native Jujutsu (jj) support
+
+format = """
+$username\
+$env_var\
+$directory\
+$git_branch\
+$git_status\
+${custom.jj}\
+$python\
+$cmd_duration\
+$line_break\
+$character"""
+
+# Multiline prompt: blue ❯ on success, red ❯ on error
+[character]
+success_symbol = "[❯](bold blue)"
+error_symbol = "[❯](bold red)"
+
+# Always show username; yellow bold for root
+[username]
+style_user = "bold white"
+style_root = "bold yellow"
+show_always = true
+format = "[$user]($style)"
+
+# SSH sessions: orange background with generic hostname
+[env_var.STARSHIP_SSH_HOST]
+format = "[@$env_value](bold black bg:208) "
+variable = "STARSHIP_SSH_HOST"
+
+# Local sessions: dimmed hostname
+[env_var.STARSHIP_LOCAL_HOST]
+format = "[@$env_value](dimmed white) "
+variable = "STARSHIP_LOCAL_HOST"
+
+# Directory: bold cyan, truncate to 3 components
+[directory]
+style = "bold cyan"
+truncation_length = 3
+truncate_to_repo = false
+
+# Git branch
+[git_branch]
+format = "[$symbol$branch(:$remote_branch)]($style) "
+symbol = " "
+style = "bold purple"
+
+# Git status
+[git_status]
+format = '([\[$all_status$ahead_behind\]]($style) )'
+style = "bold red"
+
+# Jujutsu status via custom module (native jj_status not yet in Starship)
+# Uses --ignore-working-copy to avoid snapshotting on every prompt
+[custom.jj]
+command = "jj log -r @ --no-graph --ignore-working-copy -T 'separate(\" \", change_id.shortest(4), if(bookmarks, bookmarks.join(\",\")), if(conflict, \"×\"), if(empty, \"∅\"), if(divergent, \"◇\"))'"
+when = "jj root 2>/dev/null"
+format = "[jj $output]($style) "
+style = "bold bright-magenta"
+
+# Python virtualenv with snake emoji
+[python]
+format = '[🐍(${virtualenv})]($style) '
+style = "bold magenta"
+detect_files = []
+detect_folders = []
+detect_extensions = []
+
+# Command duration for long-running commands (>2s)
+[cmd_duration]
+min_time = 2000
+format = "[$duration]($style) "
+style = "bold yellow"
+
+# Disable unused modules for performance
+[aws]
+disabled = true
+
+[gcloud]
+disabled = true
+
+[nodejs]
+disabled = true
+
+[package]
+disabled = true
+
+[rust]
+disabled = true
+
+[golang]
+disabled = true
+
+[java]
+disabled = true
+
+[docker_context]
+disabled = true
