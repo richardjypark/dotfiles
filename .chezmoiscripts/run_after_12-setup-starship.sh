@@ -50,11 +50,17 @@ case "$(uname -s)" in
         fi
         ;;
     Linux)
+        # Use user-local bin if sudo is not available
+        STARSHIP_BIN_DIR="/usr/local/bin"
+        if ! command -v sudo >/dev/null 2>&1 || ! sudo -n true 2>/dev/null; then
+            STARSHIP_BIN_DIR="$HOME/.local/bin"
+            mkdir -p "$STARSHIP_BIN_DIR"
+        fi
         eecho "Installing Starship via official installer..."
         if [ "$VERBOSE" = "true" ]; then
-            curl -sS https://starship.rs/install.sh | sh -s -- --yes
+            curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$STARSHIP_BIN_DIR"
         else
-            curl -sS https://starship.rs/install.sh | sh -s -- --yes >/dev/null 2>&1
+            curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$STARSHIP_BIN_DIR" >/dev/null 2>&1
         fi
         ;;
     *)
