@@ -20,19 +20,20 @@ if [ -f "$STATE_FILE" ]; then
     exit 0
 fi
 
+# Ensure ~/.local/bin is in PATH (where the installer places the binary)
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 vecho "Setting up Claude Code..."
 
 # Fast exit if claude is already installed and working (but mark state)
-if command -v claude >/dev/null 2>&1; then
-    # Verify it actually works (not just exists in PATH)
-    if claude --version >/dev/null 2>&1; then
-        vecho "Claude Code is already installed: $(claude --version 2>/dev/null || echo 'installed')"
-        mkdir -p "$STATE_DIR"
-        touch "$STATE_FILE"
-        exit 0
-    else
-        vecho "Claude Code binary found but not working, reinstalling..."
-    fi
+if command -v claude >/dev/null 2>&1 && claude --version >/dev/null 2>&1; then
+    vecho "Claude Code is already installed: $(claude --version 2>/dev/null || echo 'installed')"
+    mkdir -p "$STATE_DIR"
+    touch "$STATE_FILE"
+    exit 0
 fi
 
 eecho "Installing Claude Code via official installer..."
@@ -43,19 +44,13 @@ else
 fi
 
 # Verify installation
-if command -v claude >/dev/null 2>&1; then
-    if [ "$VERBOSE" = "true" ]; then
-        echo "Claude Code installed successfully"
-        claude --version 2>/dev/null || true
-    fi
-    # Mark setup as complete
+if command -v claude >/dev/null 2>&1 && claude --version >/dev/null 2>&1; then
+    eecho "Claude Code installed successfully: $(claude --version 2>/dev/null)"
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
 else
-    vecho "Claude Code installation complete. You may need to restart your shell."
-    # Still mark as complete since installation succeeded
+    eecho "Warning: Claude Code installation may have failed"
+    # Still mark as complete to avoid repeated attempts
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
 fi
-
-vecho "Claude Code setup complete!"
