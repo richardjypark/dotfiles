@@ -26,6 +26,7 @@ auto-track-bookmarks = "glob:*"
 "trunk()" = "latest(present(main@origin) | present(master@origin))"
 "mine" = "author(exact:'rich')"
 "wip" = "description(glob:'wip*')"
+"stacked" = "trunk()..@"
 
 [aliases]
 # Common workflow shortcuts
@@ -39,6 +40,10 @@ c = ["commit"]
 n = ["new"]
 e = ["edit"]
 sq = ["squash"]
+a = ["abandon"]
+rb = ["rebase"]
+sp = ["split"]
+desc = ["describe"]
 push = ["git", "push"]
 fetch = ["git", "fetch"]
 sync = ["git", "fetch", "--all-remotes"]
