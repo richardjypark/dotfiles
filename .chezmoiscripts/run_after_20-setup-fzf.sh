@@ -63,12 +63,12 @@ ln -s "$FZF_REPO_PATH/bin/fzf" "$FZF_TARGET"
 vecho "fzf shell integrations loaded from repository files"
 
 # Verify installation
-if ! command -v fzf >/dev/null 2>&1; then
+if [ ! -x "$FZF_TARGET" ]; then
     eecho "Error: fzf installation failed"
     exit 1
 fi
 
 if [ "$VERBOSE" = "true" ]; then
-    FZF_VERSION=$(fzf --version)
+    FZF_VERSION=$("$FZF_TARGET" --version)
     vecho "fzf setup complete! Version: $FZF_VERSION"
 fi

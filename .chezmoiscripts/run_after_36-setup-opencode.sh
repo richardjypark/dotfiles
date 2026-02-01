@@ -22,6 +22,12 @@ fi
 
 vecho "Setting up OpenCode..."
 
+# Ensure ~/.local/bin is in PATH (where the installer places the binary)
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 # Fast exit if opencode is already installed and working (but mark state)
 if command -v opencode >/dev/null 2>&1; then
     # Verify it actually works (not just exists in PATH)
