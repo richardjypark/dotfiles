@@ -61,24 +61,6 @@ else
 	echo "Warning: Oh My Zsh not found at $ZSH"
 fi
 
-# SSH host detection for Starship prompt (generic hostname for privacy)
-if [[ -n "$SSH_CLIENT" ]] || [[ -n "$SSH_TTY" ]] || [[ -n "$SSH_CONNECTION" ]]; then
-    _starship_host_hash=$(echo "$HOSTNAME" | (md5sum 2>/dev/null || md5 2>/dev/null || echo "1") | cut -c1-1)
-    case $_starship_host_hash in
-        [0-3]) export STARSHIP_SSH_HOST="server1" ;;
-        [4-7]) export STARSHIP_SSH_HOST="server2" ;;
-        [8-b]) export STARSHIP_SSH_HOST="server3" ;;
-        *) export STARSHIP_SSH_HOST="server4" ;;
-    esac
-    unset _starship_host_hash
-    unset STARSHIP_LOCAL_HOST
-else
-    export STARSHIP_LOCAL_HOST="localhost"
-    unset STARSHIP_SSH_HOST
-fi
-
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "host detection done"
-
 # Enable vi mode keybindings (only if ZLE is available)
 if [[ -n "${ZLE_VERSION:-}" ]] || zmodload zsh/zle 2>/dev/null; then
 	bindkey -v

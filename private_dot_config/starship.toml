@@ -3,7 +3,7 @@
 
 format = """
 $username\
-$env_var\
+$hostname\
 $directory\
 $git_branch\
 $git_status\
@@ -25,15 +25,11 @@ style_root = "bold yellow"
 show_always = true
 format = "[$user]($style)"
 
-# SSH sessions: dark red background with generic hostname (matches tmux SSH status)
-[env_var.STARSHIP_SSH_HOST]
-format = "[@$env_value](bold white bg:52) "
-variable = "STARSHIP_SSH_HOST"
-
-# Local sessions: dimmed hostname
-[env_var.STARSHIP_LOCAL_HOST]
-format = "[@$env_value](dimmed white) "
-variable = "STARSHIP_LOCAL_HOST"
+# Hostname: shown only in SSH sessions (Starship default)
+[hostname]
+ssh_only = true
+format = "[@$hostname]($style) "
+style = "bold white bg:52"
 
 # Directory: bold cyan, truncate to 3 components
 [directory]
