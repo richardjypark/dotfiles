@@ -20,10 +20,11 @@ FZF_TARGET="$FZF_BIN_PATH/fzf"
 NEEDS_INSTALL=false
 if ! command -v fzf >/dev/null 2>&1 || [ ! -f "$FZF_TARGET" ]; then
     NEEDS_INSTALL=true
-elif [ -f "$FZF_REPO_PATH/version.txt" ]; then
-    REPO_VERSION=$(head -1 "$FZF_REPO_PATH/version.txt" 2>/dev/null || echo "")
+elif [ -f "$FZF_REPO_PATH/install" ]; then
+    # Extract version from the install script (format: version=X.Y.Z)
+    REPO_VERSION=$(grep '^version=' "$FZF_REPO_PATH/install" 2>/dev/null | head -1 | cut -d= -f2)
     INSTALLED_VERSION=$(fzf --version 2>/dev/null | awk '{print $1}')
-    if [ "$REPO_VERSION" != "$INSTALLED_VERSION" ]; then
+    if [ -n "$REPO_VERSION" ] && [ "$REPO_VERSION" != "$INSTALLED_VERSION" ]; then
         vecho "Version mismatch: repo=$REPO_VERSION installed=$INSTALLED_VERSION"
         NEEDS_INSTALL=true
     fi
