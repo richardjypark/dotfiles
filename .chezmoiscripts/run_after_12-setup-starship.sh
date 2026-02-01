@@ -22,6 +22,12 @@ fi
 
 vecho "Setting up Starship prompt..."
 
+# Ensure ~/.local/bin is in PATH (where the installer may place the binary)
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 # Fast exit if starship is already installed and working (but mark state)
 if command -v starship >/dev/null 2>&1; then
     vecho "Starship is already installed: $(starship --version 2>/dev/null || echo 'installed')"

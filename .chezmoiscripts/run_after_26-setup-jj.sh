@@ -31,6 +31,12 @@ trap cleanup EXIT INT TERM
 
 vecho "Setting up Jujutsu (jj)..."
 
+# Ensure ~/.local/bin is in PATH (where the binary may be installed)
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 # Fast exit if jj is already installed (but mark state)
 if command -v jj >/dev/null 2>&1; then
     vecho "Jujutsu is already installed: $(jj --version 2>/dev/null || echo 'installed')"
@@ -201,7 +207,6 @@ else
 fi
 
 # Verify installation
-export PATH="$HOME/.local/bin:$PATH"
 if command -v jj >/dev/null 2>&1; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Jujutsu installed successfully"
