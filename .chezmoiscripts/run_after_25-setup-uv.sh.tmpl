@@ -14,6 +14,12 @@ vecho "Setting up uv (Python package manager)..."
 
 UV_DIR="$HOME/.local/bin"
 
+# Ensure ~/.local/bin is in PATH
+case ":$PATH:" in
+    *":$UV_DIR:"*) ;;
+    *) export PATH="$UV_DIR:$PATH" ;;
+esac
+
 # Use chezmoi template syntax to read Python version
 {{- with .python }}
 PYTHON_VERSION="{{ .version }}"
@@ -46,9 +52,6 @@ else
         exit 1
     fi
 fi
-
-# Ensure uv is in PATH
-export PATH="$HOME/.local/bin:$PATH"
 
 # Check if Python is already installed via uv
 if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
