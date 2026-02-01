@@ -22,6 +22,12 @@ fi
 
 vecho "Setting up Ansible..."
 
+# Ensure ~/.local/bin is in PATH (pipx/uv may install here)
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 # Fast exit if ansible is already installed (but mark state)
 if command -v ansible >/dev/null 2>&1; then
     vecho "Ansible is already installed: $(ansible --version 2>/dev/null | head -1 || echo 'installed')"
@@ -200,7 +206,6 @@ else
 fi
 
 # Verify installation
-export PATH="$HOME/.local/bin:$PATH"
 if command -v ansible >/dev/null 2>&1; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Ansible installed successfully"
