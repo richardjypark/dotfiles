@@ -28,11 +28,12 @@ format = "[$user]($style)"
 # Hostname: shown only in SSH sessions (Starship default)
 [hostname]
 ssh_only = true
-format = "[@$hostname]($style) "
+format = "[@$hostname]($style)"
 style = "bold white bg:52"
 
 # Directory: bold cyan, truncate to 3 components
 [directory]
+format = " [$path]($style)[$read_only]($read_only_style) "
 style = "bold cyan"
 truncation_length = 3
 truncate_to_repo = false
