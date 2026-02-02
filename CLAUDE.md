@@ -262,6 +262,89 @@ rm -rf ~/.tmux/plugins && chezmoi apply
 - **External refresh:** Weekly by default (168h), use `--refresh-externals` to force
 - **fzf version pinned:** v0.67.0 to avoid errors; update carefully in `.chezmoiversion.toml`
 
+## VPS Bootstrap Script
+
+`bootstrap-vps.sh` provisions a fresh Debian/Ubuntu VPS with hardening and dotfiles. It lives in the repo root but is not managed by chezmoi (no chezmoi naming prefix). It must be copied to the server manually since it installs chezmoi itself.
+
+**Usage:**
+```bash
+# Copy to server and run as root
+scp bootstrap-vps.sh root@<vps-ip>:/root/
+ssh root@<vps-ip>
+USERNAME=rich DOTFILES_REPO=https://github.com/richardjypark/dotfiles.git ./bootstrap-vps.sh
+```
+
+**What it does (in order):**
+1. Validates root, OS (Debian/Ubuntu), network connectivity
+2. `apt update` + `dist-upgrade`
+3. Creates swap (default 2GB), sets timezone/locale to UTC/en_US.UTF-8
+4. Creates non-root user with passwordless sudo, copies root's SSH keys
+5. Installs Tailscale, sets `--operator` for non-root user access
+6. Hardens SSH (key-only auth, removes weak host keys, Ed25519 + RSA only)
+7. Configures UFW (deny incoming, allow SSH; optionally lock to `tailscale0`)
+8. Kernel hardening via sysctl (syncookies, no redirects, rp_filter)
+9. Enables unattended security upgrades
+10. Configures fail2ban for SSH (whitelists Tailscale CGNAT `100.64.0.0/10`)
+11. Installs chezmoi to `/usr/local/bin` and applies dotfiles as the non-root user
+12. Runs 12-point verification and prints summary
+
+**Configuration (all via environment variables):**
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `USERNAME` | `rich` | Non-root user to create |
+| `DOTFILES_REPO` | *(must be set)* | Chezmoi dotfiles git URL |
+| `SSH_PORT` | `22` | SSH listen port |
+| `SWAP_SIZE_MB` | `2048` | Swap file size |
+| `VERBOSE` | `false` | Detailed output |
+| `DISABLE_ROOT_LOGIN` | `0` | Set to `1` after confirming user SSH works |
+| `LOCK_SSH_TO_TAILSCALE` | `0` | Set to `1` after confirming Tailscale works |
+| `MAX_AUTH_TRIES` | `3` | SSH max auth attempts |
+| `F2B_MAXRETRY` | `3` | fail2ban max retries before ban |
+| `F2B_FINDTIME` | `10m` | fail2ban observation window |
+| `F2B_BANTIME` | `1h` | fail2ban ban duration |
+
+**Phased lockdown (run the script multiple times):**
+```bash
+# 1. First run — everything open, verify SSH as your user
+USERNAME=rich DOTFILES_REPO=https://github.com/you/dotfiles.git ./bootstrap-vps.sh
+
+# 2. Disable root login after confirming user SSH works
+USERNAME=rich DOTFILES_REPO=... DISABLE_ROOT_LOGIN=1 ./bootstrap-vps.sh
+
+# 3. Lock SSH to Tailscale after confirming tailscale is connected
+USERNAME=rich DOTFILES_REPO=... DISABLE_ROOT_LOGIN=1 LOCK_SSH_TO_TAILSCALE=1 ./bootstrap-vps.sh
+```
+
+**Important notes:**
+- Script is idempotent — subsequent runs skip completed steps
+- All output logged to `/var/log/bootstrap.log` (permissions 600)
+- fail2ban whitelists all Tailscale IPs (`100.64.0.0/10`) to prevent lockout
+- chezmoi installer may ignore `-b /usr/local/bin`; the script detects this and copies the binary from `~/.local/bin` if needed
+- Update SSH config to use the Tailscale IP after locking down:
+  ```
+  Host vps
+      HostName 100.x.x.x    # Tailscale IP
+      User rich
+      IdentityFile ~/.ssh/id_ed25519_key
+      IdentitiesOnly yes
+  ```
+
+**Troubleshooting:**
+```bash
+# If locked out, use VPS provider's web console, then:
+ufw allow 22/tcp                  # Re-open SSH on all interfaces
+systemctl restart ssh             # Restart sshd
+fail2ban-client unban --all       # Unban all IPs
+
+# Force re-run all chezmoi scripts
+rm -rf ~/.cache/chezmoi-state
+chezmoi apply --force
+
+# Check what fail2ban has banned
+fail2ban-client status sshd
+```
+
 ## Version Control with Jujutsu (jj)
 
 **IMPORTANT:** Always use `jj` instead of `git` for version control operations. Jujutsu is a Git-compatible VCS with enhanced features. See [official docs](https://docs.jj-vcs.dev/latest/cli-reference/).
