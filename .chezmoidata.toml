@@ -10,6 +10,11 @@ version = "3.12"  # Python version to install via uv (can be "3.12", "3.11", "la
 # uv is installed via the official installer (https://astral.sh/uv)
 # Provides fast Python package management
 
+# Jujutsu (jj) version control configuration
+[jj]
+name = "rich"
+email = "git@richardjypark.com"
+
 # Global npm packages installed alongside Node.js
 [npm]
 packages = ["yarn", "pnpm"]
