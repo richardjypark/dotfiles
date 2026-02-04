@@ -261,6 +261,35 @@ rm -rf ~/.tmux/plugins && chezmoi apply
 - **External refresh:** Weekly by default (168h), use `--refresh-externals` to force
 - **fzf version pinned:** v0.67.0 to avoid errors; update carefully in `.chezmoiversion.toml`
 
+## Production Server Optimization
+
+When chezmoi is applied on a production server (detected by hostname), certain development tools are automatically skipped:
+
+**Skipped on hostname `vultr`:**
+- Node.js/NVM setup (`run_after_30-setup-node.sh.tmpl` via `.chezmoiignore`)
+- NVM external resource (conditional in `.chezmoiexternal.toml.tmpl`)
+- Bun (`run_after_27-setup-bun.sh`)
+- Homebrew (`run_after_10-setup-homebrew.sh`)
+- Ansible (`run_after_27-setup-ansible.sh`)
+
+This keeps production servers lean - builds happen locally and are deployed via Ansible/rsync.
+
+**To add more server hostnames:**
+Edit `.chezmoiignore` and `.chezmoiexternal.toml.tmpl`, extending the hostname conditions:
+```
+{{ if or (eq .chezmoi.hostname "vultr") (eq .chezmoi.hostname "other-server") }}
+```
+
+**Tools still installed on servers:**
+- Oh My Zsh with plugins (zsh-syntax-highlighting, zsh-autosuggestions)
+- Starship (prompt)
+- fzf (fuzzy finder)
+- uv (Python)
+- jj (version control)
+- Claude Code
+- Tailscale
+- Tmux
+
 ## VPS Bootstrap Script
 
 `bootstrap-vps.sh` provisions a fresh Debian/Ubuntu VPS with hardening and dotfiles. It lives in the repo root but is not managed by chezmoi (no chezmoi naming prefix). It must be copied to the server manually since it installs chezmoi itself.
