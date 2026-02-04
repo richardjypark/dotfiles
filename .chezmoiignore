@@ -30,3 +30,18 @@ logs/claude_output_*.log
 # Ralph specs (agent-generated specifications)
 specs/*
 logs/*
+
+# Skip dev tools on production servers (hostname: vultr)
+{{ if eq .chezmoi.hostname "vultr" }}
+# Node.js/NVM - builds happen locally, not needed on prod
+.chezmoiscripts/run_after_30-setup-node.sh.tmpl
+
+# Bun - not needed on prod
+.chezmoiscripts/run_after_27-setup-bun.sh
+
+# Homebrew - macOS only
+.chezmoiscripts/run_after_10-setup-homebrew.sh
+
+# Ansible - not needed on prod (we run ansible from local)
+.chezmoiscripts/run_after_27-setup-ansible.sh
+{{ end }}
