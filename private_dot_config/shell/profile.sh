@@ -2,14 +2,6 @@
 # Enable with: export ZSH_PROFILE_STARTUP=1
 # View results: zsh_profile_report
 
-# Only profile if explicitly enabled
-if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
-    # Profiling already initialized in zshenv, add final checkpoint
-    if [[ -n "$_zsh_profile_start" ]] && typeset -f _zsh_profile_checkpoint >/dev/null; then
-        _zsh_profile_checkpoint "shell configs loaded"
-    fi
-fi
-
 # Display profiling report
 zsh_profile_report() {
     if [[ -z "$_zsh_profile_times" ]]; then
