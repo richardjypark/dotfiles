@@ -5,12 +5,16 @@
 if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
     # Initialize profiling arrays and start time
     typeset -ga _zsh_profile_times
-    _zsh_profile_start=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || echo 0)
+
+    # Fast millisecond timer (gdate on macOS, date on Linux, python3 fallback)
+    _get_ms() { gdate +%s%3N 2>/dev/null || date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))'; }
+
+    _zsh_profile_start=$(_get_ms)
 
     # Checkpoint function
     _zsh_profile_checkpoint() {
         local name="$1"
-        local now=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || echo 0)
+        local now=$(_get_ms)
         _zsh_profile_times+=("$name:$now")
     }
 

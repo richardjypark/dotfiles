@@ -1,5 +1,5 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
