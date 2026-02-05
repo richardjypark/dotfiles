@@ -20,15 +20,19 @@ path_append() {
 }
 
 # Base directories (highest priority first)
-# Note: ~/.local/bin is already in PATH from ~/.zshenv for non-interactive shells
+# Note: ~/.local/bin is already in PATH from ~/.zshenv (for all shells)
 path_prepend "$HOME/bin"
-path_prepend "$HOME/.local/bin"
 path_prepend "/usr/local/bin"
 
-# uv-managed Python (add latest installed version to PATH)
+# uv-managed Python (add latest installed version to PATH, cached for speed)
 if [ -d "$HOME/.local/share/uv/python" ]; then
-    # Find the most recent Python installation
-    uv_python_bin=$(find "$HOME/.local/share/uv/python" -maxdepth 2 -type d -name "bin" 2>/dev/null | sort -V | tail -1)
+    _uv_cache="$HOME/.cache/uv-python-bin"
+    _uv_dir="$HOME/.local/share/uv/python"
+    if [ ! -f "$_uv_cache" ] || [ "$_uv_dir" -nt "$_uv_cache" ]; then
+        mkdir -p "$HOME/.cache"
+        find "$_uv_dir" -maxdepth 2 -type d -name "bin" 2>/dev/null | sort -V | tail -1 > "$_uv_cache"
+    fi
+    uv_python_bin=$(cat "$_uv_cache" 2>/dev/null)
     [ -n "$uv_python_bin" ] && path_prepend "$uv_python_bin"
 fi
 

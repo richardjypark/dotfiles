@@ -22,6 +22,7 @@ setopt HIST_IGNORE_SPACE        # Do not record an event starting with a space
 setopt HIST_SAVE_NO_DUPS        # Do not write a duplicate event to the history file
 setopt HIST_VERIFY              # Do not execute immediately upon history expansion
 setopt HIST_REDUCE_BLANKS       # Remove superfluous blanks from each command line
+setopt HIST_NO_STORE            # Don't store history/fc commands themselves
 
 # Format history timestamp
 alias history='fc -li 1'        # Use ISO 8601 standard for timestamps

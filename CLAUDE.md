@@ -180,7 +180,7 @@ Typical startup times:
 - RGB color support enabled
 - Focus events enabled (for Vim/Neovim integration)
 - Escape time: 10ms (reduces delay for Vim mode switching)
-- History limit: 50,000 lines
+- History limit: 10,000 lines
 - Bell monitoring disabled (prevents `!` indicator in window names)
 
 **Window/pane numbering:**
