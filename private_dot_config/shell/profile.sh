@@ -61,6 +61,10 @@ zsh_profile_report() {
     done
 }
 
+# Millisecond timer (gdate on macOS, GNU date on Linux, python3 fallback)
+# macOS built-in date outputs literal %3N, so validate output is numeric
+_profile_get_ms() { local t; t=$(gdate +%s%3N 2>/dev/null) || t=$(date +%s%3N 2>/dev/null); [[ "$t" =~ ^[0-9]+$ ]] && echo "$t" || python3 -c 'import time; print(int(time.time()*1000))'; }
+
 # Quick startup time check (no profiling needed)
 zsh_startup_time() {
     local start_time end_time
@@ -73,9 +77,9 @@ zsh_startup_time() {
 
     for i in $(seq 1 $runs); do
         # Time a new shell startup
-        start_time=$(gdate +%s%3N 2>/dev/null || date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
+        start_time=$(_profile_get_ms)
         zsh -ic 'exit' 2>/dev/null
-        end_time=$(gdate +%s%3N 2>/dev/null || date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
+        end_time=$(_profile_get_ms)
 
         local delta=$(( end_time - start_time ))
         total=$(( total + delta ))
@@ -106,9 +110,9 @@ zsh_profile_source() {
     fi
 
     local start_time end_time
-    start_time=$(gdate +%s%3N 2>/dev/null || date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
+    start_time=$(_profile_get_ms)
     source "$file"
-    end_time=$(gdate +%s%3N 2>/dev/null || date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
+    end_time=$(_profile_get_ms)
 
     printf "Sourced %s in %d ms\n" "$file" "$(( end_time - start_time ))"
 }

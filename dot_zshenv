@@ -6,8 +6,9 @@ if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
     # Initialize profiling arrays and start time
     typeset -ga _zsh_profile_times
 
-    # Fast millisecond timer (gdate on macOS, date on Linux, python3 fallback)
-    _get_ms() { gdate +%s%3N 2>/dev/null || date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))'; }
+    # Fast millisecond timer (gdate on macOS, GNU date on Linux, python3 fallback)
+    # macOS built-in date outputs literal %3N, so validate output is numeric
+    _get_ms() { local t; t=$(gdate +%s%3N 2>/dev/null) || t=$(date +%s%3N 2>/dev/null); [[ "$t" =~ ^[0-9]+$ ]] && echo "$t" || python3 -c 'import time; print(int(time.time()*1000))'; }
 
     _zsh_profile_start=$(_get_ms)
 
