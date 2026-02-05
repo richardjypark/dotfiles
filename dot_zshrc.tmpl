@@ -34,8 +34,10 @@ zstyle :omz:plugins:jj ignore-working-copy yes
 plugins=(
 	git
 	jj
+{{- if ne .chezmoi.hostname "vultr" }}
 	terraform
 	ansible
+{{- end }}
 	ssh-agent
 	tmux
 	zsh-autosuggestions
@@ -68,24 +70,26 @@ fi
 
 # ZLE error fixes are handled by zsh-fix.sh loaded earlier
 
-# OCaml/opam configuration
-# This loads opam configuration and environment variables
-[[ ! -r "$HOME/.opam/opam-init/init.zsh" ]] || source "$HOME/.opam/opam-init/init.zsh" > /dev/null 2> /dev/null
-
 # NVM is lazy-loaded in ~/.zshenv — completion loads on first use of nvm/node/npm/npx
 
 [[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "nvm (lazy, skipped)"
 
 # Load additional shell configurations from your config directory.
 for conf in "$HOME/.config/shell/"*.sh; do
+	[[ "$conf" == *"/zsh-fix.sh" ]] && continue
 	[ -f "$conf" ] && . "$conf"
 done
 
 [[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "shell configs loaded"
 
-# Initialize Starship prompt
+# Initialize Starship prompt (cached for performance)
 if command -v starship >/dev/null 2>&1; then
-    eval "$(starship init zsh)"
+    local starship_cache="$HOME/.cache/starship-init.zsh"
+    if [[ ! -f "$starship_cache" ]] || [[ "$(command -v starship)" -nt "$starship_cache" ]]; then
+        mkdir -p "$HOME/.cache"
+        starship init zsh > "$starship_cache"
+    fi
+    source "$starship_cache"
 fi
 
 [[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "starship init"
@@ -112,7 +116,7 @@ fi
 
 # Final profiling checkpoint and display report
 if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
-    _zsh_profile_end=$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || echo 0)
+    _zsh_profile_end=$(_get_ms)
 
     # Auto-display report if function is available
     if typeset -f zsh_profile_report >/dev/null; then

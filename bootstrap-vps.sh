@@ -258,6 +258,20 @@ net.ipv4.icmp_echo_ignore_broadcasts = 1
 # Log martian packets
 net.ipv4.conf.all.log_martians = 1
 net.ipv4.conf.default.log_martians = 1
+
+# Hide kernel pointers from non-root
+kernel.kptr_restrict = 2
+
+# Restrict dmesg to root
+kernel.dmesg_restrict = 1
+
+# Protect hardlinks and symlinks
+fs.protected_hardlinks = 1
+fs.protected_symlinks = 1
+
+# Protect FIFOs and regular files in world-writable dirs
+fs.protected_fifos = 2
+fs.protected_regular = 2
 EOF
   sysctl --system >/dev/null 2>&1
 }
