@@ -67,7 +67,7 @@ zsh_startup_time() {
     local total=0
     local runs=5
 
-    for i in $(seq 1 $runs); do
+    for i in {1..$runs}; do
         # Time a new shell startup
         start_time=$(_profile_get_ms)
         zsh -ic 'exit' 2>/dev/null
