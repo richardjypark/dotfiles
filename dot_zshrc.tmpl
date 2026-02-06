@@ -59,6 +59,42 @@ if [[ -d "$ZSH" ]]; then
 		unset _ifs_restore_needed
 	fi
 
+	# Fix zsh-autosuggestions "not enough arguments for -C" on completion widgets
+	# https://github.com/zsh-users/zsh-autosuggestions/issues/825
+	# Remove this once zsh-autosuggestions merges PR #832
+	_zsh_autosuggest_bind_widget() {
+		typeset -gA _ZSH_AUTOSUGGEST_BIND_COUNTS
+		local widget=$1
+		local autosuggest_action=$2
+		local prefix=$ZSH_AUTOSUGGEST_ORIGINAL_WIDGET_PREFIX
+		local -i bind_count
+
+		case $widgets[$widget] in
+			user:_zsh_autosuggest_(bound|orig)_*)
+				bind_count=$((_ZSH_AUTOSUGGEST_BIND_COUNTS[$widget]))
+				;;
+			user:*)
+				_zsh_autosuggest_incr_bind_count $widget
+				zle -N $prefix$bind_count-$widget ${widgets[$widget]#*:}
+				;;
+			builtin)
+				_zsh_autosuggest_incr_bind_count $widget
+				eval "_zsh_autosuggest_orig_${(q)widget}() { zle .${(q)widget} }"
+				zle -N $prefix$bind_count-$widget _zsh_autosuggest_orig_$widget
+				;;
+			completion:*)
+				_zsh_autosuggest_incr_bind_count $widget
+				local -a w_parts=("${(@s.:.)widgets[$widget]}")
+				eval 'zle -C "$prefix$bind_count-${(q)widget}" "${w_parts[2]}" "${w_parts[3]}"'
+				;;
+		esac
+
+		eval "_zsh_autosuggest_bound_${bind_count}_${(q)widget}() {
+			_zsh_autosuggest_widget_$autosuggest_action $prefix$bind_count-${(q)widget} \$@
+		}"
+		zle -N -- $widget _zsh_autosuggest_bound_${bind_count}_$widget
+	}
+
 else
 	echo "Warning: Oh My Zsh not found at $ZSH"
 fi
