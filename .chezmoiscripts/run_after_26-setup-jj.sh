@@ -168,20 +168,29 @@ install_via_binary() {
         if [ -f "$TEMP_DIR/jj" ]; then
             mv "$TEMP_DIR/jj" "$INSTALL_DIR/jj"
             chmod +x "$INSTALL_DIR/jj"
-        elif [ -f "$TEMP_DIR/jj-v${LATEST_VERSION}-"*/jj ]; then
-            mv "$TEMP_DIR/jj-v${LATEST_VERSION}-"*/jj "$INSTALL_DIR/jj"
-            chmod +x "$INSTALL_DIR/jj"
         else
-            # Try to find jj binary in extracted files
-            JJ_BIN=$(find "$TEMP_DIR" -name "jj" -type f 2>/dev/null | head -1)
-            if [ -n "$JJ_BIN" ]; then
-                mv "$JJ_BIN" "$INSTALL_DIR/jj"
+            JJ_ARCHIVE_BIN=""
+            for candidate in "$TEMP_DIR"/jj-v"${LATEST_VERSION}"-*/jj; do
+                if [ -f "$candidate" ]; then
+                    JJ_ARCHIVE_BIN="$candidate"
+                    break
+                fi
+            done
+            if [ -n "$JJ_ARCHIVE_BIN" ]; then
+                mv "$JJ_ARCHIVE_BIN" "$INSTALL_DIR/jj"
                 chmod +x "$INSTALL_DIR/jj"
             else
-                eecho "Error: Could not find jj binary in downloaded archive"
-                eecho "  Archive contents:"
-                ls -la "$TEMP_DIR" 2>&1 | while read line; do eecho "    $line"; done
-                return 1
+                # Try to find jj binary in extracted files
+                JJ_BIN=$(find "$TEMP_DIR" -name "jj" -type f 2>/dev/null | head -1)
+                if [ -n "$JJ_BIN" ]; then
+                    mv "$JJ_BIN" "$INSTALL_DIR/jj"
+                    chmod +x "$INSTALL_DIR/jj"
+                else
+                    eecho "Error: Could not find jj binary in downloaded archive"
+                    eecho "  Archive contents:"
+                    ls -la "$TEMP_DIR" 2>&1 | while read line; do eecho "    $line"; done
+                    return 1
+                fi
             fi
         fi
 

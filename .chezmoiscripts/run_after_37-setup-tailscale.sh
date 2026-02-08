@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
+TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS:-0}
 vecho() {
     if [ "$VERBOSE" = "true" ]; then
         echo "$@"
@@ -49,6 +50,11 @@ if [ "$OS" = "Darwin" ]; then
     fi
 elif [ "$OS" = "Linux" ]; then
     # Linux: Use official install script with retry
+    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+        eecho "Refusing to run remote installer without explicit trust."
+        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow tailscale.com/install.sh."
+        exit 1
+    fi
     eecho "Installing Tailscale via official install script..."
     if [ "$VERBOSE" = "true" ]; then
         curl -fsSL --retry 3 --retry-delay 2 https://tailscale.com/install.sh | sh
@@ -71,10 +77,8 @@ if command -v tailscale >/dev/null 2>&1; then
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
 else
-    eecho "Warning: Tailscale installation may not be complete. You may need to restart your shell."
-    # Still mark as complete since installation succeeded
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    eecho "Error: Tailscale installation failed. Leaving state unset so it can retry."
+    exit 1
 fi
 
 vecho "Tailscale setup complete!"

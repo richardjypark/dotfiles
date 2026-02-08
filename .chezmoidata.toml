@@ -15,6 +15,11 @@ version = "3.12"  # Python version to install via uv (can be "3.12", "3.11", "la
 name = "rich"
 email = "git@richardjypark.com"
 
+# Chezmoi git update behavior
+[git]
+# Default branch used by chezmoi update pull/rebase
+defaultBranch = "master"
+
 # Global npm packages installed alongside Node.js
 [npm]
 packages = ["yarn", "pnpm"]
