@@ -43,6 +43,25 @@ sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh
 
 `CHEZMOI_ROLE` is set automatically by the bootstrap script (`workstation` or `server`) so templates can skip server-unneeded tooling.
 
+## Codex Skills (How and When To Use)
+
+Local Codex skills in this repo live under `private_dot_codex/skills/` and are applied to `~/.codex/skills/` by chezmoi.
+
+Triggering behavior:
+- Explicit trigger: mention a skill name in your prompt (recommended for precision).
+- Implicit trigger: ask for a task that clearly matches a skill description.
+- For commit/history operations in this repo, prefer asking for `jj` workflows.
+
+| Skill | Use it when you need to... | Example prompts |
+| --- | --- | --- |
+| `jj` | inspect history, shape changes, manage bookmarks, and push using Jujutsu instead of raw git | "Use jj to split this change and push bookmark `feature-x`." |
+| `chezmoi-bootstrap-operator` | choose/update bootstrap flows (`scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh`) with secure defaults | "Use chezmoi-bootstrap-operator to update Arch server bootstrap docs for new flags." |
+| `chezmoi-script-maintainer` | add/fix `.chezmoiscripts/*` with repo conventions (state tracking, quiet logs, role/trust gates) | "Use chezmoi-script-maintainer to add a new setup script with idempotent state-file behavior." |
+| `dotfiles-version-refresh` | bump pinned versions and externals consistently across `.chezmoidata.toml`, `.chezmoiversion.toml`, `.chezmoiexternal.toml.tmpl`, scripts, and docs | "Use dotfiles-version-refresh to bump fzf and update all related pins/docs." |
+
+Practical prompt pattern:
+- "Use `<skill-name>` and do `<task>`; validate with `<commands>`."
+
 ## Setup Profiles (What To Run Where)
 
 Use this matrix to pick the right flow for each machine.
