@@ -41,6 +41,88 @@ sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh
 
 `CHEZMOI_ROLE` is set automatically by the bootstrap script (`workstation` or `server`) so templates can skip server-unneeded tooling.
 
+## Setup Profiles (What To Run Where)
+
+Use this matrix to pick the right flow for each machine.
+
+| Machine type | Bootstrap command | Ongoing chezmoi command | Notes |
+| --- | --- | --- | --- |
+| Omarchy personal machine (use repo defaults) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `chezmoi update` | Repo-managed shell/terminal defaults apply. |
+| Omarchy personal machine (keep Omarchy defaults) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `CHEZMOI_PROFILE=omarchy chezmoi update` | Preserves Omarchy Ghostty/Zsh/tmux/Starship defaults. |
+| Omarchy server | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role server` | `CHEZMOI_ROLE=server chezmoi update` | Includes server package set and server-specific template/script exclusions. |
+| Vultr server (legacy fallback behavior) | Use `bootstrap-vps.sh` for Debian/Ubuntu, or Omarchy server flow on Arch | `CHEZMOI_ROLE=server chezmoi update` | Some exclusions also key off hostname `vultr` for backward compatibility. |
+
+## Bootstrap Flags and Environment
+
+`scripts/bootstrap-omarchy.sh` supports:
+
+- `--role workstation|server` (required)
+- `--repo <chezmoi-repo>` (optional, default: `richardjypark`)
+- `-h`, `--help`
+
+Environment variables used by `scripts/bootstrap-omarchy.sh`:
+
+- `PRIVATE_ENV_FILE` path to local, untracked env file (default: `~/.config/dotfiles/bootstrap-private.env`)
+- `TRUST_ON_FIRST_USE_INSTALLERS=1` allows setup scripts that use remote installers
+- `DOTFILES_REPO` alternative way to set the chezmoi repo target
+
+Optional variables typically loaded from `bootstrap-private.env`:
+
+- `BOOTSTRAP_GIT_EMAIL`
+- `BOOTSTRAP_SSH_PUBLIC_KEY`
+- `BOOTSTRAP_SSH_PUBLIC_KEY_FILE`
+- `BOOTSTRAP_HOST_ALIAS`
+
+## Chezmoi Role/Profile Switches
+
+- `CHEZMOI_ROLE=server` enables server behavior in templates and `.chezmoiignore` (skips local-dev tooling setup)
+- `CHEZMOI_PROFILE=omarchy` preserves Omarchy defaults by skipping this repo's shell/terminal overrides
+- `TRUST_ON_FIRST_USE_INSTALLERS=1` is required for installer-based setup scripts during `chezmoi apply/update`
+
+Examples:
+
+```bash
+# Omarchy personal machine, preserve Omarchy defaults
+CHEZMOI_PROFILE=omarchy chezmoi apply
+CHEZMOI_PROFILE=omarchy chezmoi update
+
+# Server apply/update
+CHEZMOI_ROLE=server chezmoi apply
+CHEZMOI_ROLE=server chezmoi update
+
+# Server apply/update with installer trust
+CHEZMOI_ROLE=server TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi update
+```
+
+### Omarchy: keep distro defaults, still use this repo
+
+If you want Omarchy's built-in defaults (Ghostty, shell stack, tmux, Starship) to remain authoritative, run chezmoi with:
+
+```bash
+CHEZMOI_PROFILE=omarchy chezmoi apply
+```
+
+and for updates:
+
+```bash
+CHEZMOI_PROFILE=omarchy chezmoi update
+```
+
+In this mode, `.chezmoiignore` skips:
+
+- `~/.config/ghostty/config`
+- `~/.config/starship.toml`
+- `~/.zshenv`
+- `~/.zshrc`
+- `~/.tmux.conf`
+- shell setup scripts that would otherwise reassert this repo's shell defaults
+
+Optional convenience alias on your Omarchy machine:
+
+```bash
+alias cz='CHEZMOI_PROFILE=omarchy chezmoi'
+```
+
 ## Secrets Policy
 
 This repository is public. Do not commit secrets, private keys, tokens, or host-specific sensitive data.
