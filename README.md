@@ -32,6 +32,8 @@ chmod 600 ~/.config/dotfiles/bootstrap-private.env
 ~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role server
 ```
 
+`--role workstation` installs the workstation package set, including Jujutsu (`jj`/`jujutsu`).
+
 4. For server role, use two-phase hardening:
 
 ```bash
@@ -47,7 +49,7 @@ Use this matrix to pick the right flow for each machine.
 
 | Machine type | Bootstrap command | Ongoing chezmoi command | Notes |
 | --- | --- | --- | --- |
-| Omarchy personal machine (pinned Omarchy baseline) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `chezmoi update` | Chezmoi manages Omarchy-style Ghostty/Starship + your zsh/tmux stack. |
+| Omarchy personal machine (pinned Omarchy baseline) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `chezmoi update` | Chezmoi manages Omarchy-style Ghostty/Starship + your zsh/tmux stack, and bootstrap installs `jujutsu`. |
 | Omarchy personal machine (temporary skip of shell/terminal targets) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `CHEZMOI_PROFILE=omarchy chezmoi update` | Skips managed terminal/shell targets and uses local files as-is. |
 | Omarchy server | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role server` | `CHEZMOI_ROLE=server chezmoi update` | Includes server package set and server-specific template/script exclusions. |
 | Vultr server (legacy fallback behavior) | Use `bootstrap-vps.sh` for Debian/Ubuntu, or Omarchy server flow on Arch | `CHEZMOI_ROLE=server chezmoi update` | Some exclusions also key off hostname `vultr` for backward compatibility. |
