@@ -85,8 +85,9 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
 8. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
 9. `run_after_30-change-shell.sh` - Change default shell to zsh
 10. `run_after_35-setup-claude-code.sh` - Install Claude Code
-11. `run_after_37-setup-tailscale.sh` - Install Tailscale VPN
-12. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
+11. `run_after_36-setup-codex.sh` - Install Codex CLI (Homebrew/release binary, no npm)
+12. `run_after_37-setup-tailscale.sh` - Install Tailscale VPN
+13. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
 13. `run_after_99-performance-summary.sh` - Show performance summary
 
 **Script Patterns:**
@@ -263,32 +264,52 @@ rm -rf ~/.tmux/plugins && chezmoi apply
 
 ## Production Server Optimization
 
-When chezmoi is applied on a production server (detected by hostname), certain development tools are automatically skipped:
+Server behavior is now primarily role-based using `CHEZMOI_ROLE=server` (with `vultr` hostname fallback retained for compatibility). The Omarchy bootstrap script sets this role automatically.
 
-**Skipped on hostname `vultr`:**
+**Set role explicitly (manual apply):**
+```bash
+CHEZMOI_ROLE=server chezmoi apply
+```
+
+**Skipped on server role:**
 - Node.js/NVM setup (`run_after_30-setup-node.sh.tmpl` via `.chezmoiignore`)
 - NVM external resource (conditional in `.chezmoiexternal.toml.tmpl`)
 - Bun (`run_after_27-setup-bun.sh`)
 - Homebrew (`run_after_10-setup-homebrew.sh`)
 - Ansible (`run_after_27-setup-ansible.sh`)
+- Claude Code (`run_after_35-setup-claude-code.sh`)
+- Codex CLI setup auto-skips when `CHEZMOI_ROLE=server` (`run_after_36-setup-codex.sh`)
+- Oh My Zsh `terraform`/`ansible` plugins (`dot_zshrc.tmpl`)
 
-This keeps production servers lean - builds happen locally and are deployed via Ansible/rsync.
-
-**To add more server hostnames:**
-Edit `.chezmoiignore` and `.chezmoiexternal.toml.tmpl`, extending the hostname conditions:
-```
-{{ if or (eq .chezmoi.hostname "vultr") (eq .chezmoi.hostname "other-server") }}
-```
+This keeps servers lean while local/workstation hosts keep full dev tooling.
 
 **Tools still installed on servers:**
-- Oh My Zsh with plugins (zsh-syntax-highlighting, zsh-autosuggestions)
+- Oh My Zsh with core plugins (including ssh-agent/tmux)
 - Starship (prompt)
 - fzf (fuzzy finder)
 - uv (Python)
 - jj (version control)
-- Claude Code
+- Codex CLI
 - Tailscale
 - Tmux
+
+## Omarchy Bootstrap
+
+For fresh Omarchy (Arch-based) installs, use:
+
+```bash
+~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation
+~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role server
+```
+
+Bootstrap uses official Arch repos (`pacman`) only, supports local untracked private input via `~/.config/dotfiles/bootstrap-private.env`, and avoids committing sensitive values.
+
+For server hardening, use two-phase lockdown:
+1. Bootstrap server and verify Tailscale connectivity.
+2. Enforce Tailscale-only SSH:
+```bash
+sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh
+```
 
 ## VPS Bootstrap Script
 
