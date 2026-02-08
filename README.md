@@ -2,12 +2,66 @@
 
 Richard Park's dotfiles, managed with [`chezmoi`](https://github.com/twpayne/chezmoi).
 
-Install them with:
+## Omarchy Quickstart
 
+This repo includes a role-based bootstrap for fresh Omarchy (Arch-based) machines.
+
+1. Install `chezmoi` and initialize:
+
+```bash
+sudo pacman -S --noconfirm --needed chezmoi git curl
+chezmoi init --apply richardjypark
+```
+
+2. Optional: create a local private env file for non-public values:
+
+```bash
+mkdir -p ~/.config/dotfiles
+cp ~/.local/share/chezmoi/scripts/bootstrap-private-env.example ~/.config/dotfiles/bootstrap-private.env
+$EDITOR ~/.config/dotfiles/bootstrap-private.env
+chmod 600 ~/.config/dotfiles/bootstrap-private.env
+```
+
+3. Run bootstrap for your role:
+
+```bash
+# Personal workstation
+~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation
+
+# Personal server
+~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role server
+```
+
+4. For server role, use two-phase hardening:
+
+```bash
+# First verify SSH over Tailscale works, then lock down:
+sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh
+```
+
+`CHEZMOI_ROLE` is set automatically by the bootstrap script (`workstation` or `server`) so templates can skip server-unneeded tooling.
+
+## Secrets Policy
+
+This repository is public. Do not commit secrets, private keys, tokens, or host-specific sensitive data.
+
+- Put sensitive bootstrap inputs in `~/.config/dotfiles/bootstrap-private.env` (local, untracked).
+- Supported optional variables:
+  - `BOOTSTRAP_GIT_EMAIL`
+  - `BOOTSTRAP_SSH_PUBLIC_KEY`
+  - `BOOTSTRAP_SSH_PUBLIC_KEY_FILE`
+  - `BOOTSTRAP_HOST_ALIAS`
+
+## Generic Install
+
+If you only want a normal `chezmoi` install flow:
+
+```bash
     sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b $HOME/.local/bin
     chezmoi init richardjypark
     chezmoi update
     exec zsh
+```
 
 ## Performance Optimizations
 
@@ -44,7 +98,7 @@ chezmoi-verbose apply
 
 Performance behavior is primarily implemented in `.chezmoiscripts/` using early exits and state tracking.
 
-## Secure Bootstrap Defaults
+## Debian/Ubuntu VPS Bootstrap Defaults
 
 `bootstrap-vps.sh` now defaults to a safer posture:
 
@@ -121,6 +175,7 @@ This dotfiles configuration includes the following tools:
   - nvm (Node Version Manager)
 - **AI Coding Agents**:
   - Claude Code (claude.ai/install.sh)
+  - Codex CLI (`brew install --cask codex` or official release binaries)
 - **Terminal**: Ghostty
 
 ## Applying Changes and Testing Plugins

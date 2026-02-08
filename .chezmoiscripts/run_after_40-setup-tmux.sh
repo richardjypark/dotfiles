@@ -38,10 +38,26 @@ if command -v tmux &> /dev/null && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; t
 fi
 
 # Helper function to run commands with sudo if needed (non-interactively)
+ensure_sudo() {
+    if [ "$(id -u)" = 0 ]; then
+        return 0
+    fi
+    if sudo -n true 2>/dev/null; then
+        return 0
+    fi
+    if [ "${CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO:-0}" = "1" ] && [ -t 0 ]; then
+        eecho "Requesting sudo access for package installation..."
+        sudo -v >/dev/null 2>&1 || return 1
+        sudo -n true 2>/dev/null || return 1
+        return 0
+    fi
+    return 1
+}
+
 run_privileged() {
     if [ "$(id -u)" = 0 ]; then
         "$@"
-    elif sudo -n true 2>/dev/null; then
+    elif ensure_sudo; then
         sudo "$@"
     else
         return 1
@@ -65,7 +81,7 @@ if ! command -v tmux &> /dev/null; then
         CAN_SUDO=false
         if [ "$(id -u)" = 0 ]; then
             CAN_SUDO=true
-        elif sudo -n true 2>/dev/null; then
+        elif ensure_sudo; then
             CAN_SUDO=true
         fi
 
