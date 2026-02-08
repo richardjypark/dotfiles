@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chezmoi Bootstrap Operator"
+  short_description: "Maintain Omarchy and VPS bootstrap workflows."
+  default_prompt: "Choose the bootstrap path, enforce security defaults, and update scripts/docs consistently."
