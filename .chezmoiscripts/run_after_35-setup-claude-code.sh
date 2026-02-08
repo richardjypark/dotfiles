@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
+TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS:-0}
 vecho() {
     if [ "$VERBOSE" = "true" ]; then
         echo "$@"
@@ -37,6 +38,11 @@ if command -v claude >/dev/null 2>&1 && claude --version >/dev/null 2>&1; then
 fi
 
 eecho "Installing Claude Code via official installer..."
+if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+    eecho "Refusing to run remote installer without explicit trust."
+    eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow claude.ai/install.sh."
+    exit 1
+fi
 if [ "$VERBOSE" = "true" ]; then
     curl -fsSL https://claude.ai/install.sh | bash
 else
@@ -49,8 +55,6 @@ if command -v claude >/dev/null 2>&1 && claude --version >/dev/null 2>&1; then
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
 else
-    eecho "Warning: Claude Code installation may have failed"
-    # Still mark as complete to avoid repeated attempts
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    eecho "Error: Claude Code installation failed. Leaving state unset so it can retry."
+    exit 1
 fi

@@ -20,6 +20,9 @@ SWAP_SIZE_MB="${SWAP_SIZE_MB:-2048}"
 
 LOCK_SSH_TO_TAILSCALE="${LOCK_SSH_TO_TAILSCALE:-0}"
 DISABLE_ROOT_LOGIN="${DISABLE_ROOT_LOGIN:-0}"
+ALLOW_PASSWORDLESS_SUDO="${ALLOW_PASSWORDLESS_SUDO:-0}"
+COPY_ROOT_AUTH_KEYS="${COPY_ROOT_AUTH_KEYS:-0}"
+TRUST_ON_FIRST_USE_INSTALLERS="${TRUST_ON_FIRST_USE_INSTALLERS:-0}"
 
 MAX_AUTH_TRIES="${MAX_AUTH_TRIES:-3}"
 LOGIN_GRACE_TIME="${LOGIN_GRACE_TIME:-20}"
@@ -62,6 +65,15 @@ wait_for_apt_lock() {
 apt_install() {
   wait_for_apt_lock
   apt-get install -y --no-install-recommends "$@"
+}
+
+require_trust_for_remote_installer() {
+  local installer="$1"
+  if [[ "${TRUST_ON_FIRST_USE_INSTALLERS}" != "1" ]]; then
+    echo "ERROR: Refusing to run remote installer '${installer}' without explicit trust." >&2
+    echo "Set TRUST_ON_FIRST_USE_INSTALLERS=1 to allow this installer." >&2
+    exit 1
+  fi
 }
 
 # --- Validation --------------------------------------------------------------
@@ -139,17 +151,48 @@ setup_user() {
   apt_install sudo
   usermod -aG sudo "${USERNAME}"
 
-  # Passwordless sudo (user has no password set)
-  echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}"
-  chmod 440 "/etc/sudoers.d/${USERNAME}"
-
-  # Copy root's SSH keys to the new user
-  if [[ -f /root/.ssh/authorized_keys ]]; then
-    install -d -m 700 -o "${USERNAME}" -g "${USERNAME}" "/home/${USERNAME}/.ssh"
-    install -m 600 -o "${USERNAME}" -g "${USERNAME}" \
-      /root/.ssh/authorized_keys "/home/${USERNAME}/.ssh/authorized_keys"
+  if [[ "${ALLOW_PASSWORDLESS_SUDO}" == "1" ]]; then
+    echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}"
+    chmod 440 "/etc/sudoers.d/${USERNAME}"
   else
-    echo "WARNING: /root/.ssh/authorized_keys not found."
+    rm -f "/etc/sudoers.d/${USERNAME}"
+    echo "Passwordless sudo disabled by default (set ALLOW_PASSWORDLESS_SUDO=1 to enable)."
+  fi
+
+  # Copy root's SSH keys to the new user (opt-in only)
+  if [[ "${COPY_ROOT_AUTH_KEYS}" == "1" ]]; then
+    if [[ -f /root/.ssh/authorized_keys ]]; then
+      install -d -m 700 -o "${USERNAME}" -g "${USERNAME}" "/home/${USERNAME}/.ssh"
+      install -m 600 -o "${USERNAME}" -g "${USERNAME}" \
+        /root/.ssh/authorized_keys "/home/${USERNAME}/.ssh/authorized_keys"
+    else
+      echo "WARNING: /root/.ssh/authorized_keys not found."
+    fi
+  else
+    echo "Root SSH key copy disabled by default (set COPY_ROOT_AUTH_KEYS=1 to enable)."
+  fi
+}
+
+write_security_flags() {
+  local state_dir="/home/${USERNAME}/.config/bootstrap"
+  local state_file="${state_dir}/security-flags.env"
+
+  install -d -m 700 -o "${USERNAME}" -g "${USERNAME}" "${state_dir}"
+  cat > "${state_file}" <<EOF
+ALLOW_PASSWORDLESS_SUDO=${ALLOW_PASSWORDLESS_SUDO}
+COPY_ROOT_AUTH_KEYS=${COPY_ROOT_AUTH_KEYS}
+TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS}
+EOF
+  chown "${USERNAME}:${USERNAME}" "${state_file}"
+  chmod 600 "${state_file}"
+  vecho "Wrote bootstrap security flags to ${state_file}"
+}
+
+ensure_ssh_access() {
+  if [[ ! -f "/home/${USERNAME}/.ssh/authorized_keys" ]]; then
+    echo "ERROR: /home/${USERNAME}/.ssh/authorized_keys is missing." >&2
+    echo "Provide SSH keys before proceeding, or re-run with COPY_ROOT_AUTH_KEYS=1." >&2
+    exit 1
   fi
 }
 
@@ -326,6 +369,7 @@ install_tailscale() {
     return 0
   fi
 
+  require_trust_for_remote_installer "tailscale.com/install.sh"
   if curl -fsSL --retry 3 --retry-delay 2 https://tailscale.com/install.sh | sh; then
     systemctl enable tailscaled || true
     systemctl start tailscaled || true
@@ -349,6 +393,7 @@ install_dotfiles() {
       apt_install chezmoi
       chezmoi_bin="$(command -v chezmoi)"
     else
+      require_trust_for_remote_installer "chezmoi.io/get"
       sh -c "$(curl -fsLS https://chezmoi.io/get)" -- -b /usr/local/bin
     fi
     # Installer may ignore -b and put it in ~/.local/bin; move it if so
@@ -358,7 +403,7 @@ install_dotfiles() {
     fi
   fi
 
-  sudo -u "${USERNAME}" -H env "VERBOSE=${VERBOSE}" \
+  sudo -u "${USERNAME}" -H env "VERBOSE=${VERBOSE}" "TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS}" \
     "${chezmoi_bin}" init --apply --force "${DOTFILES_REPO}"
 }
 
@@ -379,7 +424,11 @@ verify() {
 
   # Wrap commands that need pipes or || in bash -c
   check "User ${USERNAME} exists"     id -u "${USERNAME}"
-  check "Passwordless sudo"           sudo -u "${USERNAME}" sudo -n true
+  if [[ "${ALLOW_PASSWORDLESS_SUDO}" == "1" ]]; then
+    check "Passwordless sudo"         sudo -u "${USERNAME}" sudo -n true
+  else
+    vecho "  [SKIP] Passwordless sudo check (ALLOW_PASSWORDLESS_SUDO=0)"
+  fi
   check "SSH authorized_keys"         test -f "/home/${USERNAME}/.ssh/authorized_keys"
   check "SSHD config valid"           sshd -t
   check "SSHD running"               bash -c "systemctl is-active ssh || systemctl is-active sshd"
@@ -414,6 +463,9 @@ print_summary() {
   echo "  SSH port:  ${SSH_PORT}"
   echo "  Root SSH:  ${root_status}"
   echo "  Tailscale: ${ts_status}"
+  echo "  NOPASSWD sudo: ${ALLOW_PASSWORDLESS_SUDO}"
+  echo "  Copy root keys: ${COPY_ROOT_AUTH_KEYS}"
+  echo "  TOFU installers: ${TRUST_ON_FIRST_USE_INSTALLERS}"
   echo ""
 
   if [[ -f /var/run/reboot-required ]]; then
@@ -439,6 +491,8 @@ main() {
   configure_locale
 
   setup_user
+  write_security_flags
+  ensure_ssh_access
 
   install_tailscale
 

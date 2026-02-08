@@ -130,13 +130,6 @@ fi
 
 [[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "starship init"
 
-# Auto-start tmux (placed at the end to ensure all environment is set up first)
-# Skipped for: SSH sessions, VSCode terminals, already in tmux, or NOTMUX=1
-if [[ -z "$TMUX" ]] && [[ -z "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]] && [[ -z "$NOTMUX" ]]; then
-    # Attempt to attach to existing session or create a new one
-    exec tmux new-session -A
-fi
-
 # bun completions (bun PATH is set in ~/.zshenv)
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
@@ -158,4 +151,10 @@ if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
     if typeset -f zsh_profile_report >/dev/null; then
         zsh_profile_report
     fi
+fi
+
+# Auto-start tmux after all shell setup/profiling is complete.
+# Skipped for: SSH sessions, VSCode terminals, already in tmux, or NOTMUX=1
+if [[ -z "$TMUX" ]] && [[ -z "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]] && [[ -z "$NOTMUX" ]]; then
+    exec tmux new-session -A
 fi
