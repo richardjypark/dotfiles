@@ -14,7 +14,11 @@ autoPush = false
 
 [update]
 command = "git"
+{{- if and .git .git.defaultBranch }}
+args = ["pull", "--autostash", "--rebase", "origin", "{{ .git.defaultBranch }}"]
+{{- else }}
 args = ["pull", "--autostash", "--rebase", "origin", "master"]
+{{- end }}
 
 [cd]
 command = "zsh"

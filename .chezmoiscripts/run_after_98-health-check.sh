@@ -61,15 +61,15 @@ vecho ""
 vecho "--- Shell Configuration ---"
 
 if [ -f "$HOME/.zshrc" ]; then
-    check_pass "~/.zshrc exists"
+    check_pass "$HOME/.zshrc exists"
 else
-    check_fail "~/.zshrc missing"
+    check_fail "$HOME/.zshrc missing"
 fi
 
 if [ -f "$HOME/.zshenv" ]; then
-    check_pass "~/.zshenv exists"
+    check_pass "$HOME/.zshenv exists"
 else
-    check_warn "~/.zshenv missing (optional)"
+    check_warn "$HOME/.zshenv missing (optional)"
 fi
 
 if [ -d "$HOME/.oh-my-zsh" ]; then
@@ -175,9 +175,9 @@ vecho ""
 vecho "--- Configuration Files ---"
 
 if [ -f "$HOME/.tmux.conf" ]; then
-    check_pass "~/.tmux.conf exists"
+    check_pass "$HOME/.tmux.conf exists"
 else
-    check_warn "~/.tmux.conf missing"
+    check_warn "$HOME/.tmux.conf missing"
 fi
 
 if [ -d "$HOME/.config/shell" ]; then
@@ -188,7 +188,7 @@ if [ -d "$HOME/.config/shell" ]; then
         check_warn "No shell configs in ~/.config/shell/"
     fi
 else
-    check_warn "~/.config/shell/ directory missing"
+    check_warn "$HOME/.config/shell/ directory missing"
 fi
 
 # 5. State tracking
@@ -201,6 +201,36 @@ if [ -d "$STATE_DIR" ]; then
     check_pass "State directory: $STATE_COUNT tracked states"
 else
     check_warn "State directory not initialized"
+fi
+
+# 6. Bootstrap security flags (if bootstrap-vps.sh was used)
+vecho ""
+vecho "--- Bootstrap Security Defaults ---"
+
+BOOTSTRAP_FLAGS_FILE="$HOME/.config/bootstrap/security-flags.env"
+if [ -f "$BOOTSTRAP_FLAGS_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$BOOTSTRAP_FLAGS_FILE"
+
+    if [ "${ALLOW_PASSWORDLESS_SUDO:-0}" = "1" ]; then
+        check_warn "Bootstrap used ALLOW_PASSWORDLESS_SUDO=1"
+    else
+        check_pass "Passwordless sudo remains disabled by default"
+    fi
+
+    if [ "${COPY_ROOT_AUTH_KEYS:-0}" = "1" ]; then
+        check_warn "Bootstrap used COPY_ROOT_AUTH_KEYS=1"
+    else
+        check_pass "Root authorized_keys was not copied by default"
+    fi
+
+    if [ "${TRUST_ON_FIRST_USE_INSTALLERS:-0}" = "1" ]; then
+        check_warn "Bootstrap allowed remote installer scripts (TOFU mode)"
+    else
+        check_pass "Remote installer scripts require explicit trust"
+    fi
+else
+    check_warn "Bootstrap security flag file not found (bootstrap-vps.sh may not have been used)"
 fi
 
 # Summary
