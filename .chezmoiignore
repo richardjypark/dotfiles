@@ -50,3 +50,20 @@ logs/*
 # Claude Code - not needed on prod servers
 .chezmoiscripts/run_after_35-setup-claude-code.sh
 {{ end }}
+
+# Preserve Omarchy defaults while still managing this repo.
+# Enable with: CHEZMOI_PROFILE=omarchy chezmoi apply|update
+{{ if eq (env "CHEZMOI_PROFILE") "omarchy" }}
+# Keep Omarchy terminal/shell defaults in place
+private_dot_config/ghostty/config
+private_dot_config/starship.toml
+dot_zshenv
+dot_zshrc.tmpl
+dot_tmux.conf
+
+# Skip shell-stack setup scripts that assume this repo owns defaults
+.chezmoiscripts/run_before_01-setup-omz.sh
+.chezmoiscripts/run_after_12-setup-starship.sh
+.chezmoiscripts/run_after_30-change-shell.sh
+.chezmoiscripts/run_after_40-setup-tmux.sh
+{{ end }}
