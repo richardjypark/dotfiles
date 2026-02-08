@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dotfiles Version Refresh"
+  short_description: "Bump pinned versions and externals safely."
+  default_prompt: "Update version pins and external refs, then align scripts/docs and validation commands."
