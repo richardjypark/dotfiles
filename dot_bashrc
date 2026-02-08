@@ -1,0 +1,5 @@
+# Auto-handoff interactive bash sessions to zsh so shell/tmux config loads.
+# Set NO_AUTO_ZSH=1 to bypass for a one-off bash session.
+if [[ $- == *i* ]] && [[ -z "${NO_AUTO_ZSH:-}" ]] && command -v zsh >/dev/null 2>&1; then
+    exec zsh -l
+fi

@@ -53,7 +53,11 @@ logs/*
 
 # Preserve Omarchy defaults while still managing this repo.
 # Enable with: CHEZMOI_PROFILE=omarchy chezmoi apply|update
-{{ if eq (env "CHEZMOI_PROFILE") "omarchy" }}
+{{ $profile := or (index . "profile") (env "CHEZMOI_PROFILE") }}
+{{ $force_raw := or (index . "force_zsh_login") (env "CHEZMOI_FORCE_ZSH_LOGIN") }}
+{{ $force_str := lower (printf "%v" $force_raw) }}
+{{ $force_zsh := or (eq $force_raw true) (eq $force_str "true") (eq $force_str "1") (eq $force_str "yes") }}
+{{ if eq $profile "omarchy" }}
 # Keep Omarchy terminal/shell defaults in place
 private_dot_config/ghostty/config
 private_dot_config/starship.toml
@@ -64,6 +68,8 @@ dot_tmux.conf
 # Skip shell-stack setup scripts that assume this repo owns defaults
 .chezmoiscripts/run_before_01-setup-omz.sh
 .chezmoiscripts/run_after_12-setup-starship.sh
+{{ if not $force_zsh }}
 .chezmoiscripts/run_after_30-change-shell.sh
+{{ end }}
 .chezmoiscripts/run_after_40-setup-tmux.sh
 {{ end }}
