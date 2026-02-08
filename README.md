@@ -47,8 +47,8 @@ Use this matrix to pick the right flow for each machine.
 
 | Machine type | Bootstrap command | Ongoing chezmoi command | Notes |
 | --- | --- | --- | --- |
-| Omarchy personal machine (use repo defaults) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `chezmoi update` | Repo-managed shell/terminal defaults apply. |
-| Omarchy personal machine (keep Omarchy defaults) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `CHEZMOI_PROFILE=omarchy chezmoi update` | Preserves Omarchy Ghostty/Zsh/tmux/Starship defaults. |
+| Omarchy personal machine (pinned Omarchy baseline) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `chezmoi update` | Chezmoi manages Omarchy-style Ghostty/Starship + your zsh/tmux stack. |
+| Omarchy personal machine (temporary skip of shell/terminal targets) | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation` | `CHEZMOI_PROFILE=omarchy chezmoi update` | Skips managed terminal/shell targets and uses local files as-is. |
 | Omarchy server | `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role server` | `CHEZMOI_ROLE=server chezmoi update` | Includes server package set and server-specific template/script exclusions. |
 | Vultr server (legacy fallback behavior) | Use `bootstrap-vps.sh` for Debian/Ubuntu, or Omarchy server flow on Arch | `CHEZMOI_ROLE=server chezmoi update` | Some exclusions also key off hostname `vultr` for backward compatibility. |
 
@@ -76,13 +76,14 @@ Optional variables typically loaded from `bootstrap-private.env`:
 ## Chezmoi Role/Profile Switches
 
 - `CHEZMOI_ROLE=server` enables server behavior in templates and `.chezmoiignore` (skips local-dev tooling setup)
-- `CHEZMOI_PROFILE=omarchy` preserves Omarchy defaults by skipping this repo's shell/terminal overrides
+- `CHEZMOI_PROFILE=omarchy` skips managed shell/terminal targets (escape hatch mode)
+- `~/.config/nvim` is managed by chezmoi (pinned baseline from this machine)
 - `TRUST_ON_FIRST_USE_INSTALLERS=1` is required for installer-based setup scripts during `chezmoi apply/update`
 
 Examples:
 
 ```bash
-# Omarchy personal machine, preserve Omarchy defaults
+# Omarchy personal machine, temporary skip mode
 CHEZMOI_PROFILE=omarchy chezmoi apply
 CHEZMOI_PROFILE=omarchy chezmoi update
 
@@ -94,34 +95,19 @@ CHEZMOI_ROLE=server chezmoi update
 CHEZMOI_ROLE=server TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi update
 ```
 
-### Omarchy: keep distro defaults, still use this repo
+### Omarchy Baseline Refresh (Manual, Pinned)
 
-If you want Omarchy's built-in defaults (Ghostty, shell stack, tmux, Starship) to remain authoritative, run chezmoi with:
-
-```bash
-CHEZMOI_PROFILE=omarchy chezmoi apply
-```
-
-and for updates:
+This repo pins Omarchy-flavored defaults so updates are intentional. To refresh from current Omarchy files:
 
 ```bash
-CHEZMOI_PROFILE=omarchy chezmoi update
+cp ~/.local/share/omarchy/config/ghostty/config ~/.local/share/chezmoi/private_dot_config/ghostty/config
+cp ~/.local/share/omarchy/config/starship.toml ~/.local/share/chezmoi/private_dot_config/starship.toml
+chezmoi add ~/.config/nvim
+chezmoi diff
+chezmoi apply
 ```
 
-In this mode, `.chezmoiignore` skips:
-
-- `~/.config/ghostty/config`
-- `~/.config/starship.toml`
-- `~/.zshenv`
-- `~/.zshrc`
-- `~/.tmux.conf`
-- shell setup scripts that would otherwise reassert this repo's shell defaults
-
-Optional convenience alias on your Omarchy machine:
-
-```bash
-alias cz='CHEZMOI_PROFILE=omarchy chezmoi'
-```
+Use `CHEZMOI_PROFILE=omarchy` only if you explicitly want to skip those managed targets.
 
 ## Secrets Policy
 
@@ -142,7 +128,28 @@ If you only want a normal `chezmoi` install flow:
     sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b $HOME/.local/bin
     chezmoi init richardjypark
     chezmoi update
-    exec zsh
+```
+
+## Shell Startup Troubleshooting
+
+Verify your login shell:
+
+```bash
+getent passwd "$USER" | cut -d: -f7
+```
+
+Expected value: `/usr/bin/zsh` (or `/bin/zsh` on some systems).
+
+If it is still bash, fix it with:
+
+```bash
+chsh -s "$(command -v zsh)" "$USER"
+```
+
+If your system requires sudo:
+
+```bash
+sudo chsh -s "$(command -v zsh)" "$USER"
 ```
 
 ## Performance Optimizations
