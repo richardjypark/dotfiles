@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jujutsu (jj)"
+  short_description: "Use Jujutsu for version-control workflows in Git-backed repos."
+  default_prompt: "Use Jujutsu commands to inspect status, shape changes, and sync with remotes safely."
