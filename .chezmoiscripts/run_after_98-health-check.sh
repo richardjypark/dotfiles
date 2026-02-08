@@ -147,6 +147,13 @@ else
     check_warn "Claude Code not installed"
 fi
 
+# Codex CLI
+if command -v codex >/dev/null 2>&1; then
+    check_pass "Codex CLI installed"
+else
+    check_warn "Codex CLI not installed"
+fi
+
 # Bun
 if command -v bun >/dev/null 2>&1; then
     BUN_VERSION=$(bun --version 2>/dev/null || echo "unknown")

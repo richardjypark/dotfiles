@@ -26,6 +26,7 @@ if [ "$VERBOSE" = "true" ]; then
     command -v node >/dev/null 2>&1 && echo "  node:   $(node -v 2>/dev/null || echo 'installed')"
     command -v uv >/dev/null 2>&1 && echo "  uv:     $(uv --version 2>/dev/null || echo 'installed')"
     command -v claude >/dev/null 2>&1 && echo "  claude: installed"
+    command -v codex >/dev/null 2>&1 && echo "  codex:  $(codex --version 2>/dev/null || echo 'installed')"
     command -v tmux >/dev/null 2>&1 && echo "  tmux:   $(tmux -V 2>/dev/null || echo 'installed')"
     echo ""
     echo "Completed at: $(date)"
