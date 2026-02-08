@@ -34,7 +34,7 @@ zstyle :omz:plugins:jj ignore-working-copy yes
 plugins=(
 	git
 	jj
-{{- if ne .chezmoi.hostname "vultr" }}
+{{- if and (ne (env "CHEZMOI_ROLE") "server") (ne .chezmoi.hostname "vultr") }}
 	terraform
 	ansible
 {{- end }}

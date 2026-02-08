@@ -46,10 +46,26 @@ if command -v jj >/dev/null 2>&1; then
 fi
 
 # Helper function to run commands with sudo if needed (non-interactively)
+ensure_sudo() {
+    if [ "$(id -u)" = 0 ]; then
+        return 0
+    fi
+    if sudo -n true 2>/dev/null; then
+        return 0
+    fi
+    if [ "${CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO:-0}" = "1" ] && [ -t 0 ]; then
+        eecho "Requesting sudo access for package installation..."
+        sudo -v >/dev/null 2>&1 || return 1
+        sudo -n true 2>/dev/null || return 1
+        return 0
+    fi
+    return 1
+}
+
 run_privileged() {
     if [ "$(id -u)" = 0 ]; then
         "$@"
-    elif sudo -n true 2>/dev/null; then
+    elif ensure_sudo; then
         sudo "$@"
     else
         return 1
@@ -188,7 +204,9 @@ install_via_binary() {
                 else
                     eecho "Error: Could not find jj binary in downloaded archive"
                     eecho "  Archive contents:"
-                    ls -la "$TEMP_DIR" 2>&1 | while read line; do eecho "    $line"; done
+                    while IFS= read -r line; do
+                        eecho "    $line"
+                    done < <(find "$TEMP_DIR" -maxdepth 2 -print 2>/dev/null)
                     return 1
                 fi
             fi

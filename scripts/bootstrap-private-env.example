@@ -1,0 +1,14 @@
+# Copy to: ~/.config/dotfiles/bootstrap-private.env
+# This file must remain local and untracked.
+
+# Optional: key used for ssh-keygen comment.
+# BOOTSTRAP_GIT_EMAIL="you@example.com"
+
+# Optional: provide a public key string to add to ~/.ssh/authorized_keys on server role.
+# BOOTSTRAP_SSH_PUBLIC_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example.com"
+
+# Optional: provide a file path containing the public key to add to authorized_keys.
+# BOOTSTRAP_SSH_PUBLIC_KEY_FILE="$HOME/.ssh/id_ed25519.pub"
+
+# Optional: friendly label for your own tooling/scripts.
+# BOOTSTRAP_HOST_ALIAS="personal-server"

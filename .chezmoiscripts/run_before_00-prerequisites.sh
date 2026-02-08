@@ -30,10 +30,26 @@ if is_installed zsh && is_installed git && is_installed curl && is_installed che
 fi
 
 # Helper function to run commands with sudo if needed (non-interactively)
+ensure_sudo() {
+    if [ "$(id -u)" = 0 ]; then
+        return 0
+    fi
+    if sudo -n true 2>/dev/null; then
+        return 0
+    fi
+    if [ "${CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO:-0}" = "1" ] && [ -t 0 ]; then
+        eecho "Requesting sudo access for package installation..."
+        sudo -v >/dev/null 2>&1 || return 1
+        sudo -n true 2>/dev/null || return 1
+        return 0
+    fi
+    return 1
+}
+
 run_privileged() {
     if [ "$(id -u)" = 0 ]; then
         "$@"
-    elif sudo -n true 2>/dev/null; then
+    elif ensure_sudo; then
         sudo "$@"
     else
         return 1
@@ -44,7 +60,7 @@ run_privileged() {
 CAN_SUDO=false
 if [ "$(id -u)" = 0 ]; then
     CAN_SUDO=true
-elif sudo -n true 2>/dev/null; then
+elif ensure_sudo; then
     CAN_SUDO=true
 fi
 
@@ -80,13 +96,19 @@ if [ "$CAN_SUDO" = "true" ]; then
             done
         elif command -v pacman >/dev/null 2>&1; then
             # Arch Linux
-            run_privileged pacman -Sy --noconfirm --quiet $MISSING_PACKAGES
+            for pkg in $MISSING_PACKAGES; do
+                run_privileged pacman -S --noconfirm --quiet "$pkg"
+            done
         elif command -v zypper >/dev/null 2>&1; then
             # openSUSE
-            run_privileged zypper install -y -q $MISSING_PACKAGES
+            for pkg in $MISSING_PACKAGES; do
+                run_privileged zypper install -y -q "$pkg"
+            done
         elif command -v apk >/dev/null 2>&1; then
             # Alpine Linux
-            run_privileged apk add --quiet $MISSING_PACKAGES
+            for pkg in $MISSING_PACKAGES; do
+                run_privileged apk add --quiet "$pkg"
+            done
         elif command -v brew >/dev/null 2>&1; then
             # macOS with Homebrew
             for pkg in $MISSING_PACKAGES; do
@@ -124,8 +146,8 @@ done
 
 # Add .local/bin to PATH if not already there
 if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
-    if ! grep -q '$HOME/.local/bin' "$HOME/.profile" 2>/dev/null; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$HOME/.profile"
+    if ! grep -q '\.local/bin' "$HOME/.profile" 2>/dev/null; then
+        printf "%s\n" "export PATH=\"\$HOME/.local/bin:\$PATH\"" >>"$HOME/.profile"
         vecho "Added .local/bin to PATH"
     fi
 fi

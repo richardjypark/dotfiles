@@ -31,8 +31,10 @@ logs/claude_output_*.log
 specs/*
 logs/*
 
-# Skip dev tools on production servers (hostname: vultr)
-{{ if eq .chezmoi.hostname "vultr" }}
+# Skip dev tools on servers.
+# Role is controlled by CHEZMOI_ROLE=server during apply.
+# Keep hostname fallback for backward compatibility.
+{{ if or (eq (env "CHEZMOI_ROLE") "server") (eq .chezmoi.hostname "vultr") }}
 # Node.js/NVM - builds happen locally, not needed on prod
 .chezmoiscripts/run_after_30-setup-node.sh.tmpl
 
@@ -44,4 +46,7 @@ logs/*
 
 # Ansible - not needed on prod (we run ansible from local)
 .chezmoiscripts/run_after_27-setup-ansible.sh
+
+# Claude Code - not needed on prod servers
+.chezmoiscripts/run_after_35-setup-claude-code.sh
 {{ end }}
