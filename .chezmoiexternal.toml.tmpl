@@ -1,6 +1,8 @@
 [".oh-my-zsh"]
 type = "archive"
-url = "https://github.com/ohmyzsh/ohmyzsh/archive/master.tar.gz"
+# Pinned to an explicit commit for reproducible installs.
+# Update flow: bump commit after validating upstream changes.
+url = "https://github.com/ohmyzsh/ohmyzsh/archive/9df4ea095fe27ccd0ee95f2d34bab884c4a75585.tar.gz"
 exact = true
 stripComponents = 1
 refreshPeriod = "168h"
@@ -8,7 +10,8 @@ exclude = ["*/custom"]
 
 [".oh-my-zsh/custom/plugins/zsh-syntax-highlighting"]
 type = "archive"
-url = "https://github.com/zsh-users/zsh-syntax-highlighting/archive/master.tar.gz"
+# Pinned release tag for deterministic fetches.
+url = "https://github.com/zsh-users/zsh-syntax-highlighting/archive/refs/tags/0.8.0.tar.gz"
 exact = true
 stripComponents = 1
 refreshPeriod = "168h"
@@ -16,7 +19,8 @@ exclude = ["*/.editorconfig", "*/.gitattributes", "*/.github", "*/.gitignore"]
 
 [".oh-my-zsh/custom/plugins/zsh-autosuggestions"]
 type = "archive"
-url = "https://github.com/zsh-users/zsh-autosuggestions/archive/master.tar.gz"
+# Pinned release tag for deterministic fetches.
+url = "https://github.com/zsh-users/zsh-autosuggestions/archive/refs/tags/v0.7.1.tar.gz"
 exact = true
 stripComponents = 1
 refreshPeriod = "168h"

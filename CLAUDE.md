@@ -23,8 +23,8 @@ This is a chezmoi-managed dotfiles repository optimized for performance with sop
 - `.chezmoiversion.toml` - Version pinning for external tools (fzf v0.67.0)
 
 **External Resources:** Managed via `.chezmoiexternal.toml` with 168h refresh periods:
-- Oh My Zsh (archive from master)
-- zsh-syntax-highlighting and zsh-autosuggestions (archives)
+- Oh My Zsh (archive pinned to an explicit commit)
+- zsh-syntax-highlighting and zsh-autosuggestions (archives pinned to release tags)
 - fzf (git-repo pinned to v0.67.0)
 - nvm (archive v0.40.3)
 

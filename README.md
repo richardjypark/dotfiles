@@ -42,7 +42,37 @@ alias chezmoi-verbose='VERBOSE=true chezmoi'
 chezmoi-verbose apply
 ```
 
-For a comprehensive technical breakdown of all optimizations, see the `PERFORMANCE_OPTIMIZATIONS.md` file.
+Performance behavior is primarily implemented in `.chezmoiscripts/` using early exits and state tracking.
+
+## Secure Bootstrap Defaults
+
+`bootstrap-vps.sh` now defaults to a safer posture:
+
+- No passwordless sudo unless explicitly enabled.
+- No automatic copy of root SSH keys unless explicitly enabled.
+- No remote `curl | sh` installers unless explicitly trusted.
+
+Example secure-first run:
+
+```bash
+USERNAME=rich DOTFILES_REPO=https://github.com/richardjypark/dotfiles.git ./bootstrap-vps.sh
+```
+
+If you intentionally want convenience-first behavior (less secure), opt in explicitly:
+
+```bash
+ALLOW_PASSWORDLESS_SUDO=1 \
+COPY_ROOT_AUTH_KEYS=1 \
+TRUST_ON_FIRST_USE_INSTALLERS=1 \
+USERNAME=rich DOTFILES_REPO=https://github.com/richardjypark/dotfiles.git \
+./bootstrap-vps.sh
+```
+
+For regular `chezmoi apply`, setup scripts that rely on remote installers also require explicit trust:
+
+```bash
+TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
+```
 
 ## Tmux Configuration
 

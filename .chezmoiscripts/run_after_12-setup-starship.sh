@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
+TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS:-0}
 vecho() {
     if [ "$VERBOSE" = "true" ]; then
         echo "$@"
@@ -47,6 +48,11 @@ case "$(uname -s)" in
                 brew install starship --quiet 2>/dev/null || brew install starship
             fi
         else
+            if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+                eecho "Refusing to run remote installer without explicit trust."
+                eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow starship.rs/install.sh."
+                exit 1
+            fi
             eecho "Installing Starship via official installer (Homebrew not found)..."
             if [ "$VERBOSE" = "true" ]; then
                 curl -sS https://starship.rs/install.sh | sh -s -- --yes
@@ -56,6 +62,11 @@ case "$(uname -s)" in
         fi
         ;;
     Linux)
+        if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+            eecho "Refusing to run remote installer without explicit trust."
+            eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow starship.rs/install.sh."
+            exit 1
+        fi
         # Use user-local bin if sudo is not available
         STARSHIP_BIN_DIR="/usr/local/bin"
         if ! command -v sudo >/dev/null 2>&1 || ! sudo -n true 2>/dev/null; then
@@ -84,10 +95,8 @@ if command -v starship >/dev/null 2>&1; then
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
 else
-    eecho "Warning: Starship installation may have failed. Check your PATH."
-    # Still mark as complete to avoid repeated attempts
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    eecho "Error: Starship installation failed. Leaving state unset so it can retry."
+    exit 1
 fi
 
 vecho "Starship setup complete!"

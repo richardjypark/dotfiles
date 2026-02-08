@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Quiet mode by default
 VERBOSE=${VERBOSE:-false}
+TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS:-0}
 vecho() {
     if [ "$VERBOSE" = "true" ]; then
         echo "$@"
@@ -52,6 +53,11 @@ install_via_homebrew() {
 
 install_via_script() {
     # Use official Bun install script
+    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+        eecho "Refusing to run remote installer without explicit trust."
+        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow bun.sh/install."
+        return 1
+    fi
     eecho "Installing Bun via official install script..."
     if [ "$VERBOSE" = "true" ]; then
         curl -fsSL https://bun.sh/install | bash
@@ -95,10 +101,8 @@ if command -v bun >/dev/null 2>&1; then
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
 else
-    vecho "Bun installation complete. You may need to restart your shell."
-    # Still mark as complete since installation succeeded
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    eecho "Error: Bun installation failed. Leaving state unset so it can retry."
+    exit 1
 fi
 
 vecho "Bun setup complete!"
