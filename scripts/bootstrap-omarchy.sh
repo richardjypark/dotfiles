@@ -109,11 +109,18 @@ install_packages() {
     ripgrep fd bat eza jq
   )
 
+  local -a workstation_packages=(
+    jujutsu
+  )
+
   local -a server_packages=(
     ufw fail2ban
   )
 
   local -a packages=("${base_packages[@]}")
+  if [[ "$ROLE" == "workstation" ]]; then
+    packages+=("${workstation_packages[@]}")
+  fi
   if [[ "$ROLE" == "server" ]]; then
     packages+=("${server_packages[@]}")
   fi
