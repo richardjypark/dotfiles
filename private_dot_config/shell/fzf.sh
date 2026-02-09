@@ -4,7 +4,7 @@
 
 export FZF_BASE="$HOME/.local/share/fzf"
 
-# Interactive ripgrep with file preview and vim integration
+# Interactive ripgrep with file preview and editor integration
 rgi() {
   RG_PREFIX="rg --column --line-number --no-heading --color=always --smart-case "
   INITIAL_QUERY="${*:-}"
@@ -14,7 +14,7 @@ rgi() {
       --delimiter : \
       --preview 'bat --color=always {1} --highlight-line {2}' \
       --preview-window 'up,60%,border-bottom,+{2}+3/3,~3' \
-      --bind 'enter:become(vim {1} +{2})'
+      --bind "enter:become(${EDITOR:-vi} {1} +{2})"
 }
 # Switch between ripgrep and fzf modes with CTRL-T
 rgf() {
