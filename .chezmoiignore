@@ -56,7 +56,7 @@ logs/*
 {{ $profile := or (index . "profile") (env "CHEZMOI_PROFILE") }}
 {{ $force_raw := or (index . "force_zsh_login") (env "CHEZMOI_FORCE_ZSH_LOGIN") }}
 {{ $force_str := lower (printf "%v" $force_raw) }}
-{{ $force_zsh := or (eq $force_raw true) (eq $force_str "true") (eq $force_str "1") (eq $force_str "yes") }}
+{{ $force_zsh := or (eq $force_str "true") (eq $force_str "1") (eq $force_str "yes") }}
 {{ if eq $profile "omarchy" }}
 # Keep Omarchy terminal/shell defaults in place
 private_dot_config/ghostty/config
