@@ -1,5 +1,5 @@
 # Shell Config Shortcuts
-alias zh='${EDITOR:-vim} ~/.zsh_history'          # Edit zsh history
+alias zh='${EDITOR:-vi} ~/.zsh_history'            # Edit zsh history
 
 # Jujutsu (jj) - additional aliases beyond OMZ jj plugin
 alias j='jj'                                      # 1-keystroke shortcut

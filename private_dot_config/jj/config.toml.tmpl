@@ -12,7 +12,7 @@ color = "auto"
 # Use pager for long output
 pager = "less -FRX"
 # Editor for commit messages
-editor = "vim"
+editor = "sh -lc 'exec \"${EDITOR:-vi}\" \"$@\"' --"
 
 [git]
 # Push all bookmarks by default
