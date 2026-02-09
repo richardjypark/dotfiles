@@ -1,0 +1,84 @@
+#!/usr/bin/env sh
+
+set -eu
+
+pane_tty="${1:-}"
+local_host="${2:-local}"
+
+local_badge() {
+  printf '#[fg=colour248,bg=colour237] %s ' "$local_host"
+}
+
+remote_badge() {
+  remote_host="${1:-remote}"
+  remote_host="${remote_host##*@}"
+  [ -n "$remote_host" ] || remote_host="remote"
+  printf '#[fg=colour231,bg=colour160,bold] SSH #[fg=colour255,bg=colour52] %s ' "$remote_host"
+}
+
+find_remote_host() {
+  cmdline="$1"
+  printf '%s\n' "$cmdline" | awk '
+    {
+      skip = 0
+      for (i = 2; i <= NF; i++) {
+        t = $i
+
+        if (skip == 1) {
+          skip = 0
+          continue
+        }
+
+        if (t ~ /^--/) {
+          continue
+        }
+
+        if (t ~ /^-[1246AaCfGgKkMNnqsTtVvXxYy]$/) {
+          continue
+        }
+
+        if (t ~ /^-(b|c|D|E|e|F|I|i|J|L|l|m|O|o|p|Q|R|S|W|w)$/) {
+          skip = 1
+          continue
+        }
+
+        if (t ~ /^-(b|c|D|E|e|F|I|i|J|L|l|m|O|o|p|Q|R|S|W|w).+/) {
+          continue
+        }
+
+        if (t ~ /^-/) {
+          continue
+        }
+
+        print t
+        exit
+      }
+    }
+  '
+}
+
+[ -n "$pane_tty" ] || {
+  local_badge
+  exit 0
+}
+
+cmdline="$(ps -o command= -t "$pane_tty" 2>/dev/null | awk '/(^|[[:space:]])(ssh|mosh|mosh-client)([[:space:]]|$)/ { print; exit }')"
+
+[ -n "$cmdline" ] || {
+  local_badge
+  exit 0
+}
+
+case "$cmdline" in
+  *mosh-client*|*mosh\ *)
+    remote_host="$(find_remote_host "$cmdline" || true)"
+    remote_badge "$remote_host"
+    ;;
+  *ssh\ *)
+    remote_host="$(find_remote_host "$cmdline" || true)"
+    remote_badge "$remote_host"
+    ;;
+  *)
+    local_badge
+    ;;
+esac
