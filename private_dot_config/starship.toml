@@ -2,7 +2,7 @@
 # Refresh from: ~/.local/share/omarchy/config/starship.toml
 add_newline = true
 command_timeout = 200
-format = "[$directory$git_branch$git_status]($style)$character"
+format = "[$hostname$directory$git_branch$git_status]($style)$character"
 
 [character]
 error_symbol = "[✗](bold cyan)"
@@ -13,6 +13,11 @@ truncation_length = 2
 truncation_symbol = "…/"
 repo_root_style = "bold cyan"
 repo_root_format = "[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style) "
+
+[hostname]
+ssh_only = false
+format = "[$hostname]($style) "
+style = "bright-black"
 
 [git_branch]
 format = "[$branch]($style) "
