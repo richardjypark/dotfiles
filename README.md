@@ -248,21 +248,64 @@ This dotfiles repository includes a tmux configuration with:
 - Mouse support
 - Custom key bindings for easier navigation
 
-### Key Bindings
+### Key Bindings (Most Important)
 
-| Shortcut          | Action                    |
-| ----------------- | ------------------------- |
-| Alt + h/j/k/l     | Navigate between panes    |
-| Prefix + \|       | Split window vertically   |
-| Prefix + -        | Split window horizontally |
-| Prefix + Ctrl + s | Save session manually     |
-| Prefix + Ctrl + r | Restore session manually  |
+Prefix is `Ctrl + b` unless noted.
 
-The default prefix key is `Ctrl + b`.
+| Shortcut          | Action                                           |
+| ----------------- | ------------------------------------------------ |
+| `Alt + h/j/k/l`   | Move between panes (no prefix)                   |
+| `Prefix + \|`     | Split pane left/right                            |
+| `Prefix + -`      | Split pane top/bottom                            |
+| `Prefix + z`      | Toggle zoom for the current pane                 |
+| `Prefix + c`      | Create a new window                              |
+| `Prefix + n` / `p`| Next / previous window                           |
+| `Prefix + ,`      | Rename current window                            |
+| `Prefix + d`      | Detach from tmux session                         |
+| `Prefix + Ctrl+s` | Manual session save (`tmux-resurrect`)           |
+| `Prefix + Ctrl+r` | Manual session restore (`tmux-resurrect`)        |
+| `Prefix + I`      | Install plugins (`tpm`) after editing tmux config |
+| `Prefix + ?`      | Show all tmux key bindings                       |
 
 ### Session Management
 
 Sessions are automatically saved every 15 minutes and restored when tmux starts.
+
+## Omarchy Workstation Key Bindings
+
+`SUPER` is the Meta/Windows key.
+
+### Window Management (Hyprland)
+
+| Shortcut | Action |
+| --- | --- |
+| `SUPER + Arrow keys` | Move focus between windows |
+| `SUPER + SHIFT + Arrow keys` | Reposition active window (swap with neighbor) |
+| `SUPER + T` | Toggle floating/tiling for active window |
+| `SUPER + F` | Fullscreen active window |
+| `SUPER + CTRL + F` | Tiled fullscreen mode |
+| `SUPER + ALT + F` | Full-width mode |
+| `SUPER + O` | Pop active window out (float + pin) |
+| `SUPER + [1..0]` | Switch to workspace 1..10 |
+| `SUPER + SHIFT + [1..0]` | Move active window to workspace 1..10 |
+| `SUPER + TAB` / `SUPER + SHIFT + TAB` | Next / previous workspace |
+| `SUPER + -` / `SUPER + =` | Resize active window horizontally |
+| `SUPER + SHIFT + -` / `SUPER + SHIFT + =` | Resize active window vertically |
+| `SUPER + Left click + drag` | Move active window with mouse |
+| `SUPER + Right click + drag` | Resize active window with mouse |
+
+### Terminal Window + Font Controls (Ghostty)
+
+| Shortcut | Action |
+| --- | --- |
+| `SUPER + CTRL + SHIFT + ALT + Arrow keys` | Resize Ghostty split by larger steps |
+| `SUPER + CTRL + SHIFT + Arrow keys` | Resize Ghostty split by smaller steps |
+| `CTRL + SHIFT + Enter` | Toggle zoom on current Ghostty split |
+| `CTRL + =` or `CTRL + +` | Increase font size |
+| `CTRL + -` | Decrease font size |
+| `CTRL + 0` | Reset font size |
+
+Tip: press `SUPER + K` to open Omarchy's built-in keybinding cheat sheet.
 
 ## Installed Tools
 

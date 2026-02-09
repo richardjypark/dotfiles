@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+For tool-agnostic agent instructions shared across Codex/OpenCode/Claude workflows, use `AGENTS.md` as the baseline and treat this file as Claude-specific supplemental context.
+
 ## Overview
 
 This is a chezmoi-managed dotfiles repository optimized for performance with sophisticated state tracking and external resource management. The dotfiles configure Zsh with Oh My Zsh, Starship prompt (with native Jujutsu support), Tmux with session persistence, and development tools (Node.js via NVM, Python via uv, fzf, Jujutsu, Claude Code, Tailscale).
