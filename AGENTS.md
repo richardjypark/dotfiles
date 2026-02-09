@@ -31,8 +31,26 @@ Prioritize idempotent setup behavior, secure defaults, and minimal-risk edits.
 - Preserve existing style and script conventions.
 - Never hardcode secrets, tokens, hostnames, or private keys.
 - Do not weaken security defaults in bootstrap/hardening scripts unless explicitly requested.
-- Do not use destructive git operations (`reset --hard`, checkout of unrelated files).
-- If unrelated workspace changes appear, do not revert them.
+
+## Multi-Agent Safety & File Management
+
+- Delete unused or obsolete files when your changes make them irrelevant (refactors, feature removals, etc.), and revert files only when the change is yours or explicitly requested.
+- If a git or jj operation leaves you unsure about other agents' in-flight work, stop and coordinate instead of deleting.
+- Before attempting to delete a file to resolve a local type/lint failure, stop and ask the user. Other agents are often editing adjacent files; deleting their work to silence an error is never acceptable without explicit approval.
+- NEVER edit `.env` or any environment variable files—only the user may change them.
+- Coordinate with other agents before removing their in-progress edits—don't revert or delete work you didn't author unless everyone agrees.
+- Moving/renaming and restoring files is allowed.
+- ABSOLUTELY NEVER run destructive git operations (e.g., `git reset --hard`, `rm`, `git checkout`/`git restore` to an older commit) or destructive jj operations (e.g., `jj abandon --deleted`, `jj restore` with `--to`/`--from` targeting old revisions) unless the user gives an explicit, written instruction in this conversation.
+- Treat these commands as catastrophic; if you are even slightly unsure, stop and ask before touching them.
+- Never use `git restore` (or similar commands) or `jj restore` to revert files you didn't author—coordinate with other agents instead so their in-progress work stays intact.
+- Always double-check `git status` or `jj status` before any commit or describe.
+- Keep commits atomic: commit only the files you touched and list each path explicitly.
+  - For git: for tracked files run `git commit -m "<scoped message>" -- path/to/file1 path/to/file2`.
+  - For brand-new files, use the one-liner `git restore --staged :/ && git add "path/to/file1" "path/to/file2" && git commit -m "<scoped message>" -- path/to/file1 path/to/file2`.
+  - For jj: use `jj describe -m "<scoped message>"` on the specific change, or `jj new` with specific paths.
+- Quote any paths containing brackets or parentheses (e.g., `src/app/[candidate]/**`) when staging, committing, or adding so the shell does not treat them as globs or subshells.
+- When running `git rebase` or `jj rebase`, avoid opening editors—export `GIT_EDITOR=:` and `GIT_SEQUENCE_EDITOR=:` (or pass `--no-edit`) so the default messages are used automatically.
+- Never amend commits (`git commit --amend` or `jj describe` followed by `jj squash` on ancestors) unless you have explicit written approval in the task thread.
 
 ## Chezmoi-Specific Rules
 
