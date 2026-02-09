@@ -6,7 +6,14 @@ umask 022
 export LANG=en_US.UTF-8
 
 # Editor settings
-export EDITOR='vim'
+if command -v nvim >/dev/null 2>&1; then
+  export EDITOR='nvim'
+elif command -v vim >/dev/null 2>&1; then
+  export EDITOR='vim'
+else
+  export EDITOR='vi'
+fi
+export VISUAL="$EDITOR"
 
 # Terminal settings
 alias terminfo='echo "➜ echo \$TERM" && echo $TERM'
