@@ -60,7 +60,7 @@ install_via_homebrew() {
 }
 
 install_via_release_binary() {
-    local os arch target latest_version binary_name download_url temp_dir
+    local os arch target latest_version binary_name download_url temp_dir extracted_binary
 
     case "$(uname -s)" in
         Linux) os="unknown-linux-musl" ;;
@@ -100,12 +100,17 @@ install_via_release_binary() {
     fi
 
     tar -xzf "$temp_dir/codex.tar.gz" -C "$temp_dir"
-    if [ ! -f "$temp_dir/codex" ]; then
+    extracted_binary="$(find "$temp_dir" -maxdepth 3 -type f -perm -u+x \
+        \( -name "codex" -o -name "codex-${target}" -o -name "codex-*" \) \
+        ! -name "*.tar.gz" ! -name "*.zip" ! -name "*.zst" ! -name "*.sigstore" \
+        | head -1)"
+
+    if [ -z "$extracted_binary" ]; then
         eecho "Error: Codex binary not found in release archive"
         return 1
     fi
 
-    install -m 755 "$temp_dir/codex" "$HOME/.local/bin/codex"
+    install -m 755 "$extracted_binary" "$HOME/.local/bin/codex"
     return 0
 }
 
