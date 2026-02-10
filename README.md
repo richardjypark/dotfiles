@@ -46,6 +46,7 @@ sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh
 ## Codex Skills (How and When To Use)
 
 Local Codex skills in this repo live under `private_dot_codex/skills/` and are applied to `~/.codex/skills/` by chezmoi.
+Repository `AGENTS.md` is also mirrored to `~/.codex/AGENTS.md`, so Codex loads it globally across working directories.
 
 Triggering behavior:
 - Explicit trigger: mention a skill name in your prompt (recommended for precision).
