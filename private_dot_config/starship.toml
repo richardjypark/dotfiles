@@ -2,7 +2,7 @@
 # Refresh from: ~/.local/share/omarchy/config/starship.toml
 add_newline = true
 command_timeout = 200
-format = "[$hostname$directory$git_branch$git_status$custom]($style)$character"
+format = "[$hostname$directory$git_branch$git_status$custom]($style)\n$character"
 
 [character]
 error_symbol = "[✗](bold cyan)"
