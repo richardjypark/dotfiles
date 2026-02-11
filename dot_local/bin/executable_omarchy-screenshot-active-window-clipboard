@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+GEOMETRY="$(hyprctl activewindow -j | jq -r 'if (.at and .size and (.at|length)==2 and (.size|length)==2) then "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])" else empty end')"
+
+if [[ -z "${GEOMETRY}" ]]; then
+  notify-send "No active window for screenshot" -u critical -t 2000
+  exit 1
+fi
+
+grim -g "${GEOMETRY}" - | wl-copy
