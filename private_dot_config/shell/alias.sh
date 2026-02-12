@@ -1,6 +1,12 @@
 # Shell Config Shortcuts
 alias zh='${EDITOR:-vi} ~/.zsh_history'            # Edit zsh history
 
+# Prefer Neovim when available
+if command -v nvim >/dev/null 2>&1; then
+  alias vi='nvim'
+  alias vim='nvim'
+fi
+
 # Jujutsu (jj) - additional aliases beyond OMZ jj plugin
 alias j='jj'                                      # 1-keystroke shortcut
 
