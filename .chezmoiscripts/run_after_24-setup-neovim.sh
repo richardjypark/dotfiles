@@ -13,11 +13,53 @@ eecho() { echo "$@"; }
 # State tracking
 STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
 STATE_FILE="$STATE_DIR/neovim-setup.done"
+REQUIRED_NVIM_VERSION="${REQUIRED_NVIM_VERSION:-0.11.2}"
+
+get_nvim_version() {
+    if ! command -v nvim >/dev/null 2>&1; then
+        return 1
+    fi
+    nvim --version 2>/dev/null | sed -n '1s/^NVIM v//p' | awk '{print $1}'
+}
+
+version_ge() {
+    local current required
+    local c1 c2 c3 r1 r2 r3
+
+    current="${1:-0.0.0}"
+    required="${2:-0.0.0}"
+
+    IFS=. read -r c1 c2 c3 <<EOF
+$current
+EOF
+    IFS=. read -r r1 r2 r3 <<EOF
+$required
+EOF
+
+    c1=${c1:-0}; c2=${c2:-0}; c3=${c3:-0}
+    r1=${r1:-0}; r2=${r2:-0}; r3=${r3:-0}
+
+    if [ "$c1" -gt "$r1" ]; then return 0; fi
+    if [ "$c1" -lt "$r1" ]; then return 1; fi
+    if [ "$c2" -gt "$r2" ]; then return 0; fi
+    if [ "$c2" -lt "$r2" ]; then return 1; fi
+    if [ "$c3" -ge "$r3" ]; then return 0; fi
+    return 1
+}
+
+nvim_meets_requirement() {
+    local version
+    version="$(get_nvim_version || true)"
+    [ -n "$version" ] && version_ge "$version" "$REQUIRED_NVIM_VERSION"
+}
 
 # Fast exit if already completed via state tracking
 if [ -f "$STATE_FILE" ]; then
-    vecho "Neovim setup already completed (state tracked)"
-    exit 0
+    if nvim_meets_requirement; then
+        vecho "Neovim setup already completed (state tracked)"
+        exit 0
+    fi
+    eecho "Neovim state exists but version is below ${REQUIRED_NVIM_VERSION}; re-running setup..."
 fi
 
 # Ensure ~/.local/bin is in PATH
@@ -26,12 +68,16 @@ case ":$PATH:" in
     *) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
 
-# Fast exit if nvim is already installed (but mark state)
-if command -v nvim >/dev/null 2>&1; then
-    vecho "Neovim is already installed: $(nvim --version | sed -n '1p' 2>/dev/null || echo 'installed')"
+# Fast exit if nvim is already installed with required version (but mark state)
+if nvim_meets_requirement; then
+    vecho "Neovim is already installed and up to date: $(nvim --version | sed -n '1p' 2>/dev/null || echo 'installed')"
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
     exit 0
+fi
+
+if command -v nvim >/dev/null 2>&1; then
+    eecho "Detected Neovim $(get_nvim_version), upgrading to >= ${REQUIRED_NVIM_VERSION} for LazyVim compatibility..."
 fi
 
 # Helper function to run commands with sudo if needed (non-interactively)
@@ -212,24 +258,42 @@ install_via_release_binary() {
 }
 
 if install_via_package_manager; then
-    vecho "Neovim installation method: package manager"
+    if nvim_meets_requirement; then
+        vecho "Neovim installation method: package manager"
+    else
+        eecho "Package manager Neovim version is below ${REQUIRED_NVIM_VERSION}; trying newer install method..."
+        if install_via_homebrew; then
+            vecho "Neovim installation method: homebrew"
+        elif install_via_release_binary; then
+            vecho "Neovim installation method: release binary"
+        else
+            eecho "Error: Could not install Neovim >= ${REQUIRED_NVIM_VERSION} automatically."
+            eecho "Please install a newer Neovim manually from https://neovim.io/ and rerun chezmoi apply."
+            exit 1
+        fi
+    fi
 elif install_via_homebrew; then
     vecho "Neovim installation method: homebrew"
 elif install_via_release_binary; then
     vecho "Neovim installation method: release binary"
 else
-    eecho "Error: Could not install Neovim automatically."
-    eecho "Please install Neovim manually from https://neovim.io/ and rerun chezmoi apply."
+    eecho "Error: Could not install Neovim >= ${REQUIRED_NVIM_VERSION} automatically."
+    eecho "Please install a newer Neovim manually from https://neovim.io/ and rerun chezmoi apply."
     exit 1
 fi
 
 # Verify installation
-if command -v nvim >/dev/null 2>&1 && nvim --version >/dev/null 2>&1; then
+if nvim_meets_requirement; then
     vecho "Neovim installed successfully: $(nvim --version | sed -n '1p')"
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
 else
-    eecho "Error: Neovim installation failed. Leaving state unset so it can retry."
+    if command -v nvim >/dev/null 2>&1; then
+        eecho "Error: Neovim $(get_nvim_version) is still below required ${REQUIRED_NVIM_VERSION}."
+    else
+        eecho "Error: Neovim installation failed."
+    fi
+    eecho "Leaving state unset so setup can retry."
     exit 1
 fi
 
