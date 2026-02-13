@@ -13,9 +13,10 @@ eecho() { echo "$@"; }
 # State tracking
 STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
 STATE_FILE="$STATE_DIR/codex-setup.done"
+FORCE_UPDATE="${CHEZMOI_FORCE_UPDATE:-0}"
 
 # Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ]; then
+if [ -f "$STATE_FILE" ] && [ "$FORCE_UPDATE" != "1" ]; then
     vecho "Codex setup already completed (state tracked)"
     exit 0
 fi
@@ -33,7 +34,8 @@ case ":$PATH:" in
 esac
 
 # Fast exit if codex is already installed and working (but mark state)
-if command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
+# CHEZMOI_FORCE_UPDATE=1 bypasses this for explicit upgrade runs (e.g. czuf)
+if [ "$FORCE_UPDATE" != "1" ] && command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
     vecho "Codex is already installed: $(codex --version 2>/dev/null || echo 'installed')"
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
@@ -41,17 +43,23 @@ if command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
 fi
 
 install_via_homebrew() {
+    local action="install"
+
     if ! command -v brew >/dev/null 2>&1; then
         return 1
     fi
 
-    eecho "Installing Codex CLI via Homebrew..."
+    if brew list --cask codex >/dev/null 2>&1; then
+        action="upgrade"
+    fi
+
+    eecho "${action^}ing Codex CLI via Homebrew..."
     if [ "$VERBOSE" = "true" ]; then
-        if brew install --cask codex; then
+        if brew "$action" --cask codex; then
             return 0
         fi
     else
-        if brew install --cask codex >/dev/null 2>&1; then
+        if brew "$action" --cask codex >/dev/null 2>&1; then
             return 0
         fi
     fi
