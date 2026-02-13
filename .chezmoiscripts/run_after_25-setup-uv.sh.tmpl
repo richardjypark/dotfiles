@@ -1,25 +1,11 @@
-#!/bin/sh
-set -e
-
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS:-0}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
 vecho "Setting up uv (Python package manager)..."
 
 UV_DIR="$HOME/.local/bin"
-
-# Ensure ~/.local/bin is in PATH
-case ":$PATH:" in
-    *":$UV_DIR:"*) ;;
-    *) export PATH="$UV_DIR:$PATH" ;;
-esac
+add_to_path "$UV_DIR"
 
 # Use chezmoi template syntax to read Python version
 {{- with .python }}
@@ -29,7 +15,7 @@ PYTHON_VERSION="3.12"
 {{- end }}
 
 # Check if uv is already installed
-if command -v uv >/dev/null 2>&1; then
+if is_installed uv; then
     vecho "uv is already installed: $(uv --version)"
 else
     # Ensure .local/bin exists
@@ -49,7 +35,7 @@ else
     fi
 
     # Verify installation
-    if command -v uv >/dev/null 2>&1 || [ -x "$UV_DIR/uv" ]; then
+    if is_installed uv || [ -x "$UV_DIR/uv" ]; then
         if [ "$VERBOSE" = "true" ]; then
             echo "uv installed successfully: $(uv --version 2>/dev/null || $UV_DIR/uv --version)"
         fi

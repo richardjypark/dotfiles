@@ -1,60 +1,36 @@
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Quiet mode by default - only essential output unless VERBOSE is set
-VERBOSE=${VERBOSE:-false}
-
-# Function to print only if verbose
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
+HELPER_PATH="$HOME/.local/lib/chezmoi-helpers.sh"
+if [ -f "$HELPER_PATH" ]; then
+    . "$HELPER_PATH"
+else
+    CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
+    if [ -n "$CHEZMOI_SOURCE_DIR" ] && [ -f "$CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh" ]; then
+        . "$CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh"
+    else
+        echo "Error: could not locate chezmoi helper library." >&2
+        echo "Expected either $HELPER_PATH or $CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh" >&2
+        exit 1
     fi
-}
+fi
 
-# Function to print essential information always
-eecho() {
-    echo "$@"
-}
+# State tracking with inline fallback validation
+if state_exists "prerequisites-setup"; then
+    if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi; then
+        vecho "All essential prerequisites are already installed"
+        exit 0
+    fi
+fi
 
 vecho "Checking prerequisites..."
-
-# Function to check if a package is installed
-is_installed() {
-    command -v "$1" >/dev/null 2>&1
-}
 
 # Fast exit if all essential tools are already available
 if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi; then
     vecho "All essential prerequisites are already installed"
+    mark_state "prerequisites-setup"
     exit 0
 fi
-
-# Helper function to run commands with sudo if needed (non-interactively)
-ensure_sudo() {
-    if [ "$(id -u)" = 0 ]; then
-        return 0
-    fi
-    if sudo -n true 2>/dev/null; then
-        return 0
-    fi
-    if [ "${CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO:-0}" = "1" ] && [ -t 0 ]; then
-        eecho "Requesting sudo access for package installation..."
-        sudo -v >/dev/null 2>&1 || return 1
-        sudo -n true 2>/dev/null || return 1
-        return 0
-    fi
-    return 1
-}
-
-run_privileged() {
-    if [ "$(id -u)" = 0 ]; then
-        "$@"
-    elif ensure_sudo; then
-        sudo "$@"
-    else
-        return 1
-    fi
-}
 
 # Check if we can run privileged commands
 CAN_SUDO=false
@@ -79,38 +55,31 @@ if [ "$CAN_SUDO" = "true" ]; then
         eecho "Installing missing packages:$MISSING_PACKAGES"
 
         if command -v apt-get >/dev/null 2>&1; then
-            # Debian/Ubuntu
             run_privileged apt-get update -qq
             for pkg in $MISSING_PACKAGES; do
                 run_privileged apt-get install -y -qq "$pkg"
             done
         elif command -v dnf >/dev/null 2>&1; then
-            # Fedora/RHEL/CentOS
             for pkg in $MISSING_PACKAGES; do
                 run_privileged dnf install -y -q "$pkg"
             done
         elif command -v yum >/dev/null 2>&1; then
-            # Older RHEL/CentOS
             for pkg in $MISSING_PACKAGES; do
                 run_privileged yum install -y -q "$pkg"
             done
         elif command -v pacman >/dev/null 2>&1; then
-            # Arch Linux
             for pkg in $MISSING_PACKAGES; do
                 run_privileged pacman -S --noconfirm --quiet "$pkg"
             done
         elif command -v zypper >/dev/null 2>&1; then
-            # openSUSE
             for pkg in $MISSING_PACKAGES; do
                 run_privileged zypper install -y -q "$pkg"
             done
         elif command -v apk >/dev/null 2>&1; then
-            # Alpine Linux
             for pkg in $MISSING_PACKAGES; do
                 run_privileged apk add --quiet "$pkg"
             done
         elif command -v brew >/dev/null 2>&1; then
-            # macOS with Homebrew
             for pkg in $MISSING_PACKAGES; do
                 brew install --quiet "$pkg"
             done
@@ -145,7 +114,7 @@ for dir in "$HOME/.local/bin" "$HOME/.local/share"; do
 done
 
 # Add .local/bin to PATH if not already there
-if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     if ! grep -q '\.local/bin' "$HOME/.profile" 2>/dev/null; then
         printf "%s\n" "export PATH=\"\$HOME/.local/bin:\$PATH\"" >>"$HOME/.profile"
         vecho "Added .local/bin to PATH"
@@ -155,10 +124,16 @@ fi
 # Install chezmoi only if not present
 if ! is_installed chezmoi; then
     eecho "Installing chezmoi..."
+    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+        eecho "Refusing to run remote installer without explicit trust."
+        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow git.io/chezmoi installer."
+        exit 1
+    fi
     sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b "$HOME/.local/bin"
     export PATH="$HOME/.local/bin:$PATH"
 else
     vecho "chezmoi is already installed"
 fi
 
+mark_state "prerequisites-setup"
 vecho "Prerequisites check complete!"

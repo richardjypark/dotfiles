@@ -1,18 +1,6 @@
-#!/bin/sh
-set -eu
-
-# Health check script to verify environment integrity
-# Run with: chezmoi apply (included automatically)
-# Or directly: ~/.local/share/chezmoi/.chezmoiscripts/run_after_98-health-check.sh
-
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
 # Colors (if terminal supports them)
 if [ -t 1 ]; then
@@ -92,7 +80,7 @@ vecho ""
 vecho "--- Essential Tools ---"
 
 for tool in zsh git curl; do
-    if command -v "$tool" >/dev/null 2>&1; then
+    if is_installed "$tool"; then
         check_pass "$tool: $(command -v $tool)"
     else
         check_fail "$tool not found"
@@ -104,7 +92,7 @@ vecho ""
 vecho "--- Development Tools ---"
 
 # fzf
-if command -v fzf >/dev/null 2>&1; then
+if is_installed fzf; then
     FZF_VERSION=$(fzf --version 2>/dev/null | awk '{print $1}' || echo "unknown")
     check_pass "fzf: $FZF_VERSION"
 else
@@ -114,7 +102,7 @@ fi
 # Node.js / NVM
 if [ -d "$HOME/.nvm" ]; then
     check_pass "NVM installed"
-    if command -v node >/dev/null 2>&1; then
+    if is_installed node; then
         NODE_VERSION=$(node -v 2>/dev/null || echo "unknown")
         check_pass "Node.js: $NODE_VERSION"
     else
@@ -125,7 +113,7 @@ else
 fi
 
 # uv (Python)
-if command -v uv >/dev/null 2>&1; then
+if is_installed uv; then
     UV_VERSION=$(uv --version 2>/dev/null | awk '{print $2}' || echo "unknown")
     check_pass "uv: $UV_VERSION"
 else
@@ -133,7 +121,7 @@ else
 fi
 
 # Jujutsu (jj)
-if command -v jj >/dev/null 2>&1; then
+if is_installed jj; then
     JJ_VERSION=$(jj version 2>/dev/null | awk '{print $2}' || echo "unknown")
     check_pass "jj: $JJ_VERSION"
 else
@@ -141,21 +129,21 @@ else
 fi
 
 # Claude Code
-if command -v claude >/dev/null 2>&1; then
+if is_installed claude; then
     check_pass "Claude Code installed"
 else
     check_warn "Claude Code not installed"
 fi
 
 # Codex CLI
-if command -v codex >/dev/null 2>&1; then
+if is_installed codex; then
     check_pass "Codex CLI installed"
 else
     check_warn "Codex CLI not installed"
 fi
 
 # Bun
-if command -v bun >/dev/null 2>&1; then
+if is_installed bun; then
     BUN_VERSION=$(bun --version 2>/dev/null || echo "unknown")
     check_pass "bun: $BUN_VERSION"
 else
@@ -163,7 +151,7 @@ else
 fi
 
 # Tmux
-if command -v tmux >/dev/null 2>&1; then
+if is_installed tmux; then
     TMUX_VERSION=$(tmux -V 2>/dev/null | awk '{print $2}' || echo "unknown")
     check_pass "tmux: $TMUX_VERSION"
 
@@ -202,7 +190,6 @@ fi
 vecho ""
 vecho "--- State Tracking ---"
 
-STATE_DIR="$HOME/.cache/chezmoi-state"
 if [ -d "$STATE_DIR" ]; then
     STATE_COUNT=$(find "$STATE_DIR" -name "*.done" 2>/dev/null | wc -l | tr -d ' ')
     check_pass "State directory: $STATE_COUNT tracked states"

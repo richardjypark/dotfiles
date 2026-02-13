@@ -1,22 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
-
-# State tracking
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/neovim-setup.done"
 REQUIRED_NVIM_VERSION="${REQUIRED_NVIM_VERSION:-0.11.2}"
 
 get_nvim_version() {
-    if ! command -v nvim >/dev/null 2>&1; then
+    if ! is_installed nvim; then
         return 1
     fi
     nvim --version 2>/dev/null | sed -n '1s/^NVIM v//p' | awk '{print $1}'
@@ -54,7 +43,7 @@ nvim_meets_requirement() {
 }
 
 # Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ]; then
+if state_exists "neovim-setup"; then
     if nvim_meets_requirement; then
         vecho "Neovim setup already completed (state tracked)"
         exit 0
@@ -62,50 +51,18 @@ if [ -f "$STATE_FILE" ]; then
     eecho "Neovim state exists but version is below ${REQUIRED_NVIM_VERSION}; re-running setup..."
 fi
 
-# Ensure ~/.local/bin is in PATH
-case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) export PATH="$HOME/.local/bin:$PATH" ;;
-esac
+add_to_path "$HOME/.local/bin"
 
 # Fast exit if nvim is already installed with required version (but mark state)
 if nvim_meets_requirement; then
     vecho "Neovim is already installed and up to date: $(nvim --version | sed -n '1p' 2>/dev/null || echo 'installed')"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "neovim-setup"
     exit 0
 fi
 
-if command -v nvim >/dev/null 2>&1; then
+if is_installed nvim; then
     eecho "Detected Neovim $(get_nvim_version), upgrading to >= ${REQUIRED_NVIM_VERSION} for LazyVim compatibility..."
 fi
-
-# Helper function to run commands with sudo if needed (non-interactively)
-ensure_sudo() {
-    if [ "$(id -u)" = 0 ]; then
-        return 0
-    fi
-    if sudo -n true 2>/dev/null; then
-        return 0
-    fi
-    if [ "${CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO:-0}" = "1" ] && [ -t 0 ]; then
-        eecho "Requesting sudo access for package installation..."
-        sudo -v >/dev/null 2>&1 || return 1
-        sudo -n true 2>/dev/null || return 1
-        return 0
-    fi
-    return 1
-}
-
-run_privileged() {
-    if [ "$(id -u)" = 0 ]; then
-        "$@"
-    elif ensure_sudo; then
-        sudo "$@"
-    else
-        return 1
-    fi
-}
 
 install_via_package_manager() {
     # If we cannot run privileged package manager commands, let caller try other methods.
@@ -180,7 +137,7 @@ install_via_package_manager() {
 }
 
 install_via_homebrew() {
-    if ! command -v brew >/dev/null 2>&1; then
+    if ! is_installed brew; then
         return 1
     fi
 
@@ -195,6 +152,11 @@ install_via_homebrew() {
 
 install_via_release_binary() {
     local os arch latest_version archive_name download_url temp_dir root_dir install_root
+    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+        eecho "Refusing to download Neovim release binary without explicit trust."
+        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow GitHub release download."
+        return 1
+    fi
 
     case "$(uname -s)" in
         Linux) os="linux" ;;
@@ -285,10 +247,9 @@ fi
 # Verify installation
 if nvim_meets_requirement; then
     vecho "Neovim installed successfully: $(nvim --version | sed -n '1p')"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "neovim-setup"
 else
-    if command -v nvim >/dev/null 2>&1; then
+    if is_installed nvim; then
         eecho "Error: Neovim $(get_nvim_version) is still below required ${REQUIRED_NVIM_VERSION}."
     else
         eecho "Error: Neovim installation failed."
@@ -296,4 +257,3 @@ else
     eecho "Leaving state unset so setup can retry."
     exit 1
 fi
-

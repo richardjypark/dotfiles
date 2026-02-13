@@ -1,21 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
-
-# State tracking
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/jj-setup.done"
-
-# Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ]; then
+if state_exists "jj-setup"; then
     vecho "Jujutsu setup already completed (state tracked)"
     exit 0
 fi
@@ -31,46 +18,14 @@ trap cleanup EXIT INT TERM
 
 vecho "Setting up Jujutsu (jj)..."
 
-# Ensure ~/.local/bin is in PATH (where the binary may be installed)
-case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) export PATH="$HOME/.local/bin:$PATH" ;;
-esac
+add_to_path "$HOME/.local/bin"
 
 # Fast exit if jj is already installed (but mark state)
-if command -v jj >/dev/null 2>&1; then
+if is_installed jj; then
     vecho "Jujutsu is already installed: $(jj --version 2>/dev/null || echo 'installed')"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "jj-setup"
     exit 0
 fi
-
-# Helper function to run commands with sudo if needed (non-interactively)
-ensure_sudo() {
-    if [ "$(id -u)" = 0 ]; then
-        return 0
-    fi
-    if sudo -n true 2>/dev/null; then
-        return 0
-    fi
-    if [ "${CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO:-0}" = "1" ] && [ -t 0 ]; then
-        eecho "Requesting sudo access for package installation..."
-        sudo -v >/dev/null 2>&1 || return 1
-        sudo -n true 2>/dev/null || return 1
-        return 0
-    fi
-    return 1
-}
-
-run_privileged() {
-    if [ "$(id -u)" = 0 ]; then
-        "$@"
-    elif ensure_sudo; then
-        sudo "$@"
-    else
-        return 1
-    fi
-}
 
 # Detect OS and architecture
 OS="$(uname -s)"
@@ -80,7 +35,6 @@ install_via_package_manager() {
     # Try native package managers first for Linux distros with jj packages
     if [ "$OS" = "Linux" ]; then
         if command -v pacman >/dev/null 2>&1; then
-            # Arch Linux has jujutsu in official repos
             eecho "Installing Jujutsu via pacman..."
             if [ "$VERBOSE" = "true" ]; then
                 run_privileged pacman -Sy --noconfirm jujutsu
@@ -89,7 +43,6 @@ install_via_package_manager() {
             fi
             return 0
         elif command -v zypper >/dev/null 2>&1; then
-            # openSUSE Tumbleweed has jujutsu
             eecho "Installing Jujutsu via zypper..."
             if [ "$VERBOSE" = "true" ]; then
                 run_privileged zypper install -y jujutsu
@@ -103,7 +56,7 @@ install_via_package_manager() {
 }
 
 install_via_homebrew() {
-    if command -v brew >/dev/null 2>&1; then
+    if is_installed brew; then
         eecho "Installing Jujutsu via Homebrew..."
         if [ "$VERBOSE" = "true" ]; then
             brew install jj
@@ -118,6 +71,11 @@ install_via_homebrew() {
 install_via_binary() {
     # Download pre-built binary from GitHub releases
     eecho "Installing Jujutsu from pre-built binary..."
+    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+        eecho "Refusing to download release binary without explicit trust."
+        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow GitHub release download."
+        return 1
+    fi
 
     # Get latest version from GitHub API
     LATEST_VERSION=$(curl -sL https://api.github.com/repos/jj-vcs/jj/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
@@ -170,7 +128,6 @@ install_via_binary() {
     DOWNLOAD_URL="https://github.com/jj-vcs/jj/releases/download/v${LATEST_VERSION}/${BINARY_NAME}"
     INSTALL_DIR="$HOME/.local/bin"
 
-    # Ensure install directory exists
     mkdir -p "$INSTALL_DIR"
 
     # Download and extract (TEMP_DIR cleaned up by trap)
@@ -234,19 +191,16 @@ else
 fi
 
 # Verify installation
-if command -v jj >/dev/null 2>&1; then
+if is_installed jj; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Jujutsu installed successfully"
         jj --version 2>/dev/null || true
     fi
-    # Mark setup as complete
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "jj-setup"
 else
-    vecho "Jujutsu installation complete. You may need to restart your shell."
-    # Still mark as complete since installation succeeded
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    eecho "Error: Jujutsu installation did not produce a working 'jj' binary."
+    eecho "Leaving state unset so setup can retry."
+    exit 1
 fi
 
 vecho "Jujutsu setup complete!"

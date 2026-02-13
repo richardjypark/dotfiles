@@ -1,16 +1,15 @@
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() { 
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
+# State tracking with version validation fallback
+if state_exists "fzf-setup"; then
+    if is_installed fzf; then
+        vecho "fzf setup already completed (state tracked)"
+        exit 0
     fi
-}
-eecho() { echo "$@"; }
+fi
 
-# Setup fzf
 vecho "Setting up fzf..."
 FZF_REPO_PATH="$HOME/.local/share/fzf"
 FZF_BIN_PATH="$HOME/.local/bin"
@@ -18,7 +17,7 @@ FZF_TARGET="$FZF_BIN_PATH/fzf"
 
 # Check if fzf needs reinstalling (version mismatch or missing)
 NEEDS_INSTALL=false
-if ! command -v fzf >/dev/null 2>&1 || [ ! -f "$FZF_TARGET" ]; then
+if ! is_installed fzf || [ ! -f "$FZF_TARGET" ]; then
     NEEDS_INSTALL=true
 elif [ -f "$FZF_REPO_PATH/install" ]; then
     # Extract version from the install script (format: version=X.Y.Z)
@@ -32,6 +31,7 @@ fi
 
 if [ "$NEEDS_INSTALL" = "false" ]; then
     vecho "fzf is already installed and configured"
+    mark_state "fzf-setup"
     exit 0
 fi
 
@@ -67,6 +67,8 @@ if [ ! -x "$FZF_TARGET" ]; then
     eecho "Error: fzf installation failed"
     exit 1
 fi
+
+mark_state "fzf-setup"
 
 if [ "$VERBOSE" = "true" ]; then
     FZF_VERSION=$("$FZF_TARGET" --version)

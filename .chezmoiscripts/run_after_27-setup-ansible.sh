@@ -1,67 +1,22 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
-
-# State tracking
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/ansible-setup.done"
-
-# Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ]; then
+if state_exists "ansible-setup"; then
     vecho "Ansible setup already completed (state tracked)"
     exit 0
 fi
 
 vecho "Setting up Ansible..."
 
-# Ensure ~/.local/bin is in PATH (pipx/uv may install here)
-case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) export PATH="$HOME/.local/bin:$PATH" ;;
-esac
+add_to_path "$HOME/.local/bin"
 
 # Fast exit if ansible is already installed (but mark state)
-if command -v ansible >/dev/null 2>&1; then
+if is_installed ansible; then
     vecho "Ansible is already installed: $(ansible --version 2>/dev/null | head -1 || echo 'installed')"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "ansible-setup"
     exit 0
 fi
-
-# Helper function to run commands with sudo if needed (non-interactively)
-ensure_sudo() {
-    if [ "$(id -u)" = 0 ]; then
-        return 0
-    fi
-    if sudo -n true 2>/dev/null; then
-        return 0
-    fi
-    if [ "${CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO:-0}" = "1" ] && [ -t 0 ]; then
-        eecho "Requesting sudo access for package installation..."
-        sudo -v >/dev/null 2>&1 || return 1
-        sudo -n true 2>/dev/null || return 1
-        return 0
-    fi
-    return 1
-}
-
-run_privileged() {
-    if [ "$(id -u)" = 0 ]; then
-        "$@"
-    elif ensure_sudo; then
-        sudo "$@"
-    else
-        return 1
-    fi
-}
 
 # Check if we can run privileged commands
 CAN_SUDO=false
@@ -75,7 +30,7 @@ fi
 OS="$(uname -s)"
 
 install_via_homebrew() {
-    if command -v brew >/dev/null 2>&1; then
+    if is_installed brew; then
         eecho "Installing Ansible via Homebrew..."
         if [ "$VERBOSE" = "true" ]; then
             brew install ansible
@@ -95,7 +50,6 @@ install_via_package_manager() {
 
     if [ "$OS" = "Linux" ]; then
         if command -v apt-get >/dev/null 2>&1; then
-            # Debian/Ubuntu
             eecho "Installing Ansible via apt..."
             if [ "$VERBOSE" = "true" ]; then
                 run_privileged apt-get update
@@ -106,7 +60,6 @@ install_via_package_manager() {
             fi
             return 0
         elif command -v dnf >/dev/null 2>&1; then
-            # Fedora/RHEL
             eecho "Installing Ansible via dnf..."
             if [ "$VERBOSE" = "true" ]; then
                 run_privileged dnf install -y ansible
@@ -115,7 +68,6 @@ install_via_package_manager() {
             fi
             return 0
         elif command -v pacman >/dev/null 2>&1; then
-            # Arch Linux
             eecho "Installing Ansible via pacman..."
             if [ "$VERBOSE" = "true" ]; then
                 run_privileged pacman -Sy --noconfirm ansible
@@ -124,7 +76,6 @@ install_via_package_manager() {
             fi
             return 0
         elif command -v zypper >/dev/null 2>&1; then
-            # openSUSE
             eecho "Installing Ansible via zypper..."
             if [ "$VERBOSE" = "true" ]; then
                 run_privileged zypper install -y ansible
@@ -138,8 +89,7 @@ install_via_package_manager() {
 }
 
 install_via_pipx() {
-    # pipx provides isolated environments, ideal for CLI tools like ansible
-    if command -v pipx >/dev/null 2>&1; then
+    if is_installed pipx; then
         eecho "Installing Ansible via pipx..."
         if [ "$VERBOSE" = "true" ]; then
             pipx install ansible --include-deps
@@ -150,11 +100,10 @@ install_via_pipx() {
     fi
 
     # If pipx not available but uv is, install pipx first then ansible
-    if command -v uv >/dev/null 2>&1; then
+    if is_installed uv; then
         eecho "Installing pipx via uv, then Ansible..."
         if [ "$VERBOSE" = "true" ]; then
             uv tool install pipx
-            # Ensure pipx is in PATH
             export PATH="$HOME/.local/bin:$PATH"
             pipx install ansible --include-deps
         else
@@ -169,8 +118,7 @@ install_via_pipx() {
 }
 
 install_via_pip() {
-    # Fallback to pip with --user flag
-    if command -v pip3 >/dev/null 2>&1; then
+    if is_installed pip3; then
         eecho "Installing Ansible via pip3..."
         if [ "$VERBOSE" = "true" ]; then
             pip3 install --user ansible
@@ -178,7 +126,7 @@ install_via_pip() {
             pip3 install --user ansible >/dev/null 2>&1
         fi
         return 0
-    elif command -v pip >/dev/null 2>&1; then
+    elif is_installed pip; then
         eecho "Installing Ansible via pip..."
         if [ "$VERBOSE" = "true" ]; then
             pip install --user ansible
@@ -192,7 +140,6 @@ install_via_pip() {
 
 # Try installation methods in order of preference
 if [ "$OS" = "Darwin" ]; then
-    # macOS: prefer Homebrew
     if install_via_homebrew; then
         vecho "Installed via Homebrew"
     elif install_via_pipx; then
@@ -205,7 +152,6 @@ if [ "$OS" = "Darwin" ]; then
         exit 1
     fi
 else
-    # Linux: try package manager first, then pipx, then pip
     if install_via_package_manager; then
         vecho "Installed via native package manager"
     elif install_via_homebrew; then
@@ -222,19 +168,16 @@ else
 fi
 
 # Verify installation
-if command -v ansible >/dev/null 2>&1; then
+if is_installed ansible; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Ansible installed successfully"
         ansible --version | head -3
     fi
-    # Mark setup as complete
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "ansible-setup"
 else
-    vecho "Ansible installation complete. You may need to restart your shell."
-    # Still mark as complete since installation succeeded
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    eecho "Error: Ansible installation did not produce a working 'ansible' binary."
+    eecho "Leaving state unset so setup can retry."
+    exit 1
 fi
 
 vecho "Ansible setup complete!"

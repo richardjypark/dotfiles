@@ -1,14 +1,6 @@
-#!/bin/sh
-set -e
-
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() { 
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
 # Setup Node.js via NVM
 vecho "Setting up Node.js via NVM..."
@@ -21,10 +13,10 @@ NODE_VERSION="{{ .nodeVersion }}"
 {{- end }}
 
 # Fast exit if Node.js is already properly set up
-if [ -f "$NVM_DIR/nvm.sh" ] && command -v node >/dev/null 2>&1; then
+if [ -f "$NVM_DIR/nvm.sh" ] && is_installed node; then
     . "$NVM_DIR/nvm.sh" >/dev/null 2>&1
     CURRENT_NODE_VERSION=$(nvm current 2>/dev/null || echo "none")
-    
+
     # Handle LTS version comparison
     if [ "$NODE_VERSION" = "lts/*" ]; then
         # For LTS, check if current version is an LTS version (even numbers)
@@ -41,10 +33,10 @@ if [ -f "$NVM_DIR/nvm.sh" ] && command -v node >/dev/null 2>&1; then
             NODE_SETUP_COMPLETE=false
         fi
     fi
-    
+
     if [ "$NODE_SETUP_COMPLETE" = "true" ]; then
         # Quick check for global packages
-        if command -v yarn >/dev/null 2>&1 && command -v pnpm >/dev/null 2>&1; then
+        if is_installed yarn && is_installed pnpm; then
             vecho "Node.js and packages are already installed and configured"
             exit 0
         else
@@ -97,38 +89,29 @@ else
 fi
 
 # Verify node is available
-if ! command -v node >/dev/null 2>&1; then
+if ! is_installed node; then
     eecho "Error: Node.js installation failed"
     exit 1
 fi
 
-# Function to check if global package needs to be installed/updated
-needs_package_update() {
-    local package=$1
-    if ! command -v "$package" >/dev/null 2>&1; then
-        return 0 # Package not installed
-    fi
-    return 1
-}
-
 # Install global packages only if needed
 vecho "Checking global npm packages..."
-PACKAGES_TO_INSTALL=""
+PACKAGES_TO_INSTALL=()
 for package in yarn pnpm; do
-    if needs_package_update "$package"; then
-        PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $package"
+    if ! is_installed "$package"; then
+        PACKAGES_TO_INSTALL+=("$package")
     else
         vecho "$package is already installed"
     fi
 done
 
 # Install all missing packages in one go
-if [ -n "$PACKAGES_TO_INSTALL" ]; then
-    eecho "Installing packages:$PACKAGES_TO_INSTALL"
+if [ "${#PACKAGES_TO_INSTALL[@]}" -gt 0 ]; then
+    eecho "Installing packages: ${PACKAGES_TO_INSTALL[*]}"
     if [ "$VERBOSE" = "true" ]; then
-        npm install -g $PACKAGES_TO_INSTALL
+        npm install -g "${PACKAGES_TO_INSTALL[@]}"
     else
-        npm install -g $PACKAGES_TO_INSTALL >/dev/null 2>&1
+        npm install -g "${PACKAGES_TO_INSTALL[@]}" >/dev/null 2>&1
     fi
 fi
 
@@ -138,12 +121,12 @@ if [ "$VERBOSE" = "true" ]; then
     echo "----------------------------------------"
     echo "Node.js version:    $(node -v)"
     echo "npm version:        $(npm -v)"
-    if command -v yarn >/dev/null 2>&1; then
+    if is_installed yarn; then
         echo "Yarn version:       $(yarn -v)"
     fi
-    if command -v pnpm >/dev/null 2>&1; then
+    if is_installed pnpm; then
         echo "pnpm version:       $(pnpm -v)"
     fi
     echo "----------------------------------------"
-    echo "\nNode.js setup complete! ✨"
+    echo "\nNode.js setup complete!"
 fi
