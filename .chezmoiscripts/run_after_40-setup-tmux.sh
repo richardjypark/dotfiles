@@ -1,22 +1,8 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo -e "$@"
-    fi
-}
-eecho() { echo -e "$@"; }
-
-# State tracking
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/tmux-setup.done"
-
-# Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ]; then
+if state_exists "tmux-setup"; then
     vecho "tmux setup already completed (state tracked)"
     exit 0
 fi
@@ -26,49 +12,28 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-vecho "${BLUE}Setting up tmux and tmux plugin manager...${NC}"
+# Local color-aware output wrappers
+cvecho() {
+    if [ "$VERBOSE" = "true" ]; then
+        echo -e "$@"
+    fi
+}
+
+cvecho "${BLUE}Setting up tmux and tmux plugin manager...${NC}"
 
 # Fast exit if tmux and TPM are already properly set up (but mark state)
 TPM_DIR="$HOME/.tmux/plugins/tpm"
-if command -v tmux &> /dev/null && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; then
-    vecho "${GREEN}tmux and TPM are already installed and configured${NC}"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+if is_installed tmux && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; then
+    cvecho "${GREEN}tmux and TPM are already installed and configured${NC}"
+    mark_state "tmux-setup"
     exit 0
 fi
 
-# Helper function to run commands with sudo if needed (non-interactively)
-ensure_sudo() {
-    if [ "$(id -u)" = 0 ]; then
-        return 0
-    fi
-    if sudo -n true 2>/dev/null; then
-        return 0
-    fi
-    if [ "${CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO:-0}" = "1" ] && [ -t 0 ]; then
-        eecho "Requesting sudo access for package installation..."
-        sudo -v >/dev/null 2>&1 || return 1
-        sudo -n true 2>/dev/null || return 1
-        return 0
-    fi
-    return 1
-}
-
-run_privileged() {
-    if [ "$(id -u)" = 0 ]; then
-        "$@"
-    elif ensure_sudo; then
-        sudo "$@"
-    else
-        return 1
-    fi
-}
-
 # Check if tmux is installed
-if ! command -v tmux &> /dev/null; then
+if ! is_installed tmux; then
     TMUX_INSTALLED=false
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        if command -v brew &> /dev/null; then
+        if is_installed brew; then
             eecho "Installing tmux via Homebrew..."
             if [ "$VERBOSE" = "true" ]; then
                 brew install tmux && TMUX_INSTALLED=true
@@ -77,7 +42,6 @@ if ! command -v tmux &> /dev/null; then
             fi
         fi
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Check if we can use sudo
         CAN_SUDO=false
         if [ "$(id -u)" = 0 ]; then
             CAN_SUDO=true
@@ -112,30 +76,32 @@ fi
 
 # Install Tmux Plugin Manager if not already installed
 if [ ! -d "$TPM_DIR" ]; then
-    vecho "Installing Tmux Plugin Manager..."
+    cvecho "Installing Tmux Plugin Manager..."
     if [ "$VERBOSE" = "true" ]; then
         git clone --depth 1 https://github.com/tmux-plugins/tpm "$TPM_DIR"
     else
         git clone --depth 1 https://github.com/tmux-plugins/tpm "$TPM_DIR" >/dev/null 2>&1
     fi
 else
-    vecho "TPM already installed, skipping git clone"
+    cvecho "TPM already installed, skipping git clone"
 fi
 
 # Install plugins automatically (only if TPM binary exists)
 if [ -f "$TPM_DIR/bin/install_plugins" ]; then
-    vecho "Installing tmux plugins..."
+    cvecho "Installing tmux plugins..."
     if [ "$VERBOSE" = "true" ]; then
         "$TPM_DIR/bin/install_plugins"
     else
         "$TPM_DIR/bin/install_plugins" >/dev/null 2>&1
     fi
 else
-    vecho "TPM install script not found, skipping plugin installation"
+    cvecho "TPM install script not found, skipping plugin installation"
 fi
 
-# Mark setup as complete
-mkdir -p "$STATE_DIR"
-touch "$STATE_FILE"
+if is_installed tmux && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; then
+    mark_state "tmux-setup"
+else
+    eecho "tmux setup incomplete; leaving state unset so setup can retry."
+fi
 
-vecho "${GREEN}Tmux setup complete!${NC}"
+cvecho "${GREEN}Tmux setup complete!${NC}"

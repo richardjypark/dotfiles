@@ -7,15 +7,9 @@ Use these patterns for `.chezmoiscripts/*`.
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-VERBOSE=${VERBOSE:-false}
-vecho() { [ "$VERBOSE" = "true" ] && echo "$@" || true; }
-eecho() { echo "$@"; }
-
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/<task>.done"
-
-if [ -f "$STATE_FILE" ]; then
+if state_exists "<task>"; then
   vecho "<task> already completed (state tracked)"
   exit 0
 fi
@@ -42,7 +36,7 @@ fi
 
 ## Existing Files to Reuse
 
-- Base state helpers: `.chezmoiscripts/run_before_00-state-tracker.sh`
+- Shared helper library: `dot_local/private_lib/chezmoi-helpers.sh`
 - Prereq package installs: `.chezmoiscripts/run_before_00-prerequisites.sh`
 - Role-gated tool setup: `.chezmoiscripts/run_after_36-setup-codex.sh`
 - Installer trust gate examples:

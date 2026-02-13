@@ -1,22 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
-
-# State tracking
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/codex-setup.done"
 FORCE_UPDATE="${CHEZMOI_FORCE_UPDATE:-0}"
 
-# Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ] && [ "$FORCE_UPDATE" != "1" ]; then
+if state_exists "codex-setup" && [ "$FORCE_UPDATE" != "1" ]; then
     vecho "Codex setup already completed (state tracked)"
     exit 0
 fi
@@ -27,25 +15,20 @@ if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
     exit 0
 fi
 
-# Ensure ~/.local/bin is in PATH
-case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) export PATH="$HOME/.local/bin:$PATH" ;;
-esac
+add_to_path "$HOME/.local/bin"
 
 # Fast exit if codex is already installed and working (but mark state)
 # CHEZMOI_FORCE_UPDATE=1 bypasses this for explicit upgrade runs (e.g. czuf)
-if [ "$FORCE_UPDATE" != "1" ] && command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
+if [ "$FORCE_UPDATE" != "1" ] && is_installed codex && codex --version >/dev/null 2>&1; then
     vecho "Codex is already installed: $(codex --version 2>/dev/null || echo 'installed')"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "codex-setup"
     exit 0
 fi
 
 install_via_homebrew() {
     local action="install"
 
-    if ! command -v brew >/dev/null 2>&1; then
+    if ! is_installed brew; then
         return 1
     fi
 
@@ -74,6 +57,11 @@ install_via_homebrew() {
 
 install_via_release_binary() {
     local os arch target latest_version binary_name download_url temp_dir extracted_binary
+    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ] && [ "$FORCE_UPDATE" != "1" ]; then
+        eecho "Refusing to download Codex release binary without explicit trust."
+        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow GitHub release download."
+        return 1
+    fi
 
     case "$(uname -s)" in
         Linux) os="unknown-linux-musl" ;;
@@ -146,12 +134,11 @@ else
 fi
 
 # Verify installation
-if command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
+if is_installed codex && codex --version >/dev/null 2>&1; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Codex installed successfully: $(codex --version 2>/dev/null)"
     fi
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "codex-setup"
 else
     eecho "Error: Codex installation failed. Leaving state unset so it can retry."
     exit 1

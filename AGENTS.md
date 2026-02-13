@@ -64,6 +64,7 @@ Prioritize idempotent setup behavior, secure defaults, and minimal-risk edits.
 ## Script Conventions (`.chezmoiscripts`)
 
 - Scripts must be idempotent.
+- Source shared helpers from `~/.local/lib/chezmoi-helpers.sh` (source file: `dot_local/private_lib/chezmoi-helpers.sh`).
 - Respect state tracking under `~/.cache/chezmoi-state`.
 - Keep default output quiet; use existing verbose patterns (`vecho`) and essential output (`eecho`).
 - Guard network/remote installer behavior behind explicit trust gates where applicable.

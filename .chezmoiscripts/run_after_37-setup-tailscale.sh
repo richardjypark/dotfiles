@@ -1,22 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS:-0}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
-
-# State tracking
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/tailscale-setup.done"
-
-# Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ]; then
+if state_exists "tailscale-setup"; then
     vecho "Tailscale setup already completed (state tracked)"
     exit 0
 fi
@@ -24,10 +10,9 @@ fi
 vecho "Setting up Tailscale..."
 
 # Fast exit if tailscale is already installed (but mark state)
-if command -v tailscale >/dev/null 2>&1; then
+if is_installed tailscale; then
     vecho "Tailscale is already installed: $(tailscale version 2>/dev/null | head -1 || echo 'installed')"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "tailscale-setup"
     exit 0
 fi
 
@@ -37,7 +22,7 @@ vecho "Detected OS: $OS"
 
 if [ "$OS" = "Darwin" ]; then
     # macOS: Use Homebrew
-    if command -v brew >/dev/null 2>&1; then
+    if is_installed brew; then
         eecho "Installing Tailscale via Homebrew..."
         if [ "$VERBOSE" = "true" ]; then
             brew install --cask tailscale
@@ -67,15 +52,13 @@ else
 fi
 
 # Verify installation
-if command -v tailscale >/dev/null 2>&1; then
+if is_installed tailscale; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Tailscale installed successfully"
         tailscale version 2>/dev/null | head -1 || true
     fi
     eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
-    # Mark setup as complete
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "tailscale-setup"
 else
     eecho "Error: Tailscale installation failed. Leaving state unset so it can retry."
     exit 1
