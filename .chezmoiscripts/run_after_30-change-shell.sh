@@ -1,14 +1,6 @@
-#!/bin/sh
-set -e
-
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
 # Fast exit if shell is already zsh
 # Check actual shell from passwd database (more reliable than $SHELL env var)
@@ -32,7 +24,7 @@ if [ "$(basename "$CURRENT_SHELL")" = "zsh" ]; then
 fi
 
 # Check if zsh is available
-if ! command -v zsh >/dev/null 2>&1; then
+if ! is_installed zsh; then
     vecho "Warning: zsh not found. Skipping shell change."
     exit 0
 fi

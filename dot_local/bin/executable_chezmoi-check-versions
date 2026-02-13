@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# chezmoi-check-versions — compare pinned dependency versions against GitHub latest releases
+# Usage: chezmoi-check-versions [--force]
+
+CACHE_FILE="$HOME/.cache/chezmoi-version-check.txt"
+CACHE_MAX_AGE=86400  # 24 hours in seconds
+CHEZMOI_DIR="$HOME/.local/share/chezmoi"
+
+# Parse args
+FORCE=false
+if [ "${1:-}" = "--force" ] || [ "${1:-}" = "-f" ]; then
+    FORCE=true
+fi
+
+# Check cache freshness
+if [ "$FORCE" = "false" ] && [ -f "$CACHE_FILE" ]; then
+    cache_age=$(( $(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0) ))
+    if [ "$cache_age" -lt "$CACHE_MAX_AGE" ]; then
+        cat "$CACHE_FILE"
+        echo ""
+        echo "(cached — use --force to refresh)"
+        exit 0
+    fi
+fi
+
+# Fetch latest GitHub release tag for a repo
+# Usage: github_latest_tag "owner/repo"
+github_latest_tag() {
+    local repo="$1"
+    local tag
+    tag=$(curl -fsSL --retry 2 "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null \
+        | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    # Strip leading 'v' if present
+    echo "${tag#v}"
+}
+
+# Extract pinned version from chezmoi config files
+# Returns: "version source_file"
+get_pinned_nvm() {
+    sed -n '/^\[nvm\]/,/^\[/{s/^version = "\([^"]*\)".*/\1/p;}' "$CHEZMOI_DIR/.chezmoidata.toml" | head -1 | sed 's/^v//'
+}
+
+get_pinned_fzf() {
+    # Check .chezmoiexternal.toml.tmpl for the fzf clone branch tag
+    sed -n '/^\["\.local\/share\/fzf"\]/,/^\[/{s/.*"--branch", "\([^"]*\)".*/\1/p;}' "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1 | sed 's/^v//'
+}
+
+get_pinned_zsh_syntax_highlighting() {
+    # URL contains the tag: .../archive/refs/tags/0.8.0.tar.gz
+    sed -n '/zsh-syntax-highlighting/,/refreshPeriod/s|.*refs/tags/\([^"]*\)\.tar\.gz.*|\1|p' \
+        "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1 | sed 's/^v//'
+}
+
+get_pinned_zsh_autosuggestions() {
+    sed -n '/zsh-autosuggestions/,/refreshPeriod/s|.*refs/tags/\([^"]*\)\.tar\.gz.*|\1|p' \
+        "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1 | sed 's/^v//'
+}
+
+echo "Checking pinned dependency versions against GitHub..."
+echo ""
+
+# Build results table
+results=""
+has_update=false
+
+check_dep() {
+    local name="$1" pinned="$2" repo="$3"
+
+    if [ -z "$pinned" ]; then
+        results="${results}\n| ${name} | (not found) | — | ? |"
+        return
+    fi
+
+    local latest
+    latest=$(github_latest_tag "$repo")
+
+    if [ -z "$latest" ]; then
+        results="${results}\n| ${name} | ${pinned} | (API error) | ? |"
+        return
+    fi
+
+    if [ "$pinned" = "$latest" ]; then
+        results="${results}\n| ${name} | ${pinned} | ${latest} | current |"
+    else
+        results="${results}\n| ${name} | ${pinned} | ${latest} | UPDATE |"
+        has_update=true
+    fi
+}
+
+check_dep "nvm" "$(get_pinned_nvm)" "nvm-sh/nvm"
+check_dep "fzf" "$(get_pinned_fzf)" "junegunn/fzf"
+check_dep "zsh-syntax-highlighting" "$(get_pinned_zsh_syntax_highlighting)" "zsh-users/zsh-syntax-highlighting"
+check_dep "zsh-autosuggestions" "$(get_pinned_zsh_autosuggestions)" "zsh-users/zsh-autosuggestions"
+
+# Format output
+output="| Dependency | Pinned | Latest | Status |
+|---|---|---|---|$(echo -e "$results")"
+
+if [ "$has_update" = "true" ]; then
+    output="${output}
+
+Updates available! Edit the relevant config files and run:
+  chezmoi apply --refresh-externals"
+else
+    output="${output}
+
+All dependencies are up to date."
+fi
+
+echo "$output"
+
+# Cache results
+mkdir -p "$(dirname "$CACHE_FILE")"
+echo "$output" > "$CACHE_FILE"

@@ -76,24 +76,32 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
 - Scripts check completion state before running
 - Controlled by `VERBOSE` environment variable (default: false)
 
+**Shared Helper Library:**
+All scripts source `~/.local/lib/chezmoi-helpers.sh` (managed as `dot_local/private_lib/chezmoi-helpers.sh`), which provides `vecho()`, `eecho()`, `state_exists()`/`mark_state()`, `add_to_path()`, `is_installed()`, `ensure_sudo()`/`run_privileged()`, and `VERBOSE`/`TRUST_ON_FIRST_USE_INSTALLERS` initialization.
+
 **Script Execution Order:**
-1. `run_before_00-state-tracker.sh` - Initialize state tracking
-2. `run_before_00-prerequisites.sh` - Install system packages (apt-get, git, curl, etc.)
-3. `run_before_01-setup-omz.sh` - Set up Oh My Zsh
+1. `run_before_00-prerequisites.sh` - Install system packages (apt-get, git, curl, etc.)
+2. `run_before_01-setup-omz.sh` - Set up Oh My Zsh
+3. `run_after_10-setup-homebrew.sh` - Install Homebrew + core packages on macOS
 4. `run_after_12-setup-starship.sh` - Install Starship prompt
 5. `run_after_20-setup-fzf.sh` - Install fzf from repository
-6. `run_after_25-setup-uv.sh.tmpl` - Install Python uv package manager
-7. `run_after_26-setup-jj.sh` - Install Jujutsu (jj) version control
-8. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
-9. `run_after_30-change-shell.sh` - Change default shell to zsh
-10. `run_after_35-setup-claude-code.sh` - Install Claude Code
-11. `run_after_36-setup-codex.sh` - Install Codex CLI (Homebrew/release binary, no npm)
-12. `run_after_37-setup-tailscale.sh` - Install Tailscale VPN
-13. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
-13. `run_after_99-performance-summary.sh` - Show performance summary
+6. `run_after_24-setup-neovim.sh` - Install/upgrade Neovim for LazyVim compatibility
+7. `run_after_25-setup-uv.sh.tmpl` - Install Python uv package manager
+8. `run_after_26-setup-jj.sh` - Install Jujutsu (jj) version control
+9. `run_after_27-setup-ansible.sh` - Install Ansible
+10. `run_after_27-setup-bun.sh` - Install Bun runtime
+11. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
+12. `run_after_30-change-shell.sh` - Change default shell to zsh
+13. `run_after_35-setup-claude-code.sh` - Install Claude Code
+14. `run_after_36-setup-codex.sh` - Install Codex CLI (Homebrew/release binary, no npm)
+15. `run_after_37-setup-tailscale.sh` - Install Tailscale VPN
+16. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
+17. `run_after_98-health-check.sh` - Validate final toolchain health
+18. `run_after_99-performance-summary.sh` - Show performance summary
 
 **Script Patterns:**
-- Early exit if task already completed
+- All scripts source the shared helper library (first line after `set -euo pipefail`)
+- Early exit if task already completed (via `state_exists`)
 - Quiet by default (use `VERBOSE=true` for debugging)
 - Use `vecho()` for verbose output, `eecho()` for essential output
 - Check for existing installations before running
@@ -238,6 +246,17 @@ rm -rf ~/.tmux/plugins && chezmoi apply
 - fzf: v0.67.0 (pinned to avoid toggle-raw error on Linux)
 - nvm: v0.40.3
 - Node.js: lts/* (latest LTS)
+
+**Checking for updates:**
+```bash
+chezmoi-check-versions        # Check pinned deps against GitHub latest (24h cache)
+chezmoi-check-versions --force # Bypass cache
+czvc                          # Alias for the above
+```
+
+## Secrets Management
+
+Secrets are managed via untracked local environment files (e.g., `~/.config/dotfiles/bootstrap-private.env`). For GPG-encrypted secrets that travel with the repo, see `docs/secrets-management.md`.
 
 ## Development Workflow
 
