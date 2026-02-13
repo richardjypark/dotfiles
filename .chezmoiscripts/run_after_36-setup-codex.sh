@@ -50,10 +50,15 @@ install_via_homebrew() {
     fi
 
     if brew list --cask codex >/dev/null 2>&1; then
+        # Already installed — check if upgrade is actually needed
+        if ! brew outdated --cask codex 2>/dev/null | grep -q codex; then
+            eecho "Codex CLI already at latest version (Homebrew)"
+            return 0
+        fi
         action="upgrade"
     fi
 
-    eecho "${action^}ing Codex CLI via Homebrew..."
+    eecho "Running brew $action for Codex CLI..."
     if [ "$VERBOSE" = "true" ]; then
         if brew "$action" --cask codex; then
             return 0
@@ -93,6 +98,15 @@ install_via_release_binary() {
     if [ -z "$latest_version" ]; then
         eecho "Error: Could not determine latest Codex release version"
         return 1
+    fi
+
+    # Compare installed version to latest (tag format: rust-v0.101.0)
+    local current_version latest_clean
+    current_version="$(codex --version 2>/dev/null | awk '{print $NF}' || true)"
+    latest_clean="${latest_version##*v}"  # strip everything up to last 'v'
+    if [ -n "$current_version" ] && [ "$current_version" = "$latest_clean" ]; then
+        eecho "Codex CLI already at latest version ($current_version)"
+        return 0
     fi
 
     binary_name="codex-${target}.tar.gz"
