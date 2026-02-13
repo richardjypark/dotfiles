@@ -1,46 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS:-0}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
-
-# State tracking
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/starship-setup.done"
-
-# Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ]; then
+if state_exists "starship-setup"; then
     vecho "Starship setup already completed (state tracked)"
     exit 0
 fi
 
 vecho "Setting up Starship prompt..."
 
-# Ensure ~/.local/bin is in PATH (where the installer may place the binary)
-case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) export PATH="$HOME/.local/bin:$PATH" ;;
-esac
+add_to_path "$HOME/.local/bin"
 
 # Fast exit if starship is already installed and working (but mark state)
-if command -v starship >/dev/null 2>&1; then
+if is_installed starship; then
     vecho "Starship is already installed: $(starship --version 2>/dev/null || echo 'installed')"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "starship-setup"
     exit 0
 fi
 
 # Detect OS and install
 case "$(uname -s)" in
     Darwin)
-        if command -v brew >/dev/null 2>&1; then
+        if is_installed brew; then
             eecho "Installing Starship via Homebrew..."
             if [ "$VERBOSE" = "true" ]; then
                 brew install starship
@@ -69,7 +50,7 @@ case "$(uname -s)" in
         fi
         # Use user-local bin if sudo is not available
         STARSHIP_BIN_DIR="/usr/local/bin"
-        if ! command -v sudo >/dev/null 2>&1 || ! sudo -n true 2>/dev/null; then
+        if ! is_installed sudo || ! sudo -n true 2>/dev/null; then
             STARSHIP_BIN_DIR="$HOME/.local/bin"
             mkdir -p "$STARSHIP_BIN_DIR"
         fi
@@ -87,13 +68,12 @@ case "$(uname -s)" in
 esac
 
 # Verify installation
-if command -v starship >/dev/null 2>&1; then
+if is_installed starship; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Starship installed successfully"
         starship --version 2>/dev/null || true
     fi
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "starship-setup"
 else
     eecho "Error: Starship installation failed. Leaving state unset so it can retry."
     exit 1

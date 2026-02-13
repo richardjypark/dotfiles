@@ -1,41 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Quiet mode by default
-VERBOSE=${VERBOSE:-false}
-TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS:-0}
-vecho() {
-    if [ "$VERBOSE" = "true" ]; then
-        echo "$@"
-    fi
-}
-eecho() { echo "$@"; }
-
-# State tracking
-STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
-STATE_FILE="$STATE_DIR/claude-code-setup.done"
 FORCE_UPDATE="${CHEZMOI_FORCE_UPDATE:-0}"
 
-# Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ] && [ "$FORCE_UPDATE" != "1" ]; then
+if state_exists "claude-code-setup" && [ "$FORCE_UPDATE" != "1" ]; then
     vecho "Claude Code setup already completed (state tracked)"
     exit 0
 fi
 
-# Ensure ~/.local/bin is in PATH (where the installer places the binary)
-case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) export PATH="$HOME/.local/bin:$PATH" ;;
-esac
+add_to_path "$HOME/.local/bin"
 
 vecho "Setting up Claude Code..."
 
 # Fast exit if claude is already installed and working (but mark state)
 # CHEZMOI_FORCE_UPDATE=1 bypasses this for explicit upgrade runs (e.g. czuf)
-if [ "$FORCE_UPDATE" != "1" ] && command -v claude >/dev/null 2>&1 && claude --version >/dev/null 2>&1; then
+if [ "$FORCE_UPDATE" != "1" ] && is_installed claude && claude --version >/dev/null 2>&1; then
     vecho "Claude Code is already installed: $(claude --version 2>/dev/null || echo 'installed')"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "claude-code-setup"
     exit 0
 fi
 
@@ -56,10 +38,9 @@ else
 fi
 
 # Verify installation
-if command -v claude >/dev/null 2>&1 && claude --version >/dev/null 2>&1; then
+if is_installed claude && claude --version >/dev/null 2>&1; then
     eecho "Claude Code installed successfully: $(claude --version 2>/dev/null)"
-    mkdir -p "$STATE_DIR"
-    touch "$STATE_FILE"
+    mark_state "claude-code-setup"
 else
     eecho "Error: Claude Code installation failed. Leaving state unset so it can retry."
     exit 1
