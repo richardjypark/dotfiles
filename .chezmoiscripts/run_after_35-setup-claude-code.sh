@@ -14,9 +14,10 @@ eecho() { echo "$@"; }
 # State tracking
 STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
 STATE_FILE="$STATE_DIR/claude-code-setup.done"
+FORCE_UPDATE="${CHEZMOI_FORCE_UPDATE:-0}"
 
 # Fast exit if already completed via state tracking
-if [ -f "$STATE_FILE" ]; then
+if [ -f "$STATE_FILE" ] && [ "$FORCE_UPDATE" != "1" ]; then
     vecho "Claude Code setup already completed (state tracked)"
     exit 0
 fi
@@ -30,15 +31,20 @@ esac
 vecho "Setting up Claude Code..."
 
 # Fast exit if claude is already installed and working (but mark state)
-if command -v claude >/dev/null 2>&1 && claude --version >/dev/null 2>&1; then
+# CHEZMOI_FORCE_UPDATE=1 bypasses this for explicit upgrade runs (e.g. czuf)
+if [ "$FORCE_UPDATE" != "1" ] && command -v claude >/dev/null 2>&1 && claude --version >/dev/null 2>&1; then
     vecho "Claude Code is already installed: $(claude --version 2>/dev/null || echo 'installed')"
     mkdir -p "$STATE_DIR"
     touch "$STATE_FILE"
     exit 0
 fi
 
-eecho "Installing Claude Code via official installer..."
-if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
+if [ "$FORCE_UPDATE" = "1" ]; then
+    eecho "Updating Claude Code via official installer..."
+else
+    eecho "Installing Claude Code via official installer..."
+fi
+if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ] && [ "$FORCE_UPDATE" != "1" ]; then
     eecho "Refusing to run remote installer without explicit trust."
     eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow claude.ai/install.sh."
     exit 1
