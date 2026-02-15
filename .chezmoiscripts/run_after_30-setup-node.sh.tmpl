@@ -88,11 +88,31 @@ else
     vecho "Node.js $CURRENT_NODE_VERSION is already installed and set as default"
 fi
 
-# Verify node is available
-if ! is_installed node; then
-    eecho "Error: Node.js installation failed"
+# Ensure current shell resolves tools from active NVM Node, not external shims.
+if [ "$VERBOSE" = "true" ]; then
+    nvm use default >/dev/null
+else
+    nvm use default >/dev/null 2>&1
+fi
+
+NVM_BIN="${NVM_BIN:-}"
+if [ -z "$NVM_BIN" ] || [ ! -x "$NVM_BIN/npm" ]; then
+    CURRENT_NVM_NODE=$(nvm which current 2>/dev/null || true)
+    if [ -n "$CURRENT_NVM_NODE" ] && [ -x "$CURRENT_NVM_NODE" ]; then
+        NVM_BIN=$(dirname "$CURRENT_NVM_NODE")
+    fi
+fi
+
+if [ -z "$NVM_BIN" ] || [ ! -x "$NVM_BIN/node" ] || [ ! -x "$NVM_BIN/npm" ]; then
+    eecho "Error: Failed to resolve Node.js/npm from NVM at $NVM_DIR"
+    eecho "Try running 'chezmoi apply --refresh-externals' first."
     exit 1
 fi
+
+export PATH="$NVM_BIN:$PATH"
+hash -r 2>/dev/null || true
+NODE_CMD="$NVM_BIN/node"
+NPM_CMD="$NVM_BIN/npm"
 
 # Install global packages only if needed
 vecho "Checking global npm packages..."
@@ -108,10 +128,14 @@ done
 # Install all missing packages in one go
 if [ "${#PACKAGES_TO_INSTALL[@]}" -gt 0 ]; then
     eecho "Installing packages: ${PACKAGES_TO_INSTALL[*]}"
+    if ! "$NPM_CMD" -v >/dev/null 2>&1; then
+        eecho "Error: npm is unavailable from NVM bin ($NPM_CMD)"
+        exit 1
+    fi
     if [ "$VERBOSE" = "true" ]; then
-        npm install -g "${PACKAGES_TO_INSTALL[@]}"
+        "$NPM_CMD" install -g "${PACKAGES_TO_INSTALL[@]}"
     else
-        npm install -g "${PACKAGES_TO_INSTALL[@]}" >/dev/null 2>&1
+        "$NPM_CMD" install -g "${PACKAGES_TO_INSTALL[@]}" >/dev/null 2>&1
     fi
 fi
 
@@ -119,8 +143,8 @@ fi
 if [ "$VERBOSE" = "true" ]; then
     echo "\nVerifying Node.js ecosystem installation:"
     echo "----------------------------------------"
-    echo "Node.js version:    $(node -v)"
-    echo "npm version:        $(npm -v)"
+    echo "Node.js version:    $("$NODE_CMD" -v)"
+    echo "npm version:        $("$NPM_CMD" -v)"
     if is_installed yarn; then
         echo "Yarn version:       $(yarn -v)"
     fi
