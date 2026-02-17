@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+if should_skip_state "starship-setup"; then
+    vecho "Starship setup already completed (state tracked)"
+    exit 0
+fi
+
+vecho "Setting up Starship prompt..."
+
+add_to_path "$HOME/.local/bin"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
+
+{{- with .pinned.starship }}
+PINNED_STARSHIP_VERSION="{{ .version }}"
+PINNED_STARSHIP_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+PINNED_STARSHIP_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+PINNED_STARSHIP_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+PINNED_STARSHIP_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
+
+# Fast exit if starship is already installed and working (but mark state)
+if ! is_force_update && is_installed starship; then
+    vecho "Starship is already installed: $(starship --version 2>/dev/null || echo 'installed')"
+    mark_state "starship-setup"
+    exit 0
+fi
+
+install_via_homebrew() {
+    if ! is_installed brew; then
+        return 1
+    fi
+    eecho "Installing Starship via Homebrew..."
+    if [ "$VERBOSE" = "true" ]; then
+        brew install starship
+    else
+        brew install starship --quiet 2>/dev/null || brew install starship
+    fi
+    return 0
+}
+
+install_via_release_binary() {
+    local platform asset_name expected_sha download_url cache_file temp_dir extracted_bin
+    if ! require_trust_for_remote_download "github.com/starship/starship"; then
+        return 1
+    fi
+
+    if ! platform="$(platform_key)"; then
+        return 1
+    fi
+
+    case "$platform" in
+        linux-x86_64)
+            asset_name="starship-x86_64-unknown-linux-musl.tar.gz"
+            expected_sha="$PINNED_STARSHIP_LINUX_X86_64_SHA"
+            ;;
+        linux-arm64)
+            asset_name="starship-aarch64-unknown-linux-musl.tar.gz"
+            expected_sha="$PINNED_STARSHIP_LINUX_ARM64_SHA"
+            ;;
+        macos-x86_64)
+            asset_name="starship-x86_64-apple-darwin.tar.gz"
+            expected_sha="$PINNED_STARSHIP_MACOS_X86_64_SHA"
+            ;;
+        macos-arm64)
+            asset_name="starship-aarch64-apple-darwin.tar.gz"
+            expected_sha="$PINNED_STARSHIP_MACOS_ARM64_SHA"
+            ;;
+        *)
+            eecho "Unsupported platform for Starship installation: ${os}-${arch}"
+            return 1
+            ;;
+    esac
+
+    download_url="https://github.com/starship/starship/releases/download/${PINNED_STARSHIP_VERSION}/${asset_name}"
+    cache_file="$CACHE_DIR/starship-${PINNED_STARSHIP_VERSION}-${platform}.tar.gz"
+    temp_dir="$(mktemp -d)"
+    trap 'rm -rf "$temp_dir"' RETURN
+
+    eecho "Installing Starship from pinned release binary (${PINNED_STARSHIP_VERSION})..."
+    download_and_verify "$download_url" "$cache_file" "$expected_sha"
+    cp "$cache_file" "$temp_dir/starship.tar.gz"
+    tar -xzf "$temp_dir/starship.tar.gz" -C "$temp_dir"
+
+    extracted_bin="$(find "$temp_dir" -maxdepth 3 -type f -name starship | head -1)"
+    if [ -z "$extracted_bin" ]; then
+        eecho "Error: Starship binary not found in release archive."
+        return 1
+    fi
+
+    install -m 755 "$extracted_bin" "$HOME/.local/bin/starship"
+    return 0
+}
+
+if install_via_homebrew; then
+    vecho "Starship installation method: homebrew"
+elif install_via_release_binary; then
+    vecho "Starship installation method: release binary"
+else
+    eecho "Error: Could not install Starship automatically."
+    exit 1
+fi
+
+# Verify installation
+if is_installed starship; then
+    if [ "$VERBOSE" = "true" ]; then
+        echo "Starship installed successfully"
+        starship --version 2>/dev/null || true
+    fi
+    mark_state "starship-setup"
+else
+    eecho "Error: Starship installation failed. Leaving state unset so it can retry."
+    exit 1
+fi
+
+vecho "Starship setup complete!"

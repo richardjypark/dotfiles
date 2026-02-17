@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
+
+{{- with .pinned.bun }}
+PINNED_BUN_VERSION="{{ .version }}"
+PINNED_BUN_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+PINNED_BUN_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+PINNED_BUN_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+PINNED_BUN_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
+
+if should_skip_state "bun-setup"; then
+    vecho "Bun setup already completed (state tracked)"
+    exit 0
+fi
+
+vecho "Setting up Bun..."
+
+# Ensure BUN_INSTALL is set for path checks
+export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+add_to_path "$BUN_INSTALL/bin"
+
+# Fast exit if bun is already installed (but mark state)
+if ! is_force_update && is_installed bun; then
+    vecho "Bun is already installed: $(bun --version 2>/dev/null || echo 'installed')"
+    mark_state "bun-setup"
+    exit 0
+fi
+
+if ! PLATFORM="$(platform_key)"; then
+    exit 1
+fi
+
+install_via_homebrew() {
+    if is_installed brew; then
+        eecho "Installing Bun via Homebrew..."
+        if [ "$VERBOSE" = "true" ]; then
+            brew install oven-sh/bun/bun
+        else
+            brew install oven-sh/bun/bun >/dev/null 2>&1
+        fi
+        return 0
+    fi
+    return 1
+}
+
+install_via_release_binary() {
+    local asset_name expected_sha download_url cache_file temp_dir bin_path
+    if ! require_trust_for_remote_download "github.com/oven-sh/bun"; then
+        return 1
+    fi
+
+    case "$PLATFORM" in
+        linux-x86_64)
+            asset_name="bun-linux-x64.zip"
+            expected_sha="$PINNED_BUN_LINUX_X86_64_SHA"
+            ;;
+        linux-arm64)
+            asset_name="bun-linux-aarch64.zip"
+            expected_sha="$PINNED_BUN_LINUX_ARM64_SHA"
+            ;;
+        macos-x86_64)
+            asset_name="bun-darwin-x64.zip"
+            expected_sha="$PINNED_BUN_MACOS_X86_64_SHA"
+            ;;
+        macos-arm64)
+            asset_name="bun-darwin-aarch64.zip"
+            expected_sha="$PINNED_BUN_MACOS_ARM64_SHA"
+            ;;
+        *)
+            eecho "Unsupported platform for Bun installation: ${os}-${arch}"
+            return 1
+            ;;
+    esac
+
+    if ! is_installed unzip; then
+        eecho "Error: unzip is required to install Bun from release archives."
+        return 1
+    fi
+
+    download_url="https://github.com/oven-sh/bun/releases/download/${PINNED_BUN_VERSION}/${asset_name}"
+    cache_file="$CACHE_DIR/bun-${PINNED_BUN_VERSION}-${PLATFORM}.zip"
+    temp_dir="$(mktemp -d)"
+    trap 'rm -rf "$temp_dir"' RETURN
+
+    eecho "Installing Bun from pinned release binary (${PINNED_BUN_VERSION})..."
+    download_and_verify "$download_url" "$cache_file" "$expected_sha"
+    unzip -q "$cache_file" -d "$temp_dir"
+
+    bin_path="$(find "$temp_dir" -maxdepth 4 -type f -name bun | head -1)"
+    if [ -z "$bin_path" ]; then
+        eecho "Error: Bun binary not found in release archive."
+        return 1
+    fi
+
+    mkdir -p "$BUN_INSTALL/bin"
+    install -m 755 "$bin_path" "$BUN_INSTALL/bin/bun"
+    return 0
+}
+
+# Try installation methods in order of preference
+if [[ "$PLATFORM" == macos-* ]]; then
+    if install_via_homebrew; then
+        vecho "Installed via Homebrew"
+    elif install_via_release_binary; then
+        vecho "Installed via pinned release binary"
+    else
+        eecho "Error: Could not install Bun. Please install manually from https://bun.sh"
+        exit 1
+    fi
+else
+    if install_via_release_binary; then
+        vecho "Installed via pinned release binary"
+    elif install_via_homebrew; then
+        vecho "Installed via Homebrew"
+    else
+        eecho "Error: Could not install Bun. Please install manually from https://bun.sh"
+        exit 1
+    fi
+fi
+
+# Verify installation
+export PATH="$BUN_INSTALL/bin:$PATH"
+if is_installed bun; then
+    if [ "$VERBOSE" = "true" ]; then
+        echo "Bun installed successfully"
+        bun --version 2>/dev/null || true
+    fi
+    mark_state "bun-setup"
+else
+    eecho "Error: Bun installation failed. Leaving state unset so it can retry."
+    exit 1
+fi
+
+vecho "Bun setup complete!"

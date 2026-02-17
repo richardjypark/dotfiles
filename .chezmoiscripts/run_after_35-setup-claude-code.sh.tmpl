@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+{{- with .pinned.claude }}
+PINNED_CLAUDE_NPM_VERSION="{{ .npm_version }}"
+{{- else }}
+PINNED_CLAUDE_NPM_VERSION="2.1.44"
+{{- end }}
+
+if should_skip_state "claude-code-setup"; then
+    vecho "Claude Code setup already completed (state tracked)"
+    exit 0
+fi
+
+add_to_path "$HOME/.local/bin"
+
+vecho "Setting up Claude Code..."
+
+# Fast exit if claude is already installed and working (but mark state)
+if ! is_force_update && is_installed claude && claude --version >/dev/null 2>&1; then
+    vecho "Claude Code is already installed: $(claude --version 2>/dev/null || echo 'installed')"
+    mark_state "claude-code-setup"
+    exit 0
+fi
+
+if is_force_update; then
+    eecho "Updating Claude Code via pinned npm package..."
+else
+    eecho "Installing Claude Code via pinned npm package..."
+fi
+
+NPM_CMD=""
+resolve_npm_cmd() {
+    local nvm_dir current_node nvm_bin
+
+    nvm_dir="$HOME/.nvm"
+    if [ -f "$nvm_dir/nvm.sh" ]; then
+        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
+        if command -v nvm >/dev/null 2>&1; then
+            nvm use default >/dev/null 2>&1 || true
+            current_node="$(nvm which current 2>/dev/null || true)"
+            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
+                nvm_bin="$(dirname "$current_node")"
+                if [ -x "$nvm_bin/npm" ]; then
+                    NPM_CMD="$nvm_bin/npm"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+
+    if is_installed npm; then
+        NPM_CMD="$(command -v npm)"
+        return 0
+    fi
+
+    return 1
+}
+
+if ! resolve_npm_cmd; then
+    eecho "Error: npm is required to install Claude Code without remote installer scripts."
+    eecho "Install Node.js/npm first, then rerun chezmoi apply."
+    exit 1
+fi
+
+if ! "$NPM_CMD" -v >/dev/null 2>&1; then
+    eecho "Error: npm command is present but not functional ($NPM_CMD)."
+    eecho "Fix Node.js/npm installation, then rerun chezmoi apply."
+    exit 1
+fi
+
+if ! require_trust_for_remote_installer "npm registry package download"; then
+    exit 1
+fi
+
+if [ "$VERBOSE" = "true" ]; then
+    "$NPM_CMD" install -g "@anthropic-ai/claude-code@${PINNED_CLAUDE_NPM_VERSION}"
+else
+    "$NPM_CMD" install -g "@anthropic-ai/claude-code@${PINNED_CLAUDE_NPM_VERSION}" >/dev/null 2>&1
+fi
+
+# Verify installation
+if is_installed claude && claude --version >/dev/null 2>&1; then
+    eecho "Claude Code installed successfully: $(claude --version 2>/dev/null)"
+    mark_state "claude-code-setup"
+else
+    eecho "Error: Claude Code installation failed. Leaving state unset so it can retry."
+    exit 1
+fi

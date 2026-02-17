@@ -6,6 +6,7 @@ vecho "Setting up uv (Python package manager)..."
 
 UV_DIR="$HOME/.local/bin"
 add_to_path "$UV_DIR"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
 # Use chezmoi template syntax to read Python version
 {{- with .python }}
@@ -14,25 +15,71 @@ PYTHON_VERSION="{{ .version }}"
 PYTHON_VERSION="3.12"
 {{- end }}
 
+{{- with .pinned.uv }}
+PINNED_UV_VERSION="{{ .version }}"
+PINNED_UV_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+PINNED_UV_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+PINNED_UV_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+PINNED_UV_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
+
 # Check if uv is already installed
-if is_installed uv; then
+if ! is_force_update && is_installed uv; then
     vecho "uv is already installed: $(uv --version)"
 else
     # Ensure .local/bin exists
     mkdir -p "$UV_DIR"
-
-    # Install uv using the official installer
-    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
-        eecho "Refusing to run remote installer without explicit trust."
-        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow astral.sh/uv/install.sh."
+    if ! require_trust_for_remote_download "github.com/astral-sh/uv"; then
         exit 1
     fi
-    eecho "Installing uv..."
-    if [ "$VERBOSE" = "true" ]; then
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-    else
-        curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1
+
+    platform=""
+    archive_name=""
+    expected_sha=""
+
+    if ! platform="$(platform_key)"; then
+        exit 1
     fi
+
+    case "$platform" in
+        linux-x86_64)
+            archive_name="uv-x86_64-unknown-linux-gnu.tar.gz"
+            expected_sha="$PINNED_UV_LINUX_X86_64_SHA"
+            ;;
+        linux-arm64)
+            archive_name="uv-aarch64-unknown-linux-gnu.tar.gz"
+            expected_sha="$PINNED_UV_LINUX_ARM64_SHA"
+            ;;
+        macos-x86_64)
+            archive_name="uv-x86_64-apple-darwin.tar.gz"
+            expected_sha="$PINNED_UV_MACOS_X86_64_SHA"
+            ;;
+        macos-arm64)
+            archive_name="uv-aarch64-apple-darwin.tar.gz"
+            expected_sha="$PINNED_UV_MACOS_ARM64_SHA"
+            ;;
+        *)
+            eecho "Unsupported platform for uv installation: ${os}-${arch}"
+            exit 1
+            ;;
+    esac
+
+    download_url="https://github.com/astral-sh/uv/releases/download/${PINNED_UV_VERSION}/${archive_name}"
+    cache_file="$CACHE_DIR/uv-${PINNED_UV_VERSION}-${platform}.tar.gz"
+    temp_dir="$(mktemp -d)"
+    trap 'rm -rf "$temp_dir"' RETURN
+
+    eecho "Installing uv from pinned release binary (${PINNED_UV_VERSION})..."
+    download_and_verify "$download_url" "$cache_file" "$expected_sha"
+    cp "$cache_file" "$temp_dir/uv.tar.gz"
+    tar -xzf "$temp_dir/uv.tar.gz" -C "$temp_dir"
+
+    uv_binary="$(find "$temp_dir" -maxdepth 3 -type f -name uv | head -1)"
+    if [ -z "$uv_binary" ]; then
+        eecho "Error: uv binary not found in release archive."
+        exit 1
+    fi
+    install -m 755 "$uv_binary" "$UV_DIR/uv"
 
     # Verify installation
     if is_installed uv || [ -x "$UV_DIR/uv" ]; then
@@ -46,7 +93,7 @@ else
 fi
 
 # Check if Python is already installed via uv
-if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
+if ! is_force_update && uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
     vecho "Python $PYTHON_VERSION is already installed via uv"
     exit 0
 fi
