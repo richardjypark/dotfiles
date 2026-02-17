@@ -23,3 +23,53 @@ defaultBranch = "master"
 # Global npm packages installed alongside Node.js
 [npm]
 packages = ["yarn", "pnpm"]
+
+[pinned.neovim]
+version = "v0.11.6"
+linux_x86_64_sha256 = "2fc90b962327f73a78afbfb8203fd19db8db9cdf4ee5e2bef84704339add89cc"
+linux_arm64_sha256 = "8ddc0c101846145e830b17bbca50782ca9307eee4fab539d9e2ddaf8793c06f1"
+macos_x86_64_sha256 = "6e665bb0a711cf974050e0f7183dbb696b1e7425814eb87df7cb094a49054a06"
+macos_arm64_sha256 = "d5ee93b67630d5a87f3d336d0f7e8b2fe6973aa653d3cc93b82b820e6538c1dd"
+
+[pinned.jj]
+version = "v0.38.0"
+linux_x86_64_sha256 = "ed830d9a34a304f8ba258806b52521250a9fffded32ae89c4eb5285b33556a17"
+linux_arm64_sha256 = "bae97959e06d92b79d96b09a90545e157ef0f300a0482d9b9a81128610e896aa"
+macos_x86_64_sha256 = "09b81d1c35522b41f126dd509515203a2def329ef46207e95460c1896e18d181"
+macos_arm64_sha256 = "a1e6d3d3818ab26652631964db4344288a6fe0dc4c077bdb366ff184aa1d8f27"
+
+[pinned.codex]
+version = "rust-v0.101.0"
+linux_x86_64_sha256 = "ff363f8597dbf0383c17659e7c92735baa991be8ab99f967c5cc3c68b329277c"
+linux_arm64_sha256 = "f5c4b1147332a1cc4108b776c759ee7b409d365e5830a4e59667e1f9c7e6da60"
+macos_x86_64_sha256 = "51d4e3517c75f0933132be3365f33b08036d43d3c20692b30f5cc36dd3eac3e9"
+macos_arm64_sha256 = "fc087e9002be0e170bfeaa27659e377821e15ab978b4a49075ef95db5f8207f8"
+
+[pinned.uv]
+version = "0.10.3"
+linux_x86_64_sha256 = "c60b9956a0e6727f0ddd881c303a706c6408b2047f3a8fa4d1454a826338ccdc"
+linux_arm64_sha256 = "cce7d1e4c34e22955cd647b256409b6504f4ae72acf190a6f26189efefbc9a9d"
+macos_x86_64_sha256 = "e8071cedb9986724ca3d70020b4460a85a274394b378c0e8eb1e8f9e33402ff9"
+macos_arm64_sha256 = "ed2a08079527dafae4943fee80162ed750286657901e642eba4c9de928706df8"
+
+[pinned.starship]
+version = "v1.24.2"
+linux_x86_64_sha256 = "00ff3c1f8ffb59b5c15d4b44c076bcca04d92cf0055c86b916248c14f3ae714a"
+linux_arm64_sha256 = "56b9ff412bbf374d29b99e5ac09a849124cb37a0a13121e8470df32de53c1ea6"
+macos_x86_64_sha256 = "237beb10cc970c4361536e9f9f434dfed755f8282c5cd951b6a7e3fcbda8e779"
+macos_arm64_sha256 = "d3a0da21374962625a2ee992110979bc1fa33424d7b6aea58a70405e26544fd9"
+
+[pinned.bun]
+version = "bun-v1.3.9"
+linux_x86_64_sha256 = "4680e80e44e32aa718560ceae85d22ecfbf2efb8f3641782e35e4b7efd65a1aa"
+linux_arm64_sha256 = "a2c2862bcc1fd1c0b3a8dcdc8c7efb5e2acd871eb20ed2f17617884ede81c844"
+macos_x86_64_sha256 = "588f4a48740b9a0c366a00f878810ab3ab5e6734d29b7c3cbdd9484b74a007de"
+macos_arm64_sha256 = "cde6a4edf19cf64909158fa5a464a12026fd7f0d79a4a950c10cf0af04266d85"
+
+[pinned.tailscale]
+version = "1.94.2"
+linux_x86_64_sha256 = "c6f99a5d774c7783b56902188d69e9756fc3dddfb08ac6be4cb2585f3fecdc32"
+linux_arm64_sha256 = "76300e808c57eb7853090d69c8bd8806e86341862e244183f6611f9105799bba"
+
+[pinned.claude]
+npm_version = "2.1.44"

@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
-FORCE_UPDATE="${CHEZMOI_FORCE_UPDATE:-0}"
+{{- with .pinned.codex }}
+PINNED_CODEX_VERSION="{{ .version }}"
+PINNED_CODEX_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+PINNED_CODEX_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+PINNED_CODEX_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+PINNED_CODEX_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
 
-if state_exists "codex-setup" && [ "$FORCE_UPDATE" != "1" ]; then
+if should_skip_state "codex-setup"; then
     vecho "Codex setup already completed (state tracked)"
     exit 0
 fi
@@ -18,8 +25,7 @@ fi
 add_to_path "$HOME/.local/bin"
 
 # Fast exit if codex is already installed and working (but mark state)
-# CHEZMOI_FORCE_UPDATE=1 bypasses this for explicit upgrade runs (e.g. czuf)
-if [ "$FORCE_UPDATE" != "1" ] && is_installed codex && codex --version >/dev/null 2>&1; then
+if ! is_force_update && is_installed codex && codex --version >/dev/null 2>&1; then
     vecho "Codex is already installed: $(codex --version 2>/dev/null || echo 'installed')"
     mark_state "codex-setup"
     exit 0
@@ -56,58 +62,62 @@ install_via_homebrew() {
 }
 
 install_via_release_binary() {
-    local os arch target latest_version binary_name download_url temp_dir extracted_binary
-    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ] && [ "$FORCE_UPDATE" != "1" ]; then
-        eecho "Refusing to download Codex release binary without explicit trust."
-        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow GitHub release download."
+    local os arch target binary_name download_url temp_dir extracted_binary expected_sha cache_file platform
+    if ! require_trust_for_remote_download "github.com/openai/codex"; then
         return 1
     fi
 
-    case "$(uname -s)" in
-        Linux) os="unknown-linux-musl" ;;
-        Darwin) os="apple-darwin" ;;
-        *)
-            eecho "Unsupported OS for Codex installation: $(uname -s)"
-            return 1
-            ;;
-    esac
+    if ! platform="$(platform_key)"; then
+        return 1
+    fi
 
-    case "$(uname -m)" in
-        x86_64|amd64) arch="x86_64" ;;
-        aarch64|arm64) arch="aarch64" ;;
+    case "$platform" in
+        linux-x86_64)
+            os="unknown-linux-musl"
+            arch="x86_64"
+            expected_sha="$PINNED_CODEX_LINUX_X86_64_SHA"
+            ;;
+        linux-arm64)
+            os="unknown-linux-musl"
+            arch="aarch64"
+            expected_sha="$PINNED_CODEX_LINUX_ARM64_SHA"
+            ;;
+        macos-x86_64)
+            os="apple-darwin"
+            arch="x86_64"
+            expected_sha="$PINNED_CODEX_MACOS_X86_64_SHA"
+            ;;
+        macos-arm64)
+            os="apple-darwin"
+            arch="aarch64"
+            expected_sha="$PINNED_CODEX_MACOS_ARM64_SHA"
+            ;;
         *)
-            eecho "Unsupported architecture for Codex installation: $(uname -m)"
+            eecho "Unsupported platform for Codex installation: ${platform}"
             return 1
             ;;
     esac
 
     target="${arch}-${os}"
-    latest_version="$(curl -fsSL https://api.github.com/repos/openai/codex/releases/latest | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-    if [ -z "$latest_version" ]; then
-        eecho "Error: Could not determine latest Codex release version"
-        return 1
-    fi
 
-    # Compare installed version to latest (tag format: rust-v0.101.0)
+    # Compare installed version to pinned release (tag format: rust-v0.101.0)
     local current_version latest_clean
     current_version="$(codex --version 2>/dev/null | awk '{print $NF}' || true)"
-    latest_clean="${latest_version##*v}"  # strip everything up to last 'v'
+    latest_clean="${PINNED_CODEX_VERSION##*v}"  # strip everything up to last 'v'
     if [ -n "$current_version" ] && [ "$current_version" = "$latest_clean" ]; then
-        eecho "Codex CLI already at latest version ($current_version)"
+        eecho "Codex CLI already at pinned version ($current_version)"
         return 0
     fi
 
     binary_name="codex-${target}.tar.gz"
-    download_url="https://github.com/openai/codex/releases/download/${latest_version}/${binary_name}"
+    download_url="https://github.com/openai/codex/releases/download/${PINNED_CODEX_VERSION}/${binary_name}"
+    cache_file="$CACHE_DIR/codex-${PINNED_CODEX_VERSION}-${platform}.tar.gz"
     temp_dir="$(mktemp -d)"
     trap 'rm -rf "$temp_dir"' RETURN
 
-    eecho "Installing Codex CLI from release binary (${latest_version})..."
-    if [ "$VERBOSE" = "true" ]; then
-        curl -fL --retry 3 --retry-delay 2 "$download_url" -o "$temp_dir/codex.tar.gz"
-    else
-        curl -fLsS --retry 3 --retry-delay 2 "$download_url" -o "$temp_dir/codex.tar.gz"
-    fi
+    eecho "Installing Codex CLI from pinned release binary (${PINNED_CODEX_VERSION})..."
+    download_and_verify "$download_url" "$cache_file" "$expected_sha"
+    cp "$cache_file" "$temp_dir/codex.tar.gz"
 
     tar -xzf "$temp_dir/codex.tar.gz" -C "$temp_dir"
     extracted_binary="$(find "$temp_dir" -maxdepth 3 -type f -perm -u+x \
