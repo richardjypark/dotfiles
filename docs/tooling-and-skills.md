@@ -1,0 +1,33 @@
+# Tooling And Skills
+
+## Local Update Commands
+
+- `czu`: jj-based dotfiles update and apply.
+- `czuf`: forced jj-based update with externals/tool refresh.
+- `czvc`: checks pinned versions.
+- `czu`/`czuf` use `jj rebase -d master` (not `jj new master`) to avoid switching your working copy to an unexpected empty change.
+
+Command definitions live under:
+
+- `private_dot_config/shell/chezmoi.sh`
+- `private_dot_config/shell/alias.sh`
+
+## Agent Skills In This Repo
+
+Available local skills include:
+
+- `chezmoi-bootstrap-operator`
+- `chezmoi-script-maintainer`
+- `dotfiles-version-refresh`
+- `jj`
+
+These are installed under `~/.codex/skills` and are intended to keep bootstrap/script/version changes consistent with repo conventions.
+
+## Future Machine Combination Pattern
+
+Use this pattern for maintainability:
+
+1. Add role/profile behavior first (template/script conditions).
+2. Keep shared helper logic in `dot_local/private_lib/chezmoi-helpers.sh`.
+3. Keep machine-specific exceptions minimal and documented.
+4. Prefer adding pinned version data in `.chezmoidata.toml` and `.chezmoiversion.toml` over ad hoc script constants.

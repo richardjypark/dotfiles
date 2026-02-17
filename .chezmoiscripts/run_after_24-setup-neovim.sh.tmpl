@@ -3,6 +3,15 @@ set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
 REQUIRED_NVIM_VERSION="${REQUIRED_NVIM_VERSION:-0.11.2}"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
+
+{{- with .pinned.neovim }}
+PINNED_NVIM_VERSION="{{ .version }}"
+PINNED_NVIM_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+PINNED_NVIM_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+PINNED_NVIM_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+PINNED_NVIM_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
 
 get_nvim_version() {
     if ! is_installed nvim; then
@@ -43,7 +52,7 @@ nvim_meets_requirement() {
 }
 
 # Fast exit if already completed via state tracking
-if state_exists "neovim-setup"; then
+if should_skip_state "neovim-setup"; then
     if nvim_meets_requirement; then
         vecho "Neovim setup already completed (state tracked)"
         exit 0
@@ -54,7 +63,7 @@ fi
 add_to_path "$HOME/.local/bin"
 
 # Fast exit if nvim is already installed with required version (but mark state)
-if nvim_meets_requirement; then
+if ! is_force_update && nvim_meets_requirement; then
     vecho "Neovim is already installed and up to date: $(nvim --version | sed -n '1p' 2>/dev/null || echo 'installed')"
     mark_state "neovim-setup"
     exit 0
@@ -151,58 +160,46 @@ install_via_homebrew() {
 }
 
 install_via_release_binary() {
-    local os arch latest_version archive_name download_url temp_dir root_dir install_root
-    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
-        eecho "Refusing to download Neovim release binary without explicit trust."
-        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow GitHub release download."
+    local platform archive_name download_url temp_dir root_dir install_root expected_sha cache_file
+    if ! require_trust_for_remote_download "github.com/neovim/neovim"; then
         return 1
     fi
 
-    case "$(uname -s)" in
-        Linux) os="linux" ;;
-        Darwin) os="macos" ;;
-        *)
-            eecho "Unsupported OS for binary Neovim install: $(uname -s)"
-            return 1
-            ;;
-    esac
-
-    case "$(uname -m)" in
-        x86_64|amd64) arch="x86_64" ;;
-        aarch64|arm64) arch="arm64" ;;
-        *)
-            eecho "Unsupported architecture for binary Neovim install: $(uname -m)"
-            return 1
-            ;;
-    esac
-
-    latest_version="$(curl -fsSL https://api.github.com/repos/neovim/neovim/releases/latest | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | sed -n '1p')"
-    if [ -z "$latest_version" ]; then
-        eecho "Error: Could not determine latest Neovim release version."
+    if ! platform="$(platform_key)"; then
         return 1
     fi
 
-    case "${os}-${arch}" in
-        linux-x86_64) archive_name="nvim-linux-x86_64.tar.gz" ;;
-        linux-arm64) archive_name="nvim-linux-arm64.tar.gz" ;;
-        macos-x86_64) archive_name="nvim-macos-x86_64.tar.gz" ;;
-        macos-arm64) archive_name="nvim-macos-arm64.tar.gz" ;;
+    case "$platform" in
+        linux-x86_64)
+            archive_name="nvim-linux-x86_64.tar.gz"
+            expected_sha="$PINNED_NVIM_LINUX_X86_64_SHA"
+            ;;
+        linux-arm64)
+            archive_name="nvim-linux-arm64.tar.gz"
+            expected_sha="$PINNED_NVIM_LINUX_ARM64_SHA"
+            ;;
+        macos-x86_64)
+            archive_name="nvim-macos-x86_64.tar.gz"
+            expected_sha="$PINNED_NVIM_MACOS_X86_64_SHA"
+            ;;
+        macos-arm64)
+            archive_name="nvim-macos-arm64.tar.gz"
+            expected_sha="$PINNED_NVIM_MACOS_ARM64_SHA"
+            ;;
         *)
             eecho "Unsupported release-binary target: ${os}-${arch}"
             return 1
             ;;
     esac
 
-    download_url="https://github.com/neovim/neovim/releases/download/${latest_version}/${archive_name}"
+    download_url="https://github.com/neovim/neovim/releases/download/${PINNED_NVIM_VERSION}/${archive_name}"
+    cache_file="$CACHE_DIR/neovim-${PINNED_NVIM_VERSION}-${platform}.tar.gz"
     temp_dir="$(mktemp -d)"
     trap 'rm -rf "$temp_dir"' RETURN
 
-    eecho "Installing Neovim from release binary (${latest_version})..."
-    if [ "$VERBOSE" = "true" ]; then
-        curl -fL --retry 3 --retry-delay 2 "$download_url" -o "$temp_dir/nvim.tar.gz"
-    else
-        curl -fLsS --retry 3 --retry-delay 2 "$download_url" -o "$temp_dir/nvim.tar.gz"
-    fi
+    eecho "Installing Neovim from pinned release binary (${PINNED_NVIM_VERSION})..."
+    download_and_verify "$download_url" "$cache_file" "$expected_sha"
+    cp "$cache_file" "$temp_dir/nvim.tar.gz"
 
     tar -xzf "$temp_dir/nvim.tar.gz" -C "$temp_dir"
     root_dir="$(tar -tzf "$temp_dir/nvim.tar.gz" | sed -n '1p' | cut -d/ -f1)"

@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+PREFETCH_STATE="prefetch-assets"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
+MAX_JOBS="${CHEZMOI_PREFETCH_JOBS:-4}"
+
+# Backward-compatibility shims: run_before scripts may execute before the
+# latest helper library has been applied to ~/.local/lib.
+if ! command -v is_force_update >/dev/null 2>&1; then
+    is_force_update() {
+        [ "${CHEZMOI_FORCE_UPDATE:-0}" = "1" ]
+    }
+fi
+
+if ! command -v should_skip_state >/dev/null 2>&1; then
+    should_skip_state() {
+        local state_name="$1"
+        if [ -f "${STATE_DIR:-$HOME/.cache/chezmoi-state}/${state_name}.done" ] && ! is_force_update; then
+            return 0
+        fi
+        return 1
+    }
+fi
+
+if ! command -v platform_key >/dev/null 2>&1; then
+    platform_key() {
+        local os arch
+        case "$(uname -s)" in
+            Linux) os="linux" ;;
+            Darwin) os="macos" ;;
+            *) return 1 ;;
+        esac
+        case "$(uname -m)" in
+            x86_64|amd64) arch="x86_64" ;;
+            aarch64|arm64) arch="arm64" ;;
+            *) return 1 ;;
+        esac
+        printf '%s-%s\n' "$os" "$arch"
+    }
+fi
+
+if ! command -v require_trust_for_remote_download >/dev/null 2>&1; then
+    require_trust_for_remote_download() {
+        local source="$1"
+        if [ "${TRUST_ON_FIRST_USE_INSTALLERS:-0}" != "1" ]; then
+            eecho "Refusing to fetch remote artifact without explicit trust."
+            eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow download from ${source}."
+            return 1
+        fi
+        return 0
+    }
+fi
+
+if ! command -v sha256_file >/dev/null 2>&1; then
+    sha256_file() {
+        local file="$1"
+        if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$file" | awk '{print $1}'
+            return 0
+        fi
+        if command -v shasum >/dev/null 2>&1; then
+            shasum -a 256 "$file" | awk '{print $1}'
+            return 0
+        fi
+        eecho "Error: no SHA-256 tool found (need sha256sum or shasum)."
+        return 1
+    }
+fi
+
+if ! command -v verify_sha256 >/dev/null 2>&1; then
+    verify_sha256() {
+        local file="$1"
+        local expected="$2"
+        local actual
+        if [ ! -f "$file" ]; then
+            return 1
+        fi
+        actual="$(sha256_file "$file")" || return 1
+        [ "$actual" = "$expected" ]
+    }
+fi
+
+if ! command -v download_file >/dev/null 2>&1; then
+    download_file() {
+        local url="$1"
+        local destination="$2"
+        local destination_dir
+        destination_dir="$(dirname "$destination")"
+        mkdir -p "$destination_dir"
+        curl --fail --location --show-error --silent \
+            --proto '=https' --tlsv1.2 \
+            --retry 3 --retry-delay 2 \
+            --connect-timeout 10 --max-time 300 \
+            "$url" -o "$destination"
+    }
+fi
+
+if ! command -v download_and_verify >/dev/null 2>&1; then
+    download_and_verify() {
+        local url="$1"
+        local destination="$2"
+        local expected_sha="$3"
+        local tmp_file
+        if [ -f "$destination" ] && verify_sha256 "$destination" "$expected_sha"; then
+            vecho "Using verified cached artifact: $destination"
+            return 0
+        fi
+        tmp_file="${destination}.tmp.$$"
+        rm -f "$tmp_file"
+        download_file "$url" "$tmp_file"
+        if ! verify_sha256 "$tmp_file" "$expected_sha"; then
+            eecho "Error: checksum verification failed for $url"
+            rm -f "$tmp_file"
+            return 1
+        fi
+        mv "$tmp_file" "$destination"
+        return 0
+    }
+fi
+
+{{- with .pinned.neovim }}
+NVIM_VERSION="{{ .version }}"
+NVIM_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+NVIM_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+NVIM_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+NVIM_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
+
+{{- with .pinned.jj }}
+JJ_VERSION="{{ .version }}"
+JJ_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+JJ_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+JJ_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+JJ_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
+
+{{- with .pinned.codex }}
+CODEX_VERSION="{{ .version }}"
+CODEX_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+CODEX_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+CODEX_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+CODEX_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
+
+mkdir -p "$CACHE_DIR"
+
+if should_skip_state "$PREFETCH_STATE"; then
+    vecho "Artifact prefetch already completed (state tracked)"
+    exit 0
+fi
+
+if [ "${TRUST_ON_FIRST_USE_INSTALLERS:-0}" != "1" ]; then
+    vecho "Skipping artifact prefetch (TRUST_ON_FIRST_USE_INSTALLERS != 1)"
+    exit 0
+fi
+
+if ! platform="$(platform_key)"; then
+    vecho "Skipping prefetch on unsupported platform: $(uname -s)/$(uname -m)"
+    exit 0
+fi
+
+artifacts=()
+
+add_artifact() {
+    local name="$1"
+    local url="$2"
+    local sha="$3"
+    local dest="$4"
+    artifacts+=("${name}|${url}|${sha}|${dest}")
+}
+
+case "$platform" in
+    linux-x86_64)
+        add_artifact "neovim" "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz" "$NVIM_LINUX_X86_64_SHA" "$CACHE_DIR/neovim-${NVIM_VERSION}-linux-x86_64.tar.gz"
+        add_artifact "jj" "https://github.com/jj-vcs/jj/releases/download/${JJ_VERSION}/jj-${JJ_VERSION}-x86_64-unknown-linux-musl.tar.gz" "$JJ_LINUX_X86_64_SHA" "$CACHE_DIR/jj-${JJ_VERSION}-linux-x86_64.tar.gz"
+        add_artifact "codex" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-x86_64-unknown-linux-musl.tar.gz" "$CODEX_LINUX_X86_64_SHA" "$CACHE_DIR/codex-${CODEX_VERSION}-linux-x86_64.tar.gz"
+        ;;
+    linux-arm64)
+        add_artifact "neovim" "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-arm64.tar.gz" "$NVIM_LINUX_ARM64_SHA" "$CACHE_DIR/neovim-${NVIM_VERSION}-linux-arm64.tar.gz"
+        add_artifact "jj" "https://github.com/jj-vcs/jj/releases/download/${JJ_VERSION}/jj-${JJ_VERSION}-aarch64-unknown-linux-musl.tar.gz" "$JJ_LINUX_ARM64_SHA" "$CACHE_DIR/jj-${JJ_VERSION}-linux-arm64.tar.gz"
+        add_artifact "codex" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-aarch64-unknown-linux-musl.tar.gz" "$CODEX_LINUX_ARM64_SHA" "$CACHE_DIR/codex-${CODEX_VERSION}-linux-arm64.tar.gz"
+        ;;
+    macos-x86_64)
+        add_artifact "neovim" "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-macos-x86_64.tar.gz" "$NVIM_MACOS_X86_64_SHA" "$CACHE_DIR/neovim-${NVIM_VERSION}-macos-x86_64.tar.gz"
+        add_artifact "jj" "https://github.com/jj-vcs/jj/releases/download/${JJ_VERSION}/jj-${JJ_VERSION}-x86_64-apple-darwin.tar.gz" "$JJ_MACOS_X86_64_SHA" "$CACHE_DIR/jj-${JJ_VERSION}-macos-x86_64.tar.gz"
+        add_artifact "codex" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-x86_64-apple-darwin.tar.gz" "$CODEX_MACOS_X86_64_SHA" "$CACHE_DIR/codex-${CODEX_VERSION}-macos-x86_64.tar.gz"
+        ;;
+    macos-arm64)
+        add_artifact "neovim" "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-macos-arm64.tar.gz" "$NVIM_MACOS_ARM64_SHA" "$CACHE_DIR/neovim-${NVIM_VERSION}-macos-arm64.tar.gz"
+        add_artifact "jj" "https://github.com/jj-vcs/jj/releases/download/${JJ_VERSION}/jj-${JJ_VERSION}-aarch64-apple-darwin.tar.gz" "$JJ_MACOS_ARM64_SHA" "$CACHE_DIR/jj-${JJ_VERSION}-macos-arm64.tar.gz"
+        add_artifact "codex" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-aarch64-apple-darwin.tar.gz" "$CODEX_MACOS_ARM64_SHA" "$CACHE_DIR/codex-${CODEX_VERSION}-macos-arm64.tar.gz"
+        ;;
+esac
+
+if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
+    filtered=()
+    for item in "${artifacts[@]}"; do
+        case "$item" in
+            codex*) ;;
+            *) filtered+=("$item") ;;
+        esac
+    done
+    artifacts=("${filtered[@]}")
+fi
+
+if [ "${#artifacts[@]}" -eq 0 ]; then
+    vecho "No artifacts selected for prefetch"
+    exit 0
+fi
+
+pids=()
+jobs=0
+failed=0
+
+wait_one() {
+    local pid="$1"
+    if ! wait "$pid"; then
+        failed=1
+    fi
+}
+
+for item in "${artifacts[@]}"; do
+    IFS='|' read -r name url sha dest <<EOF
+$item
+EOF
+    (
+        vecho "Prefetching ${name}: ${url}"
+        require_trust_for_remote_download "$url"
+        download_and_verify "$url" "$dest" "$sha"
+    ) &
+    pids+=("$!")
+    jobs=$((jobs + 1))
+
+    if [ "$jobs" -ge "$MAX_JOBS" ]; then
+        wait_one "${pids[0]}"
+        pids=("${pids[@]:1}")
+        jobs=$((jobs - 1))
+    fi
+done
+
+for pid in "${pids[@]}"; do
+    wait_one "$pid"
+done
+
+if [ "$failed" -ne 0 ]; then
+    eecho "Error: one or more artifact prefetch jobs failed."
+    exit 1
+fi
+
+mark_state "$PREFETCH_STATE"
+vecho "Artifact prefetch complete"

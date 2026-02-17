@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
+
+{{- with .pinned.jj }}
+PINNED_JJ_VERSION="{{ .version }}"
+PINNED_JJ_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+PINNED_JJ_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+PINNED_JJ_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
+PINNED_JJ_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
+{{- end }}
+
+if should_skip_state "jj-setup"; then
+    vecho "Jujutsu setup already completed (state tracked)"
+    exit 0
+fi
+
+# Cleanup trap for reliable temp directory removal
+TEMP_DIR=""
+cleanup() {
+    if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+        rm -rf "$TEMP_DIR"
+    fi
+}
+trap cleanup EXIT INT TERM
+
+vecho "Setting up Jujutsu (jj)..."
+
+add_to_path "$HOME/.local/bin"
+
+# Fast exit if jj is already installed (but mark state)
+if ! is_force_update && is_installed jj; then
+    vecho "Jujutsu is already installed: $(jj --version 2>/dev/null || echo 'installed')"
+    mark_state "jj-setup"
+    exit 0
+fi
+
+# Detect platform
+if ! PLATFORM="$(platform_key)"; then
+    exit 1
+fi
+
+install_via_package_manager() {
+    # Try native package managers first for Linux distros with jj packages
+    if [[ "$PLATFORM" == linux-* ]]; then
+        if command -v pacman >/dev/null 2>&1; then
+            eecho "Installing Jujutsu via pacman..."
+            if [ "$VERBOSE" = "true" ]; then
+                run_privileged pacman -Sy --noconfirm jujutsu
+            else
+                run_privileged pacman -Sy --noconfirm --quiet jujutsu >/dev/null 2>&1
+            fi
+            return 0
+        elif command -v zypper >/dev/null 2>&1; then
+            eecho "Installing Jujutsu via zypper..."
+            if [ "$VERBOSE" = "true" ]; then
+                run_privileged zypper install -y jujutsu
+            else
+                run_privileged zypper install -y jujutsu >/dev/null 2>&1
+            fi
+            return 0
+        fi
+    fi
+    return 1
+}
+
+install_via_homebrew() {
+    if is_installed brew; then
+        eecho "Installing Jujutsu via Homebrew..."
+        if [ "$VERBOSE" = "true" ]; then
+            brew install jj
+        else
+            brew install jj >/dev/null 2>&1
+        fi
+        return 0
+    fi
+    return 1
+}
+
+install_via_binary() {
+    # Download pre-built binary from GitHub releases
+    eecho "Installing Jujutsu from pinned pre-built binary..."
+    if ! require_trust_for_remote_download "github.com/jj-vcs/jj"; then
+        return 1
+    fi
+
+    local expected_sha=""
+
+    # Determine binary name based on OS and architecture
+    case "$PLATFORM" in
+        linux-x86_64)
+            BINARY_NAME="jj-${PINNED_JJ_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+            expected_sha="$PINNED_JJ_LINUX_X86_64_SHA"
+            ;;
+        linux-arm64)
+            BINARY_NAME="jj-${PINNED_JJ_VERSION}-aarch64-unknown-linux-musl.tar.gz"
+            expected_sha="$PINNED_JJ_LINUX_ARM64_SHA"
+            ;;
+        macos-x86_64)
+            BINARY_NAME="jj-${PINNED_JJ_VERSION}-x86_64-apple-darwin.tar.gz"
+            expected_sha="$PINNED_JJ_MACOS_X86_64_SHA"
+            ;;
+        macos-arm64)
+            BINARY_NAME="jj-${PINNED_JJ_VERSION}-aarch64-apple-darwin.tar.gz"
+            expected_sha="$PINNED_JJ_MACOS_ARM64_SHA"
+            ;;
+        *)
+            eecho "Error: Unsupported platform: ${OS}-${ARCH}"
+            return 1
+            ;;
+    esac
+
+    DOWNLOAD_URL="https://github.com/jj-vcs/jj/releases/download/${PINNED_JJ_VERSION}/${BINARY_NAME}"
+    INSTALL_DIR="$HOME/.local/bin"
+
+    mkdir -p "$INSTALL_DIR"
+
+    # Download and extract (TEMP_DIR cleaned up by trap)
+    TEMP_DIR=$(mktemp -d)
+    local cache_file
+    cache_file="$CACHE_DIR/jj-${PINNED_JJ_VERSION}-${PLATFORM}.tar.gz"
+    vecho "Downloading from: $DOWNLOAD_URL"
+    if ! download_and_verify "$DOWNLOAD_URL" "$cache_file" "$expected_sha"; then
+        eecho "Error: Failed to download or verify jj binary from: $DOWNLOAD_URL"
+        return 1
+    fi
+
+    cp "$cache_file" "$TEMP_DIR/jj.tar.gz"
+    tar -xzf "$TEMP_DIR/jj.tar.gz" -C "$TEMP_DIR"
+
+    # Find and install the jj binary
+    if [ -f "$TEMP_DIR/jj" ]; then
+        mv "$TEMP_DIR/jj" "$INSTALL_DIR/jj"
+        chmod +x "$INSTALL_DIR/jj"
+        return 0
+    fi
+
+    local jj_archive_bin=""
+    for candidate in "$TEMP_DIR"/jj-*/jj; do
+        if [ -f "$candidate" ]; then
+            jj_archive_bin="$candidate"
+            break
+        fi
+    done
+    if [ -n "$jj_archive_bin" ]; then
+        mv "$jj_archive_bin" "$INSTALL_DIR/jj"
+        chmod +x "$INSTALL_DIR/jj"
+        return 0
+    fi
+
+    local jj_bin
+    jj_bin="$(find "$TEMP_DIR" -name "jj" -type f 2>/dev/null | head -1 || true)"
+    if [ -n "$jj_bin" ]; then
+        mv "$jj_bin" "$INSTALL_DIR/jj"
+        chmod +x "$INSTALL_DIR/jj"
+        return 0
+    fi
+
+    eecho "Error: Could not find jj binary in downloaded archive"
+    return 1
+}
+
+# Try installation methods in order of preference
+if install_via_package_manager; then
+    vecho "Installed via native package manager"
+elif install_via_homebrew; then
+    vecho "Installed via Homebrew"
+elif install_via_binary; then
+    vecho "Installed via pre-built binary"
+else
+    eecho "Error: Could not install Jujutsu. Please install manually from https://docs.jj-vcs.dev/latest/install-and-setup/"
+    exit 1
+fi
+
+# Verify installation
+if is_installed jj; then
+    if [ "$VERBOSE" = "true" ]; then
+        echo "Jujutsu installed successfully"
+        jj --version 2>/dev/null || true
+    fi
+    mark_state "jj-setup"
+else
+    eecho "Error: Jujutsu installation did not produce a working 'jj' binary."
+    eecho "Leaving state unset so setup can retry."
+    exit 1
+fi
+
+vecho "Jujutsu setup complete!"

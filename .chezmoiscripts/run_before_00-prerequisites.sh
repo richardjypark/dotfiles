@@ -56,33 +56,19 @@ if [ "$CAN_SUDO" = "true" ]; then
 
         if command -v apt-get >/dev/null 2>&1; then
             run_privileged apt-get update -qq
-            for pkg in $MISSING_PACKAGES; do
-                run_privileged apt-get install -y -qq "$pkg"
-            done
+            run_privileged apt-get install -y -qq $MISSING_PACKAGES
         elif command -v dnf >/dev/null 2>&1; then
-            for pkg in $MISSING_PACKAGES; do
-                run_privileged dnf install -y -q "$pkg"
-            done
+            run_privileged dnf install -y -q $MISSING_PACKAGES
         elif command -v yum >/dev/null 2>&1; then
-            for pkg in $MISSING_PACKAGES; do
-                run_privileged yum install -y -q "$pkg"
-            done
+            run_privileged yum install -y -q $MISSING_PACKAGES
         elif command -v pacman >/dev/null 2>&1; then
-            for pkg in $MISSING_PACKAGES; do
-                run_privileged pacman -S --noconfirm --quiet "$pkg"
-            done
+            run_privileged pacman -S --noconfirm --quiet $MISSING_PACKAGES
         elif command -v zypper >/dev/null 2>&1; then
-            for pkg in $MISSING_PACKAGES; do
-                run_privileged zypper install -y -q "$pkg"
-            done
+            run_privileged zypper install -y -q $MISSING_PACKAGES
         elif command -v apk >/dev/null 2>&1; then
-            for pkg in $MISSING_PACKAGES; do
-                run_privileged apk add --quiet "$pkg"
-            done
+            run_privileged apk add --quiet $MISSING_PACKAGES
         elif command -v brew >/dev/null 2>&1; then
-            for pkg in $MISSING_PACKAGES; do
-                brew install --quiet "$pkg"
-            done
+            brew install --quiet $MISSING_PACKAGES
         else
             eecho "Warning: No supported package manager found. Please install packages manually:"
             eecho "  $MISSING_PACKAGES"
@@ -124,12 +110,10 @@ fi
 # Install chezmoi only if not present
 if ! is_installed chezmoi; then
     eecho "Installing chezmoi..."
-    if [ "$TRUST_ON_FIRST_USE_INSTALLERS" != "1" ]; then
-        eecho "Refusing to run remote installer without explicit trust."
-        eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow git.io/chezmoi installer."
+    if ! require_trust_for_remote_installer "chezmoi.io/get"; then
         exit 1
     fi
-    sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b "$HOME/.local/bin"
+    sh -c "$(curl --fail --location --show-error --silent --proto '=https' --tlsv1.2 https://chezmoi.io/get)" -- -b "$HOME/.local/bin"
     export PATH="$HOME/.local/bin:$PATH"
 else
     vecho "chezmoi is already installed"

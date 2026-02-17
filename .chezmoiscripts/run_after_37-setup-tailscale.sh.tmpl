@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
+
+{{- with .pinned.tailscale }}
+PINNED_TAILSCALE_VERSION="{{ .version }}"
+PINNED_TAILSCALE_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+PINNED_TAILSCALE_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
+{{- end }}
+
+if should_skip_state "tailscale-setup"; then
+    vecho "Tailscale setup already completed (state tracked)"
+    exit 0
+fi
+
+vecho "Setting up Tailscale..."
+
+# Fast exit if tailscale is already installed (but mark state)
+if is_installed tailscale; then
+    vecho "Tailscale is already installed: $(tailscale version 2>/dev/null | head -1 || echo 'installed')"
+    mark_state "tailscale-setup"
+    exit 0
+fi
+
+if ! PLATFORM="$(platform_key)"; then
+    eecho "Warning: Unsupported OS/architecture ($(uname -s)/$(uname -m)). Please install Tailscale manually from https://tailscale.com/download"
+    exit 0
+fi
+
+OS_FAMILY="${PLATFORM%%-*}"
+vecho "Detected platform: $PLATFORM"
+
+if [ "$OS_FAMILY" = "macos" ]; then
+    # macOS: Use Homebrew
+    if is_installed brew; then
+        eecho "Installing Tailscale via Homebrew..."
+        if [ "$VERBOSE" = "true" ]; then
+            brew install --cask tailscale
+        else
+            brew install --cask tailscale >/dev/null 2>&1
+        fi
+    else
+        eecho "Warning: Homebrew not available. Please install Tailscale from https://tailscale.com/download/mac"
+        exit 0
+    fi
+elif [ "$OS_FAMILY" = "linux" ]; then
+    install_via_package_manager() {
+        if [ "$(id -u)" != 0 ] && ! ensure_sudo; then
+            return 1
+        fi
+        if command -v apt-get >/dev/null 2>&1; then
+            run_privileged apt-get update -qq
+            run_privileged apt-get install -y -qq tailscale
+            return 0
+        elif command -v pacman >/dev/null 2>&1; then
+            run_privileged pacman -Sy --noconfirm --quiet tailscale
+            return 0
+        elif command -v dnf >/dev/null 2>&1; then
+            run_privileged dnf install -y -q tailscale
+            return 0
+        elif command -v yum >/dev/null 2>&1; then
+            run_privileged yum install -y -q tailscale
+            return 0
+        elif command -v zypper >/dev/null 2>&1; then
+            run_privileged zypper install -y tailscale >/dev/null 2>&1
+            return 0
+        elif command -v apk >/dev/null 2>&1; then
+            run_privileged apk add tailscale >/dev/null 2>&1
+            return 0
+        fi
+        return 1
+    }
+
+    install_via_pinned_tarball() {
+        local arch tailball expected_sha download_url cache_file temp_dir ts_bin tsd_bin
+        if ! require_trust_for_remote_installer "pkgs.tailscale.com tarball download"; then
+            return 1
+        fi
+        case "$PLATFORM" in
+            linux-x86_64)
+                arch="amd64"
+                expected_sha="$PINNED_TAILSCALE_LINUX_X86_64_SHA"
+                ;;
+            linux-arm64)
+                arch="arm64"
+                expected_sha="$PINNED_TAILSCALE_LINUX_ARM64_SHA"
+                ;;
+            *)
+                eecho "Unsupported platform for pinned Tailscale tarball: $PLATFORM"
+                return 1
+                ;;
+        esac
+
+        tailball="tailscale_${PINNED_TAILSCALE_VERSION}_${arch}.tgz"
+        download_url="https://pkgs.tailscale.com/stable/${tailball}"
+        cache_file="$CACHE_DIR/${tailball}"
+        temp_dir="$(mktemp -d)"
+        trap 'rm -rf "$temp_dir"' RETURN
+
+        eecho "Installing Tailscale from pinned tarball (${PINNED_TAILSCALE_VERSION})..."
+        download_and_verify "$download_url" "$cache_file" "$expected_sha"
+        tar -xzf "$cache_file" -C "$temp_dir"
+
+        ts_bin="$(find "$temp_dir" -type f -name tailscale | head -1)"
+        tsd_bin="$(find "$temp_dir" -type f -name tailscaled | head -1)"
+        if [ -z "$ts_bin" ] || [ -z "$tsd_bin" ]; then
+            eecho "Error: Could not find tailscale/tailscaled binaries in tarball."
+            return 1
+        fi
+
+        mkdir -p "$HOME/.local/bin"
+        install -m 755 "$ts_bin" "$HOME/.local/bin/tailscale"
+        install -m 755 "$tsd_bin" "$HOME/.local/bin/tailscaled"
+        return 0
+    }
+
+    if install_via_package_manager; then
+        vecho "Tailscale installation method: package manager"
+    elif install_via_pinned_tarball; then
+        vecho "Tailscale installation method: pinned tarball"
+        eecho "Note: tailscaled service setup may require manual root configuration."
+    else
+        eecho "Error: Could not install Tailscale automatically."
+        exit 1
+    fi
+else
+    eecho "Warning: Unsupported OS family ($OS_FAMILY). Please install Tailscale manually from https://tailscale.com/download"
+    exit 0
+fi
+
+# Verify installation
+if is_installed tailscale; then
+    if [ "$VERBOSE" = "true" ]; then
+        echo "Tailscale installed successfully"
+        tailscale version 2>/dev/null | head -1 || true
+    fi
+    eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
+    mark_state "tailscale-setup"
+else
+    eecho "Error: Tailscale installation failed. Leaving state unset so it can retry."
+    exit 1
+fi
+
+vecho "Tailscale setup complete!"
