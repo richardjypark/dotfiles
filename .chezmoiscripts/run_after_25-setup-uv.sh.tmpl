@@ -23,22 +23,36 @@ PINNED_UV_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 PINNED_UV_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
 
-# Check if uv is already installed
-if ! is_force_update && is_installed uv; then
-    vecho "uv is already installed: $(uv --version)"
-else
-    # Ensure .local/bin exists
-    mkdir -p "$UV_DIR"
-    if ! require_trust_for_remote_download "github.com/astral-sh/uv"; then
-        exit 1
+resolve_brew_cmd() {
+    if command -v brew >/dev/null 2>&1; then
+        command -v brew
+        return 0
     fi
 
-    platform=""
-    archive_name=""
-    expected_sha=""
+    if [ -x /opt/homebrew/bin/brew ]; then
+        printf '%s\n' "/opt/homebrew/bin/brew"
+        return 0
+    fi
 
-    if ! platform="$(platform_key)"; then
-        exit 1
+    if [ -x /usr/local/bin/brew ]; then
+        printf '%s\n' "/usr/local/bin/brew"
+        return 0
+    fi
+
+    return 1
+}
+
+install_uv_from_pinned_release() {
+    local platform="$1"
+    local archive_name=""
+    local expected_sha=""
+    local download_url=""
+    local cache_file=""
+    local temp_dir=""
+    local uv_binary=""
+
+    if ! require_trust_for_remote_download "github.com/astral-sh/uv"; then
+        return 1
     fi
 
     case "$platform" in
@@ -59,8 +73,8 @@ else
             expected_sha="$PINNED_UV_MACOS_ARM64_SHA"
             ;;
         *)
-            eecho "Unsupported platform for uv installation: ${os}-${arch}"
-            exit 1
+            eecho "Unsupported platform for uv installation: ${platform}"
+            return 1
             ;;
     esac
 
@@ -77,19 +91,77 @@ else
     uv_binary="$(find "$temp_dir" -maxdepth 3 -type f -name uv | head -1)"
     if [ -z "$uv_binary" ]; then
         eecho "Error: uv binary not found in release archive."
-        exit 1
+        return 1
     fi
+
     install -m 755 "$uv_binary" "$UV_DIR/uv"
 
-    # Verify installation
     if is_installed uv || [ -x "$UV_DIR/uv" ]; then
         if [ "$VERBOSE" = "true" ]; then
             echo "uv installed successfully: $(uv --version 2>/dev/null || $UV_DIR/uv --version)"
         fi
-    else
-        eecho "Warning: uv installation may have failed. Check manually."
+        return 0
+    fi
+
+    eecho "Warning: uv installation may have failed. Check manually."
+    return 1
+}
+
+# Check if uv is already installed
+if ! is_force_update && is_installed uv; then
+    vecho "uv is already installed: $(uv --version)"
+else
+    # Ensure .local/bin exists
+    mkdir -p "$UV_DIR"
+
+    platform=""
+    brew_cmd=""
+
+    if ! platform="$(platform_key)"; then
         exit 1
     fi
+
+    case "$platform" in
+        macos-*)
+            if brew_cmd="$(resolve_brew_cmd)"; then
+                if is_installed uv && ! is_force_update; then
+                    vecho "uv is already installed: $(uv --version)"
+                elif is_installed uv && is_force_update; then
+                    vecho "uv is already installed via Homebrew or PATH: $(uv --version)"
+                else
+                    eecho "Installing uv via Homebrew..."
+                    "$brew_cmd" install uv
+                fi
+
+                # Ensure uv is discoverable in non-login shell PATH.
+                if ! is_installed uv; then
+                    brew_prefix="$("$brew_cmd" --prefix 2>/dev/null || true)"
+                    if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/bin/uv" ]; then
+                        ln -sf "$brew_prefix/bin/uv" "$UV_DIR/uv"
+                    fi
+                fi
+
+                if ! is_installed uv; then
+                    eecho "Error: uv is not available after Homebrew installation."
+                    exit 1
+                fi
+            else
+                vecho "Homebrew not found; falling back to pinned uv release binary."
+                if ! install_uv_from_pinned_release "$platform"; then
+                    exit 1
+                fi
+            fi
+            ;;
+        linux-*)
+            if ! install_uv_from_pinned_release "$platform"; then
+                exit 1
+            fi
+            ;;
+        *)
+            eecho "Unsupported platform for uv installation: ${platform}"
+            exit 1
+            ;;
+    esac
 fi
 
 # Check if Python is already installed via uv
