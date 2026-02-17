@@ -1,5 +1,9 @@
 # Chezmoi update helpers
 
+# Compatibility: remove legacy aliases if they exist in current shell.
+unalias czu 2>/dev/null || true
+unalias czuf 2>/dev/null || true
+
 chezmoi_source_dir() {
   printf '%s\n' "$HOME/.local/share/chezmoi"
 }
