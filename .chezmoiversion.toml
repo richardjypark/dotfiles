@@ -1,5 +1,13 @@
 [versions]
 fzf = "0.67.0"
+neovim = "v0.11.6"
+jj = "v0.38.0"
+codex = "rust-v0.101.0"
+uv = "0.10.3"
+starship = "v1.24.2"
+bun = "bun-v1.3.9"
+tailscale = "1.94.2"
+claude_code_npm = "2.1.44"
 
 [update_schedule]
 check_interval = "168h" # Weekly

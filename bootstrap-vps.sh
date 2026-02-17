@@ -29,6 +29,10 @@ LOGIN_GRACE_TIME="${LOGIN_GRACE_TIME:-20}"
 CLIENT_ALIVE_INTERVAL="${CLIENT_ALIVE_INTERVAL:-300}"
 CLIENT_ALIVE_COUNT_MAX="${CLIENT_ALIVE_COUNT_MAX:-2}"
 
+PINNED_CHEZMOI_VERSION="${PINNED_CHEZMOI_VERSION:-2.69.4}"
+PINNED_CHEZMOI_AMD64_DEB_SHA256="${PINNED_CHEZMOI_AMD64_DEB_SHA256:-3f2a4c46d7f13a71db417041ec1e165b05a8d1be4e22cd137ac79423aac6770a}"
+PINNED_CHEZMOI_ARM64_DEB_SHA256="${PINNED_CHEZMOI_ARM64_DEB_SHA256:-2129b8a1b925d022e42ddd0065c1fde8df361219a682b47aac54ea952922c1da}"
+
 F2B_MAXRETRY="${F2B_MAXRETRY:-3}"
 F2B_FINDTIME="${F2B_FINDTIME:-10m}"
 F2B_BANTIME="${F2B_BANTIME:-1h}"
@@ -74,6 +78,29 @@ require_trust_for_remote_installer() {
     echo "Set TRUST_ON_FIRST_USE_INSTALLERS=1 to allow this installer." >&2
     exit 1
   fi
+}
+
+download_file() {
+  local url="$1" dest="$2"
+  curl --fail --location --show-error --silent \
+    --proto '=https' --tlsv1.2 \
+    --retry 3 --retry-delay 2 \
+    --connect-timeout 10 --max-time 300 \
+    "$url" -o "$dest"
+}
+
+sha256_file() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{print $1}'
+  else
+    shasum -a 256 "$file" | awk '{print $1}'
+  fi
+}
+
+verify_sha256() {
+  local file="$1" expected="$2"
+  [[ "$(sha256_file "$file")" == "$expected" ]]
 }
 
 # --- Validation --------------------------------------------------------------
@@ -369,14 +396,14 @@ install_tailscale() {
     return 0
   fi
 
-  require_trust_for_remote_installer "tailscale.com/install.sh"
-  if curl -fsSL --retry 3 --retry-delay 2 https://tailscale.com/install.sh | sh; then
+  if apt-cache show tailscale >/dev/null 2>&1; then
+    apt_install tailscale
     systemctl enable tailscaled || true
     systemctl start tailscaled || true
     tailscale set --operator="${USERNAME}" 2>/dev/null || true
     echo "Tailscale installed. Run 'tailscale up' to authenticate."
   else
-    echo "WARNING: Tailscale install failed. Continuing."
+    echo "WARNING: tailscale package not available in apt sources. Install manually and rerun if needed."
   fi
 }
 
@@ -393,8 +420,33 @@ install_dotfiles() {
       apt_install chezmoi
       chezmoi_bin="$(command -v chezmoi)"
     else
-      require_trust_for_remote_installer "chezmoi.io/get"
-      sh -c "$(curl -fsLS https://chezmoi.io/get)" -- -b /usr/local/bin
+      require_trust_for_remote_installer "GitHub release package download"
+      local arch deb_name deb_sha deb_url deb_path
+      arch="$(dpkg --print-architecture)"
+      case "$arch" in
+        amd64)
+          deb_name="chezmoi_${PINNED_CHEZMOI_VERSION}_linux_amd64.deb"
+          deb_sha="${PINNED_CHEZMOI_AMD64_DEB_SHA256}"
+          ;;
+        arm64)
+          deb_name="chezmoi_${PINNED_CHEZMOI_VERSION}_linux_arm64.deb"
+          deb_sha="${PINNED_CHEZMOI_ARM64_DEB_SHA256}"
+          ;;
+        *)
+          echo "ERROR: Unsupported architecture for pinned chezmoi package: ${arch}" >&2
+          return 1
+          ;;
+      esac
+      deb_url="https://github.com/twpayne/chezmoi/releases/download/v${PINNED_CHEZMOI_VERSION}/${deb_name}"
+      deb_path="/tmp/${deb_name}"
+      download_file "$deb_url" "$deb_path"
+      if ! verify_sha256 "$deb_path" "$deb_sha"; then
+        echo "ERROR: checksum verification failed for ${deb_name}" >&2
+        return 1
+      fi
+      dpkg -i "$deb_path" || apt-get install -f -y
+      rm -f "$deb_path"
+      chezmoi_bin="$(command -v chezmoi)"
     fi
     # Installer may ignore -b and put it in ~/.local/bin; move it if so
     if [[ ! -x "${chezmoi_bin}" && -x "${HOME}/.local/bin/chezmoi" ]]; then

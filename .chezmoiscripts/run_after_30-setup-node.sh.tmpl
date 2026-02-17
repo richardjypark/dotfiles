@@ -5,6 +5,7 @@ set -euo pipefail
 # Setup Node.js via NVM
 vecho "Setting up Node.js via NVM..."
 NVM_DIR="$HOME/.nvm"
+FORCE_UPDATE="${CHEZMOI_FORCE_UPDATE:-0}"
 
 # Use chezmoi template syntax with proper spacing
 {{- with .nvm }}
@@ -13,7 +14,7 @@ NODE_VERSION="{{ .nodeVersion }}"
 {{- end }}
 
 # Fast exit if Node.js is already properly set up
-if [ -f "$NVM_DIR/nvm.sh" ] && is_installed node; then
+if [ "$FORCE_UPDATE" != "1" ] && [ -f "$NVM_DIR/nvm.sh" ] && is_installed node; then
     . "$NVM_DIR/nvm.sh" >/dev/null 2>&1
     CURRENT_NODE_VERSION=$(nvm current 2>/dev/null || echo "none")
 
@@ -35,12 +36,14 @@ if [ -f "$NVM_DIR/nvm.sh" ] && is_installed node; then
     fi
 
     if [ "$NODE_SETUP_COMPLETE" = "true" ]; then
-        # Quick check for global packages
-        if is_installed yarn && is_installed pnpm; then
+        # Quick check for global packages and runtime health
+        if is_installed yarn && is_installed pnpm \
+            && node --version >/dev/null 2>&1 \
+            && npm --version >/dev/null 2>&1; then
             vecho "Node.js and packages are already installed and configured"
             exit 0
         else
-            vecho "Node.js is installed, checking global packages..."
+            vecho "Node.js appears installed, but npm/package health check failed; re-running setup..."
         fi
     fi
 fi
