@@ -50,8 +50,8 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 | Command | What it does | When to use |
 | --- | --- | --- |
 | `chezmoi update` | Pulls latest dotfiles from upstream and applies them. | Standard sync from repo changes. |
-| `czu` | `jj fetch` + `jj rebase -d master` in chezmoi source, then `chezmoi apply`. | Daily update when you want the jj-based workflow. |
-| `czuf` | Same as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 chezmoi apply --refresh-externals --force`. | Full refresh when pinned tools/externals changed or state needs rebuilding (macOS uses Homebrew-first `uv`, with pinned artifact fallback). |
+| `czu` | Managed wrapper command in `~/.local/bin/czu`: runs `jj fetch` + `jj rebase -d master`, defaults `CHEZMOI_PROFILE=omarchy` on Omarchy hosts when unset, then runs `chezmoi apply`. | Daily update when you want the jj-based workflow. |
+| `czuf` | Managed wrapper command in `~/.local/bin/czuf`: same as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 chezmoi apply --refresh-externals --force`. | Full refresh when pinned tools/externals changed or state needs rebuilding (macOS uses Homebrew-first `uv`, with pinned artifact fallback). |
 | `czvc` | Runs `chezmoi-check-versions`. | Check pinned versions against upstream releases. |
 
 ## Role + Profile Matrix

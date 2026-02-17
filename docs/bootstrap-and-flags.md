@@ -53,3 +53,11 @@ Canonical expansion model:
 3. Hostname-specific checks: legacy fallback only
 
 Use role/profile conditions in templates/scripts before adding hostname-specific logic.
+
+## Update Helper Commands
+
+`czu` and `czuf` are managed wrapper commands installed to `~/.local/bin`.
+
+- both commands run `jj fetch` + `jj rebase -d master` in `~/.local/share/chezmoi` before applying
+- on Omarchy hosts, if `CHEZMOI_PROFILE` is unset, wrappers default it to `omarchy`
+- `czuf` adds `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and runs `chezmoi apply --refresh-externals --force`

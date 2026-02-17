@@ -36,19 +36,19 @@ logs/*
 # Keep hostname fallback for backward compatibility.
 {{ if or (eq (env "CHEZMOI_ROLE") "server") (eq .chezmoi.hostname "vultr") }}
 # Node.js/NVM - builds happen locally, not needed on prod
-.chezmoiscripts/run_after_30-setup-node.sh.tmpl
+.chezmoiscripts/30-setup-node.sh
 
 # Bun - not needed on prod
-.chezmoiscripts/run_after_27-setup-bun.sh
+.chezmoiscripts/27-setup-bun.sh
 
 # Homebrew - macOS only
-.chezmoiscripts/run_after_10-setup-homebrew.sh
+.chezmoiscripts/10-setup-homebrew.sh
 
 # Ansible - not needed on prod (we run ansible from local)
-.chezmoiscripts/run_after_27-setup-ansible.sh
+.chezmoiscripts/27-setup-ansible.sh
 
 # Claude Code - not needed on prod servers
-.chezmoiscripts/run_after_35-setup-claude-code.sh
+.chezmoiscripts/35-setup-claude-code.sh
 {{ end }}
 
 # Preserve Omarchy defaults while still managing this repo.
@@ -59,17 +59,17 @@ logs/*
 {{ $force_zsh := or (eq $force_str "true") (eq $force_str "1") (eq $force_str "yes") }}
 {{ if eq $profile "omarchy" }}
 # Keep Omarchy terminal/shell defaults in place
-private_dot_config/ghostty/config
-private_dot_config/starship.toml
-dot_zshenv
-dot_zshrc.tmpl
-dot_tmux.conf
+.config/ghostty/config
+.config/starship.toml
+.zshenv
+.zshrc
+.tmux.conf
 
 # Skip shell-stack setup scripts that assume this repo owns defaults
-.chezmoiscripts/run_before_01-setup-omz.sh
-.chezmoiscripts/run_after_12-setup-starship.sh
+.chezmoiscripts/01-setup-omz.sh
+.chezmoiscripts/12-setup-starship.sh
 {{ if not $force_zsh }}
-.chezmoiscripts/run_after_30-change-shell.sh
+.chezmoiscripts/30-change-shell.sh
 {{ end }}
-.chezmoiscripts/run_after_40-setup-tmux.sh
+.chezmoiscripts/40-setup-tmux.sh
 {{ end }}

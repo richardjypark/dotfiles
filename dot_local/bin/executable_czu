@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+chezmoi_source_dir() {
+    printf '%s\n' "$HOME/.local/share/chezmoi"
+}
+
+is_omarchy_host() {
+    command -v omarchy-menu >/dev/null 2>&1 \
+        || [ -d "$HOME/.config/omarchy/current" ] \
+        || [ -d "$HOME/.local/share/omarchy" ]
+}
+
+set_default_chezmoi_profile() {
+    if [ -z "${CHEZMOI_PROFILE:-}" ] && is_omarchy_host; then
+        export CHEZMOI_PROFILE="omarchy"
+    fi
+}
+
+chezmoi_prepare_jj_update() {
+    local repo
+    repo="$(chezmoi_source_dir)"
+    jj -R "$repo" git fetch
+    jj -R "$repo" rebase -d master
+}
+
+set_default_chezmoi_profile
+chezmoi_prepare_jj_update
+chezmoi apply "$@"
