@@ -32,7 +32,7 @@ fi
 
 NPM_CMD=""
 resolve_npm_cmd() {
-    local nvm_dir current_node nvm_bin
+    local nvm_dir current_node nvm_bin candidate resolved
 
     nvm_dir="$HOME/.nvm"
     if [ -f "$nvm_dir/nvm.sh" ]; then
@@ -43,15 +43,26 @@ resolve_npm_cmd() {
             if [ -n "$current_node" ] && [ -x "$current_node" ]; then
                 nvm_bin="$(dirname "$current_node")"
                 if [ -x "$nvm_bin/npm" ]; then
-                    NPM_CMD="$nvm_bin/npm"
-                    return 0
+                    if "$nvm_bin/npm" -v >/dev/null 2>&1; then
+                        NPM_CMD="$nvm_bin/npm"
+                        return 0
+                    fi
                 fi
             fi
         fi
     fi
 
     if is_installed npm; then
-        NPM_CMD="$(command -v npm)"
+        candidate="$(command -v npm)"
+        resolved="$candidate"
+        if command -v readlink >/dev/null 2>&1; then
+            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
+        fi
+        if [ -x "$resolved" ]; then
+            NPM_CMD="$resolved"
+        else
+            NPM_CMD="$candidate"
+        fi
         return 0
     fi
 
