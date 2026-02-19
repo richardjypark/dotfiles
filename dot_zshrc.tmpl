@@ -143,6 +143,16 @@ if command -v uv >/dev/null 2>&1; then
     source "$uv_comp"
 fi
 
+# pnpm completions - cached for performance
+if command -v pnpm >/dev/null 2>&1; then
+    local pnpm_comp="$HOME/.cache/pnpm-completion.zsh"
+    if [[ ! -f "$pnpm_comp" ]] || [[ "$(command -v pnpm)" -nt "$pnpm_comp" ]]; then
+        mkdir -p "$HOME/.cache"
+        pnpm completion zsh > "$pnpm_comp"
+    fi
+    source "$pnpm_comp"
+fi
+
 # Final profiling checkpoint and display report
 if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
     _zsh_profile_end=$(_get_ms)
