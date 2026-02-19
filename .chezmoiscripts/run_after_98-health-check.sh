@@ -150,6 +150,22 @@ else
     check_warn "bun not installed"
 fi
 
+# pnpm
+if is_installed pnpm; then
+    PNPM_VERSION=$(pnpm --version 2>/dev/null || echo "unknown")
+    check_pass "pnpm: $PNPM_VERSION"
+else
+    check_warn "pnpm not installed"
+fi
+
+# yarn
+if is_installed yarn; then
+    YARN_VERSION=$(yarn --version 2>/dev/null || echo "unknown")
+    check_pass "yarn: $YARN_VERSION"
+else
+    check_warn "yarn not installed"
+fi
+
 # Tmux
 if is_installed tmux; then
     TMUX_VERSION=$(tmux -V 2>/dev/null | awk '{print $2}' || echo "unknown")
