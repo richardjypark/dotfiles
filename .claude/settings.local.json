@@ -16,7 +16,11 @@
       "Bash(czu:*)",
       "WebSearch",
       "WebFetch(domain:*)",
-      "Bash(alias:*)"
+      "Bash(alias:*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:release-assets.githubusercontent.com)"
     ]
   },
   "sandbox": {
