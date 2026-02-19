@@ -20,15 +20,15 @@ This is a chezmoi-managed dotfiles repository optimized for performance with sop
 
 **Key Configuration Files:**
 - `.chezmoi.toml` - Main chezmoi settings (git auto-commit, diff/merge tools)
-- `.chezmoiexternal.toml` - External dependencies (Oh My Zsh, plugins, fzf, nvm)
+- `.chezmoiexternal.toml.tmpl` - External dependencies (Oh My Zsh, plugins, fzf, nvm)
 - `.chezmoidata.toml` - Template data (tool versions, npm packages)
 - `.chezmoiversion.toml` - Version pinning for external tools (fzf v0.67.0)
 
-**External Resources:** Managed via `.chezmoiexternal.toml` with 168h refresh periods:
+**External Resources:** Managed via `.chezmoiexternal.toml.tmpl` with 168h refresh periods:
 - Oh My Zsh (archive pinned to an explicit commit)
 - zsh-syntax-highlighting and zsh-autosuggestions (archives pinned to release tags)
 - fzf (git-repo pinned to v0.67.0)
-- nvm (archive v0.40.3)
+- nvm (archive v0.40.4)
 
 ## Common Commands
 
@@ -60,6 +60,12 @@ source ~/.zshrc                  # Reload shell configuration
 exec zsh                         # Restart shell
 ```
 
+**Quick update shortcuts:**
+```bash
+czu                              # Fetch + jj rebase + chezmoi apply (auto-detects omarchy profile)
+czuf                             # Same + --refresh-externals --force + trust gate enabled
+```
+
 **Profiling shell startup:**
 ```bash
 ZSH_PROFILE_STARTUP=1 exec zsh   # Profile with detailed checkpoints
@@ -82,22 +88,23 @@ All scripts source `~/.local/lib/chezmoi-helpers.sh` (managed as `dot_local/priv
 **Script Execution Order:**
 1. `run_before_00-prerequisites.sh` - Install system packages (apt-get, git, curl, etc.)
 2. `run_before_01-setup-omz.sh` - Set up Oh My Zsh
-3. `run_after_10-setup-homebrew.sh` - Install Homebrew + core packages on macOS
-4. `run_after_12-setup-starship.sh` - Install Starship prompt
-5. `run_after_20-setup-fzf.sh` - Install fzf from repository
-6. `run_after_24-setup-neovim.sh` - Install/upgrade Neovim for LazyVim compatibility
-7. `run_after_25-setup-uv.sh.tmpl` - Install Python uv package manager
-8. `run_after_26-setup-jj.sh` - Install Jujutsu (jj) version control
-9. `run_after_27-setup-ansible.sh` - Install Ansible
-10. `run_after_27-setup-bun.sh` - Install Bun runtime
-11. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
-12. `run_after_30-change-shell.sh` - Change default shell to zsh
-13. `run_after_35-setup-claude-code.sh` - Install Claude Code
-14. `run_after_36-setup-codex.sh` - Install Codex CLI (Homebrew/release binary, no npm)
-15. `run_after_37-setup-tailscale.sh` - Install Tailscale VPN
-16. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
-17. `run_after_98-health-check.sh` - Validate final toolchain health
-18. `run_after_99-performance-summary.sh` - Show performance summary
+3. `run_before_02-prefetch-assets.sh.tmpl` - Prefetch pinned artifacts (neovim, jj, codex) in parallel
+4. `run_after_10-setup-homebrew.sh` - Install Homebrew + core packages on macOS
+5. `run_after_12-setup-starship.sh.tmpl` - Install Starship prompt
+6. `run_after_20-setup-fzf.sh` - Install fzf from repository
+7. `run_after_24-setup-neovim.sh.tmpl` - Install/upgrade Neovim for LazyVim compatibility
+8. `run_after_25-setup-uv.sh.tmpl` - Install Python uv package manager
+9. `run_after_26-setup-jj.sh.tmpl` - Install Jujutsu (jj) version control
+10. `run_after_27-setup-ansible.sh` - Install Ansible
+11. `run_after_27-setup-bun.sh.tmpl` - Install Bun runtime
+12. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
+13. `run_after_30-change-shell.sh` - Change default shell to zsh
+14. `run_after_35-setup-claude-code.sh.tmpl` - Install Claude Code
+15. `run_after_36-setup-codex.sh.tmpl` - Install Codex CLI (Homebrew/release binary, no npm)
+16. `run_after_37-setup-tailscale.sh.tmpl` - Install Tailscale VPN
+17. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
+18. `run_after_98-health-check.sh` - Validate final toolchain health
+19. `run_after_99-performance-summary.sh` - Show performance summary
 
 **Script Patterns:**
 - All scripts source the shared helper library (first line after `set -euo pipefail`)
@@ -239,12 +246,12 @@ rm -rf ~/.tmux/plugins && chezmoi apply
 **Updating tool versions:**
 1. Edit `.chezmoidata.toml` for NVM/Node.js/npm packages
 2. Edit `.chezmoiversion.toml` for fzf version
-3. Edit `.chezmoiexternal.toml` for Oh My Zsh plugins or external repos
+3. Edit `.chezmoiexternal.toml.tmpl` for Oh My Zsh plugins or external repos
 4. Run `chezmoi apply --refresh-externals` to update
 
 **Current pinned versions:**
 - fzf: v0.67.0 (pinned to avoid toggle-raw error on Linux)
-- nvm: v0.40.3
+- nvm: v0.40.4
 - Node.js: lts/* (latest LTS)
 
 **Checking for updates:**
@@ -266,7 +273,7 @@ Secrets are managed via untracked local environment files (e.g., `~/.config/dotf
 - Test templates: `chezmoi execute-template < file.tmpl`
 
 **Adding new external tools:**
-1. Add entry to `.chezmoiexternal.toml`
+1. Add entry to `.chezmoiexternal.toml.tmpl`
 2. Set refresh period (typically "168h" for weekly)
 3. Create setup script in `.chezmoiscripts/` if needed
 4. Use naming convention: `run_after_NN-setup-toolname.sh`
@@ -285,23 +292,7 @@ Secrets are managed via untracked local environment files (e.g., `~/.config/dotf
 
 ## Multi-Agent Safety & File Management
 
-- Delete unused or obsolete files when your changes make them irrelevant (refactors, feature removals, etc.), and revert files only when the change is yours or explicitly requested.
-- If a git or jj operation leaves you unsure about other agents' in-flight work, stop and coordinate instead of deleting.
-- Before attempting to delete a file to resolve a local type/lint failure, stop and ask the user. Other agents are often editing adjacent files; deleting their work to silence an error is never acceptable without explicit approval.
-- NEVER edit `.env` or any environment variable files—only the user may change them.
-- Coordinate with other agents before removing their in-progress edits—don't revert or delete work you didn't author unless everyone agrees.
-- Moving/renaming and restoring files is allowed.
-- ABSOLUTELY NEVER run destructive git operations (e.g., `git reset --hard`, `rm`, `git checkout`/`git restore` to an older commit) or destructive jj operations (e.g., `jj abandon --deleted`, `jj restore` with `--to`/`--from` targeting old revisions) unless the user gives an explicit, written instruction in this conversation.
-- Treat these commands as catastrophic; if you are even slightly unsure, stop and ask before touching them.
-- Never use `git restore` (or similar commands) or `jj restore` to revert files you didn't author—coordinate with other agents instead so their in-progress work stays intact.
-- Always double-check `git status` or `jj status` before any commit or describe.
-- Keep commits atomic: commit only the files you touched and list each path explicitly.
-  - For git: for tracked files run `git commit -m "<scoped message>" -- path/to/file1 path/to/file2`.
-  - For brand-new files, use the one-liner `git restore --staged :/ && git add "path/to/file1" "path/to/file2" && git commit -m "<scoped message>" -- path/to/file1 path/to/file2`.
-  - For jj: use `jj describe -m "<scoped message>"` on the specific change, or `jj new` with specific paths.
-- Quote any paths containing brackets or parentheses (e.g., `src/app/[candidate]/**`) when staging, committing, or adding so the shell does not treat them as globs or subshells.
-- When running `git rebase` or `jj rebase`, avoid opening editors—export `GIT_EDITOR=:` and `GIT_SEQUENCE_EDITOR=:` (or pass `--no-edit`) so the default messages are used automatically.
-- Never amend commits (`git commit --amend` or `jj describe` followed by `jj squash` on ancestors) unless you have explicit written approval in the task thread.
+See `AGENTS.md` for multi-agent safety rules (file management, destructive operations, commit discipline).
 
 ## Production Server Optimization
 
@@ -315,11 +306,11 @@ CHEZMOI_ROLE=server chezmoi apply
 **Skipped on server role:**
 - Node.js/NVM setup (`run_after_30-setup-node.sh.tmpl` via `.chezmoiignore`)
 - NVM external resource (conditional in `.chezmoiexternal.toml.tmpl`)
-- Bun (`run_after_27-setup-bun.sh`)
+- Bun (`run_after_27-setup-bun.sh.tmpl`)
 - Homebrew (`run_after_10-setup-homebrew.sh`)
 - Ansible (`run_after_27-setup-ansible.sh`)
-- Claude Code (`run_after_35-setup-claude-code.sh`)
-- Codex CLI setup auto-skips when `CHEZMOI_ROLE=server` (`run_after_36-setup-codex.sh`)
+- Claude Code (`run_after_35-setup-claude-code.sh.tmpl`)
+- Codex CLI setup auto-skips when `CHEZMOI_ROLE=server` (`run_after_36-setup-codex.sh.tmpl`)
 - Oh My Zsh `terraform`/`ansible` plugins (`dot_zshrc.tmpl`)
 
 This keeps servers lean while local/workstation hosts keep full dev tooling.

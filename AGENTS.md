@@ -86,8 +86,9 @@ Prioritize idempotent setup behavior, secure defaults, and minimal-risk edits.
 2. Run `chezmoi diff` and verify only intended changes render.
 3. Run `chezmoi apply` successfully.
 4. If shell changed, run `zsh -n ~/.zshrc`.
-5. If tmux config changed, run `tmux source-file ~/.tmux.conf`.
-6. Summarize what changed, risks, and any manual follow-up.
+5. If templates changed, run `chezmoi execute-template < file.tmpl` to verify.
+6. If tmux config changed, run `tmux source-file ~/.tmux.conf`.
+7. Summarize what changed, risks, and any manual follow-up.
 
 ## Common Task Shortcuts
 
@@ -97,6 +98,8 @@ Prioritize idempotent setup behavior, secure defaults, and minimal-risk edits.
 - Enter source dir: `chezmoi cd`
 - Omarchy workstation bootstrap: `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation`
 - Omarchy server bootstrap: `~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role server`
+- Quick update (fetch + rebase + apply): `czu`
+- Full refresh (+ externals + force + trust): `czuf`
 
 ## Commit Guidance
 

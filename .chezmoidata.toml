@@ -1,7 +1,7 @@
 # Node.js and NVM configuration
 # This data is used by chezmoi templates, particularly in setup scripts
 [nvm]
-version = "v0.40.3"   # Pins NVM to a specific version
+version = "v0.40.4"   # Pins NVM to a specific version
 nodeVersion = "lts/*" # Specifies which Node.js version to install (lts/* is recommended for stability)
 
 # Python configuration
@@ -39,18 +39,18 @@ macos_x86_64_sha256 = "09b81d1c35522b41f126dd509515203a2def329ef46207e95460c1896
 macos_arm64_sha256 = "a1e6d3d3818ab26652631964db4344288a6fe0dc4c077bdb366ff184aa1d8f27"
 
 [pinned.codex]
-version = "rust-v0.101.0"
-linux_x86_64_sha256 = "ff363f8597dbf0383c17659e7c92735baa991be8ab99f967c5cc3c68b329277c"
-linux_arm64_sha256 = "f5c4b1147332a1cc4108b776c759ee7b409d365e5830a4e59667e1f9c7e6da60"
-macos_x86_64_sha256 = "51d4e3517c75f0933132be3365f33b08036d43d3c20692b30f5cc36dd3eac3e9"
-macos_arm64_sha256 = "fc087e9002be0e170bfeaa27659e377821e15ab978b4a49075ef95db5f8207f8"
+version = "rust-v0.104.0"
+linux_x86_64_sha256 = "52f6ccb7cebe1d6620f8676076acc4cde10543a6ed0eccea625498de7ae17f88"
+linux_arm64_sha256 = "cf3ad728dea2b73c99b83ab63d40b81029e8d9c575bc1b17fadda548e84be8a4"
+macos_x86_64_sha256 = "6ca2244f85600bc0bb92744a4807b39002e7378c4e4732d09ba7bb0ed794d4ec"
+macos_arm64_sha256 = "b70151e038a055524d4d000e80b4b7d15586165b847674a0c32165d11dac2711"
 
 [pinned.uv]
-version = "0.10.3"
-linux_x86_64_sha256 = "c60b9956a0e6727f0ddd881c303a706c6408b2047f3a8fa4d1454a826338ccdc"
-linux_arm64_sha256 = "cce7d1e4c34e22955cd647b256409b6504f4ae72acf190a6f26189efefbc9a9d"
-macos_x86_64_sha256 = "e8071cedb9986724ca3d70020b4460a85a274394b378c0e8eb1e8f9e33402ff9"
-macos_arm64_sha256 = "ed2a08079527dafae4943fee80162ed750286657901e642eba4c9de928706df8"
+version = "0.10.4"
+linux_x86_64_sha256 = "6b52a47358deea1c5e173278bf46b2b489747a59ae31f2a4362ed5c6c1c269f7"
+linux_arm64_sha256 = "c84a6e6405715caa6e2f5ef8e5f29a5d0bc558a954e9f1b5c082b9d4708c222e"
+macos_x86_64_sha256 = "df6dd1c3ebeab4369a098c516c15c233c62bf789a40a4864b30dad1d38d7604e"
+macos_arm64_sha256 = "a6852e4dc565c8fedcf5adcdf09fca7caf5347739bed512bd95b15dada36db51"
 
 [pinned.starship]
 version = "v1.24.2"
