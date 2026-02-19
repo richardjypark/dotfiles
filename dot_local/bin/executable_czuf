@@ -1,43 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-chezmoi_source_dir() {
-    printf '%s\n' "$HOME/.local/share/chezmoi"
-}
-
-is_omarchy_host() {
-    command -v omarchy-menu >/dev/null 2>&1 \
-        || [ -d "$HOME/.config/omarchy/current" ] \
-        || [ -d "$HOME/.local/share/omarchy" ]
-}
-
-set_default_chezmoi_profile() {
-    if [ -z "${CHEZMOI_PROFILE:-}" ] && is_omarchy_host; then
-        export CHEZMOI_PROFILE="omarchy"
-    fi
-}
-
-chezmoi_prepare_jj_update() {
-    local repo
-    repo="$(chezmoi_source_dir)"
-    jj -R "$repo" git fetch
-    jj -R "$repo" rebase -d master
-}
+. "$HOME/.local/lib/chezmoi-update-helpers.sh"
 
 set_default_chezmoi_profile
 chezmoi_prepare_jj_update
-
-sanitize_terminal_noise() {
-    perl -pe 's/\eO//g; s/\e\[\?997;1n//g'
-}
-
-run_with_optional_output_sanitizer() {
-    if [ -t 1 ]; then
-        "$@" 2>&1 | sanitize_terminal_noise
-        return "${PIPESTATUS[0]}"
-    fi
-    "$@"
-}
 
 run_with_optional_output_sanitizer \
     env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
