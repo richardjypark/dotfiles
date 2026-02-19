@@ -1,0 +1,9 @@
+model = "gpt-5.3-codex"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+[projects."/Users/rich/dev/www/r2-monorepo"]
+trust_level = "trusted"
+
+[features]
+shell_snapshot = true
+multi_agent = true
