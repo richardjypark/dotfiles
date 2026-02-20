@@ -108,7 +108,7 @@ install_uv_from_pinned_release() {
 }
 
 # Check if uv is already installed
-if ! is_force_update && is_installed uv; then
+if is_installed uv; then
     vecho "uv is already installed: $(uv --version)"
 else
     # Ensure .local/bin exists
@@ -124,14 +124,8 @@ else
     case "$platform" in
         macos-*)
             if brew_cmd="$(resolve_brew_cmd)"; then
-                if is_installed uv && ! is_force_update; then
-                    vecho "uv is already installed: $(uv --version)"
-                elif is_installed uv && is_force_update; then
-                    vecho "uv is already installed via Homebrew or PATH: $(uv --version)"
-                else
-                    eecho "Installing uv via Homebrew..."
-                    "$brew_cmd" install uv
-                fi
+                eecho "Installing uv via Homebrew..."
+                "$brew_cmd" install uv
 
                 # Ensure uv is discoverable in non-login shell PATH.
                 if ! is_installed uv; then
@@ -165,7 +159,7 @@ else
 fi
 
 # Check if Python is already installed via uv
-if ! is_force_update && uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
+if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
     vecho "Python $PYTHON_VERSION is already installed via uv"
     exit 0
 fi

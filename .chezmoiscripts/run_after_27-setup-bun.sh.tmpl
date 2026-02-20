@@ -23,7 +23,7 @@ export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
 add_to_path "$BUN_INSTALL/bin"
 
 # Fast exit if bun is already installed (but mark state)
-if ! is_force_update && is_installed bun; then
+if is_installed bun; then
     vecho "Bun is already installed: $(bun --version 2>/dev/null || echo 'installed')"
     mark_state "bun-setup"
     exit 0

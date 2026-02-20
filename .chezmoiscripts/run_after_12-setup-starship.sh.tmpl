@@ -21,7 +21,7 @@ PINNED_STARSHIP_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
 
 # Fast exit if starship is already installed and working (but mark state)
-if ! is_force_update && is_installed starship; then
+if is_installed starship; then
     vecho "Starship is already installed: $(starship --version 2>/dev/null || echo 'installed')"
     mark_state "starship-setup"
     exit 0

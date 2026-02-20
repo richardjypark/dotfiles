@@ -63,7 +63,7 @@ fi
 add_to_path "$HOME/.local/bin"
 
 # Fast exit if nvim is already installed with required version (but mark state)
-if ! is_force_update && nvim_meets_requirement; then
+if nvim_meets_requirement; then
     vecho "Neovim is already installed and up to date: $(nvim --version | sed -n '1p' 2>/dev/null || echo 'installed')"
     mark_state "neovim-setup"
     exit 0
