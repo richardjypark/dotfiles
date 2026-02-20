@@ -1,22 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HELPER_PATH="$HOME/.local/lib/chezmoi-helpers.sh"
-if [ -f "$HELPER_PATH" ]; then
-    . "$HELPER_PATH"
-else
-    CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
-    if [ -n "$CHEZMOI_SOURCE_DIR" ] && [ -f "$CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh" ]; then
-        . "$CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh"
-    else
-        echo "Error: could not locate chezmoi helper library." >&2
-        echo "Expected either $HELPER_PATH or $CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh" >&2
-        exit 1
-    fi
+CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
+if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
+    CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
+fi
+# shellcheck disable=SC1090
+. "$CHEZMOI_SOURCE_DIR/scripts/lib/load-helpers.sh"
+
+if ! command -v should_skip_state >/dev/null 2>&1; then
+    should_skip_state() {
+        local state_name="$1"
+        if state_exists "$state_name" && ! is_force_update; then
+            return 0
+        fi
+        return 1
+    }
 fi
 
+PINNED_CHEZMOI_VERSION="${PINNED_CHEZMOI_VERSION:-2.69.4}"
+PINNED_CHEZMOI_LINUX_X86_64_SHA="${PINNED_CHEZMOI_LINUX_X86_64_SHA:-5054cf09cb2993725f525c8bb6ec3ff8625489ecfc061e019c17e737e7c7057b}"
+PINNED_CHEZMOI_LINUX_ARM64_SHA="${PINNED_CHEZMOI_LINUX_ARM64_SHA:-560fb76182a3da7db7d445953cfa82fefbdc59284c8c673bb22363db9122ee4e}"
+PINNED_CHEZMOI_MACOS_X86_64_SHA="${PINNED_CHEZMOI_MACOS_X86_64_SHA:-bb4954fe9272663a35a313b0b7f0aa58eed35ef0ef8ea1d698fce40670cc28b2}"
+PINNED_CHEZMOI_MACOS_ARM64_SHA="${PINNED_CHEZMOI_MACOS_ARM64_SHA:-690ab2618e44e7a78b0ba2e541951ce3bde59c1cf9bc2d491850e8700607b9d4}"
+
 # State tracking with inline fallback validation
-if state_exists "prerequisites-setup"; then
+if should_skip_state "prerequisites-setup"; then
     if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi; then
         vecho "All essential prerequisites are already installed"
         exit 0
@@ -62,7 +71,7 @@ if [ "$CAN_SUDO" = "true" ]; then
         elif command -v yum >/dev/null 2>&1; then
             run_privileged yum install -y -q $MISSING_PACKAGES
         elif command -v pacman >/dev/null 2>&1; then
-            run_privileged pacman -S --noconfirm --quiet $MISSING_PACKAGES
+            run_privileged pacman -S --noconfirm --needed --quiet $MISSING_PACKAGES
         elif command -v zypper >/dev/null 2>&1; then
             run_privileged zypper install -y -q $MISSING_PACKAGES
         elif command -v apk >/dev/null 2>&1; then
@@ -107,13 +116,117 @@ if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     fi
 fi
 
+install_chezmoi_via_package_manager() {
+    if command -v brew >/dev/null 2>&1; then
+        brew install --quiet chezmoi
+        return 0
+    fi
+
+    if [ "$CAN_SUDO" != "true" ]; then
+        return 1
+    fi
+
+    if command -v apt-get >/dev/null 2>&1 && apt-cache show chezmoi >/dev/null 2>&1; then
+        run_privileged apt-get install -y -qq chezmoi
+        return 0
+    fi
+
+    if command -v pacman >/dev/null 2>&1; then
+        run_privileged pacman -S --noconfirm --needed --quiet chezmoi
+        return 0
+    fi
+
+    if command -v dnf >/dev/null 2>&1; then
+        run_privileged dnf install -y -q chezmoi
+        return 0
+    fi
+
+    if command -v yum >/dev/null 2>&1; then
+        run_privileged yum install -y -q chezmoi
+        return 0
+    fi
+
+    if command -v zypper >/dev/null 2>&1; then
+        run_privileged zypper install -y -q chezmoi
+        return 0
+    fi
+
+    if command -v apk >/dev/null 2>&1; then
+        run_privileged apk add --quiet chezmoi
+        return 0
+    fi
+
+    return 1
+}
+
+install_chezmoi_via_pinned_release() {
+    local platform archive_name expected_sha download_url cache_file temp_dir chezmoi_bin
+
+    if ! require_trust_for_remote_download "github.com/twpayne/chezmoi"; then
+        return 1
+    fi
+
+    if ! platform="$(platform_key)"; then
+        eecho "Error: unsupported platform for pinned chezmoi install ($(uname -s)/$(uname -m))."
+        return 1
+    fi
+
+    case "$platform" in
+        linux-x86_64)
+            archive_name="chezmoi_${PINNED_CHEZMOI_VERSION}_linux_amd64.tar.gz"
+            expected_sha="$PINNED_CHEZMOI_LINUX_X86_64_SHA"
+            ;;
+        linux-arm64)
+            archive_name="chezmoi_${PINNED_CHEZMOI_VERSION}_linux_arm64.tar.gz"
+            expected_sha="$PINNED_CHEZMOI_LINUX_ARM64_SHA"
+            ;;
+        macos-x86_64)
+            archive_name="chezmoi_${PINNED_CHEZMOI_VERSION}_darwin_amd64.tar.gz"
+            expected_sha="$PINNED_CHEZMOI_MACOS_X86_64_SHA"
+            ;;
+        macos-arm64)
+            archive_name="chezmoi_${PINNED_CHEZMOI_VERSION}_darwin_arm64.tar.gz"
+            expected_sha="$PINNED_CHEZMOI_MACOS_ARM64_SHA"
+            ;;
+        *)
+            eecho "Error: unsupported platform for pinned chezmoi install: ${platform}"
+            return 1
+            ;;
+    esac
+
+    download_url="https://github.com/twpayne/chezmoi/releases/download/v${PINNED_CHEZMOI_VERSION}/${archive_name}"
+    cache_file="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}/chezmoi-${PINNED_CHEZMOI_VERSION}-${platform}.tar.gz"
+
+    mkdir -p "$HOME/.local/bin"
+    temp_dir="$(mktemp -d)"
+    trap 'rm -rf "$temp_dir"' RETURN
+
+    download_and_verify "$download_url" "$cache_file" "$expected_sha"
+    cp "$cache_file" "$temp_dir/chezmoi.tar.gz"
+    tar -xzf "$temp_dir/chezmoi.tar.gz" -C "$temp_dir"
+
+    chezmoi_bin="$(find "$temp_dir" -maxdepth 3 -type f -name chezmoi | head -1)"
+    if [ -z "$chezmoi_bin" ]; then
+        eecho "Error: chezmoi binary not found in pinned release archive."
+        return 1
+    fi
+
+    install -m 755 "$chezmoi_bin" "$HOME/.local/bin/chezmoi"
+    return 0
+}
+
 # Install chezmoi only if not present
 if ! is_installed chezmoi; then
     eecho "Installing chezmoi..."
-    if ! require_trust_for_remote_installer "chezmoi.io/get"; then
+    if install_chezmoi_via_package_manager; then
+        vecho "Installed chezmoi via package manager"
+    elif install_chezmoi_via_pinned_release; then
+        vecho "Installed chezmoi via pinned release artifact"
+    else
+        eecho "Error: Failed to install chezmoi."
+        eecho "Install manually from https://www.chezmoi.io/install/ and re-run chezmoi apply."
         exit 1
     fi
-    sh -c "$(curl --fail --location --show-error --silent --proto '=https' --tlsv1.2 https://chezmoi.io/get)" -- -b "$HOME/.local/bin"
     export PATH="$HOME/.local/bin:$PATH"
 else
     vecho "chezmoi is already installed"

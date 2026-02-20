@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HELPER_PATH="$HOME/.local/lib/chezmoi-helpers.sh"
-if [ -f "$HELPER_PATH" ]; then
-    . "$HELPER_PATH"
-else
-    CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
-    if [ -n "$CHEZMOI_SOURCE_DIR" ] && [ -f "$CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh" ]; then
-        . "$CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh"
-    else
-        echo "Error: could not locate chezmoi helper library." >&2
-        echo "Expected either $HELPER_PATH or $CHEZMOI_SOURCE_DIR/dot_local/private_lib/chezmoi-helpers.sh" >&2
-        exit 1
-    fi
+CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
+if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
+    CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
+fi
+# shellcheck disable=SC1090
+. "$CHEZMOI_SOURCE_DIR/scripts/lib/load-helpers.sh"
+
+if ! command -v should_skip_state >/dev/null 2>&1; then
+    should_skip_state() {
+        local state_name="$1"
+        if state_exists "$state_name" && ! is_force_update; then
+            return 0
+        fi
+        return 1
+    }
 fi
 
 # State tracking with inline fallback validation
-if state_exists "omz-setup"; then
+if should_skip_state "omz-setup"; then
     if [ -d "${HOME}/.oh-my-zsh/custom/themes" ] && [ -d "${HOME}/.oh-my-zsh/custom/plugins" ]; then
         vecho "Oh My Zsh directory structure already exists"
         exit 0

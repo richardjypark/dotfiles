@@ -54,7 +54,7 @@ elif [ "$OS_FAMILY" = "linux" ]; then
             run_privileged apt-get install -y -qq tailscale
             return 0
         elif command -v pacman >/dev/null 2>&1; then
-            run_privileged pacman -Sy --noconfirm --quiet tailscale
+            run_privileged pacman -S --noconfirm --needed --quiet tailscale
             return 0
         elif command -v dnf >/dev/null 2>&1; then
             run_privileged dnf install -y -q tailscale

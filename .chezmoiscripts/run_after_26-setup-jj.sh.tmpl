@@ -47,9 +47,9 @@ install_via_package_manager() {
         if command -v pacman >/dev/null 2>&1; then
             eecho "Installing Jujutsu via pacman..."
             if [ "$VERBOSE" = "true" ]; then
-                run_privileged pacman -Sy --noconfirm jujutsu
+                run_privileged pacman -S --noconfirm --needed jujutsu
             else
-                run_privileged pacman -Sy --noconfirm --quiet jujutsu >/dev/null 2>&1
+                run_privileged pacman -S --noconfirm --needed --quiet jujutsu >/dev/null 2>&1
             fi
             return 0
         elif command -v zypper >/dev/null 2>&1; then

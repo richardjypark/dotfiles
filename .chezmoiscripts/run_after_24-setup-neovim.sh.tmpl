@@ -83,9 +83,9 @@ install_via_package_manager() {
     if command -v pacman >/dev/null 2>&1; then
         eecho "Installing Neovim via pacman..."
         if [ "$VERBOSE" = "true" ]; then
-            run_privileged pacman -Sy --noconfirm neovim
+            run_privileged pacman -S --noconfirm --needed neovim
         else
-            run_privileged pacman -Sy --noconfirm --quiet neovim >/dev/null 2>&1
+            run_privileged pacman -S --noconfirm --needed --quiet neovim >/dev/null 2>&1
         fi
         return 0
     fi

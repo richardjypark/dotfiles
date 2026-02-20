@@ -3,7 +3,7 @@ set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
 # State tracking with version validation fallback
-if state_exists "fzf-setup"; then
+if should_skip_state "fzf-setup"; then
     if is_installed fzf; then
         vecho "fzf setup already completed (state tracked)"
         exit 0
