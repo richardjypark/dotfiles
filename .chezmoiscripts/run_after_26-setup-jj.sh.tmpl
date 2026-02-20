@@ -30,7 +30,7 @@ vecho "Setting up Jujutsu (jj)..."
 add_to_path "$HOME/.local/bin"
 
 # Fast exit if jj is already installed (but mark state)
-if ! is_force_update && is_installed jj; then
+if is_installed jj; then
     vecho "Jujutsu is already installed: $(jj --version 2>/dev/null || echo 'installed')"
     mark_state "jj-setup"
     exit 0

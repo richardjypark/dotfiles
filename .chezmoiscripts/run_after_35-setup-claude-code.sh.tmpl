@@ -17,11 +17,26 @@ add_to_path "$HOME/.local/bin"
 
 vecho "Setting up Claude Code..."
 
+# Compare semver: returns 0 if $1 >= $2
+claude_version_ge() {
+    local c1 c2 c3 r1 r2 r3
+    IFS=. read -r c1 c2 c3 <<< "${1:-0.0.0}"
+    IFS=. read -r r1 r2 r3 <<< "${2:-0.0.0}"
+    c1=${c1:-0}; c2=${c2:-0}; c3=${c3:-0}
+    r1=${r1:-0}; r2=${r2:-0}; r3=${r3:-0}
+    (( c1 > r1 )) && return 0; (( c1 < r1 )) && return 1
+    (( c2 > r2 )) && return 0; (( c2 < r2 )) && return 1
+    (( c3 >= r3 ))
+}
+
 # Fast exit if claude is already installed and working (but mark state)
-if ! is_force_update && is_installed claude && claude --version >/dev/null 2>&1; then
-    vecho "Claude Code is already installed: $(claude --version 2>/dev/null || echo 'installed')"
-    mark_state "claude-code-setup"
-    exit 0
+if is_installed claude && claude --version >/dev/null 2>&1; then
+    installed_version="$(claude --version 2>/dev/null | awk '{print $1}')"
+    if ! is_force_update || claude_version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
+        vecho "Claude Code is already at version $installed_version"
+        mark_state "claude-code-setup"
+        exit 0
+    fi
 fi
 
 if is_force_update; then
