@@ -40,6 +40,10 @@ Fast subsequent runs rely on:
 - local download cache reuse (`~/.cache/chezmoi-downloads`)
 - optional parallel prefetch (`run_before_02-prefetch-assets.sh.tmpl`)
 
+Tuning note:
+
+- `CHEZMOI_PREFETCH_JOBS` defaults to `4`; use roughly `min(cores, 8)` on modern machines to balance throughput and API/network pressure.
+
 ## Validation Checklist
 
 ```bash

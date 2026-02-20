@@ -213,6 +213,12 @@ download_and_verify() {
         return 0
     fi
 
+    if [ -f "$destination" ]; then
+        vecho "Cached artifact checksum mismatch, re-downloading: $destination"
+    else
+        vecho "Cache miss, downloading artifact: $destination"
+    fi
+
     tmp_file="${destination}.tmp.$$"
     rm -f "$tmp_file"
     download_file "$url" "$tmp_file"
@@ -224,5 +230,6 @@ download_and_verify() {
     fi
 
     mv "$tmp_file" "$destination"
+    vecho "Downloaded and verified artifact: $destination"
     return 0
 }

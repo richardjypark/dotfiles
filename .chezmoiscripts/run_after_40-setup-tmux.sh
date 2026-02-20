@@ -2,7 +2,7 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-if state_exists "tmux-setup"; then
+if should_skip_state "tmux-setup"; then
     vecho "tmux setup already completed (state tracked)"
     exit 0
 fi
