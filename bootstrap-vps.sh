@@ -280,6 +280,9 @@ configure_ufw() {
   ufw default allow outgoing
   ufw allow "${SSH_PORT}/tcp"
 
+  # Only enable tailscale-only SSH after you have confirmed Tailscale login and
+  # a second active session over tailscale0. If tailscale0 is unavailable, keep
+  # baseline SSH access open and retry hardening later.
   if [[ "${LOCK_SSH_TO_TAILSCALE}" == "1" ]]; then
     if ip link show tailscale0 >/dev/null 2>&1; then
       ufw delete allow "${SSH_PORT}/tcp" || true
@@ -530,6 +533,7 @@ print_summary() {
   echo "  2. If that works, re-run with DISABLE_ROOT_LOGIN=1"
   echo "  3. Run 'tailscale up' to join your tailnet"
   echo "  4. Once confirmed, re-run with LOCK_SSH_TO_TAILSCALE=1"
+  echo "     Rollback: ufw allow ${SSH_PORT}/tcp && ufw reload"
   echo ""
 }
 

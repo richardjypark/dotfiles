@@ -12,6 +12,14 @@ Usage: sudo server-lockdown-tailscale.sh
 
 Environment:
   SSH_PORT   SSH port to harden (default: 22)
+
+Safety:
+  Run only after confirming Tailscale SSH access from another session.
+  Keep your current root shell open until post-checks pass.
+
+Rollback (if you lock yourself out of Tailscale):
+  ufw allow 22/tcp && ufw reload
+  rm -f /etc/ssh/sshd_config.d/90-tailscale-lockdown.conf && systemctl restart sshd
 USAGE
 }
 
@@ -96,6 +104,9 @@ main() {
   require_cmd ip
 
   verify_tailscale_ready
+
+  # Safety guard: enforce lock-down only when tailscale0 is up.
+  # Keep your current root shell open so rollback commands remain available.
   write_sshd_hardening_dropin
   configure_ufw_tailscale_only_ssh
 

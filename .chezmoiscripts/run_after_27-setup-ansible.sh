@@ -2,7 +2,7 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-if state_exists "ansible-setup"; then
+if should_skip_state "ansible-setup"; then
     vecho "Ansible setup already completed (state tracked)"
     exit 0
 fi
@@ -70,9 +70,9 @@ install_via_package_manager() {
         elif command -v pacman >/dev/null 2>&1; then
             eecho "Installing Ansible via pacman..."
             if [ "$VERBOSE" = "true" ]; then
-                run_privileged pacman -Sy --noconfirm ansible
+                run_privileged pacman -S --noconfirm --needed ansible
             else
-                run_privileged pacman -Sy --noconfirm --quiet ansible >/dev/null 2>&1
+                run_privileged pacman -S --noconfirm --needed --quiet ansible >/dev/null 2>&1
             fi
             return 0
         elif command -v zypper >/dev/null 2>&1; then

@@ -29,9 +29,25 @@ fi
 # Usage: github_latest_tag "owner/repo"
 github_latest_tag() {
     local repo="$1"
-    local tag
-    tag=$(curl -fsSL --retry 2 "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null \
-        | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    local tag response
+    response="$(
+        curl -fsSL --retry 2 \
+            -H "Accept: application/vnd.github+json" \
+            -H "User-Agent: chezmoi-check-versions" \
+            "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null || true
+    )"
+
+    if [ -z "$response" ]; then
+        echo ""
+        return 0
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        tag="$(printf '%s' "$response" | jq -r '.tag_name // empty' 2>/dev/null || true)"
+    else
+        tag="$(printf '%s' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    fi
+
     # Strip leading 'v' if present
     echo "${tag#v}"
 }
