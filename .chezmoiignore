@@ -33,7 +33,7 @@ logs/*
 
 # Skip dev tools on servers.
 # Role is controlled by CHEZMOI_ROLE=server during apply.
-# Keep hostname fallback for backward compatibility.
+# Keep hostname fallback for backward compatibility (legacy; prefer role/profile).
 {{ if or (eq (env "CHEZMOI_ROLE") "server") (eq .chezmoi.hostname "vultr") }}
 # Node.js/NVM - builds happen locally, not needed on prod
 .chezmoiscripts/30-setup-node.sh

@@ -18,11 +18,39 @@ set_default_chezmoi_profile() {
     fi
 }
 
-chezmoi_prepare_jj_update() {
-    local repo
+chezmoi_default_branch() {
+    local repo data_file branch
     repo="$(chezmoi_source_dir)"
+    data_file="$repo/.chezmoidata.toml"
+    branch=""
+
+    if [ -f "$data_file" ]; then
+        branch="$(
+            awk '
+                /^\[git\]$/ { in_git=1; next }
+                /^\[/ && $0 !~ /^\[git\]$/ { in_git=0 }
+                in_git && $1 == "defaultBranch" {
+                    gsub(/"/, "", $3)
+                    print $3
+                    exit
+                }
+            ' "$data_file"
+        )"
+    fi
+
+    if [ -z "$branch" ]; then
+        branch="$(git -C "$repo" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)"
+    fi
+
+    printf '%s\n' "${branch:-master}"
+}
+
+chezmoi_prepare_jj_update() {
+    local repo branch
+    repo="$(chezmoi_source_dir)"
+    branch="$(chezmoi_default_branch)"
     jj -R "$repo" git fetch
-    jj -R "$repo" rebase -d master
+    jj -R "$repo" rebase -d "$branch"
 }
 
 sanitize_terminal_noise() {

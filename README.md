@@ -50,7 +50,7 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 | Command | What it does | When to use |
 | --- | --- | --- |
 | `chezmoi update` | Pulls latest dotfiles from upstream and applies them. | Standard sync from repo changes. |
-| `czu` | Managed wrapper command in `~/.local/bin/czu`: runs `jj fetch` + `jj rebase -d master`, defaults `CHEZMOI_PROFILE=omarchy` on Omarchy hosts when unset, then runs `chezmoi apply`. | Daily update when you want the jj-based workflow. |
+| `czu` | Managed wrapper command in `~/.local/bin/czu`: runs `jj fetch` + `jj rebase -d <default-branch>` (from `.chezmoidata.toml` `[git].defaultBranch`, with remote-head fallback), defaults `CHEZMOI_PROFILE=omarchy` on Omarchy hosts when unset, then runs `chezmoi apply`. | Daily update when you want the jj-based workflow. |
 | `czuf` | Managed wrapper command in `~/.local/bin/czuf`: same as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 chezmoi apply --refresh-externals --force`. | Full refresh when pinned tools/externals changed or state needs rebuilding (macOS uses Homebrew-first `uv`, with pinned artifact fallback). |
 | `czvc` | Runs `chezmoi-check-versions`. | Check pinned versions against upstream releases. |
 
@@ -80,6 +80,18 @@ cp ~/.local/share/chezmoi/scripts/bootstrap-private-env.example ~/.config/dotfil
 chmod 600 ~/.config/dotfiles/bootstrap-private.env
 $EDITOR ~/.config/dotfiles/bootstrap-private.env
 ```
+
+## Script Contract
+
+Setup scripts under `.chezmoiscripts/` are expected to:
+
+1. Source `~/.local/lib/chezmoi-helpers.sh` (directly or via the shared loader).
+2. Stay idempotent across repeated `chezmoi apply` runs.
+3. Stay quiet by default (`vecho` for verbose detail, `eecho` for essential output).
+4. Use state markers under `~/.cache/chezmoi-state`.
+5. Gate remote installers/downloads behind `TRUST_ON_FIRST_USE_INSTALLERS=1`.
+
+See `docs/architecture-and-performance.md` for implementation details.
 
 ## Advanced Docs
 
