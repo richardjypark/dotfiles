@@ -49,8 +49,13 @@ chezmoi_prepare_jj_update() {
     local repo branch
     repo="$(chezmoi_source_dir)"
     branch="$(chezmoi_default_branch)"
-    jj -R "$repo" git fetch
-    jj -R "$repo" rebase -d "$branch"
+    if [ "${VERBOSE:-false}" = "true" ]; then
+        jj -R "$repo" git fetch
+        jj -R "$repo" rebase -d "$branch"
+        return
+    fi
+    jj --quiet -R "$repo" git fetch
+    jj --quiet -R "$repo" rebase -d "$branch"
 }
 
 sanitize_terminal_noise() {
