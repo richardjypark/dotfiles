@@ -5,48 +5,12 @@ set -euo pipefail
 # Setup Node.js via NVM
 vecho "Setting up Node.js via NVM..."
 NVM_DIR="$HOME/.nvm"
-FORCE_UPDATE="${CHEZMOI_FORCE_UPDATE:-0}"
 
 # Use chezmoi template syntax with proper spacing
 {{- with .nvm }}
 NVM_VERSION="{{ .version }}"
 NODE_VERSION="{{ .nodeVersion }}"
 {{- end }}
-
-# Fast exit if Node.js is already properly set up
-if [ "$FORCE_UPDATE" != "1" ] && [ -f "$NVM_DIR/nvm.sh" ] && is_installed node; then
-    . "$NVM_DIR/nvm.sh" >/dev/null 2>&1
-    CURRENT_NODE_VERSION=$(nvm current 2>/dev/null || echo "none")
-
-    # Handle LTS version comparison
-    if [ "$NODE_VERSION" = "lts/*" ]; then
-        # For LTS, check if current version is an LTS version (even numbers)
-        if echo "$CURRENT_NODE_VERSION" | grep -q "^v[0-9]*[02468]\." && [ "$CURRENT_NODE_VERSION" != "none" ]; then
-            NODE_SETUP_COMPLETE=true
-        else
-            NODE_SETUP_COMPLETE=false
-        fi
-    else
-        # For specific versions, do exact match
-        if [ "$CURRENT_NODE_VERSION" = "$NODE_VERSION" ]; then
-            NODE_SETUP_COMPLETE=true
-        else
-            NODE_SETUP_COMPLETE=false
-        fi
-    fi
-
-    if [ "$NODE_SETUP_COMPLETE" = "true" ]; then
-        # Quick check for global packages and runtime health
-        if is_installed yarn && is_installed pnpm \
-            && node --version >/dev/null 2>&1 \
-            && npm --version >/dev/null 2>&1; then
-            vecho "Node.js and packages are already installed and configured"
-            exit 0
-        else
-            vecho "Node.js appears installed, but npm/package health check failed; re-running setup..."
-        fi
-    fi
-fi
 
 # Verify that chezmoi has properly cloned the repository
 if [ ! -d "$NVM_DIR" ] || [ ! -f "$NVM_DIR/nvm.sh" ]; then
@@ -59,36 +23,30 @@ fi
 # Load NVM
 . "$NVM_DIR/nvm.sh"
 
-# Check if the correct Node version is already installed and set as default
-CURRENT_NODE_VERSION=$(nvm current 2>/dev/null || echo "none")
-
-# Determine if we need to install/switch Node version
+# Determine if the requested Node version is already installed in NVM.
+# `nvm current` can be "none/system" in non-interactive apply runs.
+CURRENT_NODE_VERSION=$(nvm version "$NODE_VERSION" 2>/dev/null || echo "N/A")
 NEED_NODE_INSTALL=false
-if [ "$NODE_VERSION" = "lts/*" ]; then
-    # For LTS, check if current version is an LTS version
-    if ! echo "$CURRENT_NODE_VERSION" | grep -q "^v[0-9]*[02468]\." || [ "$CURRENT_NODE_VERSION" = "none" ]; then
-        NEED_NODE_INSTALL=true
-    fi
-else
-    # For specific versions, do exact match
-    if [ "$CURRENT_NODE_VERSION" != "$NODE_VERSION" ]; then
-        NEED_NODE_INSTALL=true
-    fi
+if [ "$CURRENT_NODE_VERSION" = "N/A" ]; then
+    NEED_NODE_INSTALL=true
 fi
 
 if [ "$NEED_NODE_INSTALL" = "true" ]; then
     eecho "Installing Node.js $NODE_VERSION..."
     if [ "$VERBOSE" = "true" ]; then
         nvm install "$NODE_VERSION"
-        nvm alias default "$NODE_VERSION"
-        nvm use default
     else
         nvm install "$NODE_VERSION" >/dev/null 2>&1
-        nvm alias default "$NODE_VERSION" >/dev/null 2>&1
-        nvm use default >/dev/null 2>&1
     fi
 else
     vecho "Node.js $CURRENT_NODE_VERSION is already installed and set as default"
+fi
+
+# Keep default alias aligned with requested version without forcing reinstall.
+if [ "$VERBOSE" = "true" ]; then
+    nvm alias default "$NODE_VERSION" >/dev/null
+else
+    nvm alias default "$NODE_VERSION" >/dev/null 2>&1
 fi
 
 # Ensure current shell resolves tools from active NVM Node, not external shims.
@@ -121,10 +79,10 @@ NPM_CMD="$NVM_BIN/npm"
 vecho "Checking global npm packages..."
 PACKAGES_TO_INSTALL=()
 for package in yarn pnpm; do
-    if ! is_installed "$package"; then
+    if ! "$NPM_CMD" list -g --depth=0 "$package" >/dev/null 2>&1; then
         PACKAGES_TO_INSTALL+=("$package")
     else
-        vecho "$package is already installed"
+        vecho "$package is already installed in NVM globals"
     fi
 done
 
