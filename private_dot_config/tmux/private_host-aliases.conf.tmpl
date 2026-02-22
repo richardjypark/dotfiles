@@ -1,0 +1,17 @@
+# tmux host badge aliases
+# Format: raw_host|alias|fg|bg
+# - raw_host: ssh destination token or local hostname
+# - alias: displayed label (sanitized to [a-z0-9_.-])
+# - fg/bg: tmux color names (example: colour232, colour45)
+#
+# Privacy note:
+# - Do not add IP addresses. The tmux helper masks IP-based targets.
+# - Prefer neutral aliases (home, cloud, lab) instead of sensitive names.
+
+{{ $self := lower .chezmoi.hostname }}
+{{ $self }}|home|colour232|colour45
+
+# Example aliases:
+# workstation|home|colour232|colour45
+# server|cloud|colour231|colour160
+# devbox|lab|colour232|colour111

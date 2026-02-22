@@ -70,6 +70,35 @@ CHEZMOI_PROFILE=omarchy chezmoi update
 CHEZMOI_ROLE=server TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 ```
 
+## Tmux Multi-Host Status Badges
+
+Tmux renders two host badges on the right side:
+- Context badge: `LOCAL`, `SSH`, or `REMOTE`
+- Host alias badge: short alias with per-host color
+
+Alias mappings are sourced from:
+
+```bash
+~/.config/tmux/host-aliases.conf
+```
+
+This file is managed by chezmoi source:
+
+```bash
+private_dot_config/tmux/private_host-aliases.conf.tmpl
+```
+
+Format:
+
+```text
+raw_host|alias|fg|bg
+```
+
+Guidance:
+- Use neutral aliases (for example: `home`, `cloud`, `lab`)
+- Do not use IP addresses; IP-based SSH targets are masked in status badges
+- Keep host labels short to avoid status truncation
+
 ## Optional Private Bootstrap Inputs
 
 Create a local untracked env file for machine-specific values:
