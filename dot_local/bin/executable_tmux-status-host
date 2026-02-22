@@ -4,16 +4,156 @@ set -eu
 
 pane_tty="${1:-}"
 local_host="${2:-local}"
+client_tty="${3:-}"
+alias_file="${TMUX_HOST_ALIAS_FILE:-${HOME}/.config/tmux/host-aliases.conf}"
 
-local_badge() {
-  printf '#[fg=colour248,bg=colour237] %s ' "$local_host"
+trim() {
+  value="${1:-}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
 }
 
-remote_badge() {
-  remote_host="${1:-remote}"
-  remote_host="${remote_host##*@}"
-  [ -n "$remote_host" ] || remote_host="remote"
-  printf '#[fg=colour231,bg=colour160,bold] SSH #[fg=colour255,bg=colour52] %s ' "$remote_host"
+sanitize_label() {
+  label="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]_.-')"
+  [ -n "$label" ] || label="unknown"
+  printf '%s' "$label"
+}
+
+is_ipv4() {
+  value="${1:-}"
+  printf '%s\n' "$value" | awk -F'.' '
+    NF != 4 { exit 1 }
+    {
+      for (i = 1; i <= 4; i++) {
+        if ($i !~ /^[0-9]+$/) {
+          exit 1
+        }
+        if ($i < 0 || $i > 255) {
+          exit 1
+        }
+      }
+    }
+  '
+}
+
+looks_like_ip() {
+  value="${1:-}"
+  [ -n "$value" ] || return 1
+  case "$value" in
+    *:*)
+      case "$value" in
+        *[!0-9a-fA-F:.]*)
+          return 1
+          ;;
+        *)
+          return 0
+          ;;
+      esac
+      ;;
+  esac
+  is_ipv4 "$value"
+}
+
+normalize_host() {
+  host="$(trim "${1:-}")"
+  host="${host#\[}"
+  host="${host%\]}"
+  host="${host##*@}"
+  host="${host%%,*}"
+  host="${host%%/*}"
+
+  if looks_like_ip "$host"; then
+    printf 'remote'
+    return 0
+  fi
+
+  host="${host%%:*}"
+  host="${host%%.*}"
+
+  printf '%s' "$(sanitize_label "$host")"
+}
+
+valid_color() {
+  color="$(trim "${1:-}")"
+  case "$color" in
+    ""|*[![:alnum:]_-]*)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+resolve_alias() {
+  raw_input="${1:-}"
+  fallback_alias="${2:-unknown}"
+  default_fg="${3:-colour255}"
+  default_bg="${4:-colour238}"
+  key="$(normalize_host "$raw_input")"
+  alias="$fallback_alias"
+  fg="$default_fg"
+  bg="$default_bg"
+
+  if [ -f "$alias_file" ]; then
+    while IFS='|' read -r map_host map_alias map_fg map_bg _rest; do
+      map_host="$(trim "${map_host:-}")"
+      [ -n "$map_host" ] || continue
+      case "$map_host" in
+        \#*)
+          continue
+          ;;
+      esac
+
+      map_key="$(normalize_host "$map_host")"
+      [ "$map_key" = "$key" ] || continue
+
+      map_alias_raw="$(trim "${map_alias:-}")"
+      if [ -n "$map_alias_raw" ]; then
+        alias="$(sanitize_label "$map_alias_raw")"
+      fi
+
+      if valid_color "${map_fg:-}"; then
+        fg="$(trim "$map_fg")"
+      fi
+      if valid_color "${map_bg:-}"; then
+        bg="$(trim "$map_bg")"
+      fi
+      break
+    done < "$alias_file"
+  fi
+
+  alias="$(sanitize_label "$alias")"
+  printf '%s|%s|%s\n' "$alias" "$fg" "$bg"
+}
+
+print_context_badge() {
+  context="${1:-LOCAL}"
+  case "$context" in
+    OUTER_SSH)
+      printf '#[fg=colour231,bg=colour160,bold] SSH '
+      ;;
+    INNER_REMOTE)
+      printf '#[fg=colour231,bg=colour125,bold] REMOTE '
+      ;;
+    *)
+      printf '#[fg=colour250,bg=colour238,bold] LOCAL '
+      ;;
+  esac
+}
+
+print_alias_badge() {
+  host_input="${1:-unknown}"
+  fallback_alias="${2:-unknown}"
+  default_fg="${3:-colour255}"
+  default_bg="${4:-colour238}"
+  alias_data="$(resolve_alias "$host_input" "$fallback_alias" "$default_fg" "$default_bg")"
+
+  alias_label="$(printf '%s' "$alias_data" | cut -d'|' -f1)"
+  alias_fg="$(printf '%s' "$alias_data" | cut -d'|' -f2)"
+  alias_bg="$(printf '%s' "$alias_data" | cut -d'|' -f3)"
+  printf '#[fg=%s,bg=%s,bold] %s ' "$alias_fg" "$alias_bg" "$alias_label"
 }
 
 find_remote_host() {
@@ -57,28 +197,82 @@ find_remote_host() {
   '
 }
 
+get_tmux_env() {
+  var_name="$1"
+  line="$(tmux show-environment -g "$var_name" 2>/dev/null || true)"
+  case "$line" in
+    "$var_name="*)
+      printf '%s' "${line#*=}"
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+is_inner_remote_context() {
+  if [ -n "$client_tty" ]; then
+    if ps -o command= -t "$client_tty" 2>/dev/null | awk '
+      /(^|[[:space:]])sshd(:|[[:space:]])/ {
+        found = 1
+        exit
+      }
+      END {
+        exit(found ? 0 : 1)
+      }
+    '; then
+      return 0
+    fi
+  fi
+
+  tmux_ssh_tty="$(get_tmux_env SSH_TTY || true)"
+  tmux_ssh_connection="$(get_tmux_env SSH_CONNECTION || true)"
+
+  [ -n "$tmux_ssh_tty" ] || [ -n "$tmux_ssh_connection" ]
+}
+
+render_local() {
+  print_context_badge "LOCAL"
+  print_alias_badge "$local_host" "home" "colour232" "colour45"
+}
+
+render_outer_ssh() {
+  remote_host="${1:-remote}"
+  print_context_badge "OUTER_SSH"
+  print_alias_badge "$remote_host" "remote" "colour255" "colour52"
+}
+
+render_inner_remote() {
+  print_context_badge "INNER_REMOTE"
+  print_alias_badge "$local_host" "remote" "colour232" "colour111"
+}
+
 [ -n "$pane_tty" ] || {
-  local_badge
+  if is_inner_remote_context; then
+    render_inner_remote
+  else
+    render_local
+  fi
   exit 0
 }
 
 cmdline="$(ps -o command= -t "$pane_tty" 2>/dev/null | awk '/(^|[[:space:]])(ssh|mosh|mosh-client)([[:space:]]|$)/ { print; exit }')"
 
-[ -n "$cmdline" ] || {
-  local_badge
-  exit 0
-}
-
 case "$cmdline" in
   *mosh-client*|*mosh\ *)
     remote_host="$(find_remote_host "$cmdline" || true)"
-    remote_badge "$remote_host"
+    render_outer_ssh "$remote_host"
     ;;
   *ssh\ *)
     remote_host="$(find_remote_host "$cmdline" || true)"
-    remote_badge "$remote_host"
+    render_outer_ssh "$remote_host"
     ;;
   *)
-    local_badge
+    if is_inner_remote_context; then
+      render_inner_remote
+    else
+      render_local
+    fi
     ;;
 esac
