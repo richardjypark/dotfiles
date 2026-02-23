@@ -86,7 +86,7 @@ The repository uses a sophisticated state tracking system to achieve ~95% speed 
 All scripts source `~/.local/lib/chezmoi-helpers.sh` (managed as `dot_local/private_lib/chezmoi-helpers.sh`), which provides `vecho()`, `eecho()`, `state_exists()`/`mark_state()`, `add_to_path()`, `is_installed()`, `ensure_sudo()`/`run_privileged()`, and `VERBOSE`/`TRUST_ON_FIRST_USE_INSTALLERS` initialization.
 
 **Script Execution Order:**
-1. `run_before_00-prerequisites.sh` - Install system packages (apt-get, git, curl, etc.)
+1. `run_before_00-prerequisites.sh.tmpl` - Install system packages (apt-get, git, curl, etc.)
 2. `run_before_01-setup-omz.sh` - Set up Oh My Zsh
 3. `run_before_02-prefetch-assets.sh.tmpl` - Prefetch pinned artifacts (neovim, jj, codex) in parallel
 4. `run_after_10-setup-homebrew.sh` - Install Homebrew + core packages on macOS
@@ -95,10 +95,10 @@ All scripts source `~/.local/lib/chezmoi-helpers.sh` (managed as `dot_local/priv
 7. `run_after_24-setup-neovim.sh.tmpl` - Install/upgrade Neovim for LazyVim compatibility
 8. `run_after_25-setup-uv.sh.tmpl` - Install Python uv package manager
 9. `run_after_26-setup-jj.sh.tmpl` - Install Jujutsu (jj) version control
-10. `run_after_27-setup-ansible.sh` - Install Ansible
+10. `run_after_28-setup-ansible.sh` - Install Ansible
 11. `run_after_27-setup-bun.sh.tmpl` - Install Bun runtime
 12. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
-13. `run_after_30-change-shell.sh` - Change default shell to zsh
+13. `run_after_31-change-shell.sh` - Change default shell to zsh
 14. `run_after_35-setup-claude-code.sh.tmpl` - Install Claude Code
 15. `run_after_36-setup-codex.sh.tmpl` - Install Codex CLI (Homebrew/release binary, no npm)
 16. `run_after_37-setup-tailscale.sh.tmpl` - Install Tailscale VPN
@@ -308,7 +308,7 @@ CHEZMOI_ROLE=server chezmoi apply
 - NVM external resource (conditional in `.chezmoiexternal.toml.tmpl`)
 - Bun (`run_after_27-setup-bun.sh.tmpl`)
 - Homebrew (`run_after_10-setup-homebrew.sh`)
-- Ansible (`run_after_27-setup-ansible.sh`)
+- Ansible (`run_after_28-setup-ansible.sh`)
 - Claude Code (`run_after_35-setup-claude-code.sh.tmpl`)
 - Codex CLI setup auto-skips when `CHEZMOI_ROLE=server` (`run_after_36-setup-codex.sh.tmpl`)
 - Oh My Zsh `terraform`/`ansible` plugins (`dot_zshrc.tmpl`)
@@ -425,6 +425,12 @@ chezmoi apply --force
 # Check what fail2ban has banned
 fail2ban-client status sshd
 ```
+
+## Utility Scripts
+
+**`scripts/dev/today.sh`** — Scans jj commit history for timestamps that fall during weekday work hours (configurable via `WORK_START_HOUR`, `WORK_END_HOUR`, `WORK_TZ`), rewrites them to after-hours with natural randomization, and pushes to the `dev` bookmark. Uses `--ignore-immutable` to rewrite already-pushed commits. Run with `DRY_RUN=true` to preview without changes.
+
+**`scripts/setup-personal-cloud-tailscale.sh`** — Server hardening script that configures nftables to restrict SSH access to Tailscale interfaces only and sets up sshd drop-in config. Run with `sudo` on the target server after Tailscale is connected.
 
 ## Version Control with Jujutsu (jj)
 

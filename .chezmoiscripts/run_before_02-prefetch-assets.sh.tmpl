@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. "$HOME/.local/lib/chezmoi-helpers.sh"
 
-PREFETCH_STATE="prefetch-assets"
-CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
-MAX_JOBS="${CHEZMOI_PREFETCH_JOBS:-4}"
-
-# Backward-compatibility shims: run_before scripts may execute before the
-# latest helper library has been applied to ~/.local/lib.
-if ! command -v is_force_update >/dev/null 2>&1; then
-    is_force_update() {
-        [ "${CHEZMOI_FORCE_UPDATE:-0}" = "1" ]
-    }
+# Use loader pattern: finds helpers from applied target or source dir fallback.
+CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
+if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
+    CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
 fi
+# shellcheck disable=SC1090
+. "$CHEZMOI_SOURCE_DIR/scripts/lib/load-helpers.sh"
 
+# Minimal safety net: should_skip_state/is_force_update may not exist on very
+# first bootstrap before helpers are applied (consistent with other run_before_* scripts).
 if ! command -v should_skip_state >/dev/null 2>&1; then
     should_skip_state() {
         local state_name="$1"
@@ -23,102 +20,15 @@ if ! command -v should_skip_state >/dev/null 2>&1; then
         return 1
     }
 fi
-
-if ! command -v platform_key >/dev/null 2>&1; then
-    platform_key() {
-        local os arch
-        case "$(uname -s)" in
-            Linux) os="linux" ;;
-            Darwin) os="macos" ;;
-            *) return 1 ;;
-        esac
-        case "$(uname -m)" in
-            x86_64|amd64) arch="x86_64" ;;
-            aarch64|arm64) arch="arm64" ;;
-            *) return 1 ;;
-        esac
-        printf '%s-%s\n' "$os" "$arch"
+if ! command -v is_force_update >/dev/null 2>&1; then
+    is_force_update() {
+        [ "${CHEZMOI_FORCE_UPDATE:-0}" = "1" ]
     }
 fi
 
-if ! command -v require_trust_for_remote_download >/dev/null 2>&1; then
-    require_trust_for_remote_download() {
-        local source="$1"
-        if [ "${TRUST_ON_FIRST_USE_INSTALLERS:-0}" != "1" ]; then
-            eecho "Refusing to fetch remote artifact without explicit trust."
-            eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1 to allow download from ${source}."
-            return 1
-        fi
-        return 0
-    }
-fi
-
-if ! command -v sha256_file >/dev/null 2>&1; then
-    sha256_file() {
-        local file="$1"
-        if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum "$file" | awk '{print $1}'
-            return 0
-        fi
-        if command -v shasum >/dev/null 2>&1; then
-            shasum -a 256 "$file" | awk '{print $1}'
-            return 0
-        fi
-        eecho "Error: no SHA-256 tool found (need sha256sum or shasum)."
-        return 1
-    }
-fi
-
-if ! command -v verify_sha256 >/dev/null 2>&1; then
-    verify_sha256() {
-        local file="$1"
-        local expected="$2"
-        local actual
-        if [ ! -f "$file" ]; then
-            return 1
-        fi
-        actual="$(sha256_file "$file")" || return 1
-        [ "$actual" = "$expected" ]
-    }
-fi
-
-if ! command -v download_file >/dev/null 2>&1; then
-    download_file() {
-        local url="$1"
-        local destination="$2"
-        local destination_dir
-        destination_dir="$(dirname "$destination")"
-        mkdir -p "$destination_dir"
-        curl --fail --location --show-error --silent \
-            --proto '=https' --tlsv1.2 \
-            --retry 3 --retry-delay 2 \
-            --connect-timeout 10 --max-time 300 \
-            "$url" -o "$destination"
-    }
-fi
-
-if ! command -v download_and_verify >/dev/null 2>&1; then
-    download_and_verify() {
-        local url="$1"
-        local destination="$2"
-        local expected_sha="$3"
-        local tmp_file
-        if [ -f "$destination" ] && verify_sha256 "$destination" "$expected_sha"; then
-            vecho "Using verified cached artifact: $destination"
-            return 0
-        fi
-        tmp_file="${destination}.tmp.$$"
-        rm -f "$tmp_file"
-        download_file "$url" "$tmp_file"
-        if ! verify_sha256 "$tmp_file" "$expected_sha"; then
-            eecho "Error: checksum verification failed for $url"
-            rm -f "$tmp_file"
-            return 1
-        fi
-        mv "$tmp_file" "$destination"
-        return 0
-    }
-fi
+PREFETCH_STATE="prefetch-assets"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
+MAX_JOBS="${CHEZMOI_PREFETCH_JOBS:-4}"
 
 {{- with .pinned.neovim }}
 NVIM_VERSION="{{ .version }}"

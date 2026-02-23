@@ -49,7 +49,7 @@ Tuning note:
 ```bash
 bash -n scripts/bootstrap-omarchy.sh
 bash -n bootstrap-vps.sh
-bash -n .chezmoiscripts/run_before_00-prerequisites.sh
+bash -n .chezmoiscripts/run_before_00-prerequisites.sh.tmpl
 for f in .chezmoiscripts/*.tmpl; do chezmoi execute-template < "$f" | bash -n; done
 chezmoi diff
 chezmoi apply
