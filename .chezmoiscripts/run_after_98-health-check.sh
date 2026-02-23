@@ -86,6 +86,21 @@ done
 vecho ""
 vecho "--- Development Tools ---"
 
+# Make NVM-managed Node tools visible in non-interactive apply runs.
+NVM_NODE_BIN=""
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+    # shellcheck disable=SC1090
+    . "$HOME/.nvm/nvm.sh"
+    if command -v nvm >/dev/null 2>&1; then
+        NVM_NODE_PATH="$(nvm which default 2>/dev/null || true)"
+        if [ -n "$NVM_NODE_PATH" ] && [ -x "$NVM_NODE_PATH" ]; then
+            NVM_NODE_BIN="$(dirname "$NVM_NODE_PATH")"
+            export PATH="$NVM_NODE_BIN:$PATH"
+            hash -r 2>/dev/null || true
+        fi
+    fi
+fi
+
 # fzf
 if is_installed fzf; then
     FZF_VERSION=$(fzf --version 2>/dev/null | awk '{print $1}' || echo "unknown")
@@ -101,7 +116,7 @@ if [ -d "$HOME/.nvm" ]; then
         NODE_VERSION=$(node -v 2>/dev/null || echo "unknown")
         check_pass "Node.js: $NODE_VERSION"
     else
-        check_warn "Node.js not available (run: source ~/.zshrc)"
+        check_warn "Node.js not available from NVM default alias"
     fi
 else
     check_warn "NVM not installed"
@@ -235,7 +250,13 @@ if [ -f "$BOOTSTRAP_FLAGS_FILE" ]; then
         check_pass "Remote installer scripts require explicit trust"
     fi
 else
-    check_warn "Bootstrap security flag file not found (bootstrap-vps.sh may not have been used)"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        check_pass "Bootstrap security flag file not required on macOS"
+    elif [ "${CHEZMOI_ROLE:-workstation}" != "server" ]; then
+        check_pass "Bootstrap security flag file not required for non-server role"
+    else
+        check_warn "Bootstrap security flag file not found (bootstrap-vps.sh may not have been used)"
+    fi
 fi
 
 # Summary
