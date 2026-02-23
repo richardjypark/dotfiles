@@ -12,6 +12,7 @@ alias j='jj'                                      # 1-keystroke shortcut
 
 # Chezmoi helper commands are defined in ~/.config/shell/chezmoi.sh
 alias czvc='chezmoi-check-versions'               # Check pinned dependency versions
+alias czb='chezmoi-bump'                          # Bump pinned dependency versions
 
 # Legacy git aliases (keep for non-jj repos)
 alias gaa="git add -A"
