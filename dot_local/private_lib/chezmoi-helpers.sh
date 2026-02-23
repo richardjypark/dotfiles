@@ -2,6 +2,9 @@
 # chezmoi-helpers.sh — shared helper library for chezmoi scripts
 # Sourced by all .chezmoiscripts/ files via: . "$HOME/.local/lib/chezmoi-helpers.sh"
 
+# Guard against double-sourcing
+if [ -n "${CHEZMOI_HELPERS_LOADED:-}" ]; then return 0 2>/dev/null || true; fi
+
 # --- Output Helpers ---
 
 VERBOSE="${VERBOSE:-false}"
@@ -233,3 +236,47 @@ download_and_verify() {
     vecho "Downloaded and verified artifact: $destination"
     return 0
 }
+
+# --- Convenience Wrappers ---
+
+# Run a command, suppressing stdout/stderr unless VERBOSE=true.
+# Usage: run_quiet cmd arg1 arg2 ...
+run_quiet() {
+    if [ "$VERBOSE" = "true" ]; then
+        "$@"
+    else
+        "$@" >/dev/null 2>&1
+    fi
+}
+
+# --- Version Comparison ---
+
+# Generic semver comparison (MAJOR.MINOR.PATCH).
+# Returns 0 (true) if $1 >= $2, 1 (false) otherwise.
+# Usage: version_ge "1.2.3" "1.2.0" && echo "ok"
+version_ge() {
+    local current required
+    local c1 c2 c3 r1 r2 r3
+
+    current="${1:-0.0.0}"
+    required="${2:-0.0.0}"
+
+    IFS=. read -r c1 c2 c3 <<EOF
+$current
+EOF
+    IFS=. read -r r1 r2 r3 <<EOF
+$required
+EOF
+
+    c1=${c1:-0}; c2=${c2:-0}; c3=${c3:-0}
+    r1=${r1:-0}; r2=${r2:-0}; r3=${r3:-0}
+
+    if [ "$c1" -gt "$r1" ]; then return 0; fi
+    if [ "$c1" -lt "$r1" ]; then return 1; fi
+    if [ "$c2" -gt "$r2" ]; then return 0; fi
+    if [ "$c2" -lt "$r2" ]; then return 1; fi
+    if [ "$c3" -ge "$r3" ]; then return 0; fi
+    return 1
+}
+
+CHEZMOI_HELPERS_LOADED=1

@@ -36,11 +36,6 @@ check_fail() {
     FAIL_COUNT=$((FAIL_COUNT + 1))
 }
 
-# Run health checks only in verbose mode or if explicitly requested
-if [ "$VERBOSE" != "true" ] && [ "${CHEZMOI_HEALTH_CHECK:-false}" != "true" ]; then
-    exit 0
-fi
-
 vecho ""
 vecho "=== Environment Health Check ==="
 vecho ""
@@ -244,19 +239,24 @@ else
 fi
 
 # Summary
-vecho ""
-vecho "=== Health Check Summary ==="
 TOTAL=$((PASS_COUNT + WARN_COUNT + FAIL_COUNT))
-vecho "Passed: $PASS_COUNT / $TOTAL"
-
-if [ "$WARN_COUNT" -gt 0 ]; then
-    vecho "Warnings: $WARN_COUNT"
-fi
 
 if [ "$FAIL_COUNT" -gt 0 ]; then
-    eecho "Failed: $FAIL_COUNT"
-    eecho ""
-    eecho "Run 'chezmoi apply' to fix issues, or 'VERBOSE=true chezmoi apply' for details."
+    vecho ""
+    vecho "=== Health Check Summary ==="
+    vecho "Passed: $PASS_COUNT / $TOTAL"
+    if [ "$WARN_COUNT" -gt 0 ]; then
+        vecho "Warnings: $WARN_COUNT"
+    fi
+    eecho "Health check: $FAIL_COUNT failure(s) detected. Run 'VERBOSE=true chezmoi apply' for details."
+else
+    vecho ""
+    vecho "=== Health Check Summary ==="
+    vecho "Passed: $PASS_COUNT / $TOTAL"
+    if [ "$WARN_COUNT" -gt 0 ]; then
+        vecho "Warnings: $WARN_COUNT"
+    fi
+    vecho "All health checks passed."
 fi
 
 vecho ""
