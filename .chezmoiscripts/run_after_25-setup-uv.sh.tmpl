@@ -2,8 +2,6 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-vecho "Setting up uv (Python package manager)..."
-
 UV_DIR="$HOME/.local/bin"
 add_to_path "$UV_DIR"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
@@ -22,6 +20,18 @@ PINNED_UV_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
 PINNED_UV_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 PINNED_UV_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
+
+UV_STATE="uv-setup-${PINNED_UV_VERSION}-py${PYTHON_VERSION}"
+
+if should_skip_state "$UV_STATE" && is_installed uv; then
+    if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
+        vecho "uv setup already completed (state tracked)"
+        exit 0
+    fi
+    vecho "uv state exists but Python $PYTHON_VERSION is missing; re-running setup."
+fi
+
+vecho "Setting up uv (Python package manager)..."
 
 resolve_brew_cmd() {
     if command -v brew >/dev/null 2>&1; then
@@ -97,9 +107,7 @@ install_uv_from_pinned_release() {
     install -m 755 "$uv_binary" "$UV_DIR/uv"
 
     if is_installed uv || [ -x "$UV_DIR/uv" ]; then
-        if [ "$VERBOSE" = "true" ]; then
-            echo "uv installed successfully: $(uv --version 2>/dev/null || $UV_DIR/uv --version)"
-        fi
+        vecho "uv installed successfully: $(uv --version 2>/dev/null || $UV_DIR/uv --version)"
         return 0
     fi
 
@@ -161,25 +169,23 @@ fi
 # Check if Python is already installed via uv
 if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
     vecho "Python $PYTHON_VERSION is already installed via uv"
+    mark_state "$UV_STATE"
     exit 0
 fi
 
 # Install Python via uv
 vecho "Installing Python $PYTHON_VERSION via uv..."
-if [ "$VERBOSE" = "true" ]; then
-    uv python install "$PYTHON_VERSION"
-else
-    uv python install "$PYTHON_VERSION" >/dev/null 2>&1
-fi
+run_quiet uv python install "$PYTHON_VERSION"
 
 # Verify Python installation
 if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
+    vecho "Python $PYTHON_VERSION installed successfully via uv"
     if [ "$VERBOSE" = "true" ]; then
-        echo "Python $PYTHON_VERSION installed successfully via uv"
         uv python list
     fi
+    mark_state "$UV_STATE"
+    vecho "uv and Python setup complete!"
 else
-    eecho "Warning: Python $PYTHON_VERSION installation may have failed. Check manually."
+    eecho "Error: Python $PYTHON_VERSION installation failed verification."
+    exit 1
 fi
-
-vecho "uv and Python setup complete!"

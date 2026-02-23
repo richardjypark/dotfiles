@@ -2,8 +2,6 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# Setup Node.js via NVM
-vecho "Setting up Node.js via NVM..."
 NVM_DIR="$HOME/.nvm"
 
 # Use chezmoi template syntax with proper spacing
@@ -11,6 +9,14 @@ NVM_DIR="$HOME/.nvm"
 NVM_VERSION="{{ .version }}"
 NODE_VERSION="{{ .nodeVersion }}"
 {{- end }}
+
+# Keep state key filesystem-safe (for values like lts/*).
+NODE_VERSION_STATE="${NODE_VERSION//\//_}"
+NODE_VERSION_STATE="${NODE_VERSION_STATE//\*/_}"
+NODE_STATE="node-setup-nvm${NVM_VERSION}-${NODE_VERSION_STATE}"
+
+# Setup Node.js via NVM
+vecho "Setting up Node.js via NVM..."
 
 # Verify that chezmoi has properly cloned the repository
 if [ ! -d "$NVM_DIR" ] || [ ! -f "$NVM_DIR/nvm.sh" ]; then
@@ -26,6 +32,18 @@ fi
 # Determine if the requested Node version is already installed in NVM.
 # `nvm current` can be "none/system" in non-interactive apply runs.
 CURRENT_NODE_VERSION=$(nvm version "$NODE_VERSION" 2>/dev/null || echo "N/A")
+if should_skip_state "$NODE_STATE"; then
+    STATE_NODE_PATH="$(nvm which "$NODE_VERSION" 2>/dev/null || true)"
+    if [ "$CURRENT_NODE_VERSION" != "N/A" ] && [ -n "$STATE_NODE_PATH" ] && [ -x "$STATE_NODE_PATH" ]; then
+        STATE_NODE_BIN="$(dirname "$STATE_NODE_PATH")"
+        if [ -x "$STATE_NODE_BIN/npm" ]; then
+            vecho "Node.js setup already completed (state tracked)"
+            exit 0
+        fi
+    fi
+    vecho "Node.js state exists but install is incomplete; re-running setup."
+fi
+
 NEED_NODE_INSTALL=false
 if [ "$CURRENT_NODE_VERSION" = "N/A" ]; then
     NEED_NODE_INSTALL=true
@@ -33,28 +51,16 @@ fi
 
 if [ "$NEED_NODE_INSTALL" = "true" ]; then
     eecho "Installing Node.js $NODE_VERSION..."
-    if [ "$VERBOSE" = "true" ]; then
-        nvm install "$NODE_VERSION"
-    else
-        nvm install "$NODE_VERSION" >/dev/null 2>&1
-    fi
+    run_quiet nvm install "$NODE_VERSION"
 else
     vecho "Node.js $CURRENT_NODE_VERSION is already installed and set as default"
 fi
 
 # Keep default alias aligned with requested version without forcing reinstall.
-if [ "$VERBOSE" = "true" ]; then
-    nvm alias default "$NODE_VERSION" >/dev/null
-else
-    nvm alias default "$NODE_VERSION" >/dev/null 2>&1
-fi
+nvm alias default "$NODE_VERSION" >/dev/null 2>&1
 
 # Ensure current shell resolves tools from active NVM Node, not external shims.
-if [ "$VERBOSE" = "true" ]; then
-    nvm use default >/dev/null
-else
-    nvm use default >/dev/null 2>&1
-fi
+nvm use default >/dev/null 2>&1
 
 NVM_BIN="${NVM_BIN:-}"
 if [ -z "$NVM_BIN" ] || [ ! -x "$NVM_BIN/npm" ]; then
@@ -93,11 +99,7 @@ if [ "${#PACKAGES_TO_INSTALL[@]}" -gt 0 ]; then
         eecho "Error: npm is unavailable from NVM bin ($NPM_CMD)"
         exit 1
     fi
-    if [ "$VERBOSE" = "true" ]; then
-        "$NPM_CMD" install -g "${PACKAGES_TO_INSTALL[@]}"
-    else
-        "$NPM_CMD" install -g "${PACKAGES_TO_INSTALL[@]}" >/dev/null 2>&1
-    fi
+    run_quiet "$NPM_CMD" install -g "${PACKAGES_TO_INSTALL[@]}"
 fi
 
 # Create a simple test to verify everything is working (only if verbose)
@@ -115,3 +117,5 @@ if [ "$VERBOSE" = "true" ]; then
     echo "----------------------------------------"
     echo "\nNode.js setup complete!"
 fi
+
+mark_state "$NODE_STATE"

@@ -45,7 +45,7 @@ logs/*
 .chezmoiscripts/10-setup-homebrew.sh
 
 # Ansible - not needed on prod (we run ansible from local)
-.chezmoiscripts/27-setup-ansible.sh
+.chezmoiscripts/28-setup-ansible.sh
 
 # Claude Code - not needed on prod servers
 .chezmoiscripts/35-setup-claude-code.sh
@@ -69,7 +69,7 @@ logs/*
 .chezmoiscripts/01-setup-omz.sh
 .chezmoiscripts/12-setup-starship.sh
 {{ if not $force_zsh }}
-.chezmoiscripts/30-change-shell.sh
+.chezmoiscripts/31-change-shell.sh
 {{ end }}
 .chezmoiscripts/40-setup-tmux.sh
 {{ end }}

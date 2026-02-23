@@ -56,6 +56,7 @@ ESSENTIAL_PACKAGES=(
     "curl"
     "wget"
     "zsh"
+    "coreutils"
 )
 
 # Optional development tools (only install if not present via other means)
