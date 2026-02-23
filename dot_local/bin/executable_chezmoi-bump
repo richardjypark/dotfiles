@@ -1,0 +1,1766 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# chezmoi-bump — Automated dependency version bumper for chezmoi dotfiles
+# Queries latest versions for all 13 pinned dependencies, fetches SHA256
+# checksums where needed, and edits TOML config files in place.
+#
+# Usage:
+#   chezmoi-bump --check             # Report all deps (like chezmoi-check-versions but complete)
+#   chezmoi-bump jj uv               # Bump specific deps
+#   chezmoi-bump --all               # Bump everything with available updates
+#   chezmoi-bump --dry-run jj        # Show what would change without writing
+#   chezmoi-bump --skip-sha --all    # Version-only bump (no artifact downloads)
+
+CACHE_DIR="${CACHE_DIR:-$HOME/.cache}"
+CHEZMOI_DIR="${CHEZMOI_DIR:-$HOME/.local/share/chezmoi}"
+CACHE_FILE="$CACHE_DIR/chezmoi-bump-check.txt"
+CACHE_MAX_AGE=86400  # 24 hours
+
+# --- Globals set by parse_args ---
+MODE="bump"          # check | bump
+DRY_RUN=false
+SKIP_SHA=false
+BUMP_ALL=false
+FORCE=false
+STRICT=true
+ROLLBACK_ON_FAILURE=true
+MANIFEST_OUT=""
+MANIFEST_MULTI=false
+DEPS_TO_BUMP=()
+
+# --- Transaction exit codes ---
+EXIT_CONTRACT_BUILD_FAILED=10
+EXIT_APPLY_FAILED=11
+EXIT_VERIFY_FAILED=12
+EXIT_ROLLBACK_FAILED=13
+
+# --- Color helpers (disabled when not a terminal) ---
+if [ -t 1 ]; then
+    RED=$'\033[0;31m'
+    GREEN=$'\033[0;32m'
+    YELLOW=$'\033[0;33m'
+    CYAN=$'\033[0;36m'
+    BOLD=$'\033[1m'
+    RESET=$'\033[0m'
+else
+    RED="" GREEN="" YELLOW="" CYAN="" BOLD="" RESET=""
+fi
+
+# --- All 13 dependencies ---
+# Format: name|github_repo_or_source|version_format|sha_strategy|has_4_platforms
+# version_format: raw (no prefix), v (v prefix), bun (bun-v prefix), codex (rust-v prefix)
+# sha_strategy: none, download_compute, sidecar, shasums, checksums_txt, pkgs_tailscale
+ALL_DEPS=(
+    "neovim|neovim/neovim|v|download_compute|4"
+    "jj|jj-vcs/jj|v|download_compute|4"
+    "codex|openai/codex|codex|download_compute|4"
+    "uv|astral-sh/uv|raw|sidecar|4"
+    "starship|starship/starship|v|sidecar|4"
+    "bun|oven-sh/bun|bun|shasums|4"
+    "tailscale|tailscale/tailscale|raw|pkgs_tailscale|2"
+    "chezmoi|twpayne/chezmoi|raw|checksums_txt|4"
+    "claude|npm:@anthropic-ai/claude-code|raw|none|0"
+    "nvm|nvm-sh/nvm|v|none|0"
+    "fzf|junegunn/fzf|raw|none|0"
+    "zsh-syntax-highlighting|zsh-users/zsh-syntax-highlighting|raw|none|0"
+    "zsh-autosuggestions|zsh-users/zsh-autosuggestions|v|none|0"
+)
+
+# ============================================================================
+# Argument parsing
+# ============================================================================
+
+parse_args() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --check|-c)
+                MODE="check"
+                shift
+                ;;
+            --dry-run|-n)
+                DRY_RUN=true
+                shift
+                ;;
+            --skip-sha)
+                SKIP_SHA=true
+                shift
+                ;;
+            --all|-a)
+                BUMP_ALL=true
+                shift
+                ;;
+            --force|-f)
+                FORCE=true
+                shift
+                ;;
+            --strict)
+                STRICT=true
+                shift
+                ;;
+            --no-strict)
+                STRICT=false
+                shift
+                ;;
+            --no-rollback)
+                ROLLBACK_ON_FAILURE=false
+                shift
+                ;;
+            --manifest-out)
+                if [ $# -lt 2 ]; then
+                    echo "Missing value for --manifest-out" >&2
+                    usage
+                    exit 1
+                fi
+                MANIFEST_OUT="$2"
+                shift 2
+                ;;
+            --help|-h)
+                usage
+                exit 0
+                ;;
+            -*)
+                echo "Unknown option: $1" >&2
+                usage
+                exit 1
+                ;;
+            *)
+                DEPS_TO_BUMP+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [ "$MODE" = "bump" ] && [ "$BUMP_ALL" = "false" ] && [ ${#DEPS_TO_BUMP[@]} -eq 0 ]; then
+        MODE="check"
+    fi
+}
+
+usage() {
+    cat <<'EOF'
+Usage: chezmoi-bump [OPTIONS] [DEPS...]
+
+Options:
+  --check, -c        Report versions for all 13 deps (default if no deps given)
+  --all, -a          Bump all deps with available updates
+  --dry-run, -n      Show what would change without writing
+  --skip-sha         Version-only bump (skip SHA256 artifact downloads)
+  --force, -f        Bypass cache, force fresh API queries
+  --strict           Enforce strict transaction verification (default)
+  --no-strict        Use relaxed post-apply verification
+  --no-rollback      Keep mutated files on failure (debug mode)
+  --manifest-out     Write manifest JSON (one file per dep when multi-dep)
+  --help, -h         Show this help
+
+Examples:
+  chezmoi-bump --check             # Report all 13 deps
+  chezmoi-bump jj uv               # Bump specific deps
+  chezmoi-bump --all               # Bump everything outdated
+  chezmoi-bump --dry-run jj        # Preview changes for jj
+  chezmoi-bump --manifest-out /tmp/bump.json jj
+                                  # Write transaction manifest
+  chezmoi-bump --skip-sha --all    # Version-only bump (no downloads)
+
+Dependencies: neovim, jj, codex, uv, starship, bun, tailscale, chezmoi,
+              claude, nvm, fzf, zsh-syntax-highlighting, zsh-autosuggestions
+EOF
+}
+
+# ============================================================================
+# Prerequisites
+# ============================================================================
+
+validate_prerequisites() {
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "${RED}Error: curl is required${RESET}" >&2
+        exit 1
+    fi
+    if ! command -v awk >/dev/null 2>&1; then
+        echo "${RED}Error: awk is required${RESET}" >&2
+        exit 1
+    fi
+    if ! [ -f "$CHEZMOI_DIR/.chezmoidata.toml" ]; then
+        echo "${RED}Error: $CHEZMOI_DIR/.chezmoidata.toml not found${RESET}" >&2
+        exit 1
+    fi
+}
+
+# ============================================================================
+# GitHub / npm API helpers
+# ============================================================================
+
+_curl_gh() {
+    local url="$1"
+    local -a headers=(
+        -H "Accept: application/vnd.github+json"
+        -H "User-Agent: chezmoi-bump"
+    )
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        headers+=(-H "Authorization: Bearer $GITHUB_TOKEN")
+    fi
+    curl -fsSL --retry 2 "${headers[@]}" "$url" 2>/dev/null || true
+}
+
+# Get latest release tag from GitHub. Handles special cases.
+github_latest_tag() {
+    local repo="$1"
+    local dep_name="${2:-}"
+    local response tag
+
+    # Codex: filter for non-prerelease rust-v tags
+    if [ "$dep_name" = "codex" ]; then
+        response="$(_curl_gh "https://api.github.com/repos/${repo}/releases?per_page=30")"
+        if [ -z "$response" ]; then echo ""; return 0; fi
+
+        if command -v jq >/dev/null 2>&1; then
+            tag="$(printf '%s' "$response" | jq -r '
+                [.[] | select(.prerelease == false and (.tag_name | test("^rust-v[0-9]+\\.[0-9]+\\.[0-9]+$")))]
+                | first | .tag_name // empty
+            ' 2>/dev/null || true)"
+        else
+            # Fallback: grep for rust-v tags, skip prerelease
+            tag="$(printf '%s' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\(rust-v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -1)"
+        fi
+        echo "$tag"
+        return 0
+    fi
+
+    # Bun: tag is "bun-vX.Y.Z"
+    if [ "$dep_name" = "bun" ]; then
+        response="$(_curl_gh "https://api.github.com/repos/${repo}/releases/latest")"
+        if [ -z "$response" ]; then echo ""; return 0; fi
+        if command -v jq >/dev/null 2>&1; then
+            tag="$(printf '%s' "$response" | jq -r '.tag_name // empty' 2>/dev/null || true)"
+        else
+            tag="$(printf '%s' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+        fi
+        echo "$tag"
+        return 0
+    fi
+
+    # Standard: /releases/latest
+    response="$(_curl_gh "https://api.github.com/repos/${repo}/releases/latest")"
+
+    # If no releases (404), fall back to tags API
+    if [ -z "$response" ]; then
+        github_latest_tag_from_tags "$repo"
+        return 0
+    fi
+
+    # Detect rate limit
+    if printf '%s' "$response" | grep -q '"rate limit"' 2>/dev/null ||
+       printf '%s' "$response" | grep -q '"API rate limit exceeded"' 2>/dev/null; then
+        echo "${YELLOW}Warning: GitHub API rate limit hit. Set GITHUB_TOKEN for 5000 req/hr.${RESET}" >&2
+        echo ""
+        return 0
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        tag="$(printf '%s' "$response" | jq -r '.tag_name // empty' 2>/dev/null || true)"
+    else
+        tag="$(printf '%s' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    fi
+
+    # If releases exist but tag_name is empty, fall back to tags
+    if [ -z "$tag" ]; then
+        github_latest_tag_from_tags "$repo"
+        return 0
+    fi
+
+    echo "$tag"
+}
+
+# Fallback: get latest tag from the tags API (for repos without GitHub Releases)
+github_latest_tag_from_tags() {
+    local repo="$1"
+    local response tag
+    response="$(_curl_gh "https://api.github.com/repos/${repo}/tags?per_page=10")"
+    if [ -z "$response" ]; then echo ""; return 0; fi
+
+    if command -v jq >/dev/null 2>&1; then
+        # Get first tag that looks like a release version (skip alpha/beta/rc)
+        tag="$(printf '%s' "$response" | jq -r '
+            [.[] | .name | select(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))]
+            | first // empty
+        ' 2>/dev/null || true)"
+    else
+        tag="$(printf '%s' "$response" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\(v\{0,1\}[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -1)"
+    fi
+    echo "$tag"
+}
+
+npm_latest_version() {
+    local package="$1"
+    local response version
+    response="$(curl -fsSL --retry 2 "https://registry.npmjs.org/${package}/latest" 2>/dev/null || true)"
+    if [ -z "$response" ]; then echo ""; return 0; fi
+
+    if command -v jq >/dev/null 2>&1; then
+        version="$(printf '%s' "$response" | jq -r '.version // empty' 2>/dev/null || true)"
+    else
+        version="$(printf '%s' "$response" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    fi
+    echo "$version"
+}
+
+# ============================================================================
+# Current version extraction
+# ============================================================================
+
+get_current_version() {
+    local dep_name="$1"
+    local version_format="$2"
+
+    case "$dep_name" in
+        neovim|jj|codex|uv|starship|bun|tailscale|chezmoi)
+            local section="pinned.${dep_name}"
+            local key="version"
+            [ "$dep_name" = "claude" ] && key="npm_version"
+            sed -n "/^\[${section//./\\.}\]/,/^\[/{s/^${key} = \"\([^\"]*\)\".*/\1/p;}" \
+                "$CHEZMOI_DIR/.chezmoidata.toml" | head -1
+            ;;
+        claude)
+            sed -n '/^\[pinned\.claude\]/,/^\[/{s/^npm_version = "\([^"]*\)".*/\1/p;}' \
+                "$CHEZMOI_DIR/.chezmoidata.toml" | head -1
+            ;;
+        nvm)
+            sed -n '/^\[nvm\]/,/^\[/{s/^version = "\([^"]*\)".*/\1/p;}' \
+                "$CHEZMOI_DIR/.chezmoidata.toml" | head -1
+            ;;
+        fzf)
+            sed -n '/^\["\.local\/share\/fzf"\]/,/^\[/{s/.*"--branch", "\([^"]*\)".*/\1/p;}' \
+                "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1
+            ;;
+        zsh-syntax-highlighting)
+            sed -n '/zsh-syntax-highlighting/,/refreshPeriod/s|.*refs/tags/\([^"]*\)\.tar\.gz.*|\1|p' \
+                "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1
+            ;;
+        zsh-autosuggestions)
+            sed -n '/zsh-autosuggestions/,/refreshPeriod/s|.*refs/tags/\([^"]*\)\.tar\.gz.*|\1|p' \
+                "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1
+            ;;
+    esac
+}
+
+# ============================================================================
+# Latest version fetching (normalizes to stored format)
+# ============================================================================
+
+get_latest_version() {
+    local dep_name="$1"
+    local source="$2"
+    local version_format="$3"
+    local raw_tag
+
+    # npm dependency
+    if [[ "$source" == npm:* ]]; then
+        local package="${source#npm:}"
+        raw_tag="$(npm_latest_version "$package")"
+        echo "$raw_tag"
+        return 0
+    fi
+
+    # GitHub dependency
+    raw_tag="$(github_latest_tag "$source" "$dep_name")"
+    if [ -z "$raw_tag" ]; then echo ""; return 0; fi
+
+    # Normalize to match stored format
+    case "$version_format" in
+        raw)
+            # Strip v prefix if present (uv, fzf, tailscale, chezmoi, zsh-syntax-highlighting store without v)
+            echo "${raw_tag#v}"
+            ;;
+        v)
+            # Ensure v prefix (neovim, jj, starship, nvm, zsh-autosuggestions store with v)
+            if [[ "$raw_tag" != v* ]]; then
+                echo "v${raw_tag}"
+            else
+                echo "$raw_tag"
+            fi
+            ;;
+        bun)
+            # Bun tags are "bun-vX.Y.Z" — return as-is
+            echo "$raw_tag"
+            ;;
+        codex)
+            # Codex tags are "rust-vX.Y.Z" — return as-is
+            echo "$raw_tag"
+            ;;
+    esac
+}
+
+# ============================================================================
+# SHA256 fetching strategies
+# ============================================================================
+
+# Validate a SHA256 string: exactly 64 hex chars
+validate_sha256() {
+    local sha="$1"
+    if [[ "$sha" =~ ^[0-9a-f]{64}$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Strategy: download artifact and compute sha256 (stream, no disk)
+# Usage: sha256_download_compute URL
+sha256_download_compute() {
+    local url="$1"
+    local sha
+    sha="$(curl -fsSL --retry 2 "$url" 2>/dev/null | shasum -a 256 | awk '{print $1}')"
+    if validate_sha256 "$sha"; then
+        echo "$sha"
+    else
+        echo ""
+    fi
+}
+
+# Strategy: download <asset>.sha256 sidecar file
+# Usage: sha256_sidecar URL
+sha256_sidecar() {
+    local url="$1"
+    local sha
+    sha="$(curl -fsSL --retry 2 "${url}.sha256" 2>/dev/null | awk '{print $1}')"
+    if validate_sha256 "$sha"; then
+        echo "$sha"
+    else
+        echo ""
+    fi
+}
+
+# Strategy: download SHASUMS256.txt and grep for asset filename
+# Usage: sha256_shasums MANIFEST_URL ASSET_FILENAME
+sha256_shasums() {
+    local manifest_url="$1"
+    local asset_name="$2"
+    local sha
+    sha="$(curl -fsSL --retry 2 "$manifest_url" 2>/dev/null | grep "$asset_name" | awk '{print $1}')"
+    if validate_sha256 "$sha"; then
+        echo "$sha"
+    else
+        echo ""
+    fi
+}
+
+# Build asset URLs for a given dep and version, fetch SHA256 for each platform.
+# Sets global arrays: PLATFORM_NAMES=() and PLATFORM_SHAS=()
+PLATFORM_NAMES=()
+PLATFORM_SHAS=()
+
+fetch_checksums() {
+    local dep_name="$1"
+    local version="$2"
+    local sha_strategy="$3"
+    local num_platforms="$4"
+
+    PLATFORM_NAMES=()
+    PLATFORM_SHAS=()
+
+    if [ "$sha_strategy" = "none" ] || [ "$num_platforms" = "0" ]; then
+        return 0
+    fi
+
+    if [ "$SKIP_SHA" = "true" ]; then
+        return 0
+    fi
+
+    # Strip version prefixes for URL construction where needed
+    local raw_ver="$version"
+    case "$dep_name" in
+        uv|tailscale|chezmoi|fzf) raw_ver="${version#v}" ;;  # already raw, but be safe
+        bun) raw_ver="${version#bun-v}" ;;  # "bun-v1.3.9" -> "1.3.9"
+    esac
+
+    local base_url
+    local -a asset_names=()
+    local -a platform_keys=()
+
+    case "$dep_name" in
+        neovim)
+            base_url="https://github.com/neovim/neovim/releases/download/${version}"
+            platform_keys=(linux_x86_64 linux_arm64 macos_x86_64 macos_arm64)
+            asset_names=(
+                "nvim-linux-x86_64.tar.gz"
+                "nvim-linux-arm64.tar.gz"
+                "nvim-macos-x86_64.tar.gz"
+                "nvim-macos-arm64.tar.gz"
+            )
+            ;;
+        jj)
+            base_url="https://github.com/jj-vcs/jj/releases/download/${version}"
+            platform_keys=(linux_x86_64 linux_arm64 macos_x86_64 macos_arm64)
+            asset_names=(
+                "jj-${version}-x86_64-unknown-linux-musl.tar.gz"
+                "jj-${version}-aarch64-unknown-linux-musl.tar.gz"
+                "jj-${version}-x86_64-apple-darwin.tar.gz"
+                "jj-${version}-aarch64-apple-darwin.tar.gz"
+            )
+            ;;
+        codex)
+            base_url="https://github.com/openai/codex/releases/download/${version}"
+            platform_keys=(linux_x86_64 linux_arm64 macos_x86_64 macos_arm64)
+            asset_names=(
+                "codex-x86_64-unknown-linux-musl.tar.gz"
+                "codex-aarch64-unknown-linux-musl.tar.gz"
+                "codex-x86_64-apple-darwin.tar.gz"
+                "codex-aarch64-apple-darwin.tar.gz"
+            )
+            ;;
+        uv)
+            base_url="https://github.com/astral-sh/uv/releases/download/${version}"
+            platform_keys=(linux_x86_64 linux_arm64 macos_x86_64 macos_arm64)
+            asset_names=(
+                "uv-x86_64-unknown-linux-gnu.tar.gz"
+                "uv-aarch64-unknown-linux-gnu.tar.gz"
+                "uv-x86_64-apple-darwin.tar.gz"
+                "uv-aarch64-apple-darwin.tar.gz"
+            )
+            ;;
+        starship)
+            base_url="https://github.com/starship/starship/releases/download/${version}"
+            platform_keys=(linux_x86_64 linux_arm64 macos_x86_64 macos_arm64)
+            asset_names=(
+                "starship-x86_64-unknown-linux-musl.tar.gz"
+                "starship-aarch64-unknown-linux-musl.tar.gz"
+                "starship-x86_64-apple-darwin.tar.gz"
+                "starship-aarch64-apple-darwin.tar.gz"
+            )
+            ;;
+        bun)
+            base_url="https://github.com/oven-sh/bun/releases/download/${version}"
+            platform_keys=(linux_x86_64 linux_arm64 macos_x86_64 macos_arm64)
+            asset_names=(
+                "bun-linux-x64.zip"
+                "bun-linux-aarch64.zip"
+                "bun-darwin-x64.zip"
+                "bun-darwin-aarch64.zip"
+            )
+            ;;
+        tailscale)
+            platform_keys=(linux_x86_64 linux_arm64)
+            asset_names=(
+                "tailscale_${raw_ver}_amd64.tgz"
+                "tailscale_${raw_ver}_arm64.tgz"
+            )
+            ;;
+        chezmoi)
+            base_url="https://github.com/twpayne/chezmoi/releases/download/v${raw_ver}"
+            platform_keys=(linux_x86_64 linux_arm64 macos_x86_64 macos_arm64)
+            asset_names=(
+                "chezmoi_${raw_ver}_linux_amd64.tar.gz"
+                "chezmoi_${raw_ver}_linux_arm64.tar.gz"
+                "chezmoi_${raw_ver}_darwin_amd64.tar.gz"
+                "chezmoi_${raw_ver}_darwin_arm64.tar.gz"
+            )
+            ;;
+    esac
+
+    local i sha url
+    for i in "${!platform_keys[@]}"; do
+        PLATFORM_NAMES+=("${platform_keys[$i]}_sha256")
+        local asset="${asset_names[$i]}"
+
+        echo "  Fetching SHA256 for ${asset}..." >&2
+
+        case "$sha_strategy" in
+            download_compute)
+                url="${base_url}/${asset}"
+                sha="$(sha256_download_compute "$url")"
+                ;;
+            sidecar)
+                url="${base_url}/${asset}"
+                sha="$(sha256_sidecar "$url")"
+                ;;
+            shasums)
+                # Bun uses SHASUMS256.txt
+                sha="$(sha256_shasums "${base_url}/SHASUMS256.txt" "$asset")"
+                ;;
+            checksums_txt)
+                # chezmoi uses chezmoi_X.Y.Z_checksums.txt
+                sha="$(sha256_shasums "${base_url}/chezmoi_${raw_ver}_checksums.txt" "$asset")"
+                ;;
+            pkgs_tailscale)
+                url="https://pkgs.tailscale.com/stable/${asset}"
+                # Tailscale sidecar is at .sha256 URL
+                sha="$(curl -fsSL --retry 2 "${url}.sha256" 2>/dev/null | awk '{print $1}')"
+                if ! validate_sha256 "$sha"; then
+                    # Fallback: download and compute
+                    sha="$(sha256_download_compute "$url")"
+                fi
+                ;;
+        esac
+
+        if [ -z "$sha" ] || ! validate_sha256 "$sha"; then
+            echo "  ${YELLOW}Warning: Failed to get SHA256 for ${asset}${RESET}" >&2
+            PLATFORM_SHAS+=("")
+        else
+            PLATFORM_SHAS+=("$sha")
+        fi
+    done
+}
+
+# ============================================================================
+# TOML editing
+# ============================================================================
+
+# Return all values for KEY in SECTION, one per line.
+toml_get_values_in_section() {
+    local file="$1"
+    local section="$2"
+    local key="$3"
+
+    awk -v section="[$section]" -v key="$key" '
+    BEGIN { in_section = 0 }
+    {
+        if ($0 ~ /^\[/) {
+            in_section = ($0 == section)
+        }
+        if (in_section && $0 ~ ("^" key "[[:space:]]*=")) {
+            line = $0
+            if (line ~ /^[^=]+=[[:space:]]*"/) {
+                sub(/^[^=]+=[[:space:]]*"/, "", line)
+                sub(/".*$/, "", line)
+                print line
+            } else {
+                print "__UNPARSEABLE__"
+            }
+        }
+    }
+    ' "$file"
+}
+
+TOML_VALUES=()
+
+toml_collect_values_in_section() {
+    local file="$1"
+    local section="$2"
+    local key="$3"
+    local line
+
+    TOML_VALUES=()
+    while IFS= read -r line; do
+        TOML_VALUES+=("$line")
+    done < <(toml_get_values_in_section "$file" "$section" "$key")
+}
+
+toml_get_single_value() {
+    local file="$1"
+    local section="$2"
+    local key="$3"
+    toml_collect_values_in_section "$file" "$section" "$key"
+    if [ "${#TOML_VALUES[@]}" -ne 1 ]; then
+        return 1
+    fi
+    if [ "${TOML_VALUES[0]}" = "__UNPARSEABLE__" ]; then
+        return 1
+    fi
+    printf '%s\n' "${TOML_VALUES[0]}"
+}
+
+toml_count_value_in_section_key() {
+    local file="$1"
+    local section="$2"
+    local key="$3"
+    local target="$4"
+    awk -v section="[$section]" -v key="$key" -v target="$target" '
+    BEGIN { in_section = 0; count = 0 }
+    {
+        if ($0 ~ /^\[/) {
+            in_section = ($0 == section)
+        }
+        if (in_section && $0 ~ ("^" key "[[:space:]]*=")) {
+            line = $0
+            if (line ~ /^[^=]+=[[:space:]]*"/) {
+                sub(/^[^=]+=[[:space:]]*"/, "", line)
+                sub(/".*$/, "", line)
+                if (line == target) {
+                    count++
+                }
+            }
+        }
+    }
+    END { print count }
+    ' "$file"
+}
+
+toml_section_exists() {
+    local file="$1"
+    local section="$2"
+    grep -q "^\\[$section\\]\$" "$file" 2>/dev/null
+}
+
+# Update one TOML key exactly once and only if old value matches.
+# Usage: update_toml_key_exact FILE SECTION KEY OLD_VALUE NEW_VALUE
+update_toml_key_exact() {
+    local file="$1"
+    local section="$2"
+    local key="$3"
+    local expected="$4"
+    local value="$5"
+    local tmpfile="${file}.tmp.$$"
+
+    if ! awk -v section="[$section]" -v key="$key" -v expected="$expected" -v value="$value" '
+    BEGIN { in_section = 0; seen = 0; replaced = 0 }
+    {
+        if ($0 ~ /^\[/) {
+            in_section = ($0 == section)
+        }
+        if (in_section && $0 ~ ("^" key "[[:space:]]*=")) {
+            seen++
+            line = $0
+            if (line ~ /^[^=]+=[[:space:]]*"/) {
+                sub(/^[^=]+=[[:space:]]*"/, "", line)
+                sub(/".*$/, "", line)
+                if (line == expected) {
+                    printf "%s = \"%s\"\n", key, value
+                    replaced++
+                    next
+                }
+            }
+        }
+        print
+    }
+    END {
+        if (seen != 1 || replaced != 1) {
+            exit 42
+        }
+    }
+    ' "$file" > "$tmpfile"
+    then
+        rm -f "$tmpfile"
+        echo "${RED}Error: failed exact TOML replacement for [$section].$key${RESET}" >&2
+        return 1
+    fi
+
+    # Validate: non-empty and contains the section
+    if [ ! -s "$tmpfile" ]; then
+        rm -f "$tmpfile"
+        echo "${RED}Error: TOML edit produced empty file for [$section].$key${RESET}" >&2
+        return 1
+    fi
+    if ! grep -q "\\[$section\\]" "$tmpfile" 2>/dev/null; then
+        rm -f "$tmpfile"
+        echo "${RED}Error: TOML edit lost section [$section]${RESET}" >&2
+        return 1
+    fi
+
+    mv "$tmpfile" "$file"
+}
+
+count_literal_occurrences() {
+    local file="$1"
+    local needle="$2"
+    if [ -z "$needle" ]; then
+        echo "0"
+        return 0
+    fi
+    awk -v needle="$needle" '
+    BEGIN { count = 0 }
+    {
+        line = $0
+        while ((idx = index(line, needle)) > 0) {
+            count++
+            line = substr(line, idx + length(needle))
+        }
+    }
+    END { print count }
+    ' "$file"
+}
+
+replace_literal_once() {
+    local file="$1"
+    local old="$2"
+    local new="$3"
+    local tmpfile="${file}.tmp.$$"
+
+    if ! awk -v old="$old" -v new="$new" '
+    BEGIN { replaced = 0 }
+    {
+        if (replaced == 0) {
+            pos = index($0, old)
+            if (pos > 0) {
+                $0 = substr($0, 1, pos - 1) new substr($0, pos + length(old))
+                replaced = 1
+            }
+        }
+        print
+    }
+    END {
+        if (replaced != 1) {
+            exit 42
+        }
+    }
+    ' "$file" > "$tmpfile"
+    then
+        rm -f "$tmpfile"
+        echo "${RED}Error: failed exact literal replacement${RESET}" >&2
+        return 1
+    fi
+
+    if [ ! -s "$tmpfile" ]; then
+        rm -f "$tmpfile"
+        echo "${RED}Error: literal replacement produced empty file${RESET}" >&2
+        return 1
+    fi
+
+    mv "$tmpfile" "$file"
+}
+
+display_repo_path() {
+    local file="$1"
+    case "$file" in
+        "$CHEZMOI_DIR"/*) echo "${file#"$CHEZMOI_DIR"/}" ;;
+        *) echo "$file" ;;
+    esac
+}
+
+invalidate_version_cache() {
+    rm -f "$CACHE_FILE" "$CACHE_DIR/chezmoi-version-check.txt" 2>/dev/null || true
+}
+
+# ============================================================================
+# Bump transaction contract
+# ============================================================================
+
+TX_DEP_NAME=""
+TX_CURRENT_VERSION=""
+TX_TARGET_VERSION=""
+TX_OP_TYPES=()
+TX_OP_FILES=()
+TX_OP_SECTIONS=()
+TX_OP_KEYS=()
+TX_OP_OLD_VALUES=()
+TX_OP_NEW_VALUES=()
+TX_OP_DESCRIPTIONS=()
+TX_OP_REQUIRED=()
+TX_OP_PRE_NEW_COUNTS=()
+TX_TOUCHED_FILES=()
+TX_SNAPSHOT_FILES=()
+TX_SNAPSHOT_PATHS=()
+TX_LAST_ERROR=""
+
+tx_reset() {
+    TX_DEP_NAME=""
+    TX_CURRENT_VERSION=""
+    TX_TARGET_VERSION=""
+    TX_OP_TYPES=()
+    TX_OP_FILES=()
+    TX_OP_SECTIONS=()
+    TX_OP_KEYS=()
+    TX_OP_OLD_VALUES=()
+    TX_OP_NEW_VALUES=()
+    TX_OP_DESCRIPTIONS=()
+    TX_OP_REQUIRED=()
+    TX_OP_PRE_NEW_COUNTS=()
+    TX_TOUCHED_FILES=()
+    TX_SNAPSHOT_FILES=()
+    TX_SNAPSHOT_PATHS=()
+    TX_LAST_ERROR=""
+}
+
+tx_fail() {
+    TX_LAST_ERROR="$1"
+    return 1
+}
+
+tx_add_touched_file() {
+    local file="$1"
+    local existing
+    for existing in "${TX_TOUCHED_FILES[@]-}"; do
+        if [ "$existing" = "$file" ]; then
+            return 0
+        fi
+    done
+    TX_TOUCHED_FILES+=("$file")
+}
+
+tx_add_toml_op() {
+    local file="$1"
+    local section="$2"
+    local key="$3"
+    local old_value="$4"
+    local new_value="$5"
+    local description="$6"
+    local required="${7:-true}"
+
+    TX_OP_TYPES+=("toml")
+    TX_OP_FILES+=("$file")
+    TX_OP_SECTIONS+=("$section")
+    TX_OP_KEYS+=("$key")
+    TX_OP_OLD_VALUES+=("$old_value")
+    TX_OP_NEW_VALUES+=("$new_value")
+    TX_OP_DESCRIPTIONS+=("$description")
+    TX_OP_REQUIRED+=("$required")
+    TX_OP_PRE_NEW_COUNTS+=("-1")
+    tx_add_touched_file "$file"
+}
+
+tx_add_literal_op() {
+    local file="$1"
+    local old_value="$2"
+    local new_value="$3"
+    local description="$4"
+    local required="${5:-true}"
+
+    TX_OP_TYPES+=("literal")
+    TX_OP_FILES+=("$file")
+    TX_OP_SECTIONS+=("")
+    TX_OP_KEYS+=("")
+    TX_OP_OLD_VALUES+=("$old_value")
+    TX_OP_NEW_VALUES+=("$new_value")
+    TX_OP_DESCRIPTIONS+=("$description")
+    TX_OP_REQUIRED+=("$required")
+    TX_OP_PRE_NEW_COUNTS+=("-1")
+    tx_add_touched_file "$file"
+}
+
+tx_cleanup_snapshots() {
+    local snap
+    for snap in "${TX_SNAPSHOT_PATHS[@]-}"; do
+        rm -f "$snap" 2>/dev/null || true
+    done
+    TX_SNAPSHOT_FILES=()
+    TX_SNAPSHOT_PATHS=()
+}
+
+tx_snapshot_file() {
+    local file="$1"
+    local i
+    local snapshot_count="${#TX_SNAPSHOT_FILES[@]}"
+    for (( i=0; i<snapshot_count; i++ )); do
+        if [ "${TX_SNAPSHOT_FILES[$i]}" = "$file" ]; then
+            return 0
+        fi
+    done
+
+    if [ ! -f "$file" ]; then
+        tx_fail "Target file does not exist: $(display_repo_path "$file")"
+        return 1
+    fi
+
+    local snapshot
+    snapshot="$(mktemp "${TMPDIR:-/tmp}/chezmoi-bump.${TX_DEP_NAME}.XXXXXX")" || {
+        tx_fail "Failed to create snapshot for $(display_repo_path "$file")"
+        return 1
+    }
+    if ! cp "$file" "$snapshot"; then
+        rm -f "$snapshot"
+        tx_fail "Failed to snapshot $(display_repo_path "$file")"
+        return 1
+    fi
+
+    TX_SNAPSHOT_FILES+=("$file")
+    TX_SNAPSHOT_PATHS+=("$snapshot")
+}
+
+dep_updates_chezmoiversion() {
+    case "$1" in
+        neovim|jj|codex|uv|starship|bun|tailscale|fzf|claude) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+chezmoiversion_key_for_dep() {
+    local dep_name="$1"
+    if [ "$dep_name" = "claude" ]; then
+        echo "claude_code_npm"
+    else
+        echo "$dep_name"
+    fi
+}
+
+manifest_output_path_for_dep() {
+    local dep_name="$1"
+    if [ -z "$MANIFEST_OUT" ]; then
+        return 1
+    fi
+
+    if [ "$MANIFEST_MULTI" = "false" ]; then
+        echo "$MANIFEST_OUT"
+        return 0
+    fi
+
+    case "$MANIFEST_OUT" in
+        *.json) echo "${MANIFEST_OUT%.json}.${dep_name}.json" ;;
+        *) echo "${MANIFEST_OUT}.${dep_name}.json" ;;
+    esac
+}
+
+json_escape() {
+    local value="$1"
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    value="${value//$'\n'/\\n}"
+    value="${value//$'\r'/\\r}"
+    value="${value//$'\t'/\\t}"
+    printf '%s' "$value"
+}
+
+write_manifest_json() {
+    local dep_name="$1"
+    local path
+    if ! path="$(manifest_output_path_for_dep "$dep_name")"; then
+        return 0
+    fi
+
+    if ! mkdir -p "$(dirname "$path")"; then
+        tx_fail "Failed to create manifest directory for ${path}"
+        return 1
+    fi
+    local tmpfile="${path}.tmp.$$"
+
+    if ! {
+        echo "{"
+        echo "  \"dep\": \"$(json_escape "$TX_DEP_NAME")\","
+        echo "  \"current\": \"$(json_escape "$TX_CURRENT_VERSION")\","
+        echo "  \"target\": \"$(json_escape "$TX_TARGET_VERSION")\","
+        echo "  \"strict\": $STRICT,"
+        echo "  \"rollbackOnFailure\": $ROLLBACK_ON_FAILURE,"
+        echo "  \"generatedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
+        echo "  \"operations\": ["
+        local i
+        local op_count="${#TX_OP_TYPES[@]}"
+        for (( i=0; i<op_count; i++ )); do
+            [ "$i" -gt 0 ] && echo "    ,"
+            cat <<EOF
+    {
+      "type": "$(json_escape "${TX_OP_TYPES[$i]}")",
+      "file": "$(json_escape "${TX_OP_FILES[$i]}")",
+      "section": "$(json_escape "${TX_OP_SECTIONS[$i]}")",
+      "key": "$(json_escape "${TX_OP_KEYS[$i]}")",
+      "old": "$(json_escape "${TX_OP_OLD_VALUES[$i]}")",
+      "new": "$(json_escape "${TX_OP_NEW_VALUES[$i]}")",
+      "description": "$(json_escape "${TX_OP_DESCRIPTIONS[$i]}")",
+      "required": ${TX_OP_REQUIRED[$i]}
+    }
+EOF
+        done
+        echo "  ]"
+        echo "}"
+    } > "$tmpfile"; then
+        rm -f "$tmpfile" 2>/dev/null || true
+        tx_fail "Failed to render manifest JSON to ${path}"
+        return 1
+    fi
+
+    if ! mv "$tmpfile" "$path"; then
+        rm -f "$tmpfile" 2>/dev/null || true
+        tx_fail "Failed to write manifest JSON to ${path}"
+        return 1
+    fi
+    echo "  Manifest written: $(display_repo_path "$path")"
+}
+
+build_dep_manifest() {
+    local dep_name="$1"
+    local current="$2"
+    local latest="$3"
+    local data_file="$CHEZMOI_DIR/.chezmoidata.toml"
+    local versions_file="$CHEZMOI_DIR/.chezmoiversion.toml"
+    local external_file="$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl"
+
+    tx_reset
+    TX_DEP_NAME="$dep_name"
+    TX_CURRENT_VERSION="$current"
+    TX_TARGET_VERSION="$latest"
+
+    case "$dep_name" in
+        neovim|jj|codex|uv|starship|bun|tailscale|chezmoi)
+            tx_add_toml_op \
+                "$data_file" \
+                "pinned.${dep_name}" \
+                "version" \
+                "$current" \
+                "$latest" \
+                "$(display_repo_path "$data_file") [pinned.${dep_name}] version"
+
+            if [ "${#PLATFORM_NAMES[@]}" -gt 0 ] && [ "$SKIP_SHA" != "true" ]; then
+                local i sha_key sha_val sha_current
+                for i in "${!PLATFORM_NAMES[@]}"; do
+                    sha_key="${PLATFORM_NAMES[$i]}"
+                    sha_val="${PLATFORM_SHAS[$i]}"
+                    if [ -z "$sha_val" ]; then
+                        continue
+                    fi
+                    if ! sha_current="$(toml_get_single_value "$data_file" "pinned.${dep_name}" "$sha_key" 2>/dev/null)"; then
+                        tx_fail "Missing expected key $(display_repo_path "$data_file") [pinned.${dep_name}] ${sha_key}"
+                        return 1
+                    fi
+                    tx_add_toml_op \
+                        "$data_file" \
+                        "pinned.${dep_name}" \
+                        "$sha_key" \
+                        "$sha_current" \
+                        "$sha_val" \
+                        "$(display_repo_path "$data_file") [pinned.${dep_name}] ${sha_key}"
+                done
+            fi
+            ;;
+        claude)
+            tx_add_toml_op \
+                "$data_file" \
+                "pinned.claude" \
+                "npm_version" \
+                "$current" \
+                "$latest" \
+                "$(display_repo_path "$data_file") [pinned.claude] npm_version"
+            ;;
+        nvm)
+            tx_add_toml_op \
+                "$data_file" \
+                "nvm" \
+                "version" \
+                "$current" \
+                "$latest" \
+                "$(display_repo_path "$data_file") [nvm] version"
+            ;;
+        fzf)
+            tx_add_literal_op \
+                "$external_file" \
+                "\"--branch\", \"v${current#v}\"" \
+                "\"--branch\", \"v${latest#v}\"" \
+                "$(display_repo_path "$external_file") fzf --branch"
+            ;;
+        zsh-syntax-highlighting)
+            tx_add_literal_op \
+                "$external_file" \
+                "refs/tags/${current}.tar.gz" \
+                "refs/tags/${latest}.tar.gz" \
+                "$(display_repo_path "$external_file") zsh-syntax-highlighting tag"
+            ;;
+        zsh-autosuggestions)
+            tx_add_literal_op \
+                "$external_file" \
+                "refs/tags/${current}.tar.gz" \
+                "refs/tags/${latest}.tar.gz" \
+                "$(display_repo_path "$external_file") zsh-autosuggestions tag"
+            ;;
+        *)
+            tx_fail "No manifest builder for dependency: ${dep_name}"
+            return 1
+            ;;
+    esac
+
+    if dep_updates_chezmoiversion "$dep_name"; then
+        local vkey vold
+        vkey="$(chezmoiversion_key_for_dep "$dep_name")"
+        if vold="$(toml_get_single_value "$versions_file" "versions" "$vkey" 2>/dev/null)"; then
+            tx_add_toml_op \
+                "$versions_file" \
+                "versions" \
+                "$vkey" \
+                "$vold" \
+                "$latest" \
+                "$(display_repo_path "$versions_file") [versions] ${vkey}"
+        else
+            echo "  ${YELLOW}Warning: skipping $(display_repo_path "$versions_file") key '${vkey}' (not found)${RESET}"
+        fi
+    fi
+
+    if [ "${#TX_OP_TYPES[@]}" -eq 0 ]; then
+        tx_fail "No operations were generated for ${dep_name}"
+        return 1
+    fi
+}
+
+print_manifest_changes() {
+    local i file
+    local op_count="${#TX_OP_TYPES[@]}"
+    for (( i=0; i<op_count; i++ )); do
+        file="$(display_repo_path "${TX_OP_FILES[$i]}")"
+        case "${TX_OP_TYPES[$i]}" in
+            toml)
+                echo "    ${file} [${TX_OP_SECTIONS[$i]}] ${TX_OP_KEYS[$i]}: ${TX_OP_OLD_VALUES[$i]} → ${TX_OP_NEW_VALUES[$i]}"
+                ;;
+            literal)
+                echo "    ${file} ${TX_OP_DESCRIPTIONS[$i]##* }"
+                echo "      ${TX_OP_OLD_VALUES[$i]} → ${TX_OP_NEW_VALUES[$i]}"
+                ;;
+        esac
+    done
+}
+
+preflight_manifest() {
+    local file i current old_count new_count
+
+    for file in "${TX_TOUCHED_FILES[@]-}"; do
+        if ! tx_snapshot_file "$file"; then
+            return 1
+        fi
+    done
+
+    local op_count="${#TX_OP_TYPES[@]}"
+    for (( i=0; i<op_count; i++ )); do
+        case "${TX_OP_TYPES[$i]}" in
+            toml)
+                if ! toml_section_exists "${TX_OP_FILES[$i]}" "${TX_OP_SECTIONS[$i]}"; then
+                    tx_fail "Preflight failed: missing section [${TX_OP_SECTIONS[$i]}] in $(display_repo_path "${TX_OP_FILES[$i]}")"
+                    return 1
+                fi
+                toml_collect_values_in_section "${TX_OP_FILES[$i]}" "${TX_OP_SECTIONS[$i]}" "${TX_OP_KEYS[$i]}"
+                if [ "${#TOML_VALUES[@]}" -ne 1 ]; then
+                    tx_fail "Preflight failed: expected exactly one key [${TX_OP_SECTIONS[$i]}].${TX_OP_KEYS[$i]} in $(display_repo_path "${TX_OP_FILES[$i]}")"
+                    return 1
+                fi
+                current="${TOML_VALUES[0]}"
+                if [ "$current" = "__UNPARSEABLE__" ]; then
+                    tx_fail "Preflight failed: unparseable value for [${TX_OP_SECTIONS[$i]}].${TX_OP_KEYS[$i]} in $(display_repo_path "${TX_OP_FILES[$i]}")"
+                    return 1
+                fi
+                if [ "$current" != "${TX_OP_OLD_VALUES[$i]}" ]; then
+                    tx_fail "Preflight failed: expected '${TX_OP_OLD_VALUES[$i]}' but found '${current}' for [${TX_OP_SECTIONS[$i]}].${TX_OP_KEYS[$i]}"
+                    return 1
+                fi
+                ;;
+            literal)
+                old_count="$(count_literal_occurrences "${TX_OP_FILES[$i]}" "${TX_OP_OLD_VALUES[$i]}")"
+                new_count="$(count_literal_occurrences "${TX_OP_FILES[$i]}" "${TX_OP_NEW_VALUES[$i]}")"
+                TX_OP_PRE_NEW_COUNTS[i]="$new_count"
+                if [ "$old_count" -ne 1 ]; then
+                    tx_fail "Preflight failed: expected one occurrence of '${TX_OP_OLD_VALUES[$i]}' in $(display_repo_path "${TX_OP_FILES[$i]}"), found ${old_count}"
+                    return 1
+                fi
+                ;;
+            *)
+                tx_fail "Preflight failed: unknown op type '${TX_OP_TYPES[$i]}'"
+                return 1
+                ;;
+        esac
+    done
+}
+
+apply_manifest() {
+    local i
+    local op_count="${#TX_OP_TYPES[@]}"
+    for (( i=0; i<op_count; i++ )); do
+        case "${TX_OP_TYPES[$i]}" in
+            toml)
+                if ! update_toml_key_exact \
+                    "${TX_OP_FILES[$i]}" \
+                    "${TX_OP_SECTIONS[$i]}" \
+                    "${TX_OP_KEYS[$i]}" \
+                    "${TX_OP_OLD_VALUES[$i]}" \
+                    "${TX_OP_NEW_VALUES[$i]}"
+                then
+                    tx_fail "Apply failed: ${TX_OP_DESCRIPTIONS[$i]}"
+                    return 1
+                fi
+                ;;
+            literal)
+                if ! replace_literal_once \
+                    "${TX_OP_FILES[$i]}" \
+                    "${TX_OP_OLD_VALUES[$i]}" \
+                    "${TX_OP_NEW_VALUES[$i]}"
+                then
+                    tx_fail "Apply failed: ${TX_OP_DESCRIPTIONS[$i]}"
+                    return 1
+                fi
+                ;;
+            *)
+                tx_fail "Apply failed: unknown op type '${TX_OP_TYPES[$i]}'"
+                return 1
+                ;;
+        esac
+    done
+}
+
+verify_manifest() {
+    local file i new_count old_count pre_new
+
+    for file in "${TX_TOUCHED_FILES[@]-}"; do
+        if [ ! -s "$file" ]; then
+            tx_fail "Verify failed: file became empty: $(display_repo_path "$file")"
+            return 1
+        fi
+    done
+
+    local op_count="${#TX_OP_TYPES[@]}"
+    for (( i=0; i<op_count; i++ )); do
+        case "${TX_OP_TYPES[$i]}" in
+            toml)
+                if ! toml_section_exists "${TX_OP_FILES[$i]}" "${TX_OP_SECTIONS[$i]}"; then
+                    tx_fail "Verify failed: missing section [${TX_OP_SECTIONS[$i]}] in $(display_repo_path "${TX_OP_FILES[$i]}")"
+                    return 1
+                fi
+                toml_collect_values_in_section "${TX_OP_FILES[$i]}" "${TX_OP_SECTIONS[$i]}" "${TX_OP_KEYS[$i]}"
+                if [ "${#TOML_VALUES[@]}" -lt 1 ]; then
+                    tx_fail "Verify failed: missing key [${TX_OP_SECTIONS[$i]}].${TX_OP_KEYS[$i]} in $(display_repo_path "${TX_OP_FILES[$i]}")"
+                    return 1
+                fi
+                if [ "${#TOML_VALUES[@]}" -ne 1 ]; then
+                    tx_fail "Verify failed: duplicate key [${TX_OP_SECTIONS[$i]}].${TX_OP_KEYS[$i]} in $(display_repo_path "${TX_OP_FILES[$i]}")"
+                    return 1
+                fi
+                if [ "${TOML_VALUES[0]}" != "${TX_OP_NEW_VALUES[$i]}" ]; then
+                    tx_fail "Verify failed: expected '${TX_OP_NEW_VALUES[$i]}' for [${TX_OP_SECTIONS[$i]}].${TX_OP_KEYS[$i]} but found '${TOML_VALUES[0]}'"
+                    return 1
+                fi
+                if [ "$STRICT" = "true" ]; then
+                    old_count="$(toml_count_value_in_section_key "${TX_OP_FILES[$i]}" "${TX_OP_SECTIONS[$i]}" "${TX_OP_KEYS[$i]}" "${TX_OP_OLD_VALUES[$i]}")"
+                    if [ "${TX_OP_OLD_VALUES[$i]}" != "${TX_OP_NEW_VALUES[$i]}" ] && [ "$old_count" -ne 0 ]; then
+                        tx_fail "Verify failed: stale old value remains for [${TX_OP_SECTIONS[$i]}].${TX_OP_KEYS[$i]}"
+                        return 1
+                    fi
+                fi
+                ;;
+            literal)
+                old_count="$(count_literal_occurrences "${TX_OP_FILES[$i]}" "${TX_OP_OLD_VALUES[$i]}")"
+                new_count="$(count_literal_occurrences "${TX_OP_FILES[$i]}" "${TX_OP_NEW_VALUES[$i]}")"
+                if [ "$new_count" -lt 1 ]; then
+                    tx_fail "Verify failed: new literal missing for ${TX_OP_DESCRIPTIONS[$i]}"
+                    return 1
+                fi
+                if [ "$STRICT" = "true" ]; then
+                    pre_new="${TX_OP_PRE_NEW_COUNTS[$i]}"
+                    if [ "$old_count" -ne 0 ]; then
+                        tx_fail "Verify failed: old literal still present for ${TX_OP_DESCRIPTIONS[$i]}"
+                        return 1
+                    fi
+                    if [ "$new_count" -ne $((pre_new + 1)) ]; then
+                        tx_fail "Verify failed: expected one literal insertion for ${TX_OP_DESCRIPTIONS[$i]}"
+                        return 1
+                    fi
+                fi
+                ;;
+            *)
+                tx_fail "Verify failed: unknown op type '${TX_OP_TYPES[$i]}'"
+                return 1
+                ;;
+        esac
+    done
+}
+
+rollback_manifest() {
+    local i file snapshot had_error=false
+    local snapshot_count="${#TX_SNAPSHOT_FILES[@]}"
+    for (( i=snapshot_count-1; i>=0; i-- )); do
+        file="${TX_SNAPSHOT_FILES[$i]}"
+        snapshot="${TX_SNAPSHOT_PATHS[$i]}"
+        if ! cp "$snapshot" "$file"; then
+            had_error=true
+            continue
+        fi
+        if ! cmp -s "$snapshot" "$file"; then
+            had_error=true
+        fi
+    done
+
+    if [ "$had_error" = "true" ]; then
+        tx_fail "Rollback failed for one or more files"
+        return 1
+    fi
+}
+
+run_bump_transaction() {
+    local dep_name="$1"
+    local current="$2"
+    local latest="$3"
+
+    if ! build_dep_manifest "$dep_name" "$current" "$latest"; then
+        echo "  ${RED}${TX_LAST_ERROR:-Contract build failed}${RESET}" >&2
+        return "$EXIT_CONTRACT_BUILD_FAILED"
+    fi
+
+    if ! preflight_manifest; then
+        echo "  ${RED}${TX_LAST_ERROR:-Preflight failed}${RESET}" >&2
+        tx_cleanup_snapshots
+        return "$EXIT_CONTRACT_BUILD_FAILED"
+    fi
+
+    if ! write_manifest_json "$dep_name"; then
+        echo "  ${RED}${TX_LAST_ERROR:-Manifest write failed}${RESET}" >&2
+        tx_cleanup_snapshots
+        return "$EXIT_CONTRACT_BUILD_FAILED"
+    fi
+
+    if ! apply_manifest; then
+        echo "  ${RED}${TX_LAST_ERROR:-Apply failed}${RESET}" >&2
+        if [ "$ROLLBACK_ON_FAILURE" = "true" ]; then
+            echo "  Rolling back transaction..."
+            if ! rollback_manifest; then
+                echo "  ${RED}${TX_LAST_ERROR:-Rollback failed}${RESET}" >&2
+                tx_cleanup_snapshots
+                return "$EXIT_ROLLBACK_FAILED"
+            fi
+            tx_cleanup_snapshots
+        else
+            echo "  ${YELLOW}Rollback disabled (--no-rollback); leaving modified files for inspection.${RESET}" >&2
+            tx_cleanup_snapshots
+        fi
+        return "$EXIT_APPLY_FAILED"
+    fi
+
+    if ! verify_manifest; then
+        echo "  ${RED}${TX_LAST_ERROR:-Verify failed}${RESET}" >&2
+        if [ "$ROLLBACK_ON_FAILURE" = "true" ]; then
+            echo "  Rolling back transaction..."
+            if ! rollback_manifest; then
+                echo "  ${RED}${TX_LAST_ERROR:-Rollback failed}${RESET}" >&2
+                tx_cleanup_snapshots
+                return "$EXIT_ROLLBACK_FAILED"
+            fi
+            tx_cleanup_snapshots
+        else
+            echo "  ${YELLOW}Rollback disabled (--no-rollback); leaving modified files for inspection.${RESET}" >&2
+            tx_cleanup_snapshots
+        fi
+        return "$EXIT_VERIFY_FAILED"
+    fi
+
+    tx_cleanup_snapshots
+    invalidate_version_cache
+    return 0
+}
+
+# ============================================================================
+# Dep info helpers
+# ============================================================================
+
+dep_field() {
+    local dep_entry="$1"
+    local field_num="$2"
+    echo "$dep_entry" | cut -d'|' -f"$field_num"
+}
+
+find_dep_entry() {
+    local target="$1"
+    for entry in "${ALL_DEPS[@]}"; do
+        local name
+        name="$(dep_field "$entry" 1)"
+        if [ "$name" = "$target" ]; then
+            echo "$entry"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Normalize versions for comparison (strip common prefixes)
+normalize_for_compare() {
+    local ver="$1"
+    ver="${ver#v}"
+    ver="${ver#bun-v}"
+    ver="${ver#rust-v}"
+    echo "$ver"
+}
+
+# Compare two normalized versions.
+# Prints: -1 if left < right, 0 if equal, 1 if left > right
+compare_versions() {
+    local left="$1"
+    local right="$2"
+
+    if [ "$left" = "$right" ]; then
+        echo "0"
+        return 0
+    fi
+
+    # Numeric dotted versions are compared segment-by-segment.
+    if [[ "$left" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]] && [[ "$right" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
+        awk -v a="$left" -v b="$right" '
+        BEGIN {
+            n = split(a, aa, ".")
+            m = split(b, bb, ".")
+            max = (n > m) ? n : m
+            for (i = 1; i <= max; i++) {
+                av = (i in aa) ? aa[i] + 0 : 0
+                bv = (i in bb) ? bb[i] + 0 : 0
+                if (av < bv) { print "-1"; exit 0 }
+                if (av > bv) { print "1"; exit 0 }
+            }
+            print "0"
+        }'
+        return 0
+    fi
+
+    # Fallback lexical compare for non-standard versions.
+    if [ "$left" \< "$right" ]; then
+        echo "-1"
+    else
+        echo "1"
+    fi
+}
+
+# ============================================================================
+# Check mode: report all deps
+# ============================================================================
+
+run_check() {
+    # Check cache
+    if [ "$FORCE" = "false" ] && [ -f "$CACHE_FILE" ]; then
+        local cache_age
+        cache_age=$(( $(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0) ))
+        if [ "$cache_age" -lt "$CACHE_MAX_AGE" ]; then
+            cat "$CACHE_FILE"
+            echo ""
+            echo "(cached — use --force to refresh)"
+            return 0
+        fi
+    fi
+
+    echo "Checking all 13 pinned dependency versions..."
+    echo ""
+
+    local output=""
+    local has_update=false
+
+    output+="| Dependency | Pinned | Latest | Status |"$'\n'
+    output+="|---|---|---|---|"
+
+    for entry in "${ALL_DEPS[@]}"; do
+        local name source version_format sha_strategy num_platforms
+        name="$(dep_field "$entry" 1)"
+        source="$(dep_field "$entry" 2)"
+        version_format="$(dep_field "$entry" 3)"
+        sha_strategy="$(dep_field "$entry" 4)"
+        num_platforms="$(dep_field "$entry" 5)"
+
+        local current latest
+        current="$(get_current_version "$name" "$version_format")"
+
+        if [ -z "$current" ]; then
+            output+=$'\n'"| ${name} | (not found) | — | ? |"
+            continue
+        fi
+
+        latest="$(get_latest_version "$name" "$source" "$version_format")"
+
+        if [ -z "$latest" ]; then
+            output+=$'\n'"| ${name} | ${current} | (API error) | ? |"
+            continue
+        fi
+
+        local curr_norm lat_norm
+        curr_norm="$(normalize_for_compare "$current")"
+        lat_norm="$(normalize_for_compare "$latest")"
+
+        local cmp
+        cmp="$(compare_versions "$curr_norm" "$lat_norm")"
+
+        if [ "$cmp" = "0" ]; then
+            output+=$'\n'"| ${name} | ${current} | ${latest} | ${GREEN}current${RESET} |"
+        elif [ "$cmp" = "-1" ]; then
+            output+=$'\n'"| ${name} | ${current} | ${latest} | ${YELLOW}UPDATE${RESET} |"
+            has_update=true
+        else
+            output+=$'\n'"| ${name} | ${current} | ${latest} | ${CYAN}ahead${RESET} |"
+        fi
+    done
+
+    if [ "$has_update" = "true" ]; then
+        output+=$'\n'$'\n'"Updates available! Run: chezmoi-bump <dep> or chezmoi-bump --all"
+    else
+        output+=$'\n'$'\n'"All dependencies are up to date."
+    fi
+
+    echo "$output"
+
+    # Cache results (strip color codes for cache; ignore write failures)
+    mkdir -p "$(dirname "$CACHE_FILE")" 2>/dev/null || true
+    printf '%s\n' "$output" | awk '{ gsub(/\033\[[0-9;]*m/, ""); print }' > "$CACHE_FILE" 2>/dev/null || true
+}
+
+# ============================================================================
+# Bump a single dependency
+# ============================================================================
+
+bump_dep() {
+    local dep_name="$1"
+    local entry
+    if ! entry="$(find_dep_entry "$dep_name")"; then
+        echo "${RED}Error: Unknown dependency '${dep_name}'${RESET}" >&2
+        echo "Valid deps: neovim jj codex uv starship bun tailscale chezmoi claude nvm fzf zsh-syntax-highlighting zsh-autosuggestions" >&2
+        return 1
+    fi
+
+    local source version_format sha_strategy num_platforms
+    source="$(dep_field "$entry" 2)"
+    version_format="$(dep_field "$entry" 3)"
+    sha_strategy="$(dep_field "$entry" 4)"
+    num_platforms="$(dep_field "$entry" 5)"
+
+    local current latest
+    current="$(get_current_version "$dep_name" "$version_format")"
+    if [ -z "$current" ]; then
+        echo "${RED}Error: Could not read current version for ${dep_name}${RESET}" >&2
+        return 1
+    fi
+
+    echo "${BOLD}${dep_name}${RESET}: checking for updates..."
+    latest="$(get_latest_version "$dep_name" "$source" "$version_format")"
+
+    if [ -z "$latest" ]; then
+        echo "  ${RED}Failed to fetch latest version (API error)${RESET}"
+        return 1
+    fi
+
+    local curr_norm lat_norm cmp
+    curr_norm="$(normalize_for_compare "$current")"
+    lat_norm="$(normalize_for_compare "$latest")"
+    cmp="$(compare_versions "$curr_norm" "$lat_norm")"
+
+    if [ "$cmp" = "0" ]; then
+        echo "  ${GREEN}Already up to date: ${current}${RESET}"
+        return 2  # 2 = already current (distinct from 0=bumped, 1=failed)
+    fi
+
+    if [ "$cmp" = "1" ]; then
+        echo "  ${CYAN}Pinned version (${current}) is newer than latest source value (${latest}); skipping downgrade.${RESET}"
+        return 2
+    fi
+
+    echo "  ${current} → ${CYAN}${latest}${RESET}"
+
+    # Fetch checksums if applicable
+    if [ "$sha_strategy" != "none" ] && [ "$num_platforms" != "0" ] && [ "$SKIP_SHA" != "true" ]; then
+        echo "  Fetching SHA256 checksums..."
+        fetch_checksums "$dep_name" "$latest" "$sha_strategy" "$num_platforms"
+
+        # Check if any SHA failed
+        local sha_ok=true
+        for sha in "${PLATFORM_SHAS[@]-}"; do
+            if [ -z "$sha" ]; then
+                sha_ok=false
+                break
+            fi
+        done
+
+        if [ "$sha_ok" = "false" ]; then
+            echo "  ${RED}Failed to fetch all SHA256 checksums — skipping ${dep_name}${RESET}"
+            return 1
+        fi
+    fi
+
+    if [ "$DRY_RUN" = "true" ]; then
+        if ! build_dep_manifest "$dep_name" "$current" "$latest"; then
+            echo "  ${RED}${TX_LAST_ERROR:-Contract build failed}${RESET}" >&2
+            return "$EXIT_CONTRACT_BUILD_FAILED"
+        fi
+        if ! preflight_manifest; then
+            echo "  ${RED}${TX_LAST_ERROR:-Preflight failed}${RESET}" >&2
+            tx_cleanup_snapshots
+            return "$EXIT_CONTRACT_BUILD_FAILED"
+        fi
+        echo "  ${YELLOW}[dry-run]${RESET} Would update:"
+        print_manifest_changes
+        if ! write_manifest_json "$dep_name"; then
+            echo "  ${RED}${TX_LAST_ERROR:-Manifest write failed}${RESET}" >&2
+            tx_cleanup_snapshots
+            return "$EXIT_CONTRACT_BUILD_FAILED"
+        fi
+        tx_cleanup_snapshots
+        return 0
+    fi
+
+    local tx_rc=0
+    run_bump_transaction "$dep_name" "$current" "$latest" || tx_rc=$?
+    if [ "$tx_rc" -ne 0 ]; then
+        return "$tx_rc"
+    fi
+
+    echo "  ${GREEN}Done${RESET}"
+    return 0
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+main() {
+    parse_args "$@"
+    validate_prerequisites
+
+    if [ "$MODE" = "check" ]; then
+        run_check
+        return 0
+    fi
+
+    # Bump mode
+    local bumped=0
+    local failed=0
+    local skipped=0
+    local overall_rc=0
+    local deps_list=()
+
+    if [ "$BUMP_ALL" = "true" ]; then
+        # Gather all deps with available updates
+        echo "Scanning all dependencies for updates..."
+        echo ""
+        for entry in "${ALL_DEPS[@]}"; do
+            local name source version_format
+            name="$(dep_field "$entry" 1)"
+            source="$(dep_field "$entry" 2)"
+            version_format="$(dep_field "$entry" 3)"
+
+            local current latest
+            current="$(get_current_version "$name" "$version_format")"
+            [ -z "$current" ] && continue
+
+            latest="$(get_latest_version "$name" "$source" "$version_format")"
+            [ -z "$latest" ] && continue
+
+            local curr_norm lat_norm cmp
+            curr_norm="$(normalize_for_compare "$current")"
+            lat_norm="$(normalize_for_compare "$latest")"
+            cmp="$(compare_versions "$curr_norm" "$lat_norm")"
+
+            if [ "$cmp" = "-1" ]; then
+                deps_list+=("$name")
+            fi
+        done
+
+        if [ ${#deps_list[@]} -eq 0 ]; then
+            echo "${GREEN}All dependencies are up to date.${RESET}"
+            return 0
+        fi
+
+        echo "Dependencies with updates: ${deps_list[*]}"
+        echo ""
+    else
+        deps_list=("${DEPS_TO_BUMP[@]}")
+    fi
+
+    if [ -n "$MANIFEST_OUT" ] && [ "${#deps_list[@]}" -gt 1 ]; then
+        MANIFEST_MULTI=true
+    else
+        MANIFEST_MULTI=false
+    fi
+
+    for dep in "${deps_list[@]}"; do
+        local rc=0
+        bump_dep "$dep" || rc=$?
+        case "$rc" in
+            0) bumped=$((bumped + 1)) ;;    # Successfully bumped
+            2) skipped=$((skipped + 1)) ;;  # Already current
+            *)
+                failed=$((failed + 1))      # Error
+                if [ "$overall_rc" -eq 0 ]; then
+                    overall_rc="$rc"
+                fi
+                ;;
+        esac
+        echo ""
+    done
+
+    # Summary
+    echo "─────────────────────────────────"
+    if [ "$DRY_RUN" = "true" ]; then
+        echo "${YELLOW}Dry run complete.${RESET} Planned: ${bumped}  Skipped: ${skipped}  Failed: ${failed}"
+        echo "No files were modified."
+    else
+        echo "Bumped: ${GREEN}${bumped}${RESET}  Skipped: ${skipped}  Failed: ${RED}${failed}${RESET}"
+        if [ "$bumped" -gt 0 ]; then
+            echo ""
+            echo "Next steps:"
+            echo "  chezmoi diff                     # Review changes"
+            echo "  chezmoi apply --refresh-externals # Apply updated config"
+        fi
+    fi
+
+    if [ "$failed" -gt 0 ]; then
+        return "$overall_rc"
+    fi
+    return 0
+}
+
+main "$@"

@@ -6,6 +6,7 @@
 - `czuf`: forced jj-based update with externals/tool refresh.
 - On macOS, uv setup is Homebrew-first during apply/refresh; pinned GitHub artifact install remains fallback when Homebrew is unavailable.
 - `czvc`: checks pinned versions.
+- `czb`: bumps pinned versions with preflight/apply/verify transaction checks and rollback on failure.
 - `czu`/`czuf` rebase to `[git].defaultBranch` from `.chezmoidata.toml` (with remote-head fallback) to avoid hardcoding branch names.
 
 Command definitions live under:

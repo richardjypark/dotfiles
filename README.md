@@ -53,6 +53,12 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 | `czu` | Managed wrapper command in `~/.local/bin/czu`: runs `jj fetch` + `jj rebase -d <default-branch>` (from `.chezmoidata.toml` `[git].defaultBranch`, with remote-head fallback), defaults `CHEZMOI_PROFILE=omarchy` on Omarchy hosts when unset, then runs `chezmoi apply`. | Daily update when you want the jj-based workflow. |
 | `czuf` | Managed wrapper command in `~/.local/bin/czuf`: same as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 chezmoi apply --refresh-externals --force`. | Full refresh when pinned tools/externals changed or state needs rebuilding (macOS uses Homebrew-first `uv`, with pinned artifact fallback). |
 | `czvc` | Runs `chezmoi-check-versions`. | Check pinned versions against upstream releases. |
+| `czb` | Runs `chezmoi-bump` with fail-closed transaction checks (preflight -> apply -> verify -> rollback on failure). | Bump pinned dependency versions safely. |
+
+`chezmoi-bump` safety/debug flags:
+- `--manifest-out <path>` writes the computed transaction manifest (multi-dep runs emit one file per dep).
+- `--no-strict` relaxes post-apply verification (strict is default).
+- `--no-rollback` keeps mutated files on failure for debugging (rollback is default).
 
 ## Role + Profile Matrix
 
