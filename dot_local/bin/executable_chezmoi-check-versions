@@ -117,8 +117,10 @@ output="| Dependency | Pinned | Latest | Status |
 if [ "$has_update" = "true" ]; then
     output="${output}
 
-Updates available! Edit the relevant config files and run:
-  chezmoi apply --refresh-externals"
+Updates available! To bump versions automatically:
+  chezmoi-bump --check           # Full report (all 13 deps)
+  chezmoi-bump <dep> [<dep>...]  # Bump specific deps
+  chezmoi-bump --all             # Bump all outdated deps"
 else
     output="${output}
 
