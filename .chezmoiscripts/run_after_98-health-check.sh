@@ -82,6 +82,23 @@ for tool in zsh git curl; do
     fi
 done
 
+vecho ""
+vecho "--- Chezmoi Helper Commands ---"
+
+if [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
+    check_pass "~/.local/bin present in PATH"
+else
+    check_warn "~/.local/bin missing from PATH (managed cz* commands may be unavailable in this shell)"
+fi
+
+for tool in czu czuf czb czvc chezmoi-bump chezmoi-check-versions; do
+    if is_installed "$tool"; then
+        check_pass "$tool: $(command -v "$tool")"
+    else
+        check_fail "$tool not found (expected managed command in ~/.local/bin)"
+    fi
+done
+
 # 3. Development tools (installed by setup scripts)
 vecho ""
 vecho "--- Development Tools ---"
