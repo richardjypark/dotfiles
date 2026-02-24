@@ -67,6 +67,24 @@ ALL_DEPS=(
     "zsh-autosuggestions|zsh-users/zsh-autosuggestions|v|none|0"
 )
 
+# Return file mtime as epoch seconds. Falls back to 0 when unavailable.
+cache_mtime_epoch() {
+    local file="$1"
+    local mtime
+
+    # GNU stat (Linux)
+    mtime="$(stat -c %Y "$file" 2>/dev/null || true)"
+    if [[ ! "$mtime" =~ ^[0-9]+$ ]]; then
+        # BSD stat (macOS/BSD)
+        mtime="$(stat -f %m "$file" 2>/dev/null || true)"
+    fi
+    if [[ ! "$mtime" =~ ^[0-9]+$ ]]; then
+        echo "0"
+        return 0
+    fi
+    echo "$mtime"
+}
+
 # ============================================================================
 # Argument parsing
 # ============================================================================
@@ -1488,8 +1506,9 @@ compare_versions() {
 run_check() {
     # Check cache
     if [ "$FORCE" = "false" ] && [ -f "$CACHE_FILE" ]; then
-        local cache_age
-        cache_age=$(( $(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0) ))
+        local cache_mtime cache_age
+        cache_mtime="$(cache_mtime_epoch "$CACHE_FILE")"
+        cache_age=$(( $(date +%s) - cache_mtime ))
         if [ "$cache_age" -lt "$CACHE_MAX_AGE" ]; then
             cat "$CACHE_FILE"
             echo ""
@@ -1503,6 +1522,7 @@ run_check() {
 
     local output=""
     local has_update=false
+    local api_error_count=0
 
     output+="| Dependency | Pinned | Latest | Status |"$'\n'
     output+="|---|---|---|---|"
@@ -1527,6 +1547,7 @@ run_check() {
 
         if [ -z "$latest" ]; then
             output+=$'\n'"| ${name} | ${current} | (API error) | ? |"
+            api_error_count=$((api_error_count + 1))
             continue
         fi
 
@@ -1549,7 +1570,12 @@ run_check() {
 
     if [ "$has_update" = "true" ]; then
         output+=$'\n'$'\n'"Updates available! Run: chezmoi-bump <dep> or chezmoi-bump --all"
-    else
+    fi
+
+    if [ "$api_error_count" -gt 0 ]; then
+        output+=$'\n'$'\n'"Check incomplete: ${api_error_count} dependency check(s) failed due to API/network errors."
+        output+=$'\n'"Tip: set GITHUB_TOKEN to increase GitHub API rate limits, then re-run with --force."
+    elif [ "$has_update" = "false" ]; then
         output+=$'\n'$'\n'"All dependencies are up to date."
     fi
 
