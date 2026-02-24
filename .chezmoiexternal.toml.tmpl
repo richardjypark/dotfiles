@@ -32,7 +32,7 @@ type = "git-repo"
 url = "https://github.com/junegunn/fzf.git"
 exact = true
 refreshPeriod = "168h"
-clone.args = ["--depth=1", "--branch", "v0.67.0"]
+clone.args = ["--depth=1", "--branch", "v0.68.0"]
 pull.args = ["--ff-only"]
 
 {{ if and (ne (env "CHEZMOI_ROLE") "server") (ne .chezmoi.hostname "vultr") }}
