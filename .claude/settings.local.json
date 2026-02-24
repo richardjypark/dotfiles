@@ -20,7 +20,8 @@
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:release-assets.githubusercontent.com)"
+      "WebFetch(domain:release-assets.githubusercontent.com)",
+      "WebFetch(domain:pkgs.tailscale.com)"
     ]
   },
   "sandbox": {
