@@ -8,6 +8,24 @@ CACHE_FILE="$HOME/.cache/chezmoi-version-check.txt"
 CACHE_MAX_AGE=86400  # 24 hours in seconds
 CHEZMOI_DIR="$HOME/.local/share/chezmoi"
 
+# Return file mtime as epoch seconds. Falls back to 0 when unavailable.
+cache_mtime_epoch() {
+    local file="$1"
+    local mtime
+
+    # GNU stat (Linux)
+    mtime="$(stat -c %Y "$file" 2>/dev/null || true)"
+    if [[ ! "$mtime" =~ ^[0-9]+$ ]]; then
+        # BSD stat (macOS/BSD)
+        mtime="$(stat -f %m "$file" 2>/dev/null || true)"
+    fi
+    if [[ ! "$mtime" =~ ^[0-9]+$ ]]; then
+        echo "0"
+        return 0
+    fi
+    echo "$mtime"
+}
+
 # Parse args
 FORCE=false
 if [ "${1:-}" = "--force" ] || [ "${1:-}" = "-f" ]; then
@@ -16,7 +34,8 @@ fi
 
 # Check cache freshness
 if [ "$FORCE" = "false" ] && [ -f "$CACHE_FILE" ]; then
-    cache_age=$(( $(date +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0) ))
+    cache_mtime="$(cache_mtime_epoch "$CACHE_FILE")"
+    cache_age=$(( $(date +%s) - cache_mtime ))
     if [ "$cache_age" -lt "$CACHE_MAX_AGE" ]; then
         cat "$CACHE_FILE"
         echo ""
@@ -30,10 +49,17 @@ fi
 github_latest_tag() {
     local repo="$1"
     local tag response
+    local -a headers=(
+        -H "Accept: application/vnd.github+json"
+        -H "User-Agent: chezmoi-check-versions"
+    )
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        headers+=(-H "Authorization: Bearer $GITHUB_TOKEN")
+    fi
+
     response="$(
         curl -fsSL --retry 2 \
-            -H "Accept: application/vnd.github+json" \
-            -H "User-Agent: chezmoi-check-versions" \
+            "${headers[@]}" \
             "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null || true
     )"
 
@@ -80,6 +106,7 @@ echo ""
 # Build results table
 results=""
 has_update=false
+API_ERROR_COUNT=0
 
 check_dep() {
     local name="$1" pinned="$2" repo="$3"
@@ -94,6 +121,7 @@ check_dep() {
 
     if [ -z "$latest" ]; then
         results="${results}\n| ${name} | ${pinned} | (API error) | ? |"
+        API_ERROR_COUNT=$((API_ERROR_COUNT + 1))
         return
     fi
 
@@ -121,7 +149,14 @@ Updates available! To bump versions automatically:
   chezmoi-bump --check           # Full report (all 13 deps)
   chezmoi-bump <dep> [<dep>...]  # Bump specific deps
   chezmoi-bump --all             # Bump all outdated deps"
-else
+fi
+
+if [ "$API_ERROR_COUNT" -gt 0 ]; then
+    output="${output}
+
+Check incomplete: ${API_ERROR_COUNT} dependency check(s) failed due to API/network errors.
+Tip: set GITHUB_TOKEN to increase GitHub API rate limits, then re-run with --force."
+elif [ "$has_update" = "false" ]; then
     output="${output}
 
 All dependencies are up to date."
@@ -129,6 +164,13 @@ fi
 
 echo "$output"
 
-# Cache results
-mkdir -p "$(dirname "$CACHE_FILE")"
-echo "$output" > "$CACHE_FILE"
+# Cache only complete results.
+if [ "$API_ERROR_COUNT" -eq 0 ]; then
+    mkdir -p "$(dirname "$CACHE_FILE")"
+    echo "$output" > "$CACHE_FILE"
+fi
+
+# Distinct non-zero exit for incomplete checks caused by API/network errors.
+if [ "$API_ERROR_COUNT" -gt 0 ]; then
+    exit 2
+fi
