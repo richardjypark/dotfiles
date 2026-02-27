@@ -17,14 +17,29 @@ Command definitions live under:
 
 ## Agent Skills In This Repo
 
-Available local skills include:
+Skills are shared across both Claude Code and Codex CLI so that either tool follows the same repo conventions.
 
-- `chezmoi-bootstrap-operator`
-- `chezmoi-script-maintainer`
-- `dotfiles-version-refresh`
-- `jj`
+### Claude Code Skills (`~/.claude/skills/`)
 
-These are installed under `~/.codex/skills` and are intended to keep bootstrap/script/version changes consistent with repo conventions.
+Managed via `private_dot_claude/skills/`. Each skill has a `SKILL.md` with YAML frontmatter (`name`, `description`) and references shared Codex reference files by repo-relative path.
+
+- `jj` — Jujutsu version control workflows (core concepts, daily flow, advanced workflows, revsets, config aliases, conflict resolution, safety rules, recovery, git-to-jj mapping).
+- `chezmoi-script-maintainer` — Create and maintain `.chezmoiscripts/*` setup scripts. References `private_dot_codex/skills/chezmoi-script-maintainer/references/script-patterns.md`.
+- `chezmoi-bootstrap-operator` — Bootstrap workflow operations across Omarchy and VPS paths. References `private_dot_codex/skills/chezmoi-bootstrap-operator/references/bootstrap-matrix.md`.
+- `dotfiles-version-refresh` — Update pinned tool versions and external dependencies. References `private_dot_codex/skills/dotfiles-version-refresh/references/version-map.md`.
+
+### Codex CLI Skills (`~/.codex/skills/`)
+
+Managed via `private_dot_codex/skills/`. Each skill has a `SKILL.md`, an `agents/openai.yaml`, and optional `references/` directory with detailed reference files.
+
+- `jj` — Jujutsu version control workflows (same content as Claude Code version).
+- `chezmoi-script-maintainer` — Script creation patterns with `references/script-patterns.md`.
+- `chezmoi-bootstrap-operator` — Bootstrap flows with `references/bootstrap-matrix.md`.
+- `dotfiles-version-refresh` — Version pinning with `references/version-map.md`.
+
+### Reference Sharing
+
+Canonical reference files live under `private_dot_codex/skills/*/references/`. Claude Code skills cross-reference these by repo-relative path since both tools operate from `~/.local/share/chezmoi`.
 
 ## Future Machine Combination Pattern
 
