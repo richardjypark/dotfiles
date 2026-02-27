@@ -29,12 +29,44 @@ fi
 # Load NVM
 . "$NVM_DIR/nvm.sh"
 
+resolve_node_version() {
+    local requested="$1"
+    local resolved=""
+
+    resolved="$(nvm version "$requested" 2>/dev/null || true)"
+    if [ -n "$resolved" ] && [ "$resolved" != "N/A" ]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    resolved="$(nvm version-remote "$requested" 2>/dev/null || true)"
+    if [ -n "$resolved" ] && [ "$resolved" != "N/A" ]; then
+        printf '%s\n' "$resolved"
+        return 0
+    fi
+
+    return 1
+}
+
 # Determine if the requested Node version is already installed in NVM.
 # `nvm current` can be "none/system" in non-interactive apply runs.
-CURRENT_NODE_VERSION=$(nvm version "$NODE_VERSION" 2>/dev/null || echo "N/A")
+CURRENT_NODE_VERSION="$(nvm version "$NODE_VERSION" 2>/dev/null || true)"
+if [ -z "$CURRENT_NODE_VERSION" ] || [ "$CURRENT_NODE_VERSION" = "N/A" ]; then
+    CURRENT_NODE_VERSION="N/A"
+fi
+
+TARGET_NODE_VERSION="$CURRENT_NODE_VERSION"
+if [ "$TARGET_NODE_VERSION" = "N/A" ]; then
+    if ! TARGET_NODE_VERSION="$(resolve_node_version "$NODE_VERSION")"; then
+        eecho "Error: Failed to resolve Node.js version '$NODE_VERSION' via NVM"
+        eecho "Run 'nvm ls-remote --lts' to verify remote resolution, then rerun chezmoi apply."
+        exit 1
+    fi
+fi
+
 if should_skip_state "$NODE_STATE"; then
-    STATE_NODE_PATH="$(nvm which "$NODE_VERSION" 2>/dev/null || true)"
-    if [ "$CURRENT_NODE_VERSION" != "N/A" ] && [ -n "$STATE_NODE_PATH" ] && [ -x "$STATE_NODE_PATH" ]; then
+    STATE_NODE_PATH="$(nvm which "$TARGET_NODE_VERSION" 2>/dev/null || true)"
+    if [ -n "$STATE_NODE_PATH" ] && [ -x "$STATE_NODE_PATH" ]; then
         STATE_NODE_BIN="$(dirname "$STATE_NODE_PATH")"
         if [ -x "$STATE_NODE_BIN/npm" ]; then
             vecho "Node.js setup already completed (state tracked)"
@@ -50,21 +82,26 @@ if [ "$CURRENT_NODE_VERSION" = "N/A" ]; then
 fi
 
 if [ "$NEED_NODE_INSTALL" = "true" ]; then
-    eecho "Installing Node.js $NODE_VERSION..."
-    run_quiet nvm install "$NODE_VERSION"
+    if [ "$TARGET_NODE_VERSION" = "$NODE_VERSION" ]; then
+        eecho "Installing Node.js $TARGET_NODE_VERSION..."
+    else
+        eecho "Installing Node.js $TARGET_NODE_VERSION (requested: $NODE_VERSION)..."
+    fi
+    run_quiet nvm install "$TARGET_NODE_VERSION"
 else
-    vecho "Node.js $CURRENT_NODE_VERSION is already installed and set as default"
+    vecho "Node.js $CURRENT_NODE_VERSION is already installed"
 fi
 
-# Keep default alias aligned with requested version without forcing reinstall.
-nvm alias default "$NODE_VERSION" >/dev/null 2>&1
+# Keep default alias aligned with the concrete installed version so `nvm use default`
+# does not fall back to an unresolved symbolic alias such as `lts/*`.
+nvm alias default "$TARGET_NODE_VERSION" >/dev/null 2>&1
 
 # Ensure current shell resolves tools from active NVM Node, not external shims.
-nvm use default >/dev/null 2>&1
+nvm use "$TARGET_NODE_VERSION" >/dev/null 2>&1
 
 NVM_BIN="${NVM_BIN:-}"
 if [ -z "$NVM_BIN" ] || [ ! -x "$NVM_BIN/npm" ]; then
-    CURRENT_NVM_NODE=$(nvm which current 2>/dev/null || true)
+    CURRENT_NVM_NODE=$(nvm which "$TARGET_NODE_VERSION" 2>/dev/null || true)
     if [ -n "$CURRENT_NVM_NODE" ] && [ -x "$CURRENT_NVM_NODE" ]; then
         NVM_BIN=$(dirname "$CURRENT_NVM_NODE")
     fi
