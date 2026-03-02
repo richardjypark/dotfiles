@@ -30,6 +30,14 @@ if [ "$VERBOSE" = "true" ]; then
     echo "  chezmoi apply --dry-run  # preview changes"
     echo "  chezmoi update           # update configs only"
     echo "  rm -rf ~/.cache/chezmoi-state  # force full re-run"
+    echo ""
+    echo "Chezmoi shortcuts:"
+    echo "  czu   # fetch + jj rebase + chezmoi apply"
+    echo "  czuf  # czu + refresh externals/force + trust gate"
+    echo "  czvc  # alias for chezmoi-check-versions"
+    echo "  czb   # alias for chezmoi-bump"
+    echo "  chezmoi-check-versions  # check pinned dependency versions"
+    echo "  chezmoi-bump            # bump pinned dependency versions"
 else
     echo "Tip: export VERBOSE=true for detailed output"
 fi
