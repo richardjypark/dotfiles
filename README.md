@@ -58,6 +58,10 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 `cz*` commands are installed in `~/.local/bin` and do not rely on shell aliases.
 Aliases in `~/.config/shell/alias.sh` are convenience shortcuts only.
 
+Shell preview behavior:
+- `fzf` and `jj-fzf` previews prefer `bat` and auto-fallback to `batcat` on Debian/Ubuntu-style installs.
+- If neither command is available, previews degrade to plain output until `bat` is installed.
+
 `chezmoi-bump` safety/debug flags:
 - `--manifest-out <path>` writes the computed transaction manifest (multi-dep runs emit one file per dep).
 - `--no-strict` relaxes post-apply verification (strict is default).

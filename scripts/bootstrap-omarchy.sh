@@ -106,6 +106,7 @@ stop_sudo_session() {
 install_packages() {
   local -a base_packages=(
     git curl wget zsh tmux openssh tailscale chezmoi
+    # bat powers fzf and jj-fzf previews (with batcat fallback handled in shell config).
     ripgrep fd bat eza jq
   )
 

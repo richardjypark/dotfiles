@@ -414,7 +414,7 @@ install_tailscale() {
 
 install_dotfiles() {
   echo "== Dotfiles =="
-  apt_install git ca-certificates curl
+  apt_install git ca-certificates curl bat
 
   local chezmoi_bin="/usr/local/bin/chezmoi"
 
@@ -493,6 +493,7 @@ verify() {
   check "Kernel hardening config"     test -f /etc/sysctl.d/99-hardening.conf
   check "Swap active"                 bash -c "swapon --show | grep -q '/'"
   check "Tailscale installed"         bash -c "command -v tailscale"
+  check "bat installed"               bash -c "command -v bat || command -v batcat"
   check "Dotfiles applied"            sudo -u "${USERNAME}" -H chezmoi status
 
   echo ""
