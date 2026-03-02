@@ -137,6 +137,25 @@ else
     check_warn "bat/batcat not installed"
 fi
 
+# delta
+if is_installed delta; then
+    DELTA_VERSION=$(delta --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+    check_pass "delta: $DELTA_VERSION"
+else
+    check_warn "delta not installed"
+fi
+
+# eza / exa
+if is_installed eza; then
+    EZA_VERSION=$(eza --version 2>/dev/null | head -1 || echo "unknown")
+    check_pass "eza: $EZA_VERSION"
+elif is_installed exa; then
+    EXA_VERSION=$(exa --version 2>/dev/null | head -1 || echo "unknown")
+    check_pass "exa: $EXA_VERSION"
+else
+    check_warn "eza/exa not installed"
+fi
+
 # Node.js / NVM
 if [ -d "$HOME/.nvm" ]; then
     check_pass "NVM installed"

@@ -66,6 +66,7 @@ OPTIONAL_PACKAGES=(
     "jq"
     "ripgrep"
     "bat"
+    "git-delta"
     "eza"
     "fd"
     "gh"

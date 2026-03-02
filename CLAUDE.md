@@ -6,7 +6,7 @@ For tool-agnostic agent instructions shared across Codex/OpenCode/Claude workflo
 
 ## Overview
 
-This is a chezmoi-managed dotfiles repository optimized for performance with sophisticated state tracking and external resource management. The dotfiles configure Zsh with Oh My Zsh, Starship prompt (with native Jujutsu support), Tmux with session persistence, and development tools (Node.js via NVM, Python via uv, fzf, Jujutsu, Claude Code, Tailscale).
+This is a chezmoi-managed dotfiles repository optimized for performance with sophisticated state tracking and external resource management. The dotfiles configure Zsh with Oh My Zsh, Starship prompt (with native Jujutsu support), Tmux with session persistence, and development tools (Node.js via NVM, Python via uv, fzf, Jujutsu, Claude Code, Tailscale, delta, eza).
 
 ## Core Architecture
 
@@ -129,6 +129,9 @@ All scripts source `~/.local/lib/chezmoi-helpers.sh` (managed as `dot_local/priv
   - `gpg.sh` - GPG configuration
   - `profile.sh` - Shell startup profiling utilities
   - `jj-fzf.sh` - Interactive jj workflows via fzf (jji, jjbi, jjfi)
+
+`alias.sh` remaps interactive `ls`/`ll`/`la`/`lt` to `eza` (with `exa` fallback) and `diff` to `delta` when installed.
+`jj-fzf.sh` prefers `delta` for jj diff rendering and falls back to `bat`/plain output.
 
 **ZSH Plugins (via Oh My Zsh):**
 - git, terraform, ansible, ssh-agent, tmux

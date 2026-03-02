@@ -61,6 +61,10 @@ Aliases in `~/.config/shell/alias.sh` are convenience shortcuts only.
 Shell preview behavior:
 - `fzf` and `jj-fzf` previews prefer `bat` and auto-fallback to `batcat` on Debian/Ubuntu-style installs.
 - If neither command is available, previews degrade to plain output until `bat` is installed.
+- `jji`/`jjfi` diff rendering prefers `delta`, with fallback to `bat`/`batcat`, then plain `less` output.
+- Interactive shell aliases map `ls`/`ll`/`la`/`lt` to `eza` (or `exa` fallback) when installed.
+- Interactive shell aliases map `diff` to `delta` when installed.
+- Git pager and interactive patch diff filtering prefer `delta` and fall back to `less`/plain output when missing.
 
 `chezmoi-bump` safety/debug flags:
 - `--manifest-out <path>` writes the computed transaction manifest (multi-dep runs emit one file per dep).

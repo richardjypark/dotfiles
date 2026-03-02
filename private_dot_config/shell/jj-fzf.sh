@@ -4,6 +4,21 @@
 [ -n "$ZSH_VERSION" ] || return
 (( $+commands[jj] )) && (( $+commands[fzf] )) || return
 
+# Resolve delta command once for interactive diff viewing.
+__dotfiles_jj_delta_cmd="${DOTFILES_DELTA_CMD:-}"
+if [[ -z "$__dotfiles_jj_delta_cmd" ]]; then
+  if command -v delta >/dev/null 2>&1; then
+    __dotfiles_jj_delta_cmd="delta"
+  fi
+fi
+
+if [[ -n "$__dotfiles_jj_delta_cmd" ]]; then
+  export DOTFILES_DELTA_CMD="$__dotfiles_jj_delta_cmd"
+  __dotfiles_jj_diff_bind="ctrl-d:execute(jj diff -r {1} --color=never | $__dotfiles_jj_delta_cmd --paging=always)"
+  __dotfiles_jj_file_preview='jj diff -r REV --ignore-working-copy --color=never -- {} | DELTA --paging=never'
+  __dotfiles_jj_file_preview="${__dotfiles_jj_file_preview/DELTA/$__dotfiles_jj_delta_cmd}"
+fi
+
 # Resolve bat command once for interactive diff viewing.
 __dotfiles_jj_bat_cmd="${DOTFILES_BAT_CMD:-}"
 if [[ -z "$__dotfiles_jj_bat_cmd" ]]; then
@@ -14,7 +29,9 @@ if [[ -z "$__dotfiles_jj_bat_cmd" ]]; then
   fi
 fi
 
-if [[ -n "$__dotfiles_jj_bat_cmd" ]]; then
+if [[ -n "${__dotfiles_jj_diff_bind:-}" ]] && [[ -n "${__dotfiles_jj_file_preview:-}" ]]; then
+  :
+elif [[ -n "$__dotfiles_jj_bat_cmd" ]]; then
   export DOTFILES_BAT_CMD="$__dotfiles_jj_bat_cmd"
   __dotfiles_jj_diff_bind="ctrl-d:execute(jj diff -r {1} --color=always | $__dotfiles_jj_bat_cmd --language=diff --paging=always --style=plain)"
   __dotfiles_jj_file_preview='jj diff -r REV --ignore-working-copy --color=always -- {} | BAT --language=diff --paging=never --style=plain'

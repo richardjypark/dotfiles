@@ -24,7 +24,8 @@ Environment:
 - `CHEZMOI_PREFETCH_JOBS` (default `4`)
 - `CHEZMOI_DOWNLOAD_CACHE_DIR` (default `~/.cache/chezmoi-downloads`)
 
-Base package set includes `bat` so `fzf`/`jj-fzf` previews work immediately.
+Base package set includes `bat`, `git-delta`, and `eza` so preview/diff/list replacements
+work immediately on Omarchy hosts.
 
 ## Debian/Ubuntu VPS Bootstrap
 
@@ -46,8 +47,9 @@ Common env vars:
 - `LOCK_SSH_TO_TAILSCALE=1` (post-verification hardening)
 - `DISABLE_ROOT_LOGIN=1` (post-verification hardening)
 
-Bootstrap installs `bat` from apt repositories. Runtime shell config auto-detects
-`bat` and `batcat` command names.
+Bootstrap installs `bat`, then attempts `git-delta`/`delta` and `eza`/`exa` from apt
+repositories when available. Runtime shell config auto-detects command-name variants
+(`bat`/`batcat`, `eza`/`exa`).
 
 ## Role/Profile Behavior
 
