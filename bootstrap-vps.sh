@@ -416,6 +416,34 @@ install_dotfiles() {
   echo "== Dotfiles =="
   apt_install git ca-certificates curl bat
 
+  if ! command -v delta >/dev/null 2>&1; then
+    if apt-cache show git-delta >/dev/null 2>&1; then
+      if ! apt_install git-delta; then
+        echo "WARNING: failed to install git-delta; continuing with native diff tooling."
+      fi
+    elif apt-cache show delta >/dev/null 2>&1; then
+      if ! apt_install delta; then
+        echo "WARNING: failed to install delta package; continuing with native diff tooling."
+      fi
+    else
+      echo "WARNING: no apt package found for delta (git-delta/delta)."
+    fi
+  fi
+
+  if ! command -v eza >/dev/null 2>&1 && ! command -v exa >/dev/null 2>&1; then
+    if apt-cache show eza >/dev/null 2>&1; then
+      if ! apt_install eza; then
+        echo "WARNING: failed to install eza; continuing with native ls."
+      fi
+    elif apt-cache show exa >/dev/null 2>&1; then
+      if ! apt_install exa; then
+        echo "WARNING: failed to install exa; continuing with native ls."
+      fi
+    else
+      echo "WARNING: no apt package found for eza/exa."
+    fi
+  fi
+
   local chezmoi_bin="/usr/local/bin/chezmoi"
 
   if [[ ! -x "${chezmoi_bin}" ]]; then
@@ -466,7 +494,7 @@ install_dotfiles() {
 
 verify() {
   echo "== Verification =="
-  local pass=0 fail=0
+  local pass=0 fail=0 warn=0
 
   check() {
     local desc="$1"; shift
@@ -474,6 +502,15 @@ verify() {
       vecho "  [PASS] ${desc}"; (( ++pass ))
     else
       echo "  [FAIL] ${desc}"; (( ++fail ))
+    fi
+  }
+
+  check_optional() {
+    local desc="$1"; shift
+    if "$@" >/dev/null 2>&1; then
+      vecho "  [PASS] ${desc}"; (( ++pass ))
+    else
+      echo "  [WARN] ${desc} (optional)"; (( ++warn ))
     fi
   }
 
@@ -494,10 +531,12 @@ verify() {
   check "Swap active"                 bash -c "swapon --show | grep -q '/'"
   check "Tailscale installed"         bash -c "command -v tailscale"
   check "bat installed"               bash -c "command -v bat || command -v batcat"
+  check_optional "delta installed"    bash -c "command -v delta"
+  check_optional "eza/exa installed"  bash -c "command -v eza || command -v exa"
   check "Dotfiles applied"            sudo -u "${USERNAME}" -H chezmoi status
 
   echo ""
-  echo "  Results: ${pass} passed, ${fail} failed"
+  echo "  Results: ${pass} passed, ${warn} warnings, ${fail} failed"
   (( fail > 0 )) && echo "  Review failures above." || true
 }
 
