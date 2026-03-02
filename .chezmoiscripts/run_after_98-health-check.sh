@@ -126,6 +126,17 @@ else
     check_warn "fzf not installed"
 fi
 
+# bat / batcat
+if is_installed bat; then
+    BAT_VERSION=$(bat --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+    check_pass "bat: $BAT_VERSION"
+elif is_installed batcat; then
+    BATCAT_VERSION=$(batcat --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+    check_pass "batcat: $BATCAT_VERSION"
+else
+    check_warn "bat/batcat not installed"
+fi
+
 # Node.js / NVM
 if [ -d "$HOME/.nvm" ]; then
     check_pass "NVM installed"

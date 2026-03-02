@@ -28,7 +28,8 @@ PINNED_CHEZMOI_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 
 # State tracking with inline fallback validation
 if should_skip_state "prerequisites-setup"; then
-    if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi; then
+    if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi \
+        && (is_installed bat || is_installed batcat); then
         vecho "All essential prerequisites are already installed"
         exit 0
     fi
@@ -37,7 +38,8 @@ fi
 vecho "Checking prerequisites..."
 
 # Fast exit if all essential tools are already available
-if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi; then
+if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi \
+    && (is_installed bat || is_installed batcat); then
     vecho "All essential prerequisites are already installed"
     mark_state "prerequisites-setup"
     exit 0
@@ -60,6 +62,9 @@ if [ "$CAN_SUDO" = "true" ]; then
             MISSING_PACKAGES="$MISSING_PACKAGES $pkg"
         fi
     done
+    if ! is_installed bat && ! is_installed batcat; then
+        MISSING_PACKAGES="$MISSING_PACKAGES bat"
+    fi
 
     # Only install if we actually need packages
     if [ -n "$MISSING_PACKAGES" ]; then
@@ -95,6 +100,9 @@ else
             MISSING="$MISSING $pkg"
         fi
     done
+    if ! is_installed bat && ! is_installed batcat; then
+        MISSING="$MISSING bat"
+    fi
     if [ -n "$MISSING" ]; then
         eecho "Note: Cannot install packages without passwordless sudo:$MISSING"
     else

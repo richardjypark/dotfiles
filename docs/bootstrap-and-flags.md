@@ -24,6 +24,8 @@ Environment:
 - `CHEZMOI_PREFETCH_JOBS` (default `4`)
 - `CHEZMOI_DOWNLOAD_CACHE_DIR` (default `~/.cache/chezmoi-downloads`)
 
+Base package set includes `bat` so `fzf`/`jj-fzf` previews work immediately.
+
 ## Debian/Ubuntu VPS Bootstrap
 
 Script: `bootstrap-vps.sh`
@@ -43,6 +45,9 @@ Common env vars:
 - `COPY_ROOT_AUTH_KEYS=1` (opt-in)
 - `LOCK_SSH_TO_TAILSCALE=1` (post-verification hardening)
 - `DISABLE_ROOT_LOGIN=1` (post-verification hardening)
+
+Bootstrap installs `bat` from apt repositories. Runtime shell config auto-detects
+`bat` and `batcat` command names.
 
 ## Role/Profile Behavior
 
