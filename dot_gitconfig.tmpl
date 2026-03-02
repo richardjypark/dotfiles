@@ -1,0 +1,26 @@
+# Managed by chezmoi.
+
+[user]
+	name = {{ .jj.name | quote }}
+	email = {{ .jj.email | quote }}
+
+[init]
+	defaultBranch = dev
+
+[rerere]
+	enabled = true
+
+[pull]
+	ff = only
+	rebase = false
+
+[core]
+	pager = sh -c 'command -v delta >/dev/null 2>&1 && exec delta || exec less -FRX'
+
+[interactive]
+	diffFilter = sh -c 'command -v delta >/dev/null 2>&1 && exec delta --color-only || cat'
+
+[delta]
+	navigate = true
+	line-numbers = true
+	side-by-side = false
