@@ -128,6 +128,7 @@ All scripts source `~/.local/lib/chezmoi-helpers.sh` (managed as `dot_local/priv
   - `zsh-fix.sh` - IFS fixes for Oh My Zsh compatibility
   - `gpg.sh` - GPG configuration
   - `profile.sh` - Shell startup profiling utilities
+  - `jj-fzf.sh` - Interactive jj workflows via fzf (jji, jjbi, jjfi)
 
 **ZSH Plugins (via Oh My Zsh):**
 - git, terraform, ansible, ssh-agent, tmux
@@ -535,6 +536,14 @@ jj git push                         # Push directly
 | `root()` | Root commit |
 | `trunk()` | Main branch (main/master) |
 | `bookmarks()` | All bookmarks |
+
+### Interactive Browsing (fzf-powered)
+
+| Command | Purpose | Key bindings |
+|---------|---------|--------------|
+| `jji [revset]` | Browse log (default: all) | enter=edit, C-n=new-after, C-d=diff, C-s=squash, C-r=rebase |
+| `jjbi` | Browse bookmarks | enter=edit, C-p=push, C-d=delete, C-m=move-here |
+| `jjfi [rev]` | Browse changed files (default: @) | enter=open, C-r=restore |
 
 ### Commit Message Convention
 
