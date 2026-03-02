@@ -4,6 +4,26 @@
 [ -n "$ZSH_VERSION" ] || return
 (( $+commands[jj] )) && (( $+commands[fzf] )) || return
 
+# Resolve bat command once for interactive diff viewing.
+__dotfiles_jj_bat_cmd="${DOTFILES_BAT_CMD:-}"
+if [[ -z "$__dotfiles_jj_bat_cmd" ]]; then
+  if command -v bat >/dev/null 2>&1; then
+    __dotfiles_jj_bat_cmd="bat"
+  elif command -v batcat >/dev/null 2>&1; then
+    __dotfiles_jj_bat_cmd="batcat"
+  fi
+fi
+
+if [[ -n "$__dotfiles_jj_bat_cmd" ]]; then
+  export DOTFILES_BAT_CMD="$__dotfiles_jj_bat_cmd"
+  __dotfiles_jj_diff_bind="ctrl-d:execute(jj diff -r {1} --color=always | $__dotfiles_jj_bat_cmd --language=diff --paging=always --style=plain)"
+  __dotfiles_jj_file_preview='jj diff -r REV --ignore-working-copy --color=always -- {} | BAT --language=diff --paging=never --style=plain'
+  __dotfiles_jj_file_preview="${__dotfiles_jj_file_preview/BAT/$__dotfiles_jj_bat_cmd}"
+else
+  __dotfiles_jj_diff_bind='ctrl-d:execute(jj diff -r {1} --color=always | less -R)'
+  __dotfiles_jj_file_preview='jj diff -r REV --ignore-working-copy --color=always -- {}'
+fi
+
 __jj_fzf_check() {
   jj root --ignore-working-copy >/dev/null 2>&1 || {
     echo "Not in a jj repository." >&2; return 1
@@ -25,7 +45,7 @@ jji() {
       --header 'enter:edit  C-n:new-after  C-d:diff  C-s:squash  C-r:rebase-here' \
       --bind 'enter:become(jj edit {1})' \
       --bind 'ctrl-n:become(jj new -A {1})' \
-      --bind 'ctrl-d:execute(jj diff -r {1} --color=always | less -R)' \
+      --bind "$__dotfiles_jj_diff_bind" \
       --bind 'ctrl-s:become(jj squash --from {1})' \
       --bind 'ctrl-r:become(jj rebase -s {1} -d @)'
 }
@@ -51,9 +71,10 @@ jjbi() {
 jjfi() {
   __jj_fzf_check || return 1
   local rev="${1:-@}"
+  local preview_cmd="${__dotfiles_jj_file_preview/REV/$rev}"
   jj diff -r "$rev" --name-only --ignore-working-copy |
   fzf --ansi \
-      --preview "jj diff -r $rev --ignore-working-copy --color=always -- {}" \
+      --preview "$preview_cmd" \
       --preview-window 'right,60%,border-left,wrap' \
       --header 'enter:open  C-r:restore' \
       --bind "enter:become(${EDITOR:-vi} {})" \
