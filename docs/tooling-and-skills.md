@@ -23,7 +23,7 @@ Command definitions live under:
 
 ## Agent Skills In This Repo
 
-Skills are shared across both Claude Code and Codex CLI so that either tool follows the same repo conventions.
+Skills are shared across both Claude Code and Codex CLI so that either tool follows the same repo conventions. `CLAUDE.md` and `AGENTS.md` delegate domain knowledge to these skills rather than duplicating it inline.
 
 ### Claude Code Skills (`~/.claude/skills/`)
 
