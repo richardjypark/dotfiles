@@ -30,8 +30,6 @@ Use this map to propagate version bumps safely.
 
 - `README.md`
   - Refresh installation, profile, and trust-flag guidance when behavior changes.
-- `CLAUDE.md`
-  - Refresh pinned versions and setup-order notes when touched.
 
 ## Consistency Checks
 

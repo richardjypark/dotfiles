@@ -25,7 +25,6 @@ Use this skill to execute or modify repo bootstrap flows while keeping role beha
 
 4. Keep docs aligned when behavior changes:
    - `README.md` sections for setup profile matrix, bootstrap flags, and role/profile switches.
-   - `CLAUDE.md` sections for bootstrap and server behavior.
 
 ## Validation
 

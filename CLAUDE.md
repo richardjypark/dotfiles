@@ -1,559 +1,67 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Chezmoi-managed dotfiles: Zsh + Oh My Zsh, Starship prompt (with jj support), Tmux with session persistence, and dev tools (NVM, uv, fzf, jj, Claude Code, Tailscale, delta, eza). See `README.md` for user-facing docs.
 
-For tool-agnostic agent instructions shared across Codex/OpenCode/Claude workflows, use `AGENTS.md` as the baseline and treat this file as Claude-specific supplemental context.
+## Chezmoi Conventions
 
-## Overview
-
-This is a chezmoi-managed dotfiles repository optimized for performance with sophisticated state tracking and external resource management. The dotfiles configure Zsh with Oh My Zsh, Starship prompt (with native Jujutsu support), Tmux with session persistence, and development tools (Node.js via NVM, Python via uv, fzf, Jujutsu, Claude Code, Tailscale, delta, eza).
-
-## Core Architecture
-
-**Chezmoi Structure:**
-- Source directory: `~/.local/share/chezmoi/` (this repository)
-- Target directory: `~/` (user's home directory)
-- File naming convention:
-  - `dot_` prefix → `.` (e.g., `dot_zshrc` → `~/.zshrc`)
-  - `private_` prefix → 0600 permissions
-  - `.tmpl` suffix → template files processed with data from `.chezmoidata.toml`
-
-**Key Configuration Files:**
-- `.chezmoi.toml` - Main chezmoi settings (git auto-commit, diff/merge tools)
-- `.chezmoiexternal.toml.tmpl` - External dependencies (Oh My Zsh, plugins, fzf, nvm)
-- `.chezmoidata.toml` - Template data (tool versions, npm packages)
-- `.chezmoiversion.toml` - Version pinning for external tools (fzf v0.67.0)
-
-**External Resources:** Managed via `.chezmoiexternal.toml.tmpl` with 168h refresh periods:
-- Oh My Zsh (archive pinned to an explicit commit)
-- zsh-syntax-highlighting and zsh-autosuggestions (archives pinned to release tags)
-- fzf (git-repo pinned to v0.67.0)
-- nvm (archive v0.40.4)
+- Source: `~/.local/share/chezmoi/` (this repo) — Target: `~/`
+- `dot_` prefix → `.`, `private_` prefix → 0600 permissions, `.tmpl` suffix → Go templates
+- `.chezmoidata.toml` — template data (tool versions, npm packages)
+- `.chezmoiversion.toml` — version pinning (fzf)
+- `.chezmoiexternal.toml.tmpl` — external deps (Oh My Zsh, plugins, fzf, nvm) with 168h refresh
+- `.chezmoi.toml` — chezmoi settings (git auto-commit, diff/merge tools)
+- Templates use `{{ .nvm.version }}` syntax; test with `chezmoi execute-template < file.tmpl`
 
 ## Common Commands
 
-**Applying changes:**
 ```bash
-chezmoi apply                    # Apply all changes
-chezmoi apply --verbose          # Apply with detailed output
-VERBOSE=true chezmoi apply       # Scripts with verbose output
-chezmoi apply --refresh-externals # Force refresh external resources
+chezmoi apply                       # Apply all changes
+chezmoi apply --refresh-externals   # Force refresh external resources
+chezmoi diff                        # See pending changes
+chezmoi edit ~/.zshrc               # Edit in source directory
+chezmoi status                      # Check status
+VERBOSE=true chezmoi apply          # Scripts with verbose output
 ```
 
-**Editing dotfiles:**
-```bash
-chezmoi edit ~/.zshrc            # Edit in source directory
-chezmoi cd                       # Change to source directory
-chezmoi diff                     # See pending changes
-```
+Aliases: `czu` (fetch + rebase + apply), `czuf` (+ externals + force), `czvc` (check pinned versions)
 
-**Managing state:**
-```bash
-chezmoi status                   # Check status
-chezmoi update                   # Pull from git and apply
-chezmoi git -- status            # Run git commands in source
-```
+## Key Files
 
-**Testing changes:**
-```bash
-source ~/.zshrc                  # Reload shell configuration
-exec zsh                         # Restart shell
-```
+**Shell:** `dot_zshenv` (all shells: NVM/Bun/Cargo paths) · `dot_zshrc.tmpl` (interactive: Oh My Zsh, plugins, Starship) · `private_dot_config/starship.toml` (prompt config) · `private_dot_config/shell/*.sh` (modular: alias, env, fzf, history, path, profile, jj-fzf, gpg, zsh-fix, bat)
 
-**Quick update shortcuts:**
-```bash
-czu                              # Fetch + jj rebase + chezmoi apply (auto-detects omarchy profile)
-czuf                             # Same + --refresh-externals --force + trust gate enabled
-```
+**Tmux:** `dot_tmux.conf` (config + TPM plugins). Auto-starts in `~/.zshrc`; skipped when `$SSH_TTY`, `$TERM_PROGRAM=vscode`, `$TMUX`, or `NOTMUX=1`.
 
-**Profiling shell startup:**
-```bash
-ZSH_PROFILE_STARTUP=1 exec zsh   # Profile with detailed checkpoints
-zsh_startup_time                 # Quick benchmark (5 runs average)
-zsh_profile_report               # Show last profiling results
-```
+**Scripts:** `.chezmoiscripts/run_{before,after}_NN-name.sh[.tmpl]` — all source `~/.local/lib/chezmoi-helpers.sh`, use state tracking (`~/.cache/chezmoi-state/`), quiet by default.
 
-## Performance Optimization System
+**Helpers:** `dot_local/private_lib/chezmoi-helpers.sh` — `vecho()`, `eecho()`, `state_exists()`/`mark_state()`, `is_installed()`, `ensure_sudo()`/`run_privileged()`.
 
-The repository uses a sophisticated state tracking system to achieve ~95% speed improvement on subsequent runs (from 1-2 minutes to <3 seconds).
+## Operational Notes
 
-**State Tracking:**
-- State files stored in `~/.cache/chezmoi-state/`
-- Scripts check completion state before running
-- Controlled by `VERBOSE` environment variable (default: false)
+- **Git auto-commit enabled** in source dir (`.chezmoi.toml`); no auto-push
+- **State files:** clear `~/.cache/chezmoi-state/` to force script re-runs
+- **External refresh:** weekly (168h); use `--refresh-externals` to force
+- **Server role:** `CHEZMOI_ROLE=server chezmoi apply` skips Node/Bun/Homebrew/Ansible/Claude Code
+- **Secrets:** untracked local env files only; see `docs/secrets-management.md`
 
-**Shared Helper Library:**
-All scripts source `~/.local/lib/chezmoi-helpers.sh` (managed as `dot_local/private_lib/chezmoi-helpers.sh`), which provides `vecho()`, `eecho()`, `state_exists()`/`mark_state()`, `add_to_path()`, `is_installed()`, `ensure_sudo()`/`run_privileged()`, and `VERBOSE`/`TRUST_ON_FIRST_USE_INSTALLERS` initialization.
+## Version Control
 
-**Script Execution Order:**
-1. `run_before_00-prerequisites.sh.tmpl` - Install system packages (apt-get, git, curl, etc.)
-2. `run_before_01-setup-omz.sh` - Set up Oh My Zsh
-3. `run_before_02-prefetch-assets.sh.tmpl` - Prefetch pinned artifacts (neovim, jj, codex) in parallel
-4. `run_after_10-setup-homebrew.sh` - Install Homebrew + core packages on macOS
-5. `run_after_12-setup-starship.sh.tmpl` - Install Starship prompt
-6. `run_after_20-setup-fzf.sh` - Install fzf from repository
-7. `run_after_24-setup-neovim.sh.tmpl` - Install/upgrade Neovim for LazyVim compatibility
-8. `run_after_25-setup-uv.sh.tmpl` - Install Python uv package manager
-9. `run_after_26-setup-jj.sh.tmpl` - Install Jujutsu (jj) version control
-10. `run_after_28-setup-ansible.sh` - Install Ansible
-11. `run_after_27-setup-bun.sh.tmpl` - Install Bun runtime
-12. `run_after_30-setup-node.sh.tmpl` - Set up Node.js via NVM
-13. `run_after_31-change-shell.sh` - Change default shell to zsh
-14. `run_after_35-setup-claude-code.sh.tmpl` - Install Claude Code
-15. `run_after_36-setup-codex.sh.tmpl` - Install Codex CLI (Homebrew/release binary, no npm)
-16. `run_after_37-setup-tailscale.sh.tmpl` - Install Tailscale VPN
-17. `run_after_40-setup-tmux.sh` - Set up Tmux Plugin Manager
-18. `run_after_98-health-check.sh` - Validate final toolchain health
-19. `run_after_99-performance-summary.sh` - Show performance summary
+Use `jj` (Jujutsu) instead of `git` for all VCS operations. Use the `/jj` skill for workflow details, commands, and revsets.
 
-**Script Patterns:**
-- All scripts source the shared helper library (first line after `set -euo pipefail`)
-- Early exit if task already completed (via `state_exists`)
-- Quiet by default (use `VERBOSE=true` for debugging)
-- Use `vecho()` for verbose output, `eecho()` for essential output
-- Check for existing installations before running
+**Commit convention:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
 
-## Shell Configuration
+## Skills
 
-**Multi-file shell setup:**
-- `~/.zshenv` - Loaded for ALL shells (NVM, Bun, Cargo paths)
-- `~/.zshrc` - Interactive shells only (Oh My Zsh, plugins, Starship init)
-- `~/.config/starship.toml` - Starship prompt configuration (modules, colors, layout)
-- `~/.config/shell/*.sh` - Modular configurations:
-  - `path.sh` - PATH modifications
-  - `alias.sh` - Custom aliases
-  - `env.sh` - Environment variables
-  - `history.sh` - History configuration
-  - `fzf.sh` - fzf key bindings and completion
-  - `zsh-fix.sh` - IFS fixes for Oh My Zsh compatibility
-  - `gpg.sh` - GPG configuration
-  - `profile.sh` - Shell startup profiling utilities
-  - `jj-fzf.sh` - Interactive jj workflows via fzf (jji, jjbi, jjfi)
+Invoke these skills for domain-specific tasks instead of working from memory:
 
-`alias.sh` remaps interactive `ls`/`ll`/`la`/`lt` to `eza` (with `exa` fallback) and `diff` to `delta` when installed.
-`jj-fzf.sh` prefers `delta` for jj diff rendering and falls back to `bat`/plain output.
+| Skill | Use when |
+|-------|----------|
+| `/jj` | Commit, history, bookmarks, rebase, push — all jj workflows |
+| `/chezmoi-script-maintainer` | Adding/modifying `.chezmoiscripts/` setup scripts |
+| `/chezmoi-bootstrap-operator` | Running or updating bootstrap (Omarchy, VPS, lockdown) |
+| `/dotfiles-version-refresh` | Bumping pinned versions across data/external/script files |
 
-**ZSH Plugins (via Oh My Zsh):**
-- git, terraform, ansible, ssh-agent, tmux
-- zsh-autosuggestions, zsh-syntax-highlighting
+## See Also
 
-**Prompt (Starship):**
-- Starship replaces the Agnoster Oh My Zsh theme for native Jujutsu (jj) support
-- Configuration: `~/.config/starship.toml` (source: `private_dot_config/starship.toml`)
-- SSH host privacy: generic hostnames (server1-4) via `STARSHIP_SSH_HOST` env var
-- Modules: username, hostname, directory, git, jj_status, python virtualenv, cmd_duration
-- Multiline prompt with blue `❯` (success) / red `❯` (error)
-
-**Shell Startup Profiling:**
-
-Enable profiling to identify slow startup components:
-```bash
-# Profile startup with detailed checkpoints
-ZSH_PROFILE_STARTUP=1 exec zsh
-
-# Quick benchmark (5 runs, shows average)
-zsh_startup_time
-
-# View last profiling results
-zsh_profile_report
-```
-
-Profiling tracks timing for:
-- zshenv loading (NVM, paths, environment setup)
-- zsh-fix.sh loading
-- Oh My Zsh initialization
-- Host detection (SSH/local)
-- NVM bash completion
-- Additional shell configs (~/.config/shell/*.sh)
-- Starship init
-- Completions (bun, uv)
-
-Results show:
-- Total startup time
-- Individual checkpoint timings with deltas
-- Top 5 slowest sections
-
-Typical startup times:
-- Excellent: < 200ms
-- Good: < 500ms
-- Acceptable: < 1s
-- Needs optimization: > 1s
-
-## Tmux Configuration
-
-**Configuration files:**
-- `dot_tmux.conf` → `~/.tmux.conf` - Main tmux configuration
-- `dot_zshrc.tmpl` - Auto-start logic at end of file
-- `.chezmoiscripts/run_after_40-setup-tmux.sh` - Installs tmux and TPM
-
-**Auto-start behavior:**
-- Tmux auto-starts for interactive shells in `~/.zshrc`
-- Skipped when: inside SSH (`$SSH_TTY`), in VSCode (`$TERM_PROGRAM`), already in tmux (`$TMUX`), or `NOTMUX=1`
-- Uses `exec tmux new-session -A` to attach to existing session or create new one
-
-**Session persistence (via plugins):**
-- `tmux-resurrect` - Manual save/restore of sessions
-- `tmux-continuum` - Automatic save every 15 minutes, auto-restore on tmux start
-- Processes restored: vim, nvim, less, more, tail, top, htop, man, ssh
-- Pane contents NOT captured (reduces session file size)
-
-**Terminal settings:**
-- `tmux-256color` terminal type (better italics/strikethrough/truecolor)
-- RGB color support enabled
-- Focus events enabled (for Vim/Neovim integration)
-- Escape time: 10ms (reduces delay for Vim mode switching)
-- History limit: 10,000 lines
-- Bell monitoring disabled (prevents `!` indicator in window names)
-
-**Window/pane numbering:**
-- Windows and panes start at index 1 (not 0)
-- Windows automatically renumber when one is closed
-
-**Status bar:**
-- SSH sessions: Red background (`colour52`) with hostname displayed
-- Local sessions: Green background (`colour22`)
-- Right side shows: time, date (and hostname for SSH)
-
-**Custom keybindings:**
-- `Alt + h/j/k/l` - Navigate panes (vim-style, no prefix needed)
-- `Prefix + |` - Split window vertically (side-by-side panes)
-- `Prefix + -` - Split window horizontally (stacked panes)
-- `Prefix + Ctrl + s` - Manual save session (tmux-resurrect)
-- `Prefix + Ctrl + r` - Manual restore session (tmux-resurrect)
-
-**Plugin management (TPM):**
-- Plugins installed to `~/.tmux/plugins/`
-- Install new plugins: Add to `~/.tmux.conf`, then `Prefix + I`
-- Update plugins: `Prefix + U`
-- Uninstall removed plugins: `Prefix + Alt + u`
-
-**Troubleshooting:**
-```bash
-# Disable auto-start for current session
-export NOTMUX=1
-
-# Reload tmux config
-tmux source-file ~/.tmux.conf
-
-# Check if tmux is running
-tmux ls
-
-# Kill all tmux sessions
-tmux kill-server
-
-# Force reinstall TPM and plugins
-rm -rf ~/.tmux/plugins && chezmoi apply
-```
-
-## Version Management
-
-**Updating tool versions:**
-1. Edit `.chezmoidata.toml` for NVM/Node.js/npm packages
-2. Edit `.chezmoiversion.toml` for fzf version
-3. Edit `.chezmoiexternal.toml.tmpl` for Oh My Zsh plugins or external repos
-4. Run `chezmoi apply --refresh-externals` to update
-
-**Current pinned versions:**
-- fzf: v0.67.0 (pinned to avoid toggle-raw error on Linux)
-- nvm: v0.40.4
-- Node.js: lts/* (latest LTS)
-
-**Checking for updates:**
-```bash
-chezmoi-check-versions        # Check pinned deps against GitHub latest (24h cache)
-chezmoi-check-versions --force # Bypass cache
-czvc                          # Alias for the above
-```
-
-## Secrets Management
-
-Secrets are managed via untracked local environment files (e.g., `~/.config/dotfiles/bootstrap-private.env`). For GPG-encrypted secrets that travel with the repo, see `docs/secrets-management.md`.
-
-## Development Workflow
-
-**Modifying templates:**
-- Template files use `.tmpl` suffix and Go template syntax
-- Access data with `{{ .nvm.version }}`, `{{ .python.version }}`, etc.
-- Test templates: `chezmoi execute-template < file.tmpl`
-
-**Adding new external tools:**
-1. Add entry to `.chezmoiexternal.toml.tmpl`
-2. Set refresh period (typically "168h" for weekly)
-3. Create setup script in `.chezmoiscripts/` if needed
-4. Use naming convention: `run_after_NN-setup-toolname.sh`
-
-**Bypassing auto-start features:**
-- Tmux: Set `NOTMUX=1` environment variable
-- Can be set in IDE terminal settings or per-session
-
-## Important Notes
-
-- **Git auto-commit enabled:** Changes in source directory auto-commit (`.chezmoi.toml`)
-- **No auto-push:** Manual push required for backup
-- **State files:** Clear `~/.cache/chezmoi-state/` to force script re-runs
-- **External refresh:** Weekly by default (168h), use `--refresh-externals` to force
-- **fzf version pinned:** v0.67.0 to avoid errors; update carefully in `.chezmoiversion.toml`
-
-## Multi-Agent Safety & File Management
-
-See `AGENTS.md` for multi-agent safety rules (file management, destructive operations, commit discipline).
-
-## Production Server Optimization
-
-Server behavior is now primarily role-based using `CHEZMOI_ROLE=server` (with `vultr` hostname fallback retained for compatibility). The Omarchy bootstrap script sets this role automatically.
-
-**Set role explicitly (manual apply):**
-```bash
-CHEZMOI_ROLE=server chezmoi apply
-```
-
-**Skipped on server role:**
-- Node.js/NVM setup (`run_after_30-setup-node.sh.tmpl` via `.chezmoiignore`)
-- NVM external resource (conditional in `.chezmoiexternal.toml.tmpl`)
-- Bun (`run_after_27-setup-bun.sh.tmpl`)
-- Homebrew (`run_after_10-setup-homebrew.sh`)
-- Ansible (`run_after_28-setup-ansible.sh`)
-- Claude Code (`run_after_35-setup-claude-code.sh.tmpl`)
-- Codex CLI setup auto-skips when `CHEZMOI_ROLE=server` (`run_after_36-setup-codex.sh.tmpl`)
-- Oh My Zsh `terraform`/`ansible` plugins (`dot_zshrc.tmpl`)
-
-This keeps servers lean while local/workstation hosts keep full dev tooling.
-
-**Tools still installed on servers:**
-- Oh My Zsh with core plugins (including ssh-agent/tmux)
-- Starship (prompt)
-- fzf (fuzzy finder)
-- uv (Python)
-- jj (version control)
-- Codex CLI
-- Tailscale
-- Tmux
-
-## Omarchy Bootstrap
-
-For fresh Omarchy (Arch-based) installs, use:
-
-```bash
-~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role workstation
-~/.local/share/chezmoi/scripts/bootstrap-omarchy.sh --role server
-```
-
-Bootstrap uses official Arch repos (`pacman`) only, supports local untracked private input via `~/.config/dotfiles/bootstrap-private.env`, and avoids committing sensitive values.
-
-For server hardening, use two-phase lockdown:
-1. Bootstrap server and verify Tailscale connectivity.
-2. Enforce Tailscale-only SSH:
-```bash
-sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh
-```
-
-## VPS Bootstrap Script
-
-`bootstrap-vps.sh` provisions a fresh Debian/Ubuntu VPS with hardening and dotfiles. It lives in the repo root but is not managed by chezmoi (no chezmoi naming prefix). It must be copied to the server manually since it installs chezmoi itself.
-
-**Usage:**
-```bash
-# Copy to server and run as root
-scp bootstrap-vps.sh root@<vps-ip>:/root/
-ssh root@<vps-ip>
-USERNAME=rich DOTFILES_REPO=https://github.com/richardjypark/dotfiles.git ./bootstrap-vps.sh
-```
-
-**What it does (in order):**
-1. Validates root, OS (Debian/Ubuntu), network connectivity
-2. `apt update` + `dist-upgrade`
-3. Creates swap (default 2GB), sets timezone/locale to UTC/en_US.UTF-8
-4. Creates non-root user with passwordless sudo, copies root's SSH keys
-5. Installs Tailscale, sets `--operator` for non-root user access
-6. Hardens SSH (key-only auth, removes weak host keys, Ed25519 + RSA only)
-7. Configures UFW (deny incoming, allow SSH; optionally lock to `tailscale0`)
-8. Kernel hardening via sysctl (syncookies, no redirects, rp_filter)
-9. Enables unattended security upgrades
-10. Configures fail2ban for SSH (whitelists Tailscale CGNAT `100.64.0.0/10`)
-11. Installs chezmoi to `/usr/local/bin` and applies dotfiles as the non-root user
-12. Runs 12-point verification and prints summary
-
-**Configuration (all via environment variables):**
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `USERNAME` | `rich` | Non-root user to create |
-| `DOTFILES_REPO` | *(must be set)* | Chezmoi dotfiles git URL |
-| `SSH_PORT` | `22` | SSH listen port |
-| `SWAP_SIZE_MB` | `2048` | Swap file size |
-| `VERBOSE` | `false` | Detailed output |
-| `DISABLE_ROOT_LOGIN` | `0` | Set to `1` after confirming user SSH works |
-| `LOCK_SSH_TO_TAILSCALE` | `0` | Set to `1` after confirming Tailscale works |
-| `MAX_AUTH_TRIES` | `3` | SSH max auth attempts |
-| `F2B_MAXRETRY` | `3` | fail2ban max retries before ban |
-| `F2B_FINDTIME` | `10m` | fail2ban observation window |
-| `F2B_BANTIME` | `1h` | fail2ban ban duration |
-
-**Phased lockdown (run the script multiple times):**
-```bash
-# 1. First run — everything open, verify SSH as your user
-USERNAME=rich DOTFILES_REPO=https://github.com/you/dotfiles.git ./bootstrap-vps.sh
-
-# 2. Disable root login after confirming user SSH works
-USERNAME=rich DOTFILES_REPO=... DISABLE_ROOT_LOGIN=1 ./bootstrap-vps.sh
-
-# 3. Lock SSH to Tailscale after confirming tailscale is connected
-USERNAME=rich DOTFILES_REPO=... DISABLE_ROOT_LOGIN=1 LOCK_SSH_TO_TAILSCALE=1 ./bootstrap-vps.sh
-```
-
-**Important notes:**
-- Script is idempotent — subsequent runs skip completed steps
-- All output logged to `/var/log/bootstrap.log` (permissions 600)
-- fail2ban whitelists all Tailscale IPs (`100.64.0.0/10`) to prevent lockout
-- chezmoi installer may ignore `-b /usr/local/bin`; the script detects this and copies the binary from `~/.local/bin` if needed
-- Update SSH config to use the Tailscale IP after locking down:
-  ```
-  Host vps
-      HostName 100.x.x.x    # Tailscale IP
-      User rich
-      IdentityFile ~/.ssh/id_ed25519_key
-      IdentitiesOnly yes
-  ```
-
-**Troubleshooting:**
-```bash
-# If locked out, use VPS provider's web console, then:
-ufw allow 22/tcp                  # Re-open SSH on all interfaces
-systemctl restart ssh             # Restart sshd
-fail2ban-client unban --all       # Unban all IPs
-
-# Force re-run all chezmoi scripts
-rm -rf ~/.cache/chezmoi-state
-chezmoi apply --force
-
-# Check what fail2ban has banned
-fail2ban-client status sshd
-```
-
-## Utility Scripts
-
-**`scripts/dev/today.sh`** — Scans jj commit history for timestamps that fall during weekday work hours (configurable via `WORK_START_HOUR`, `WORK_END_HOUR`, `WORK_TZ`), rewrites them to after-hours with natural randomization, and pushes to the `dev` bookmark. Uses `--ignore-immutable` to rewrite already-pushed commits. Run with `DRY_RUN=true` to preview without changes.
-
-**`scripts/setup-personal-cloud-tailscale.sh`** — Server hardening script that configures nftables to restrict SSH access to Tailscale interfaces only and sets up sshd drop-in config. Run with `sudo` on the target server after Tailscale is connected.
-
-## Version Control with Jujutsu (jj)
-
-**IMPORTANT:** Always use `jj` instead of `git` for version control operations. Jujutsu is a Git-compatible VCS with enhanced features. See [official docs](https://docs.jj-vcs.dev/latest/cli-reference/).
-
-### Key Concepts
-
-- **Change ID**: Stable identifier (e.g., `kntqzsqt`) - survives rewrites
-- **Commit ID**: Content hash (e.g., `5d39e19d`) - changes when amended
-- **Working copy (`@`)**: Always a commit, auto-updated by jj
-- **No staging area**: All file changes are automatically tracked
-- **`@-`**: Parent of working copy
-
-### Quick Reference
-
-```bash
-# Status & Inspection
-jj status                    # Show working copy status
-jj log                       # Show commit history graph
-jj diff                      # Show changes in working copy
-jj show                      # Show commit details
-
-# Creating & Modifying Changes
-jj new -m "feat: description"   # Create new change with message
-jj new                          # Create empty change (scratch/index)
-jj describe -m "message"        # Update current change description
-jj edit <change-id>             # Resume editing a specific change
-jj next --edit                  # Move to child change and edit
-
-# Restructuring
-jj squash                    # Move all changes to parent (like --amend)
-jj squash -i                 # Interactive squash (select hunks)
-jj split                     # Split change into multiple
-jj abandon                   # Discard current change
-jj rebase -s <src> -d <dst>  # Rebase changes
-
-# Bookmarks (Branches)
-jj bookmark create <name>    # Create bookmark at current change
-jj bookmark move <name>      # Move bookmark to current change
-jj bookmark list             # List all bookmarks
-jj bookmark delete <name>    # Delete bookmark
-
-# Git Integration
-jj git fetch                 # Fetch from remote
-jj git push                  # Push to remote
-jj git push -b <bookmark>    # Push specific bookmark
-
-# Undo/Redo
-jj undo                      # Undo last operation
-jj redo                      # Redo undone operation
-jj op log                    # View operation history
-```
-
-### Workflow: Squash (use `@` like staging area)
-
-Use when you want a clean commit with a scratch change on top:
-
-```bash
-jj describe -m "feat: implement X"  # Describe the real change
-jj new                              # Create scratch change on top
-# ... make edits ...
-jj squash                           # Move changes from @ into @- (parent)
-jj squash -i                        # Interactive: pick files/hunks
-```
-
-### Workflow: Edit (insert prerequisite change)
-
-Use when you need a refactor before your current change:
-
-```bash
-jj new -m "feat: implement X"       # Start main change
-jj new -B -m "refactor: prep work"  # Insert change BEFORE current (-B flag)
-# ... do prerequisite work ...
-jj next --edit                      # Return to original change
-```
-
-### Workflow: New Feature
-
-```bash
-jj new -m "feat: add feature X"
-jj bookmark create feature-x
-# ... make changes (auto-tracked) ...
-jj status && jj diff                # Review
-jj git push -b feature-x            # Push bookmark
-```
-
-### Workflow: Quick Fix
-
-```bash
-jj new -m "fix: correct typo"
-# ... make fix ...
-jj git push                         # Push directly
-```
-
-### Common Revsets
-
-| Revset | Description |
-|--------|-------------|
-| `@` | Current working copy |
-| `@-` | Parent of working copy |
-| `@--` | Grandparent |
-| `root()` | Root commit |
-| `trunk()` | Main branch (main/master) |
-| `bookmarks()` | All bookmarks |
-
-### Interactive Browsing (fzf-powered)
-
-| Command | Purpose | Key bindings |
-|---------|---------|--------------|
-| `jji [revset]` | Browse log (default: all) | enter=edit, C-n=new-after, C-d=diff, C-s=squash, C-r=rebase |
-| `jjbi` | Browse bookmarks | enter=edit, C-p=push, C-d=delete, C-m=move-here |
-| `jjfi [rev]` | Browse changed files (default: @) | enter=open, C-r=restore |
-
-### Commit Message Convention
-
-Use conventional commits:
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation
-- `refactor:` - Code refactoring
-- `test:` - Adding tests
-- `chore:` - Maintenance
+- `AGENTS.md` — multi-agent safety rules and file management
+- `README.md` — user-facing setup, profiles, and workflow docs
+- `docs/` — architecture, secrets, tooling, and skills reference

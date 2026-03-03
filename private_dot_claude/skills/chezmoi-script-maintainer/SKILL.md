@@ -34,7 +34,7 @@ For new scripts:
    - Repeated `chezmoi apply` must not re-run expensive work unnecessarily.
 
 4. Keep docs aligned if behavior changes:
-   - Update `README.md` and `CLAUDE.md` when setup, role logic, or commands change.
+   - Update `README.md` when setup, role logic, or commands change.
 
 ## Validation
 
