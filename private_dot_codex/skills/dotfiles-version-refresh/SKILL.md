@@ -18,7 +18,6 @@ Use this skill to keep version pins and external fetches consistent across templ
 
 3. Update docs when user-visible behavior or commands change:
 - `README.md`
-- `CLAUDE.md`
 
 4. Preserve repo policy:
 - Favor pinned, deterministic versions.
