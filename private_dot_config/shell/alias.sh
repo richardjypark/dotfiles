@@ -54,6 +54,17 @@ fi
 
 # Jujutsu (jj) - additional aliases beyond OMZ jj plugin
 alias j='jj'                                      # 1-keystroke shortcut
+alias jst='jj status'                             # like gst
+alias jd='jj diff'                                # like gd
+alias jl='jj log'                                 # like gl
+alias jcmsg='jj commit --message'                 # like gcmsg
+alias jdmsg='jj describe --message'               # like gcmsg --amend
+alias jn='jj new'                                 # new change
+alias je='jj edit'                                # edit a revision
+alias jsq='jj squash'                             # like squash merge
+alias jrb='jj rebase'                             # like grb
+alias jf='jj git fetch'                           # like gf
+alias jp='jj git push'                            # like gp
 
 # Chezmoi helper commands are defined in ~/.config/shell/chezmoi.sh
 alias czvc='chezmoi-check-versions'               # Check pinned dependency versions
