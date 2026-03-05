@@ -18,9 +18,22 @@ vecho "Setting up Tailscale..."
 
 # Fast exit if tailscale is already installed (but mark state)
 if is_installed tailscale; then
-    vecho "Tailscale is already installed: $(tailscale version 2>/dev/null | head -1 || echo 'installed')"
-    mark_state "tailscale-setup"
-    exit 0
+    CURRENT_TAILSCALE_VERSION="$(tailscale version 2>/dev/null | awk 'NR==1{print $1}' || true)"
+    if ! is_force_update; then
+        vecho "Tailscale is already installed: $(tailscale version 2>/dev/null | head -1 || echo 'installed')"
+        mark_state "tailscale-setup"
+        exit 0
+    fi
+    if [ -n "$CURRENT_TAILSCALE_VERSION" ] && [ "$CURRENT_TAILSCALE_VERSION" = "$PINNED_TAILSCALE_VERSION" ]; then
+        vecho "Tailscale is already at pinned version: $CURRENT_TAILSCALE_VERSION"
+        mark_state "tailscale-setup"
+        exit 0
+    fi
+    if [ -n "$CURRENT_TAILSCALE_VERSION" ]; then
+        eecho "Updating Tailscale from $CURRENT_TAILSCALE_VERSION to pinned $PINNED_TAILSCALE_VERSION..."
+    else
+        eecho "Tailscale version could not be detected; reinstalling pinned version..."
+    fi
 fi
 
 if ! PLATFORM="$(platform_key)"; then
@@ -115,7 +128,17 @@ elif [ "$OS_FAMILY" = "linux" ]; then
         return 0
     }
 
-    if install_via_package_manager; then
+    if is_force_update; then
+        if install_via_pinned_tarball; then
+            vecho "Tailscale installation method: pinned tarball"
+            eecho "Note: tailscaled service setup may require manual root configuration."
+        elif install_via_package_manager; then
+            vecho "Tailscale installation method: package manager"
+        else
+            eecho "Error: Could not install Tailscale automatically."
+            exit 1
+        fi
+    elif install_via_package_manager; then
         vecho "Tailscale installation method: package manager"
     elif install_via_pinned_tarball; then
         vecho "Tailscale installation method: pinned tarball"

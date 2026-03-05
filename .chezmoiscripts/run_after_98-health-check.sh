@@ -36,6 +36,20 @@ check_fail() {
     FAIL_COUNT=$((FAIL_COUNT + 1))
 }
 
+CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
+if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
+    CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
+fi
+CHEZMOI_VERSION_FILE="$CHEZMOI_SOURCE_DIR/.chezmoiversion.toml"
+
+get_pinned_version() {
+    local key="$1"
+    if [ ! -f "$CHEZMOI_VERSION_FILE" ]; then
+        return 1
+    fi
+    sed -n "s/^${key} = \"\\([^\"]*\\)\"/\\1/p" "$CHEZMOI_VERSION_FILE" | head -1
+}
+
 vecho ""
 vecho "=== Environment Health Check ==="
 vecho ""
@@ -121,7 +135,12 @@ fi
 # fzf
 if is_installed fzf; then
     FZF_VERSION=$(fzf --version 2>/dev/null | awk '{print $1}' || echo "unknown")
-    check_pass "fzf: $FZF_VERSION"
+    FZF_PINNED="$(get_pinned_version "fzf" || true)"
+    if [ -n "$FZF_PINNED" ] && [ "$FZF_VERSION" != "$FZF_PINNED" ]; then
+        check_warn "fzf: $FZF_VERSION (pinned: $FZF_PINNED)"
+    else
+        check_pass "fzf: $FZF_VERSION"
+    fi
 else
     check_warn "fzf not installed"
 fi
@@ -172,7 +191,12 @@ fi
 # uv (Python)
 if is_installed uv; then
     UV_VERSION=$(uv --version 2>/dev/null | awk '{print $2}' || echo "unknown")
-    check_pass "uv: $UV_VERSION"
+    UV_PINNED="$(get_pinned_version "uv" || true)"
+    if [ -n "$UV_PINNED" ] && [ "$UV_VERSION" != "$UV_PINNED" ]; then
+        check_warn "uv: $UV_VERSION (pinned: $UV_PINNED)"
+    else
+        check_pass "uv: $UV_VERSION"
+    fi
 else
     check_warn "uv not installed"
 fi
@@ -180,7 +204,14 @@ fi
 # Jujutsu (jj)
 if is_installed jj; then
     JJ_VERSION=$(jj version 2>/dev/null | awk '{print $2}' || echo "unknown")
-    check_pass "jj: $JJ_VERSION"
+    JJ_VERSION_CLEAN="$(printf '%s\n' "$JJ_VERSION" | cut -d- -f1)"
+    JJ_PINNED="$(get_pinned_version "jj" || true)"
+    JJ_PINNED_CLEAN="${JJ_PINNED#v}"
+    if [ -n "$JJ_PINNED_CLEAN" ] && [ "$JJ_VERSION_CLEAN" != "$JJ_PINNED_CLEAN" ]; then
+        check_warn "jj: $JJ_VERSION (pinned: $JJ_PINNED)"
+    else
+        check_pass "jj: $JJ_VERSION"
+    fi
 else
     check_warn "jj not installed"
 fi
@@ -194,7 +225,14 @@ fi
 
 # Codex CLI
 if is_installed codex; then
-    check_pass "Codex CLI installed"
+    CODEX_VERSION="$(codex --version 2>/dev/null | awk '{print $NF}' || echo "unknown")"
+    CODEX_PINNED="$(get_pinned_version "codex" || true)"
+    CODEX_PINNED_CLEAN="${CODEX_PINNED#rust-v}"
+    if [ -n "$CODEX_PINNED_CLEAN" ] && [ "$CODEX_VERSION" != "$CODEX_PINNED_CLEAN" ]; then
+        check_warn "Codex CLI: $CODEX_VERSION (pinned: $CODEX_PINNED)"
+    else
+        check_pass "Codex CLI: $CODEX_VERSION"
+    fi
 else
     check_warn "Codex CLI not installed"
 fi
@@ -202,9 +240,28 @@ fi
 # Bun
 if is_installed bun; then
     BUN_VERSION=$(bun --version 2>/dev/null || echo "unknown")
-    check_pass "bun: $BUN_VERSION"
+    BUN_PINNED="$(get_pinned_version "bun" || true)"
+    BUN_PINNED_CLEAN="${BUN_PINNED#bun-v}"
+    if [ -n "$BUN_PINNED_CLEAN" ] && [ "$BUN_VERSION" != "$BUN_PINNED_CLEAN" ]; then
+        check_warn "bun: $BUN_VERSION (pinned: $BUN_PINNED)"
+    else
+        check_pass "bun: $BUN_VERSION"
+    fi
 else
     check_warn "bun not installed"
+fi
+
+# Tailscale
+if is_installed tailscale; then
+    TAILSCALE_VERSION="$(tailscale version 2>/dev/null | awk 'NR==1{print $1}' || echo "unknown")"
+    TAILSCALE_PINNED="$(get_pinned_version "tailscale" || true)"
+    if [ -n "$TAILSCALE_PINNED" ] && [ "$TAILSCALE_VERSION" != "$TAILSCALE_PINNED" ]; then
+        check_warn "tailscale: $TAILSCALE_VERSION (pinned: $TAILSCALE_PINNED)"
+    else
+        check_pass "tailscale: $TAILSCALE_VERSION"
+    fi
+else
+    check_warn "tailscale not installed"
 fi
 
 # pnpm

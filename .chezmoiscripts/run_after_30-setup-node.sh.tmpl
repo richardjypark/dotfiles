@@ -141,7 +141,7 @@ fi
 
 # Create a simple test to verify everything is working (only if verbose)
 if [ "$VERBOSE" = "true" ]; then
-    echo "\nVerifying Node.js ecosystem installation:"
+    printf '\nVerifying Node.js ecosystem installation:\n'
     echo "----------------------------------------"
     echo "Node.js version:    $("$NODE_CMD" -v)"
     echo "npm version:        $("$NPM_CMD" -v)"
@@ -152,7 +152,7 @@ if [ "$VERBOSE" = "true" ]; then
         echo "pnpm version:       $(pnpm -v)"
     fi
     echo "----------------------------------------"
-    echo "\nNode.js setup complete!"
+    printf '\nNode.js setup complete!\n'
 fi
 
 mark_state "$NODE_STATE"
