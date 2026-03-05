@@ -6,6 +6,19 @@ set -euo pipefail
 echo ""
 echo "=== Chezmoi Setup Complete ==="
 
+# Prefer NVM default runtime for non-interactive apply summaries.
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+    # shellcheck disable=SC1090
+    . "$HOME/.nvm/nvm.sh"
+    if command -v nvm >/dev/null 2>&1; then
+        NVM_DEFAULT_NODE="$(nvm which default 2>/dev/null || true)"
+        if [ -n "$NVM_DEFAULT_NODE" ] && [ -x "$NVM_DEFAULT_NODE" ]; then
+            export PATH="$(dirname "$NVM_DEFAULT_NODE"):$PATH"
+            hash -r 2>/dev/null || true
+        fi
+    fi
+fi
+
 # Count how many setup steps were skipped vs executed
 SKIPPED_COUNT=$(find "$STATE_DIR" -name "*.done" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$SKIPPED_COUNT" -gt 0 ]; then
@@ -20,7 +33,7 @@ if [ "$VERBOSE" = "true" ]; then
     echo "Tools available:"
     is_installed node && echo "  node:   $(node -v 2>/dev/null || echo 'installed')"
     is_installed uv && echo "  uv:     $(uv --version 2>/dev/null || echo 'installed')"
-    is_installed claude && echo "  claude: installed"
+    is_installed claude && echo "  claude: $(claude --version 2>/dev/null || echo 'installed')"
     is_installed codex && echo "  codex:  $(codex --version 2>/dev/null || echo 'installed')"
     is_installed tmux && echo "  tmux:   $(tmux -V 2>/dev/null || echo 'installed')"
     echo ""

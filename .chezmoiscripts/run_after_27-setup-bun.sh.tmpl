@@ -24,9 +24,23 @@ add_to_path "$BUN_INSTALL/bin"
 
 # Fast exit if bun is already installed (but mark state)
 if is_installed bun; then
-    vecho "Bun is already installed: $(bun --version 2>/dev/null || echo 'installed')"
-    mark_state "bun-setup"
-    exit 0
+    CURRENT_BUN_VERSION="$(bun --version 2>/dev/null || true)"
+    PINNED_BUN_CLEAN="${PINNED_BUN_VERSION#bun-v}"
+    if ! is_force_update; then
+        vecho "Bun is already installed: ${CURRENT_BUN_VERSION:-installed}"
+        mark_state "bun-setup"
+        exit 0
+    fi
+    if [ -n "$CURRENT_BUN_VERSION" ] && [ "$CURRENT_BUN_VERSION" = "$PINNED_BUN_CLEAN" ]; then
+        vecho "Bun is already at pinned version: $CURRENT_BUN_VERSION"
+        mark_state "bun-setup"
+        exit 0
+    fi
+    if [ -n "$CURRENT_BUN_VERSION" ]; then
+        eecho "Updating Bun from $CURRENT_BUN_VERSION to pinned $PINNED_BUN_CLEAN..."
+    else
+        eecho "Bun version could not be detected; reinstalling pinned version..."
+    fi
 fi
 
 if ! PLATFORM="$(platform_key)"; then

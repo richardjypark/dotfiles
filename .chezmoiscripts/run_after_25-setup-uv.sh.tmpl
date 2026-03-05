@@ -116,9 +116,24 @@ install_uv_from_pinned_release() {
 }
 
 # Check if uv is already installed
+UV_NEEDS_INSTALL=true
 if is_installed uv; then
-    vecho "uv is already installed: $(uv --version)"
-else
+    UV_NEEDS_INSTALL=false
+    CURRENT_UV_VERSION="$(uv --version 2>/dev/null | awk '{print $2}' || true)"
+    if ! is_force_update; then
+        vecho "uv is already installed: $(uv --version)"
+    elif [ -z "$CURRENT_UV_VERSION" ]; then
+        eecho "uv version could not be detected; reinstalling pinned version..."
+        UV_NEEDS_INSTALL=true
+    elif [ "$CURRENT_UV_VERSION" != "$PINNED_UV_VERSION" ]; then
+        eecho "Updating uv from $CURRENT_UV_VERSION to pinned $PINNED_UV_VERSION..."
+        UV_NEEDS_INSTALL=true
+    else
+        vecho "uv is already at pinned version: $CURRENT_UV_VERSION"
+    fi
+fi
+
+if [ "$UV_NEEDS_INSTALL" = "true" ]; then
     # Ensure .local/bin exists
     mkdir -p "$UV_DIR"
 
@@ -140,8 +155,8 @@ else
                     brew_prefix="$("$brew_cmd" --prefix 2>/dev/null || true)"
                     if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/bin/uv" ]; then
                         ln -sf "$brew_prefix/bin/uv" "$UV_DIR/uv"
-                    fi
-                fi
+    fi
+fi
 
                 if ! is_installed uv; then
                     eecho "Error: uv is not available after Homebrew installation."
