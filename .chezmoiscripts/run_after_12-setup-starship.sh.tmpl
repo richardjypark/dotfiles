@@ -22,9 +22,23 @@ PINNED_STARSHIP_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 
 # Fast exit if starship is already installed and working (but mark state)
 if is_installed starship; then
-    vecho "Starship is already installed: $(starship --version 2>/dev/null || echo 'installed')"
-    mark_state "starship-setup"
-    exit 0
+    CURRENT_STARSHIP_VERSION="$(starship --version 2>/dev/null | awk '{print $2}' || true)"
+    PINNED_STARSHIP_CLEAN="${PINNED_STARSHIP_VERSION#v}"
+    if ! is_force_update; then
+        vecho "Starship is already installed: $(starship --version 2>/dev/null || echo 'installed')"
+        mark_state "starship-setup"
+        exit 0
+    fi
+    if [ -n "$CURRENT_STARSHIP_VERSION" ] && [ "$CURRENT_STARSHIP_VERSION" = "$PINNED_STARSHIP_CLEAN" ]; then
+        vecho "Starship is already at pinned version: $CURRENT_STARSHIP_VERSION"
+        mark_state "starship-setup"
+        exit 0
+    fi
+    if [ -n "$CURRENT_STARSHIP_VERSION" ]; then
+        eecho "Updating Starship from $CURRENT_STARSHIP_VERSION to pinned $PINNED_STARSHIP_CLEAN..."
+    else
+        eecho "Starship version could not be detected; reinstalling pinned version..."
+    fi
 fi
 
 install_via_homebrew() {
@@ -93,7 +107,16 @@ install_via_release_binary() {
     return 0
 }
 
-if install_via_homebrew; then
+if is_force_update; then
+    if install_via_release_binary; then
+        vecho "Starship installation method: release binary"
+    elif install_via_homebrew; then
+        vecho "Starship installation method: homebrew"
+    else
+        eecho "Error: Could not install Starship automatically."
+        exit 1
+    fi
+elif install_via_homebrew; then
     vecho "Starship installation method: homebrew"
 elif install_via_release_binary; then
     vecho "Starship installation method: release binary"
