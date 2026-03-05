@@ -24,8 +24,8 @@ fi
 
 add_to_path "$HOME/.local/bin"
 
-# Fast exit if codex is already installed and working (but mark state)
-if is_installed codex && codex --version >/dev/null 2>&1; then
+# Fast exit if codex is already installed and working when not forcing updates
+if is_installed codex && codex --version >/dev/null 2>&1 && ! is_force_update; then
     vecho "Codex is already installed: $(codex --version 2>/dev/null || echo 'installed')"
     mark_state "codex-setup"
     exit 0
