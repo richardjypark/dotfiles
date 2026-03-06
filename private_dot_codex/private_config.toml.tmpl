@@ -1,0 +1,15 @@
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+model_context_window = 500000
+model_auto_compact_token_limit = 400000
+personality = "pragmatic"
+
+[projects."{{ .chezmoi.sourceDir }}"]
+trust_level = "trusted"
+
+[features]
+shell_snapshot = true
+multi_agent = true
+
+[tui]
+status_line = ["model-with-reasoning", "context-remaining", "current-dir", "git-branch", "five-hour-limit", "codex-version", "context-window-size"]
