@@ -1,29 +1,40 @@
 ---
 name: dotfiles-version-refresh
-description: "Update pinned tool versions and external dependency references for this chezmoi repo. Use when bumping Node/NVM/Python/FZF or plugin/archive revisions across `.chezmoidata.toml`, `.chezmoiversion.toml`, `.chezmoiexternal.toml.tmpl`, and related setup scripts and docs."
+description: "Update pinned tool versions and external dependency references for this chezmoi repo. Trigger when any tool, plugin, archive, or externals refresh behavior changes."
 ---
 
 # Dotfiles Version Refresh
 
-Use this skill to keep version pins and external fetches consistent across templates, scripts, and docs.
+Use this skill when:
 
-> See `private_dot_codex/skills/dotfiles-version-refresh/references/version-map.md` for the full file map.
+- bumping Node, NVM, Python, FZF, plugin, or archive revisions
+- changing `.chezmoidata.toml`, `.chezmoiversion.toml`, or `.chezmoiexternal.toml.tmpl`
+- adjusting setup logic because a pinned version or refresh policy changed
+
+## Read First
+
+- `~/.local/share/chezmoi/AGENTS.md`
+- `~/.local/share/chezmoi/ARCHITECTURE.md`
+- `~/.local/share/chezmoi/private_dot_codex/skills/dotfiles-version-refresh/references/version-map.md`
 
 ## Workflow
 
 1. Identify which dependency changes and load the file map from the version map reference.
-
 2. Update all affected pin locations:
-   - Data/version files (`.chezmoidata.toml`, `.chezmoiversion.toml`).
-   - External fetch definitions (`.chezmoiexternal.toml.tmpl`).
-   - Setup scripts that encode version behavior.
-
+   - data/version files (`.chezmoidata.toml`, `.chezmoiversion.toml`)
+   - external fetch definitions (`.chezmoiexternal.toml.tmpl`)
+   - setup scripts that encode version behavior
 3. Update docs when user-visible behavior or commands change:
-   - `README.md`
-
+   - `~/.local/share/chezmoi/README.md`
 4. Preserve repo policy:
-   - Favor pinned, deterministic versions.
-   - Keep `refreshPeriod` expectations aligned with current policy.
+   - favor pinned, deterministic versions
+   - keep `refreshPeriod` expectations aligned with current policy
+
+## Stop And Ask
+
+- the desired outcome requires following an unpinned "latest" channel
+- it is unclear which file should remain authoritative for a version value
+- the refresh policy or user-facing maintenance commands would materially change
 
 ## Validation
 

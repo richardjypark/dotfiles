@@ -142,6 +142,8 @@ See `docs/architecture-and-performance.md` for implementation details.
 
 ## Advanced Docs
 
+- `ARCHITECTURE.md`
+- `plans/README.md`
 - `docs/bootstrap-and-flags.md`
 - `docs/architecture-and-performance.md`
 - `docs/tooling-and-skills.md`

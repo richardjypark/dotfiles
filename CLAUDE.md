@@ -42,6 +42,7 @@ Aliases: `czu` (fetch + rebase + apply), `czuf` (+ externals + force), `czvc` (c
 - **External refresh:** weekly (168h); use `--refresh-externals` to force
 - **Server role:** `CHEZMOI_ROLE=server chezmoi apply` skips Node/Bun/Homebrew/Ansible/Claude Code
 - **Secrets:** untracked local env files only; see `docs/secrets-management.md`
+- **Planning:** create/update `plans/YYYY-MM-DD-<slug>.md` for multi-step or high-impact work before editing
 
 ## Version Control
 
@@ -55,6 +56,7 @@ Invoke these skills for domain-specific tasks instead of working from memory:
 
 | Skill | Use when |
 |-------|----------|
+| `/chezmoi-repo-maintainer` | Cross-cutting repo changes: docs, shell/tmux config, agent instructions, or multi-subsystem work |
 | `/jj` | Commit, history, bookmarks, rebase, push — all jj workflows |
 | `/chezmoi-script-maintainer` | Adding/modifying `.chezmoiscripts/` setup scripts |
 | `/chezmoi-bootstrap-operator` | Running or updating bootstrap (Omarchy, VPS, lockdown) |
@@ -63,5 +65,7 @@ Invoke these skills for domain-specific tasks instead of working from memory:
 ## See Also
 
 - `AGENTS.md` — multi-agent safety rules and file management
+- `ARCHITECTURE.md` — repo-wide invariants and change routing
 - `README.md` — user-facing setup, profiles, and workflow docs
+- `plans/README.md` — durable execution-plan format and retention
 - `docs/` — architecture, secrets, tooling, and skills reference
