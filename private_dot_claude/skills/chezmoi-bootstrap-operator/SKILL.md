@@ -1,30 +1,41 @@
 ---
 name: chezmoi-bootstrap-operator
-description: "Run and maintain bootstrap workflows for this dotfiles repo across Omarchy (Arch) and Debian/Ubuntu VPS paths. Use for selecting the right bootstrap command, updating bootstrap scripts (`scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh`), handling private env inputs, and preserving secure defaults."
+description: "Maintain bootstrap workflows for this dotfiles repo across Omarchy and Debian/Ubuntu VPS paths. Trigger when work touches bootstrap command selection, bootstrap scripts, or server lockdown behavior."
 ---
 
 # Chezmoi Bootstrap Operator
 
-Use this skill to execute or modify repo bootstrap flows while keeping role behavior and security defaults intact.
+Use this skill when:
 
-> See `private_dot_codex/skills/chezmoi-bootstrap-operator/references/bootstrap-matrix.md` for the full command matrix.
+- choosing the correct bootstrap command or flags for a machine role/profile
+- editing `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, or `scripts/server-lockdown-tailscale.sh`
+- changing bootstrap sequencing, trust gates, or server lockdown behavior
+
+## Read First
+
+- `~/.local/share/chezmoi/AGENTS.md`
+- `~/.local/share/chezmoi/ARCHITECTURE.md`
+- `~/.local/share/chezmoi/private_dot_codex/skills/chezmoi-bootstrap-operator/references/bootstrap-matrix.md`
 
 ## Workflow
 
-1. Determine target path:
-   - Omarchy machine: use `scripts/bootstrap-omarchy.sh`.
-   - Debian/Ubuntu VPS: use `bootstrap-vps.sh`.
-   - Post-bootstrap server lock-down: use `scripts/server-lockdown-tailscale.sh`.
-
+1. Determine the target path:
+   - Omarchy machine: `scripts/bootstrap-omarchy.sh`
+   - Debian/Ubuntu VPS: `bootstrap-vps.sh`
+   - post-bootstrap hardening: `scripts/server-lockdown-tailscale.sh`
 2. Load command and flag details from the bootstrap matrix reference.
-
 3. Apply the smallest safe change:
-   - Keep default-safe behavior (no implicit trust of remote installers).
-   - Keep role behavior consistent (`workstation` vs `server`).
-   - Preserve private-env pattern (`~/.config/dotfiles/bootstrap-private.env`).
+   - keep default-safe behavior (no implicit trust of remote installers)
+   - keep role behavior consistent (`workstation` vs `server`)
+   - preserve the private-env pattern (`~/.config/dotfiles/bootstrap-private.env`)
+4. Update docs when user-visible behavior changes:
+   - `~/.local/share/chezmoi/README.md` sections for setup, flags, and role/profile behavior
 
-4. Keep docs aligned when behavior changes:
-   - `README.md` sections for setup profile matrix, bootstrap flags, and role/profile switches.
+## Stop And Ask
+
+- the change would weaken security defaults
+- private bootstrap values would move into tracked files
+- a lockdown change could cut off SSH or Tailscale access or make recovery unclear
 
 ## Validation
 

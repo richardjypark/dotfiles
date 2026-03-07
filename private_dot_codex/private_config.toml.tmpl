@@ -1,3 +1,6 @@
+# Keep reasoning and context high here because this repo relies on large local docs,
+# shared skills, and durable plan files more than on prompt brevity alone.
+# Prefer improving repo instructions and skills before changing these knobs.
 model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
 model_context_window = 500000
@@ -8,6 +11,7 @@ personality = "pragmatic"
 trust_level = "trusted"
 
 [features]
+# Shell snapshots and multi-agent support are both used by this repo's maintenance flow.
 shell_snapshot = true
 multi_agent = true
 

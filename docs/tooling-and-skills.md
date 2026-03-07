@@ -1,5 +1,12 @@
 # Tooling And Skills
 
+## Agent Operating Stack
+
+- `AGENTS.md` — short control-plane rules for agents: safety, work sizing, skill routing, and validation.
+- `ARCHITECTURE.md` — stable mental model of repo subsystems, invariants, and change routing.
+- `plans/README.md` — when to create durable execution plans and how to structure them.
+- `README.md` and `docs/` — user-facing workflows and subsystem-specific deep dives.
+
 ## Local Update Commands
 
 - `czu`: jj-based dotfiles update and apply.
@@ -29,6 +36,7 @@ Skills are shared across both Claude Code and Codex CLI so that either tool foll
 
 Managed via `private_dot_claude/skills/`. Each skill has a `SKILL.md` with YAML frontmatter (`name`, `description`) and references shared Codex reference files by repo-relative path.
 
+- `chezmoi-repo-maintainer` — General repo maintenance for docs, templates, shell/tmux behavior, agent instructions, and multi-subsystem changes.
 - `jj` — Jujutsu version control workflows (core concepts, daily flow, advanced workflows, revsets, config aliases, conflict resolution, safety rules, recovery, git-to-jj mapping).
 - `chezmoi-script-maintainer` — Create and maintain `.chezmoiscripts/*` setup scripts. References `private_dot_codex/skills/chezmoi-script-maintainer/references/script-patterns.md`.
 - `chezmoi-bootstrap-operator` — Bootstrap workflow operations across Omarchy and VPS paths. References `private_dot_codex/skills/chezmoi-bootstrap-operator/references/bootstrap-matrix.md`.
@@ -38,6 +46,7 @@ Managed via `private_dot_claude/skills/`. Each skill has a `SKILL.md` with YAML 
 
 Managed via `private_dot_codex/skills/`. Each skill has a `SKILL.md`, an `agents/openai.yaml`, and optional `references/` directory with detailed reference files.
 
+- `chezmoi-repo-maintainer` — Cross-cutting repo maintenance; points agents to `ARCHITECTURE.md` and the `plans/` convention before narrower skills.
 - `jj` — Jujutsu version control workflows (same content as Claude Code version).
 - `chezmoi-script-maintainer` — Script creation patterns with `references/script-patterns.md`.
 - `chezmoi-bootstrap-operator` — Bootstrap flows with `references/bootstrap-matrix.md`.
@@ -46,6 +55,12 @@ Managed via `private_dot_codex/skills/`. Each skill has a `SKILL.md`, an `agents
 ### Reference Sharing
 
 Canonical reference files live under `private_dot_codex/skills/*/references/`. Claude Code skills cross-reference these by repo-relative path since both tools operate from `~/.local/share/chezmoi`.
+
+For cross-cutting work, the canonical references are repo-root docs instead of skill-local references:
+
+- `ARCHITECTURE.md`
+- `plans/README.md`
+- `AGENTS.md`
 
 ## Future Machine Combination Pattern
 
