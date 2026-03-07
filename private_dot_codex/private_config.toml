@@ -1,7 +1,0 @@
-model = "gpt-5.3-codex"
-model_reasoning_effort = "xhigh"
-personality = "pragmatic"
-
-[features]
-shell_snapshot = true
-multi_agent = true
