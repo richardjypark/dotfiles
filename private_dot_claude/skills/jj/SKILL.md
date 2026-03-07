@@ -1,9 +1,22 @@
 ---
 name: jj
-description: "Use Jujutsu (jj) for Git-backed version control workflows: inspect status/history, create and reshape changes, manage bookmarks, and sync with remotes. Trigger this skill when the user asks for commit/history operations and prefers jj over git."
+description: "Use Jujutsu (jj) for Git-backed version control workflows: inspect status/history, create and reshape changes, manage bookmarks, and sync with remotes. Trigger this skill when the user asks for commit, history, rebase, bookmark, or push operations in a jj-backed repo."
 ---
 
 # Jujutsu Workflow
+
+Use this skill when the task is primarily about repository history or publishing state, not about editing the repo's runtime files.
+
+## Read First
+
+- `~/.local/share/chezmoi/AGENTS.md`
+- `~/.local/share/chezmoi/ARCHITECTURE.md` when the VCS task is coupled to a larger repo change
+
+## Stop And Ask
+
+- the intended bookmark, remote, or push target is ambiguous
+- the operation would rewrite, abandon, or publish someone else's work
+- it is unclear whether the user wants inspection only or a history-changing action
 
 ## Core Concepts
 
@@ -47,7 +60,7 @@ description: "Use Jujutsu (jj) for Git-backed version control workflows: inspect
 
 Use when you need a prerequisite refactor before your current change:
 
-```
+```bash
 jj new -m "feat: implement X"         # start main change
 jj new -B -m "refactor: prep work"    # insert change BEFORE current (-B flag)
 # ... do prerequisite work ...
@@ -56,7 +69,7 @@ jj next --edit                         # return to original change
 
 ### Stacked changes
 
-```
+```bash
 jj new -m "feat: part 1"
 # ... work ...
 jj new -m "feat: part 2"              # automatically parents on part 1
@@ -71,7 +84,7 @@ jj log -r 'stacked'                   # see trunk()..@ with custom revset
 
 ### Squash workflow (use `@` like a staging area)
 
-```
+```bash
 jj describe -m "feat: implement X"    # describe the real change
 jj new                                 # create scratch change on top
 # ... make edits ...

@@ -1,4 +1,4 @@
 interface:
   display_name: "Chezmoi Script Maintainer"
-  short_description: "Maintain idempotent .chezmoiscripts patterns."
-  default_prompt: "Implement setup-script changes using state tracking, quiet logs, role gates, and package-manager guards."
+  short_description: "Maintain idempotent chezmoi setup scripts."
+  default_prompt: "Use $chezmoi-script-maintainer to update a `.chezmoiscripts/*` path while preserving state tracking, quiet logs, and role guards."

@@ -8,13 +8,31 @@ Applies to terminal agents (Codex, OpenCode, Claude Code, and similar).
 Maintain this chezmoi source repo safely and predictably.
 Prioritize idempotent behavior, secure defaults, and minimal-risk edits.
 
-## First Steps
+## Read Order
 
 1. Read `README.md` for bootstrap, role/profile, and workflow context.
-2. Check tree status before editing: `git status --short` or `jj status`.
-3. Prefer chezmoi source files over rendered files in `~/`.
-4. Keep edits scoped to the request; do not refactor unrelated areas.
-5. Use `rg`/`rg --files` for discovery; prefer small, reviewable patches.
+2. Read `ARCHITECTURE.md` when the task spans a subsystem, changes behavior, or needs repo-wide context.
+3. Load the relevant skill before domain work (`chezmoi-repo-maintainer`, `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`).
+4. Read `plans/README.md` when the change is multi-step, high-risk, or likely to span multiple iterations.
+
+## First Pass
+
+1. Check tree status before editing: `jj status` or `git status --short`.
+2. Prefer chezmoi source files in this repo over rendered files in `~/`.
+3. Use `rg` / `rg --files` for discovery; inspect likely sources of truth before asking questions.
+4. Keep edits scoped to the request; avoid unrelated refactors.
+5. Re-check `jj status` or `git status --short` before any commit or `jj describe`.
+
+## Repo-Local Precedence
+
+When repo-local instructions conflict, prefer:
+
+1. The user's current request.
+2. Safety rules in this file.
+3. The most relevant skill workflow.
+4. Local file conventions or inline comments.
+
+Higher-level harness/system instructions still take precedence over this file.
 
 ## Safety Rules
 
@@ -28,6 +46,24 @@ Prioritize idempotent behavior, secure defaults, and minimal-risk edits.
 - Keep commits atomic: commit only the files you touched, list each path explicitly.
 - Never amend commits unless you have explicit written approval.
 - Double-check `git status` or `jj status` before any commit or describe.
+
+## Work Sizing
+
+- Small changes can be edited directly after inspection when they stay within one subsystem and have obvious validation.
+- Create or update `plans/YYYY-MM-DD-<slug>.md` before mutating the repo when the work:
+  - spans multiple subsystems,
+  - touches bootstrap, hardening, version pins, externals, or agent operating docs,
+  - needs several iterations or coordination,
+  - or leaves important implementation decisions unresolved.
+- Plan files should capture goal, findings, implementation decisions, validation steps, and current status.
+
+## Skill Routing
+
+- `chezmoi-repo-maintainer` — cross-cutting repo work: docs, templates, shell/tmux behavior, agent instructions, or multi-subsystem changes.
+- `chezmoi-script-maintainer` — `.chezmoiscripts/*` setup scripts and helper-driven install logic.
+- `chezmoi-bootstrap-operator` — bootstrap and lockdown paths for Omarchy, VPS, and server hardening.
+- `dotfiles-version-refresh` — version pins, externals, and refresh behavior across versioned tools.
+- `jj` — repository history, describe/commit/rebase/push/bookmark workflows.
 
 ## Chezmoi Rules
 
@@ -44,11 +80,13 @@ Prioritize idempotent behavior, secure defaults, and minimal-risk edits.
 5. `tmux source-file ~/.tmux.conf` if tmux config changed.
 6. Summarize changes, risks, and any manual follow-up.
 
-## High-Impact Files
+## High-Impact Surfaces
 
 - `.chezmoidata.toml`, `.chezmoiversion.toml`, `.chezmoiexternal.toml.tmpl` — version pins and externals
 - `dot_zshrc.tmpl`, `dot_tmux.conf` — daily shell/tmux behavior
 - `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh` — bootstrap and hardening
+- `.chezmoiscripts/` and `dot_local/private_lib/chezmoi-helpers.sh` — apply-time automation and idempotency
+- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/`, `private_dot_codex/skills/`, `private_dot_claude/skills/` — agent operating system and tool-specific guidance
 
 ## Commit Guidance
 
