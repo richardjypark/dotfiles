@@ -22,6 +22,30 @@ vecho "Setting up Bun..."
 export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
 add_to_path "$BUN_INSTALL/bin"
 
+link_homebrew_bun_into_bun_install() {
+    local brew_prefix="" brew_bun=""
+
+    if [[ "$OSTYPE" != darwin* ]] || ! is_installed brew; then
+        return 0
+    fi
+
+    brew_prefix="$(brew --prefix 2>/dev/null || true)"
+    if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/bin/bun" ]; then
+        brew_bun="$brew_prefix/bin/bun"
+    elif [ -x "/opt/homebrew/bin/bun" ]; then
+        brew_bun="/opt/homebrew/bin/bun"
+    elif [ -x "/usr/local/bin/bun" ]; then
+        brew_bun="/usr/local/bin/bun"
+    fi
+
+    if [ -n "$brew_bun" ] && [ -x "$brew_bun" ] && [ "$brew_bun" != "$BUN_INSTALL/bin/bun" ]; then
+        mkdir -p "$BUN_INSTALL/bin"
+        ln -sf "$brew_bun" "$BUN_INSTALL/bin/bun"
+    fi
+}
+
+link_homebrew_bun_into_bun_install
+
 # Fast exit if bun is already installed (but mark state)
 if is_installed bun; then
     CURRENT_BUN_VERSION="$(bun --version 2>/dev/null || true)"
@@ -55,6 +79,8 @@ install_via_homebrew() {
         else
             brew install oven-sh/bun/bun >/dev/null 2>&1
         fi
+        link_homebrew_bun_into_bun_install
+
         return 0
     fi
     return 1
