@@ -47,6 +47,7 @@ if [ "$VERBOSE" = "true" ]; then
     echo "Chezmoi shortcuts:"
     echo "  czu   # fetch + jj rebase + chezmoi apply"
     echo "  czuf  # czu + refresh externals/force + trust gate"
+    echo "  czl   # Omarchy/Arch full maintenance path"
     echo "  czvc  # alias for chezmoi-check-versions"
     echo "  czb   # alias for chezmoi-bump"
     echo "  chezmoi-check-versions  # check pinned dependency versions"

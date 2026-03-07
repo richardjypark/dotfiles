@@ -63,8 +63,9 @@ Use role/profile conditions in templates/scripts before adding hostname-specific
 
 ## Update Helper Commands
 
-`czu` and `czuf` are managed wrapper commands installed to `~/.local/bin`.
+`czu`, `czuf`, and `czl` are managed wrapper commands installed to `~/.local/bin`.
 
 - `czu`/`czuf` choose the rebase target from `.chezmoidata.toml` `[git].defaultBranch`, then fallback to the Git remote default branch, then `master`
 - on Omarchy hosts, if `CHEZMOI_PROFILE` is unset, wrappers default it to `omarchy`
 - `czuf` adds `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and runs `chezmoi apply --refresh-externals --force`
+- `czl` is the Omarchy/Arch daily maintenance wrapper: it runs `czuf`, upgrades official Arch packages with `sudo pacman -Syu --noconfirm`, runs `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` so the machine matches the bumped pins
