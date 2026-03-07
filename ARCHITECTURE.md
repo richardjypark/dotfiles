@@ -46,7 +46,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 
 ### Agent Operating System
 
-- Key files: `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/`, `private_dot_codex/`, `private_dot_claude/`
+- Key files: `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `private_dot_codex/`, `private_dot_claude/`
 - Responsibility: tell agents how to inspect, plan, edit, validate, and hand off work in this repo
 - Constraints: keep root instructions short, push detail into deeper docs/skills, maintain Codex/Claude parity for shared repo rules
 
@@ -54,7 +54,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 
 - Data/version files feed templates and scripts; prefer updating them before duplicating constants elsewhere.
 - `dot_local/private_lib/chezmoi-helpers.sh` is the shared contract for setup scripts.
-- Runtime docs (`README.md`, `docs/`) explain user workflows; agent docs (`AGENTS.md`, skills, `plans/`) explain implementation workflows.
+- Runtime docs (`README.md`, `docs/`) explain user workflows; agent docs (`AGENTS.md`, skills, `plans/README.md`) explain implementation workflows.
 - Skills should reference deeper docs or references instead of duplicating long repo context.
 
 ## Change Routing
@@ -74,7 +74,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 - The implementation needs multiple phases, multiple tools, or coordination with other agents.
 - The success criteria or validation path are not obvious at the start.
 
-Use `plans/README.md` for the plan file format and retention rules.
+Use `plans/README.md` for the local scratch-plan format and retention rules.
 
 ## Deep Dives
 
