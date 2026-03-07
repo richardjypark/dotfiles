@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-update-helpers.sh"
+
+if [[ "${OSTYPE:-}" == darwin* ]]; then
+    echo "czl: Omarchy/Arch Linux only (requires pacman)." >&2
+    exit 1
+fi
+
+if ! command -v pacman >/dev/null 2>&1; then
+    echo "czl: pacman is required but was not found in PATH." >&2
+    exit 1
+fi
+
+if ! command -v sudo >/dev/null 2>&1; then
+    echo "czl: sudo is required but was not found in PATH." >&2
+    exit 1
+fi
+
+set_default_chezmoi_profile
+
+echo "==> [0/4] Refreshing sudo credentials..."
+sudo -v
+
+echo "==> [1/4] Running czuf..."
+command czuf
+
+echo "==> [2/4] Updating Arch packages..."
+sudo pacman -Syu --noconfirm
+
+echo "==> [3/4] Running chezmoi-bump --all..."
+command chezmoi-bump --all
+
+echo "==> [4/4] Re-applying bumped stable pins..."
+run_with_optional_output_sanitizer \
+    env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
+    chezmoi apply --refresh-externals --force
+
+echo "==> czl complete."

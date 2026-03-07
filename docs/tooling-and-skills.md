@@ -11,7 +11,9 @@
 
 - `czu`: jj-based dotfiles update and apply.
 - `czuf`: forced jj-based update with externals/tool refresh.
+- `czl`: Omarchy/Arch maintenance wrapper that runs `czuf`, upgrades official Arch packages, bumps pinned stable versions, and re-applies the bumped state.
 - On macOS, uv setup is Homebrew-first during apply/refresh; pinned GitHub artifact install remains fallback when Homebrew is unavailable.
+- `czm`: macOS maintenance wrapper that layers Homebrew upgrades on top of `czuf`.
 - `czvc`: managed `~/.local/bin/czvc` command that checks pinned versions and exits non-zero when API/network errors make the check incomplete.
 - `czb`: managed `~/.local/bin/czb` command that bumps pinned versions with preflight/apply/verify transaction checks and rollback on failure.
 - `czu`/`czuf` rebase to `[git].defaultBranch` from `.chezmoidata.toml` (with remote-head fallback) to avoid hardcoding branch names.
