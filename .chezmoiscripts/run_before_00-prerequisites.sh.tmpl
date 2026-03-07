@@ -155,6 +155,13 @@ if [ "$CAN_SUDO" = "true" ]; then
 
     install_optional_interactive_tools
 else
+    if command -v brew >/dev/null 2>&1 && ! is_installed bat && ! is_installed batcat; then
+        eecho "Installing missing package via Homebrew: bat"
+        if ! run_quiet brew install bat; then
+            brew install bat || true
+        fi
+    fi
+
     # Check if any packages are actually missing before warning
     MISSING=""
     for pkg in zsh git curl wget make gcc; do
