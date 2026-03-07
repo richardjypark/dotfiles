@@ -4,7 +4,7 @@
 
 - `AGENTS.md` — short control-plane rules for agents: safety, work sizing, skill routing, and validation.
 - `ARCHITECTURE.md` — stable mental model of repo subsystems, invariants, and change routing.
-- `plans/README.md` — when to create durable execution plans and how to structure them.
+- `plans/README.md` — when to create local scratch plans and how to structure them.
 - `README.md` and `docs/` — user-facing workflows and subsystem-specific deep dives.
 
 ## Local Update Commands
@@ -46,7 +46,7 @@ Managed via `private_dot_claude/skills/`. Each skill has a `SKILL.md` with YAML 
 
 Managed via `private_dot_codex/skills/`. Each skill has a `SKILL.md`, an `agents/openai.yaml`, and optional `references/` directory with detailed reference files.
 
-- `chezmoi-repo-maintainer` — Cross-cutting repo maintenance; points agents to `ARCHITECTURE.md` and the `plans/` convention before narrower skills.
+- `chezmoi-repo-maintainer` — Cross-cutting repo maintenance; points agents to `ARCHITECTURE.md` and the local `plans/README.md` convention before narrower skills.
 - `jj` — Jujutsu version control workflows (same content as Claude Code version).
 - `chezmoi-script-maintainer` — Script creation patterns with `references/script-patterns.md`.
 - `chezmoi-bootstrap-operator` — Bootstrap flows with `references/bootstrap-matrix.md`.

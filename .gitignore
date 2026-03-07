@@ -4,3 +4,4 @@ __pycache__/
 .pycache/
 
 scripts/dev/*
+plans/[0-9]*.md

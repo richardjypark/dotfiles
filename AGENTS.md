@@ -13,7 +13,7 @@ Prioritize idempotent behavior, secure defaults, and minimal-risk edits.
 1. Read `README.md` for bootstrap, role/profile, and workflow context.
 2. Read `ARCHITECTURE.md` when the task spans a subsystem, changes behavior, or needs repo-wide context.
 3. Load the relevant skill before domain work (`chezmoi-repo-maintainer`, `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`).
-4. Read `plans/README.md` when the change is multi-step, high-risk, or likely to span multiple iterations.
+4. Read `plans/README.md` when the change is multi-step, high-risk, or likely to span multiple iterations. Treat dated plan files there as local scratch notes, not committed source.
 
 ## First Pass
 
@@ -50,12 +50,12 @@ Higher-level harness/system instructions still take precedence over this file.
 ## Work Sizing
 
 - Small changes can be edited directly after inspection when they stay within one subsystem and have obvious validation.
-- Create or update `plans/YYYY-MM-DD-<slug>.md` before mutating the repo when the work:
+- Create or update a local-only `plans/YYYY-MM-DD-<slug>.md` scratch plan before mutating the repo when the work:
   - spans multiple subsystems,
   - touches bootstrap, hardening, version pins, externals, or agent operating docs,
   - needs several iterations or coordination,
   - or leaves important implementation decisions unresolved.
-- Plan files should capture goal, findings, implementation decisions, validation steps, and current status.
+- Scratch plans should capture goal, findings, implementation decisions, validation steps, and current status, but they must stay out of Git history.
 
 ## Skill Routing
 
@@ -86,7 +86,7 @@ Higher-level harness/system instructions still take precedence over this file.
 - `dot_zshrc.tmpl`, `dot_tmux.conf` — daily shell/tmux behavior
 - `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh` — bootstrap and hardening
 - `.chezmoiscripts/` and `dot_local/private_lib/chezmoi-helpers.sh` — apply-time automation and idempotency
-- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/`, `private_dot_codex/skills/`, `private_dot_claude/skills/` — agent operating system and tool-specific guidance
+- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `private_dot_codex/skills/`, `private_dot_claude/skills/` — agent operating system and tool-specific guidance
 
 ## Commit Guidance
 

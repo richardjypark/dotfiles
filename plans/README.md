@@ -1,6 +1,6 @@
 # Execution Plans
 
-Use `plans/YYYY-MM-DD-<slug>.md` for changes that need durable reasoning beyond chat history.
+Use `plans/YYYY-MM-DD-<slug>.md` for local scratch planning when a change needs reasoning beyond chat history.
 
 ## Create A Plan Before Mutating The Repo When
 
@@ -8,6 +8,13 @@ Use `plans/YYYY-MM-DD-<slug>.md` for changes that need durable reasoning beyond 
 - the task touches bootstrap, hardening, version pins, externals, or agent operating docs,
 - the implementation is likely to take multiple iterations,
 - or important design decisions are still being made.
+
+## Git Policy
+
+- Dated plan files under `plans/` are local development scratch notes.
+- Do not commit dated plan files.
+- `.gitignore` should ignore `plans/[0-9]*.md` so scratch plans stay out of Git history.
+- `plans/README.md` may remain tracked as the convention document.
 
 ## Default File Shape
 
@@ -33,5 +40,5 @@ Keep the plan decision-complete. Update it when assumptions change, when new con
 
 ## Retention
 
-- Keep the plan in the final change when the work is high-impact, spans multiple sessions, or explains repo structure that future agents will need.
-- Remove one-off scratch plans before finishing when the important decisions have been folded into the code, docs, or commit message.
+- Remove dated scratch plans before finishing if they were accidentally added to the index.
+- Fold any lasting decisions into code comments, docs, or commit messages instead of keeping the scratch plan tracked.

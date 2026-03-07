@@ -16,13 +16,13 @@ Use this skill when:
 - `~/.local/share/chezmoi/README.md`
 - `~/.local/share/chezmoi/AGENTS.md`
 - `~/.local/share/chezmoi/ARCHITECTURE.md`
-- `~/.local/share/chezmoi/plans/README.md` for multi-step or high-impact work
+- `~/.local/share/chezmoi/plans/README.md` for the local scratch-plan convention on multi-step or high-impact work
 
 ## Workflow
 
 1. Map the request to the affected subsystem(s) using `~/.local/share/chezmoi/ARCHITECTURE.md`.
 2. Prefer the smallest source-of-truth change; do not edit rendered files in `~/`.
-3. Create or update `plans/YYYY-MM-DD-<slug>.md` before mutating the repo when the work is high-impact or multi-step.
+3. Create or update a local-only `plans/YYYY-MM-DD-<slug>.md` scratch plan before mutating the repo when the work is high-impact or multi-step, and do not commit it.
 4. Pull in narrower skills once the work enters a specialized area:
    - bootstrap
    - `.chezmoiscripts/*`
