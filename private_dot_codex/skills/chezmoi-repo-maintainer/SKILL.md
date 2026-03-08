@@ -22,13 +22,14 @@ Use this skill when:
 
 1. Map the request to the affected subsystem(s) using `~/.local/share/chezmoi/ARCHITECTURE.md`.
 2. Prefer the smallest source-of-truth change; do not edit rendered files in `~/`.
-3. Create or update a local-only `plans/YYYY-MM-DD-<slug>.md` scratch plan before mutating the repo when the work is high-impact or multi-step, and do not commit it.
-4. Pull in narrower skills once the work enters a specialized area:
+3. For high-impact or multi-step work, create local-only `plans/YYYY-MM-DD-<slug>-research.md` and `plans/YYYY-MM-DD-<slug>-plan.md` artifacts before mutating the repo, and do not commit them.
+4. Treat the plan as the implementation contract: revise it from inline notes until it is decision-complete, then wait for explicit user approval before implementing.
+5. Pull in narrower skills once the work enters a specialized area:
    - bootstrap
    - `.chezmoiscripts/*`
    - version pins / externals
    - jj history operations
-5. Keep shared Codex/Claude safety and validation rules aligned unless a tool-specific difference is intentional.
+6. Keep shared Codex/Claude safety and validation rules aligned unless a tool-specific difference is intentional, but treat the Codex planning workflow as canonical when shared docs need a single source of truth.
 
 ## Stop And Ask
 

@@ -48,7 +48,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 
 - Key files: `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `private_dot_codex/`, `private_dot_claude/`
 - Responsibility: tell agents how to inspect, plan, edit, validate, and hand off work in this repo
-- Constraints: keep root instructions short, push detail into deeper docs/skills, maintain Codex/Claude parity for shared repo rules
+- Constraints: keep root instructions short, push detail into deeper docs/skills, make Codex the canonical planning workflow, and keep Claude-compatible guidance secondary unless a tool-specific difference is intentional
 
 ## Dependency Direction
 
@@ -74,7 +74,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 - The implementation needs multiple phases, multiple tools, or coordination with other agents.
 - The success criteria or validation path are not obvious at the start.
 
-Use `plans/README.md` for the local scratch-plan format and retention rules.
+Use `plans/README.md` for the canonical planning flow: deep repo read, `*-research.md`, `*-plan.md`, annotation/revision, approval gate, then implementation.
 
 ## Deep Dives
 
