@@ -4,8 +4,21 @@
 
 - `AGENTS.md` — short control-plane rules for agents: safety, work sizing, skill routing, and validation.
 - `ARCHITECTURE.md` — stable mental model of repo subsystems, invariants, and change routing.
-- `plans/README.md` — when to create local scratch plans and how to structure them.
+- `plans/README.md` — canonical Codex planning workflow, including local research/plan artifacts, annotation, approval, and progress tracking.
 - `README.md` and `docs/` — user-facing workflows and subsystem-specific deep dives.
+
+## Codex Planning Workflow
+
+Codex is the canonical planning workflow owner for this repo's high-impact work. The expected loop is:
+
+1. Deep-read the relevant subsystem.
+2. Write a local `*-research.md` artifact.
+3. Write a local `*-plan.md` artifact.
+4. Review and annotate the plan in the editor.
+5. Revise until the plan is approved.
+6. Implement against that approved plan and keep the plan status current.
+
+Claude support remains compatible, but shared planning conventions should point back to the same `plans/README.md` contract instead of duplicating a separate Claude-first process.
 
 ## Local Update Commands
 
@@ -32,7 +45,7 @@ Command definitions live under:
 
 ## Agent Skills In This Repo
 
-Skills are shared across both Claude Code and Codex CLI so that either tool follows the same repo conventions. `CLAUDE.md` and `AGENTS.md` delegate domain knowledge to these skills rather than duplicating it inline.
+Skills are shared across both Claude Code and Codex CLI so that either tool follows the same repo conventions. Codex is the canonical planning path; Claude-facing instructions should reuse the same repo docs and skills rather than redefining the workflow.
 
 ### Claude Code Skills (`~/.claude/skills/`)
 
@@ -48,7 +61,7 @@ Managed via `private_dot_claude/skills/`. Each skill has a `SKILL.md` with YAML 
 
 Managed via `private_dot_codex/skills/`. Each skill has a `SKILL.md`, an `agents/openai.yaml`, and optional `references/` directory with detailed reference files.
 
-- `chezmoi-repo-maintainer` — Cross-cutting repo maintenance; points agents to `ARCHITECTURE.md` and the local `plans/README.md` convention before narrower skills.
+- `chezmoi-repo-maintainer` — Cross-cutting repo maintenance; points agents to `ARCHITECTURE.md` and the canonical research/plan workflow in `plans/README.md` before narrower skills.
 - `jj` — Jujutsu version control workflows (same content as Claude Code version).
 - `chezmoi-script-maintainer` — Script creation patterns with `references/script-patterns.md`.
 - `chezmoi-bootstrap-operator` — Bootstrap flows with `references/bootstrap-matrix.md`.

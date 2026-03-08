@@ -50,12 +50,17 @@ Higher-level harness/system instructions still take precedence over this file.
 ## Work Sizing
 
 - Small changes can be edited directly after inspection when they stay within one subsystem and have obvious validation.
-- Create or update a local-only `plans/YYYY-MM-DD-<slug>.md` scratch plan before mutating the repo when the work:
+- Run a Codex planning phase before mutating the repo when the work:
   - spans multiple subsystems,
   - touches bootstrap, hardening, version pins, externals, or agent operating docs,
   - needs several iterations or coordination,
   - or leaves important implementation decisions unresolved.
-- Scratch plans should capture goal, findings, implementation decisions, validation steps, and current status, but they must stay out of Git history.
+- The default artifacts for substantial work are:
+  - `plans/YYYY-MM-DD-<slug>-research.md` after deep repo inspection
+  - `plans/YYYY-MM-DD-<slug>-plan.md` after the research is reviewed
+- Revise the plan from inline notes until the approach is decision-complete, then wait for explicit user approval before implementing.
+- Legacy single-file scratch plans remain acceptable for quick local notes, but paired research/plan artifacts are the default for high-impact work.
+- Scratch plans must stay out of Git history.
 
 ## Skill Routing
 
