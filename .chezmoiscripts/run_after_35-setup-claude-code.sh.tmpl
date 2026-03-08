@@ -8,9 +8,15 @@ PINNED_CLAUDE_NPM_VERSION="{{ .npm_version }}"
 PINNED_CLAUDE_NPM_VERSION="2.1.44"
 {{- end }}
 
-if should_skip_state "claude-code-setup"; then
-    vecho "Claude Code setup already completed (state tracked)"
-    exit 0
+CLAUDE_STATE="claude-code-setup-${PINNED_CLAUDE_NPM_VERSION}"
+
+if should_skip_state "$CLAUDE_STATE" && is_installed claude && claude --version >/dev/null 2>&1; then
+    installed_version="$(claude --version 2>/dev/null | awk 'NR==1{print $1; exit}')"
+    if [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
+        vecho "Claude Code setup already completed (state tracked)"
+        exit 0
+    fi
+    vecho "Claude Code state exists but installed version is below pinned target; re-running setup."
 fi
 
 add_to_path "$HOME/.local/bin"
@@ -19,10 +25,14 @@ vecho "Setting up Claude Code..."
 
 # Fast exit if claude is already installed and working (but mark state)
 if is_installed claude && claude --version >/dev/null 2>&1; then
-    installed_version="$(claude --version 2>/dev/null | awk '{print $1}')"
-    if ! is_force_update || version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
+    installed_version="$(claude --version 2>/dev/null | awk 'NR==1{print $1; exit}')"
+    if version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
         vecho "Claude Code is already at version $installed_version"
-        mark_state "claude-code-setup"
+        mark_state "$CLAUDE_STATE"
+        exit 0
+    fi
+    if ! is_force_update; then
+        vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."
         exit 0
     fi
 fi
@@ -93,7 +103,7 @@ run_quiet "$NPM_CMD" install -g "@anthropic-ai/claude-code@${PINNED_CLAUDE_NPM_V
 # Verify installation
 if is_installed claude && claude --version >/dev/null 2>&1; then
     eecho "Claude Code installed successfully: $(claude --version 2>/dev/null)"
-    mark_state "claude-code-setup"
+    mark_state "$CLAUDE_STATE"
 else
     eecho "Error: Claude Code installation failed. Leaving state unset so it can retry."
     exit 1

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+. "$HOME/.local/lib/chezmoi-update-helpers.sh"
 
 if [[ "${OSTYPE:-}" != darwin* ]]; then
     echo "czm: macOS only (requires Homebrew)." >&2
@@ -11,8 +12,30 @@ if ! command -v brew >/dev/null 2>&1; then
     exit 1
 fi
 
+fingerprint_target_files() {
+    local file
+    for file in "$@"; do
+        if [ -f "$file" ]; then
+            shasum -a 256 "$file"
+        else
+            printf 'missing  %s\n' "$file"
+        fi
+    done
+}
+
+SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
+if [ -z "$SOURCE_DIR" ]; then
+    SOURCE_DIR="$HOME/.local/share/chezmoi"
+fi
+
+PIN_FILES=(
+    "$SOURCE_DIR/.chezmoidata.toml"
+    "$SOURCE_DIR/.chezmoiversion.toml"
+    "$SOURCE_DIR/.chezmoiexternal.toml.tmpl"
+)
+
 echo "==> [1/3] Running czuf..."
-command czuf
+CHEZMOI_MACOS_MAINTENANCE_MODE=1 command czuf
 
 echo "==> [2/3] Updating Homebrew formulae and casks..."
 brew update
@@ -21,6 +44,17 @@ brew upgrade --cask --greedy
 brew cleanup
 
 echo "==> [3/3] Running chezmoi-bump --all..."
+BEFORE_FINGERPRINT="$(fingerprint_target_files "${PIN_FILES[@]}")"
 command chezmoi-bump --all
+AFTER_FINGERPRINT="$(fingerprint_target_files "${PIN_FILES[@]}")"
+
+if [ "$BEFORE_FINGERPRINT" != "$AFTER_FINGERPRINT" ]; then
+    echo "==> [4/4] Re-applying bumped pins..."
+    run_with_optional_output_sanitizer \
+        env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 BREW_CLEANUP=false \
+        chezmoi apply --refresh-externals --force
+else
+    echo "==> [4/4] No pin changes detected; skipping final chezmoi apply."
+fi
 
 echo "==> czm complete."

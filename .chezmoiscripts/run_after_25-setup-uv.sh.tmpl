@@ -22,13 +22,22 @@ PINNED_UV_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
 
 UV_STATE="uv-setup-${PINNED_UV_VERSION}-py${PYTHON_VERSION}"
+PINNED_UV_CLEAN="$(normalize_version_token "$PINNED_UV_VERSION")"
+
+current_uv_version() {
+    local output line
+    output="$(uv --version 2>/dev/null || true)"
+    line="$(printf '%s\n' "$output" | awk 'NR==1{print $2; exit}')"
+    normalize_version_token "$line"
+}
 
 if should_skip_state "$UV_STATE" && is_installed uv; then
-    if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
+    CURRENT_UV_VERSION="$(current_uv_version)"
+    if [ -n "$CURRENT_UV_VERSION" ] && version_ge "$CURRENT_UV_VERSION" "$PINNED_UV_CLEAN" && uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
         vecho "uv setup already completed (state tracked)"
         exit 0
     fi
-    vecho "uv state exists but Python $PYTHON_VERSION is missing; re-running setup."
+    vecho "uv state exists but the pinned version or Python runtime is missing; re-running setup."
 fi
 
 vecho "Setting up uv (Python package manager)..."
@@ -115,21 +124,36 @@ install_uv_from_pinned_release() {
     return 1
 }
 
+install_uv_via_homebrew() {
+    local brew_cmd="$1"
+    local action="install"
+
+    if "$brew_cmd" list --formula uv >/dev/null 2>&1; then
+        if ! "$brew_cmd" outdated --formula uv 2>/dev/null | grep -Eq '^uv($| )'; then
+            eecho "uv already at latest Homebrew version"
+            return 0
+        fi
+        action="upgrade"
+    fi
+
+    eecho "Running brew $action for uv..."
+    if "$brew_cmd" "$action" uv; then
+        return 0
+    fi
+    return 1
+}
+
 # Check if uv is already installed
 UV_NEEDS_INSTALL=true
 if is_installed uv; then
-    UV_NEEDS_INSTALL=false
-    CURRENT_UV_VERSION="$(uv --version 2>/dev/null | awk '{print $2}' || true)"
-    if ! is_force_update; then
-        vecho "uv is already installed: $(uv --version)"
+    CURRENT_UV_VERSION="$(current_uv_version)"
+    if [ -n "$CURRENT_UV_VERSION" ] && version_ge "$CURRENT_UV_VERSION" "$PINNED_UV_CLEAN"; then
+        UV_NEEDS_INSTALL=false
+        vecho "uv is already at or above pinned version: $(uv --version 2>/dev/null || echo installed)"
     elif [ -z "$CURRENT_UV_VERSION" ]; then
         eecho "uv version could not be detected; reinstalling pinned version..."
-        UV_NEEDS_INSTALL=true
-    elif [ "$CURRENT_UV_VERSION" != "$PINNED_UV_VERSION" ]; then
-        eecho "Updating uv from $CURRENT_UV_VERSION to pinned $PINNED_UV_VERSION..."
-        UV_NEEDS_INSTALL=true
     else
-        vecho "uv is already at pinned version: $CURRENT_UV_VERSION"
+        eecho "Updating uv from $CURRENT_UV_VERSION to pinned $PINNED_UV_CLEAN..."
     fi
 fi
 
@@ -147,16 +171,24 @@ if [ "$UV_NEEDS_INSTALL" = "true" ]; then
     case "$platform" in
         macos-*)
             if brew_cmd="$(resolve_brew_cmd)"; then
-                eecho "Installing uv via Homebrew..."
-                "$brew_cmd" install uv
+                if is_macos_maintenance_mode && "$brew_cmd" list --formula uv >/dev/null 2>&1; then
+                    eecho "Deferring uv Homebrew upgrade to dedicated brew phase..."
+                    exit 0
+                fi
+                if ! install_uv_via_homebrew "$brew_cmd"; then
+                    vecho "Homebrew uv install failed; falling back to pinned uv release binary."
+                    if ! install_uv_from_pinned_release "$platform"; then
+                        exit 1
+                    fi
+                fi
 
                 # Ensure uv is discoverable in non-login shell PATH.
                 if ! is_installed uv; then
                     brew_prefix="$("$brew_cmd" --prefix 2>/dev/null || true)"
                     if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/bin/uv" ]; then
                         ln -sf "$brew_prefix/bin/uv" "$UV_DIR/uv"
-    fi
-fi
+                    fi
+                fi
 
                 if ! is_installed uv; then
                     eecho "Error: uv is not available after Homebrew installation."
@@ -179,6 +211,12 @@ fi
             exit 1
             ;;
     esac
+fi
+
+INSTALLED_UV_VERSION="$(current_uv_version)"
+if [ -z "$INSTALLED_UV_VERSION" ] || ! version_ge "$INSTALLED_UV_VERSION" "$PINNED_UV_CLEAN"; then
+    eecho "Error: uv installation did not produce the pinned version or newer."
+    exit 1
 fi
 
 # Check if Python is already installed via uv

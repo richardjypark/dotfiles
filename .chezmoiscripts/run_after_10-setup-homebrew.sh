@@ -125,7 +125,9 @@ if [[ "${INSTALL_OPTIONAL_BREW_PACKAGES:-false}" == "true" ]]; then
 fi
 
 # Cleanup old versions
-if [[ "${BREW_CLEANUP:-true}" == "true" ]]; then
+if is_macos_maintenance_mode; then
+    vecho "Skipping Homebrew cleanup during macOS maintenance apply"
+elif [[ "${BREW_CLEANUP:-true}" == "true" ]]; then
     vecho "Cleaning up old Homebrew versions..."
     brew cleanup --quiet 2>/dev/null || brew cleanup
 fi

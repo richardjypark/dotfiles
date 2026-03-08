@@ -69,3 +69,4 @@ Use role/profile conditions in templates/scripts before adding hostname-specific
 - on Omarchy hosts, if `CHEZMOI_PROFILE` is unset, wrappers default it to `omarchy`
 - `czuf` adds `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and runs `chezmoi apply --refresh-externals --force`
 - `czl` is the Omarchy/Arch daily maintenance wrapper: it runs `czuf`, upgrades official Arch packages with `sudo pacman -Syu --noconfirm`, runs `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` so the machine matches the bumped pins
+- `czm` is the macOS daily maintenance wrapper: it runs `czuf` with `CHEZMOI_MACOS_MAINTENANCE_MODE=1` so apply-time scripts can defer Homebrew-owned upgrades to the dedicated `brew` phase, then runs Homebrew upgrades, `chezmoi-bump --all`, and a final forced `chezmoi apply` only when the bump changed tracked pin files

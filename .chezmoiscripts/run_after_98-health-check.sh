@@ -2,6 +2,11 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
+if is_macos_maintenance_mode; then
+    vecho "Skipping full environment health check during macOS maintenance apply"
+    exit 0
+fi
+
 # Colors (if terminal supports them)
 if [ -t 1 ]; then
     RED='\033[0;31m'
