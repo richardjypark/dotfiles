@@ -9,24 +9,36 @@ PINNED_TAILSCALE_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
 PINNED_TAILSCALE_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
 {{- end }}
 
-if should_skip_state "tailscale-setup"; then
-    vecho "Tailscale setup already completed (state tracked)"
-    exit 0
+TAILSCALE_STATE="tailscale-setup-${PINNED_TAILSCALE_VERSION}"
+
+current_tailscale_version() {
+    local output line
+    output="$(tailscale version 2>/dev/null || true)"
+    line="$(printf '%s\n' "$output" | awk 'NR==1{print $1; exit}')"
+    normalize_version_token "$line"
+}
+
+if should_skip_state "$TAILSCALE_STATE" && is_installed tailscale; then
+    CURRENT_TAILSCALE_VERSION="$(current_tailscale_version)"
+    if [ -n "$CURRENT_TAILSCALE_VERSION" ] && version_ge "$CURRENT_TAILSCALE_VERSION" "$PINNED_TAILSCALE_VERSION"; then
+        vecho "Tailscale setup already completed (state tracked)"
+        exit 0
+    fi
+    vecho "Tailscale state exists but installed version is below pinned target; re-running setup."
 fi
 
 vecho "Setting up Tailscale..."
 
 # Fast exit if tailscale is already installed (but mark state)
 if is_installed tailscale; then
-    CURRENT_TAILSCALE_VERSION="$(tailscale version 2>/dev/null | awk 'NR==1{print $1}' || true)"
-    if ! is_force_update; then
-        vecho "Tailscale is already installed: $(tailscale version 2>/dev/null | head -1 || echo 'installed')"
-        mark_state "tailscale-setup"
+    CURRENT_TAILSCALE_VERSION="$(current_tailscale_version)"
+    if [ -n "$CURRENT_TAILSCALE_VERSION" ] && version_ge "$CURRENT_TAILSCALE_VERSION" "$PINNED_TAILSCALE_VERSION"; then
+        vecho "Tailscale is already at or above pinned version: $CURRENT_TAILSCALE_VERSION"
+        mark_state "$TAILSCALE_STATE"
         exit 0
     fi
-    if [ -n "$CURRENT_TAILSCALE_VERSION" ] && [ "$CURRENT_TAILSCALE_VERSION" = "$PINNED_TAILSCALE_VERSION" ]; then
-        vecho "Tailscale is already at pinned version: $CURRENT_TAILSCALE_VERSION"
-        mark_state "tailscale-setup"
+    if is_macos_maintenance_mode && is_installed brew && brew list --cask tailscale >/dev/null 2>&1; then
+        eecho "Deferring Tailscale Homebrew upgrade to dedicated brew phase..."
         exit 0
     fi
     if [ -n "$CURRENT_TAILSCALE_VERSION" ]; then
@@ -47,11 +59,26 @@ vecho "Detected platform: $PLATFORM"
 if [ "$OS_FAMILY" = "macos" ]; then
     # macOS: Use Homebrew
     if is_installed brew; then
-        eecho "Installing Tailscale via Homebrew..."
+        BREW_ACTION="install"
+        if brew list --cask tailscale >/dev/null 2>&1; then
+            if ! brew outdated --cask tailscale 2>/dev/null | grep -q tailscale; then
+                eecho "Tailscale already at latest Homebrew version"
+                BREW_ACTION=""
+            else
+                BREW_ACTION="upgrade"
+            fi
+        fi
+        if [ -n "$BREW_ACTION" ]; then
+            eecho "Running brew $BREW_ACTION for Tailscale..."
+        fi
         if [ "$VERBOSE" = "true" ]; then
-            brew install --cask tailscale
+            if [ -n "$BREW_ACTION" ]; then
+                brew "$BREW_ACTION" --cask tailscale
+            fi
         else
-            brew install --cask tailscale >/dev/null 2>&1
+            if [ -n "$BREW_ACTION" ]; then
+                brew "$BREW_ACTION" --cask tailscale >/dev/null 2>&1
+            fi
         fi
     else
         eecho "Warning: Homebrew not available. Please install Tailscale from https://tailscale.com/download/mac"
@@ -153,13 +180,14 @@ else
 fi
 
 # Verify installation
-if is_installed tailscale; then
+INSTALLED_TAILSCALE_VERSION="$(current_tailscale_version)"
+if is_installed tailscale && [ -n "$INSTALLED_TAILSCALE_VERSION" ] && version_ge "$INSTALLED_TAILSCALE_VERSION" "$PINNED_TAILSCALE_VERSION"; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Tailscale installed successfully"
         tailscale version 2>/dev/null | head -1 || true
     fi
     eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
-    mark_state "tailscale-setup"
+    mark_state "$TAILSCALE_STATE"
 else
     eecho "Error: Tailscale installation failed. Leaving state unset so it can retry."
     exit 1

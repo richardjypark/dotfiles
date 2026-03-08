@@ -43,6 +43,10 @@ is_force_update() {
     [ "${CHEZMOI_FORCE_UPDATE:-0}" = "1" ]
 }
 
+is_macos_maintenance_mode() {
+    [ "${CHEZMOI_MACOS_MAINTENANCE_MODE:-0}" = "1" ]
+}
+
 should_skip_state() {
     local state_name="$1"
     if state_exists "$state_name" && ! is_force_update; then
@@ -277,6 +281,15 @@ EOF
     if [ "$c2" -lt "$r2" ]; then return 1; fi
     if [ "$c3" -ge "$r3" ]; then return 0; fi
     return 1
+}
+
+normalize_version_token() {
+    local value="${1:-}"
+    value="${value#rust-v}"
+    value="${value#bun-v}"
+    value="${value#v}"
+    value="${value%%-*}"
+    printf '%s\n' "$value"
 }
 
 CHEZMOI_HELPERS_LOADED=1

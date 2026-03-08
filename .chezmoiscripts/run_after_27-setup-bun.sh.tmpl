@@ -11,9 +11,23 @@ PINNED_BUN_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 PINNED_BUN_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
 
-if should_skip_state "bun-setup"; then
-    vecho "Bun setup already completed (state tracked)"
-    exit 0
+BUN_STATE="bun-setup-${PINNED_BUN_VERSION}"
+PINNED_BUN_CLEAN="$(normalize_version_token "$PINNED_BUN_VERSION")"
+
+current_bun_version() {
+    local output line
+    output="$(bun --version 2>/dev/null || true)"
+    line="$(printf '%s\n' "$output" | awk 'NR==1{print $1; exit}')"
+    normalize_version_token "$line"
+}
+
+if should_skip_state "$BUN_STATE" && is_installed bun; then
+    CURRENT_BUN_VERSION="$(current_bun_version)"
+    if [ -n "$CURRENT_BUN_VERSION" ] && version_ge "$CURRENT_BUN_VERSION" "$PINNED_BUN_CLEAN"; then
+        vecho "Bun setup already completed (state tracked)"
+        exit 0
+    fi
+    vecho "Bun state exists but installed version is below pinned target; re-running setup."
 fi
 
 vecho "Setting up Bun..."
@@ -48,16 +62,14 @@ link_homebrew_bun_into_bun_install
 
 # Fast exit if bun is already installed (but mark state)
 if is_installed bun; then
-    CURRENT_BUN_VERSION="$(bun --version 2>/dev/null || true)"
-    PINNED_BUN_CLEAN="${PINNED_BUN_VERSION#bun-v}"
-    if ! is_force_update; then
-        vecho "Bun is already installed: ${CURRENT_BUN_VERSION:-installed}"
-        mark_state "bun-setup"
+    CURRENT_BUN_VERSION="$(current_bun_version)"
+    if [ -n "$CURRENT_BUN_VERSION" ] && version_ge "$CURRENT_BUN_VERSION" "$PINNED_BUN_CLEAN"; then
+        vecho "Bun is already at or above pinned version: $CURRENT_BUN_VERSION"
+        mark_state "$BUN_STATE"
         exit 0
     fi
-    if [ -n "$CURRENT_BUN_VERSION" ] && [ "$CURRENT_BUN_VERSION" = "$PINNED_BUN_CLEAN" ]; then
-        vecho "Bun is already at pinned version: $CURRENT_BUN_VERSION"
-        mark_state "bun-setup"
+    if is_macos_maintenance_mode && is_installed brew && brew list --formula oven-sh/bun/bun >/dev/null 2>&1; then
+        eecho "Deferring Bun Homebrew upgrade to dedicated brew phase..."
         exit 0
     fi
     if [ -n "$CURRENT_BUN_VERSION" ]; then
@@ -72,16 +84,31 @@ if ! PLATFORM="$(platform_key)"; then
 fi
 
 install_via_homebrew() {
-    if is_installed brew; then
-        eecho "Installing Bun via Homebrew..."
-        if [ "$VERBOSE" = "true" ]; then
-            brew install oven-sh/bun/bun
-        else
-            brew install oven-sh/bun/bun >/dev/null 2>&1
-        fi
-        link_homebrew_bun_into_bun_install
+    local action="install"
+    if ! is_installed brew; then
+        return 1
+    fi
 
-        return 0
+    if brew list --formula oven-sh/bun/bun >/dev/null 2>&1; then
+        if ! brew outdated --formula oven-sh/bun/bun 2>/dev/null | grep -Eq '^(bun|oven-sh/bun/bun)($| )'; then
+            eecho "Bun already at latest Homebrew version"
+            link_homebrew_bun_into_bun_install
+            return 0
+        fi
+        action="upgrade"
+    fi
+
+    eecho "Running brew $action for Bun..."
+    if [ "$VERBOSE" = "true" ]; then
+        if brew "$action" oven-sh/bun/bun; then
+            link_homebrew_bun_into_bun_install
+            return 0
+        fi
+    else
+        if brew "$action" oven-sh/bun/bun >/dev/null 2>&1; then
+            link_homebrew_bun_into_bun_install
+            return 0
+        fi
     fi
     return 1
 }
@@ -163,12 +190,13 @@ fi
 
 # Verify installation
 export PATH="$BUN_INSTALL/bin:$PATH"
-if is_installed bun; then
+INSTALLED_BUN_VERSION="$(current_bun_version)"
+if is_installed bun && [ -n "$INSTALLED_BUN_VERSION" ] && version_ge "$INSTALLED_BUN_VERSION" "$PINNED_BUN_CLEAN"; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Bun installed successfully"
         bun --version 2>/dev/null || true
     fi
-    mark_state "bun-setup"
+    mark_state "$BUN_STATE"
 else
     eecho "Error: Bun installation failed. Leaving state unset so it can retry."
     exit 1
