@@ -46,9 +46,9 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 
 ### Agent Operating System
 
-- Key files: `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `private_dot_codex/`, `private_dot_claude/`
+- Key files: `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/`
 - Responsibility: tell agents how to inspect, plan, edit, validate, and hand off work in this repo
-- Constraints: keep root instructions short, push detail into deeper docs/skills, make Codex the canonical planning workflow, and keep Claude-compatible guidance secondary unless a tool-specific difference is intentional
+- Constraints: keep root instructions short, push detail into deeper docs/skills, keep `private_dot_agents/private_skills/` as the canonical skill source tree, and treat `private_dot_codex/` / `private_dot_claude/` as client-routing or client-config surfaces unless a tool-specific difference is intentional
 
 ## Dependency Direction
 
@@ -65,7 +65,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 | `.chezmoiscripts/*` behavior | adjacent scripts, helper library, `chezmoi-script-maintainer` | `bash -n` or `chezmoi execute-template ... | bash -n`, then `chezmoi diff` / `apply` / `status` |
 | Version pins or externals | pin files, relevant setup scripts, `dotfiles-version-refresh` | template render checks, `chezmoi apply --refresh-externals`, then `chezmoi status` |
 | Shell or tmux behavior | `dot_zshrc.tmpl`, `dot_tmux.conf`, relevant `private_dot_config/*` files | `chezmoi diff` / `apply` / `status`, then `zsh -n ~/.zshrc` and/or `tmux source-file ~/.tmux.conf` |
-| Agent docs, skills, or Codex/Claude config | `AGENTS.md`, `CLAUDE.md`, `docs/tooling-and-skills.md`, `private_dot_codex/`, `private_dot_claude/` | link/reference review, then `chezmoi diff` / `apply` / `status` |
+| Agent docs, skills, or Codex/Claude config | `AGENTS.md`, `CLAUDE.md`, `docs/tooling-and-skills.md`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` | link/reference review, then `chezmoi diff` / `apply` / `status` |
 
 ## Plan Before Editing When
 

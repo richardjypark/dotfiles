@@ -45,33 +45,50 @@ Command definitions live under:
 
 ## Agent Skills In This Repo
 
-Skills are shared across both Claude Code and Codex CLI so that either tool follows the same repo conventions. Codex is the canonical planning path; Claude-facing instructions should reuse the same repo docs and skills rather than redefining the workflow.
+Skills are shared across both Claude Code and Codex CLI so that either tool follows the same repo conventions. Codex is the canonical planning path, but the skill folders themselves should follow a tool-agnostic structure:
 
-### Claude Code Skills (`~/.claude/skills/`)
+```text
+my-skill/
+├── SKILL.md          # required: YAML frontmatter + markdown instructions
+├── scripts/          # optional: executable helpers
+├── references/       # optional: load-on-demand docs
+└── assets/           # optional: templates/resources used in outputs
+```
 
-Managed via `private_dot_claude/skills/`. Each skill has a `SKILL.md` with YAML frontmatter (`name`, `description`) and references shared Codex reference files by repo-relative path.
+Repo-specific extensions can live alongside that portable layout when needed. In this repo, Codex UI metadata uses an optional `agents/openai.yaml` inside the shared skill folder, but that file is not part of the generic Agent Skills format.
 
-- `chezmoi-repo-maintainer` — General repo maintenance for docs, templates, shell/tmux behavior, agent instructions, and multi-subsystem changes.
-- `jj` — Jujutsu version control workflows (core concepts, daily flow, advanced workflows, revsets, config aliases, conflict resolution, safety rules, recovery, git-to-jj mapping).
-- `chezmoi-script-maintainer` — Create and maintain `.chezmoiscripts/*` setup scripts. References `private_dot_codex/skills/chezmoi-script-maintainer/references/script-patterns.md`.
-- `chezmoi-bootstrap-operator` — Bootstrap workflow operations across Omarchy and VPS paths. References `private_dot_codex/skills/chezmoi-bootstrap-operator/references/bootstrap-matrix.md`.
-- `dotfiles-version-refresh` — Update pinned tool versions and external dependencies. References `private_dot_codex/skills/dotfiles-version-refresh/references/version-map.md`.
+Use the progressive-disclosure model:
 
-### Codex CLI Skills (`~/.codex/skills/`)
+1. Discovery: the agent sees only the skill `name` and `description`.
+2. Activation: the agent loads the `SKILL.md` body when the task matches.
+3. Execution: the agent loads `references/` files or runs bundled scripts only when needed.
 
-Managed via `private_dot_codex/skills/`. Each skill has a `SKILL.md`, an `agents/openai.yaml`, and optional `references/` directory with detailed reference files.
+Keep `SKILL.md` focused on trigger guidance, workflow, and references to deeper material. Put detailed examples, matrices, and command reference material in `references/` instead of expanding the core instructions indefinitely.
 
-- `chezmoi-repo-maintainer` — Cross-cutting repo maintenance; points agents to `ARCHITECTURE.md` and the canonical research/plan workflow in `plans/README.md` before narrower skills.
-- `jj` — Jujutsu version control workflows (same content as Claude Code version).
-- `chezmoi-script-maintainer` — Script creation patterns with `references/script-patterns.md`.
-- `chezmoi-bootstrap-operator` — Bootstrap flows with `references/bootstrap-matrix.md`.
-- `dotfiles-version-refresh` — Version pinning with `references/version-map.md`.
+### Shared Skill Tree (`~/.agents/skills/`)
 
-### Reference Sharing
+The canonical source tree lives in `private_dot_agents/private_skills/` and renders to `~/.agents/skills/`. Each skill folder follows the Agent Skills pattern directly, including optional metadata only where needed.
 
-Canonical reference files live under `private_dot_codex/skills/*/references/`. Claude Code skills cross-reference these by repo-relative path since both tools operate from `~/.local/share/chezmoi`.
+Installed client paths are routed to the shared tree:
 
-For cross-cutting work, the canonical references are repo-root docs instead of skill-local references:
+- `~/.codex/skills` → symlink to `~/.agents/skills`
+- `~/.claude/skills` → symlink to `~/.agents/skills`
+
+Shared skills currently include:
+
+- `chezmoi-repo-maintainer` — Cross-cutting repo maintenance for docs, templates, shell/tmux behavior, agent instructions, and multi-subsystem changes.
+- `jj` — Jujutsu version control workflows with detailed reference material in `references/jj-reference.md`.
+- `chezmoi-script-maintainer` — Create and maintain `.chezmoiscripts/*` setup scripts with `references/script-patterns.md`.
+- `chezmoi-bootstrap-operator` — Bootstrap workflow operations across Omarchy and VPS paths with `references/bootstrap-matrix.md`.
+- `dotfiles-version-refresh` — Update pinned tool versions and external dependencies with `references/version-map.md`.
+
+Optional tool metadata lives alongside the shared skill when needed. For example, Codex UI metadata remains in `agents/openai.yaml` inside the canonical skill folder rather than in a separate client-specific copy.
+
+### Shared Sources Of Truth
+
+Skills should have one source of truth: the shared `private_dot_agents/private_skills/` tree. Client-specific paths should be routing only, not separate copies of skill content.
+
+For cross-cutting work, the canonical references can still live in repo-root docs instead of skill-local copies:
 
 - `ARCHITECTURE.md`
 - `plans/README.md`

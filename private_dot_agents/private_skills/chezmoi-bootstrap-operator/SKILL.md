@@ -5,17 +5,19 @@ description: "Maintain bootstrap workflows for this dotfiles repo across Omarchy
 
 # Chezmoi Bootstrap Operator
 
+## When to use this skill
+
 Use this skill when:
 
 - choosing the correct bootstrap command or flags for a machine role/profile
 - editing `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, or `scripts/server-lockdown-tailscale.sh`
 - changing bootstrap sequencing, trust gates, or server lockdown behavior
 
-## Read First
+## Read first
 
 - `~/.local/share/chezmoi/AGENTS.md`
 - `~/.local/share/chezmoi/ARCHITECTURE.md`
-- `~/.local/share/chezmoi/private_dot_codex/skills/chezmoi-bootstrap-operator/references/bootstrap-matrix.md`
+- `references/bootstrap-matrix.md`
 
 ## Workflow
 
@@ -23,7 +25,7 @@ Use this skill when:
    - Omarchy machine: `scripts/bootstrap-omarchy.sh`
    - Debian/Ubuntu VPS: `bootstrap-vps.sh`
    - post-bootstrap hardening: `scripts/server-lockdown-tailscale.sh`
-2. Load command and flag details from the bootstrap matrix reference.
+2. Load command and flag details from `references/bootstrap-matrix.md`.
 3. Apply the smallest safe change:
    - keep default-safe behavior (no implicit trust of remote installers)
    - keep role behavior consistent (`workstation` vs `server`)
@@ -31,7 +33,11 @@ Use this skill when:
 4. Update docs when user-visible behavior changes:
    - `~/.local/share/chezmoi/README.md` sections for setup, flags, and role/profile behavior
 
-## Stop And Ask
+## References
+
+- `references/bootstrap-matrix.md` for the supported bootstrap paths, trust-gate defaults, and private-input handling
+
+## Stop and ask
 
 - the change would weaken security defaults
 - private bootstrap values would move into tracked files
@@ -47,7 +53,7 @@ bash -n scripts/server-lockdown-tailscale.sh
 bash -n bootstrap-vps.sh
 ```
 
-For behavior checks, run only the relevant command path from the bootstrap matrix reference.
+For behavior checks, run only the relevant command path from `references/bootstrap-matrix.md`.
 
 ## Guardrails
 

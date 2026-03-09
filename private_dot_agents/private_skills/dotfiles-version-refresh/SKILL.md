@@ -5,13 +5,15 @@ description: "Update pinned tool versions and external dependency references for
 
 # Dotfiles Version Refresh
 
+## When to use this skill
+
 Use this skill when:
 
 - bumping Node, NVM, Python, FZF, plugin, or archive revisions
 - changing `.chezmoidata.toml`, `.chezmoiversion.toml`, or `.chezmoiexternal.toml.tmpl`
 - adjusting setup logic because a pinned version or refresh policy changed
 
-## Read First
+## Read first
 
 - `~/.local/share/chezmoi/AGENTS.md`
 - `~/.local/share/chezmoi/ARCHITECTURE.md`
@@ -30,7 +32,11 @@ Use this skill when:
    - favor pinned, deterministic versions
    - keep `refreshPeriod` expectations aligned with current policy
 
-## Stop And Ask
+## References
+
+- `references/version-map.md` for the authoritative file map between pinned values, externals, scripts, and docs
+
+## Stop and ask
 
 - the desired outcome requires following an unpinned "latest" channel
 - it is unclear which file should remain authoritative for a version value
