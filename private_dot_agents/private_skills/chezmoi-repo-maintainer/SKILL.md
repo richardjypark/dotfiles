@@ -5,13 +5,15 @@ description: "Maintain this chezmoi dotfiles repo when work spans docs, template
 
 # Chezmoi Repo Maintainer
 
+## When to use this skill
+
 Use this skill when:
 
 - the task is cross-cutting and does not fit bootstrap, script-maintainer, version-refresh, or jj alone
 - editing `~/.local/share/chezmoi/AGENTS.md`, `~/.local/share/chezmoi/CLAUDE.md`, repo docs, Codex/Claude skills, or other agent-operating files
 - changing shell/tmux behavior or templates in a way that spans multiple subsystems
 
-## Read First
+## Read first
 
 - `~/.local/share/chezmoi/README.md`
 - `~/.local/share/chezmoi/AGENTS.md`
@@ -22,16 +24,22 @@ Use this skill when:
 
 1. Map the request to the affected subsystem(s) using `~/.local/share/chezmoi/ARCHITECTURE.md`.
 2. Prefer the smallest source-of-truth change; do not edit rendered files in `~/`.
-3. Follow the canonical planning workflow from `~/.local/share/chezmoi/plans/README.md`: for high-impact or multi-step work, create local-only `plans/YYYY-MM-DD-<slug>-research.md` and `plans/YYYY-MM-DD-<slug>-plan.md` artifacts before mutating the repo, and do not commit them.
+3. For high-impact or multi-step work, create local-only `plans/YYYY-MM-DD-<slug>-research.md` and `plans/YYYY-MM-DD-<slug>-plan.md` artifacts before mutating the repo, and do not commit them.
 4. Treat the plan as the implementation contract: revise it from inline notes until it is decision-complete, then wait for explicit user approval before implementing.
 5. Pull in narrower skills once the work enters a specialized area:
    - bootstrap
    - `.chezmoiscripts/*`
    - version pins / externals
    - jj history operations
-6. Keep shared Codex/Claude safety and validation rules aligned unless a tool-specific difference is intentional, and prefer the Codex repo docs as the canonical planning source when shared guidance would otherwise drift.
+6. Keep shared Codex/Claude safety and validation rules aligned unless a tool-specific difference is intentional, but treat the Codex planning workflow as canonical when shared docs need a single source of truth.
 
-## Stop And Ask
+## References
+
+- `~/.local/share/chezmoi/README.md` for bootstrap and user-facing workflow context
+- `~/.local/share/chezmoi/ARCHITECTURE.md` for subsystem boundaries and validation routing
+- `~/.local/share/chezmoi/plans/README.md` for the local research/plan workflow
+
+## Stop and ask
 
 - the change would weaken security defaults or alter secret handling
 - it is unclear whether behavior belongs in root docs, a skill, or a tool-specific config file

@@ -5,13 +5,15 @@ description: "Maintain `.chezmoiscripts/*` setup scripts in this repo. Trigger w
 
 # Chezmoi Script Maintainer
 
+## When to use this skill
+
 Use this skill when:
 
 - editing `.chezmoiscripts/run_before_*` or `.chezmoiscripts/run_after_*`
 - changing helper-driven install/setup behavior
 - adding or adjusting trust gates, role/profile guards, or state tracking for setup tasks
 
-## Read First
+## Read first
 
 - `~/.local/share/chezmoi/AGENTS.md`
 - `~/.local/share/chezmoi/ARCHITECTURE.md`
@@ -31,7 +33,11 @@ Use this skill when:
 4. Update docs when user-visible behavior changes:
    - `~/.local/share/chezmoi/README.md` for setup, role, or command changes
 
-## Stop And Ask
+## References
+
+- `references/script-patterns.md` for reusable script headers, trust gates, role gates, and file-order conventions
+
+## Stop and ask
 
 - the change needs new secret input or touches private env handling
 - an installer would become implicitly trusted or interactive by default

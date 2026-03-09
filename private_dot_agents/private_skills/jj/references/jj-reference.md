@@ -1,30 +1,27 @@
----
-name: jj
-description: "Use Jujutsu (jj) for Git-backed version control workflows: inspect status/history, create and reshape changes, manage bookmarks, and sync with remotes. Trigger this skill when the user asks for commit, history, rebase, bookmark, or push operations in a jj-backed repo."
----
+# Jujutsu Reference
 
-# Jujutsu Workflow
+## Table of Contents
 
-Use this skill when the task is primarily about repository history or publishing state, not about editing the repo's runtime files.
-
-## Read First
-
-- `~/.local/share/chezmoi/AGENTS.md`
-- `~/.local/share/chezmoi/ARCHITECTURE.md` when the VCS task is coupled to a larger repo change
-
-## Stop And Ask
-
-- the intended bookmark, remote, or push target is ambiguous
-- the operation would rewrite, abandon, or publish someone else's work
-- it is unclear whether the user wants inspection only or a history-changing action
+- Core concepts
+- Quick start
+- Daily flow
+- Advanced workflows
+- Bookmarks and remote tracking
+- Revsets
+- Config aliases
+- Conflict resolution
+- Safety rules
+- Recovery
+- Git-to-jj mapping
+- Commit message convention
 
 ## Core Concepts
 
-- **Change ID**: Stable identifier (e.g., `kntqzsqt`) that survives rewrites.
-- **Commit ID**: Content hash (e.g., `5d39e19d`) that changes when amended.
-- **Working copy (`@`)**: Always a commit, auto-updated by jj — no staging area.
-- **`@-`**: Parent of working copy. `@--` = grandparent.
-- **Bookmarks**: jj's equivalent of git branches; point at a change ID.
+- **Change ID**: Stable identifier (for example `kntqzsqt`) that survives rewrites.
+- **Commit ID**: Content hash (for example `5d39e19d`) that changes when amended.
+- **Working copy (`@`)**: Always a commit, auto-updated by jj; there is no staging area.
+- **`@-`**: Parent of the working copy. `@--` is the grandparent.
+- **Bookmarks**: jj's equivalent of git branches; they point at a change ID.
 
 ## Quick Start
 
@@ -32,23 +29,21 @@ Use this skill when the task is primarily about repository history or publishing
 - Inspect graph before changes: `jj log -r '::@' --limit 12` (alias: `jj l`)
 - Show working-copy diff: `jj diff` (alias: `jj d`)
 - Show diff stats: `jj ds`
-- Shell shortcut: `j` is aliased to `jj`.
+- Shell shortcut: `j` is aliased to `jj`
 
 ## Daily Flow
 
-1. **Start or continue a change.**
+1. Start or continue a change.
    - New change: `jj new -m "type: summary"` (alias: `jj n`)
    - Continue prior change: `jj edit <change-id>` (alias: `jj e`)
-
-2. **Review and shape changes.**
+2. Review and shape changes.
    - Inspect: `jj diff`
    - Reword description: `jj describe -m "type: summary"` (alias: `jj desc`)
-   - Move content to parent (amend): `jj squash` (alias: `jj sq`)
-   - Interactive squash (select hunks): `jj squash -i`
+   - Move content to parent: `jj squash` (alias: `jj sq`)
+   - Interactive squash: `jj squash -i`
    - Split change: `jj split` (alias: `jj sp`)
    - Commit working copy and start new change: `jj commit -m "type: summary"` (alias: `jj c`)
-
-3. **Sync with remote.**
+3. Sync with remote.
    - Fetch: `jj git fetch` (alias: `jj fetch`)
    - Fetch all remotes: `jj sync`
    - Push current bookmark: `jj git push` (alias: `jj push`)
@@ -61,10 +56,10 @@ Use this skill when the task is primarily about repository history or publishing
 Use when you need a prerequisite refactor before your current change:
 
 ```bash
-jj new -m "feat: implement X"         # start main change
-jj new -B -m "refactor: prep work"    # insert change BEFORE current (-B flag)
+jj new -m "feat: implement X"
+jj new -B -m "refactor: prep work"
 # ... do prerequisite work ...
-jj next --edit                         # return to original change
+jj next --edit
 ```
 
 ### Stacked changes
@@ -72,23 +67,23 @@ jj next --edit                         # return to original change
 ```bash
 jj new -m "feat: part 1"
 # ... work ...
-jj new -m "feat: part 2"              # automatically parents on part 1
+jj new -m "feat: part 2"
 # ... work ...
-jj log -r 'stacked'                   # see trunk()..@ with custom revset
+jj log -r 'stacked'
 ```
 
 ### Navigate the stack
 
-- `jj next --edit` — move to child change and edit it.
-- `jj prev --edit` — move to parent change and edit it.
+- `jj next --edit` moves to a child change and edits it.
+- `jj prev --edit` moves to a parent change and edits it.
 
-### Squash workflow (use `@` like a staging area)
+### Squash workflow
 
 ```bash
-jj describe -m "feat: implement X"    # describe the real change
-jj new                                 # create scratch change on top
+jj describe -m "feat: implement X"
+jj new
 # ... make edits ...
-jj squash                              # move changes from @ into @- (parent)
+jj squash
 ```
 
 ## Bookmarks and Remote Tracking
@@ -105,12 +100,12 @@ Ensure the intended bookmark points at the current change before `jj git push`.
 ### Standard Revsets
 
 | Revset | Description |
-|--------|-------------|
+| --- | --- |
 | `@` | Current working copy |
 | `@-` | Parent of working copy |
 | `@--` | Grandparent |
 | `root()` | Root commit |
-| `trunk()` | Main branch (main/master) |
+| `trunk()` | Main branch (`main` or `master`) |
 | `bookmarks()` | All bookmarks |
 
 ### Repo Custom Revset Aliases
@@ -118,7 +113,7 @@ Ensure the intended bookmark points at the current change before `jj git push`.
 Defined in `private_dot_config/jj/config.toml.tmpl`:
 
 | Alias | Definition | Use |
-|-------|-----------|-----|
+| --- | --- | --- |
 | `trunk()` | `latest(present(main@origin) \| present(master@origin))` | Canonical upstream tip |
 | `mine` | `author(exact:'rich')` | All my changes |
 | `wip` | `description(glob:'wip*')` | Work-in-progress changes |
@@ -129,7 +124,7 @@ Defined in `private_dot_config/jj/config.toml.tmpl`:
 Defined in `private_dot_config/jj/config.toml.tmpl`:
 
 | Alias | Expands to | Purpose |
-|-------|-----------|---------|
+| --- | --- | --- |
 | `l` | `log -r @::` | Log from working copy up |
 | `la` | `log -r all()` | Log everything |
 | `ll` | `log --limit 20` | Short log |
@@ -150,53 +145,54 @@ Defined in `private_dot_config/jj/config.toml.tmpl`:
 
 ## Conflict Resolution
 
-When conflicts arise (e.g., after rebase):
+When conflicts arise, especially after a rebase:
 
-1. `jj status` — shows conflicted files.
-2. Edit files to resolve conflict markers.
-3. Changes are auto-tracked; no explicit `add` needed.
-4. `jj status` again to confirm resolution.
+1. Run `jj status` to identify conflicted files.
+2. Edit the files to resolve the conflict markers.
+3. Re-run `jj status` to confirm the resolution.
 
-If the rebase was wrong: `jj undo` to reverse it immediately.
+If the rebase itself was wrong, use `jj undo` immediately.
 
 ## Safety Rules
 
-### Safe operations (freely use)
+### Safe operations
 
-- `jj status`, `jj log`, `jj diff`, `jj show` — read-only inspection.
-- `jj new`, `jj edit`, `jj describe` — create or annotate changes.
-- `jj git fetch` — read-only remote sync.
+- `jj status`, `jj log`, `jj diff`, `jj show`
+- `jj new`, `jj edit`, `jj describe`
+- `jj git fetch`
 
-### Reshaping operations (check log before and after)
+### Reshaping operations
 
-- `jj squash`, `jj split`, `jj rebase` — rewrite history.
-- `jj abandon` — discard a change.
-- Always inspect `jj log` after these to confirm expected graph state.
+- `jj squash`, `jj split`, `jj rebase`
+- `jj abandon`
+
+Inspect `jj log` after these commands to confirm the graph changed the way you intended.
 
 ### Caution-required operations
 
-- `jj git push` — publishes changes to remote; confirm bookmark target first.
-- `jj git push --all` — pushes all bookmarks; avoid unless intentional.
-- Prefer `jj` commands over raw `git` rewrite commands.
+- `jj git push`
+- `jj git push --all`
+
+Prefer `jj` rewrite commands over raw `git` history-rewrite commands in this repo.
 
 ## Recovery
 
-- **Undo last operation**: `jj undo`
-- **Redo**: `jj redo`
-- **View operation history**: `jj op log`
-- **Restore to a specific operation**: `jj op restore <op-id>`
+- Undo last operation: `jj undo`
+- Redo: `jj redo`
+- View operation history: `jj op log`
+- Restore to a specific operation: `jj op restore <op-id>`
 
-Every jj operation is recorded; nothing is truly lost until garbage-collected.
+Every jj operation is recorded until it is garbage-collected.
 
 ## Git-to-jj Mapping
 
 | Git | jj | Notes |
-|-----|-----|-------|
+| --- | --- | --- |
 | `git status` | `jj status` | |
 | `git log --graph` | `jj log` | |
-| `git add` | *(automatic)* | No staging area |
+| `git add` | automatic | No staging area |
 | `git commit` | `jj commit` or `jj describe` + `jj new` | |
-| `git commit --amend` | `jj squash` | Moves @ into @- |
+| `git commit --amend` | `jj squash` | Moves `@` into `@-` |
 | `git stash` | `jj new` then `jj edit @-` | Leave changes in a new change |
 | `git rebase` | `jj rebase` | |
 | `git cherry-pick` | `jj new <change-id>` + `jj squash` | |
