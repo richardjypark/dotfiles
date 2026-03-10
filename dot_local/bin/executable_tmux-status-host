@@ -5,6 +5,7 @@ set -eu
 pane_tty="${1:-}"
 local_host="${2:-local}"
 client_tty="${3:-}"
+pane_command="${4:-}"
 alias_file="${TMUX_HOST_ALIAS_FILE:-${HOME}/.config/tmux/host-aliases.conf}"
 
 trim() {
@@ -22,19 +23,21 @@ sanitize_label() {
 
 is_ipv4() {
   value="${1:-}"
-  printf '%s\n' "$value" | awk -F'.' '
-    NF != 4 { exit 1 }
-    {
-      for (i = 1; i <= 4; i++) {
-        if ($i !~ /^[0-9]+$/) {
-          exit 1
-        }
-        if ($i < 0 || $i > 255) {
-          exit 1
-        }
-      }
-    }
-  '
+  old_ifs="${IFS}"
+  IFS=.
+  set -- $value
+  IFS="${old_ifs}"
+
+  [ "$#" -eq 4 ] || return 1
+
+  for octet in "$@"; do
+    case "$octet" in
+      ""|*[!0-9]*)
+        return 1
+        ;;
+    esac
+    [ "$octet" -le 255 ] 2>/dev/null || return 1
+  done
 }
 
 looks_like_ip() {
@@ -149,10 +152,9 @@ print_alias_badge() {
   default_fg="${3:-colour255}"
   default_bg="${4:-colour238}"
   alias_data="$(resolve_alias "$host_input" "$fallback_alias" "$default_fg" "$default_bg")"
-
-  alias_label="$(printf '%s' "$alias_data" | cut -d'|' -f1)"
-  alias_fg="$(printf '%s' "$alias_data" | cut -d'|' -f2)"
-  alias_bg="$(printf '%s' "$alias_data" | cut -d'|' -f3)"
+  IFS='|' read -r alias_label alias_fg alias_bg <<EOF
+$alias_data
+EOF
   printf '#[fg=%s,bg=%s,bold] %s ' "$alias_fg" "$alias_bg" "$alias_label"
 }
 
@@ -197,39 +199,10 @@ find_remote_host() {
   '
 }
 
-get_tmux_env() {
-  var_name="$1"
-  line="$(tmux show-environment -g "$var_name" 2>/dev/null || true)"
-  case "$line" in
-    "$var_name="*)
-      printf '%s' "${line#*=}"
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
 is_inner_remote_context() {
-  if [ -n "$client_tty" ]; then
-    if ps -o command= -t "$client_tty" 2>/dev/null | awk '
-      /(^|[[:space:]])sshd(:|[[:space:]])/ {
-        found = 1
-        exit
-      }
-      END {
-        exit(found ? 0 : 1)
-      }
-    '; then
-      return 0
-    fi
-  fi
+  [ -n "${SSH_TTY:-}" ] || [ -n "${SSH_CONNECTION:-}" ] && return 0
 
-  tmux_ssh_tty="$(get_tmux_env SSH_TTY || true)"
-  tmux_ssh_connection="$(get_tmux_env SSH_CONNECTION || true)"
-
-  [ -n "$tmux_ssh_tty" ] || [ -n "$tmux_ssh_connection" ]
+  return 1
 }
 
 render_local() {
@@ -257,7 +230,12 @@ render_inner_remote() {
   exit 0
 }
 
-cmdline="$(ps -o command= -t "$pane_tty" 2>/dev/null | awk '/(^|[[:space:]])(ssh|mosh|mosh-client)([[:space:]]|$)/ { print; exit }')"
+cmdline=""
+case "$pane_command" in
+  ssh|mosh|mosh-client)
+    cmdline="$(ps -o command= -t "$pane_tty" 2>/dev/null | awk '/(^|[[:space:]])(ssh|mosh|mosh-client)([[:space:]]|$)/ { print; exit }')"
+    ;;
+esac
 
 case "$cmdline" in
   *mosh-client*|*mosh\ *)
