@@ -66,6 +66,7 @@ export FZF_DEFAULT_OPTS="
   --ansi
 "
 
-# Load fzf shell integrations from installed files (more portable than process substitution)
-[ -f "$FZF_BASE/shell/key-bindings.zsh" ] && source "$FZF_BASE/shell/key-bindings.zsh"
-[ -f "$FZF_BASE/shell/completion.zsh" ] && source "$FZF_BASE/shell/completion.zsh"
+# Load fzf shell integrations from installed files (more portable than process substitution).
+# These scripts restore shell options in a way that can emit harmless zle noise on startup.
+[ -f "$FZF_BASE/shell/key-bindings.zsh" ] && source "$FZF_BASE/shell/key-bindings.zsh" 2>/dev/null
+[ -f "$FZF_BASE/shell/completion.zsh" ] && source "$FZF_BASE/shell/completion.zsh" 2>/dev/null

@@ -2,7 +2,7 @@
 # Refresh from: ~/.local/share/omarchy/config/starship.toml
 add_newline = true
 command_timeout = 200
-format = "[$hostname$directory$git_branch$git_status$custom]($style)\n$character"
+format = "[$hostname$directory$git_branch$git_status$env_var]($style)\n$character"
 
 [character]
 error_symbol = "[✗](bold cyan)"
@@ -39,8 +39,7 @@ staged     = ""
 renamed    = ""
 deleted    = ""
 
-[custom.jj]
-when = "jj root --ignore-working-copy >/dev/null 2>&1"
-command = "b=$(jj log --no-graph -r @ -T 'bookmarks.join(\", \")' 2>/dev/null); [ -n \"$b\" ] && printf '%s' \"$b\" || jj log --no-graph -r @ -T 'change_id.short()' 2>/dev/null"
-format = "[jj:$output]($style) "
+[env_var.DOTFILES_JJ_PROMPT]
+variable = "DOTFILES_JJ_PROMPT"
+format = "[$env_value]($style) "
 style = "italic bright-green"

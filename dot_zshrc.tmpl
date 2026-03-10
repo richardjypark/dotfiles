@@ -33,13 +33,11 @@ zstyle :omz:plugins:jj ignore-working-copy yes
 
 plugins=(
 	git
-	jj
 {{- if and (ne (env "CHEZMOI_ROLE") "server") (ne .chezmoi.hostname "vultr") }}
 	terraform
 	ansible
 {{- end }}
 	ssh-agent
-	tmux
 	zsh-autosuggestions
 	zsh-syntax-highlighting
 )
@@ -52,12 +50,6 @@ if [[ -d "$ZSH" ]]; then
 	source "$ZSH/oh-my-zsh.sh"
 
 	[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "oh-my-zsh loaded"
-
-	# Restore IFS if needed (set by zsh-fix.sh)
-	if [[ -n "$_ifs_restore_needed" ]] && declare -f _restore_ifs >/dev/null; then
-		_restore_ifs
-		unset _ifs_restore_needed
-	fi
 
 	# Fix zsh-autosuggestions "not enough arguments for -C" on completion widgets
 	# https://github.com/zsh-users/zsh-autosuggestions/issues/825
@@ -130,28 +122,42 @@ fi
 
 [[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "starship init"
 
-# bun completions (bun PATH is set in ~/.zshenv)
-[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+_dotfiles_load_bun_completion() {
+    unset -f _dotfiles_load_bun_completion bun
+    [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+    command bun "$@"
+}
+(( $+commands[bun] )) && bun() { _dotfiles_load_bun_completion "$@"; }
 
-# uv completions (uv is set up in ~/.zshenv) - cached for performance
-if command -v uv >/dev/null 2>&1; then
+_dotfiles_load_uv_completion() {
+    unset -f _dotfiles_load_uv_completion uv
     local uv_comp="$HOME/.cache/uv-completion.zsh"
-    if [[ ! -f "$uv_comp" ]] || [[ "$(command -v uv)" -nt "$uv_comp" ]]; then
+    local uv_bin
+
+    uv_bin="$(command -v uv 2>/dev/null)" || return 127
+    if [[ ! -f "$uv_comp" ]] || [[ "$uv_bin" -nt "$uv_comp" ]]; then
         mkdir -p "$HOME/.cache"
-        uv generate-shell-completion zsh > "$uv_comp"
+        command uv generate-shell-completion zsh > "$uv_comp"
     fi
     source "$uv_comp"
-fi
+    command uv "$@"
+}
+(( $+commands[uv] )) && uv() { _dotfiles_load_uv_completion "$@"; }
 
-# pnpm completions - cached for performance
-if command -v pnpm >/dev/null 2>&1; then
+_dotfiles_load_pnpm_completion() {
+    unset -f _dotfiles_load_pnpm_completion pnpm
     local pnpm_comp="$HOME/.cache/pnpm-completion.zsh"
-    if [[ ! -f "$pnpm_comp" ]] || [[ "$(command -v pnpm)" -nt "$pnpm_comp" ]]; then
+    local pnpm_bin
+
+    pnpm_bin="$(command -v pnpm 2>/dev/null)" || return 127
+    if [[ ! -f "$pnpm_comp" ]] || [[ "$pnpm_bin" -nt "$pnpm_comp" ]]; then
         mkdir -p "$HOME/.cache"
-        pnpm completion zsh > "$pnpm_comp"
+        command pnpm completion zsh > "$pnpm_comp"
     fi
     source "$pnpm_comp"
-fi
+    command pnpm "$@"
+}
+(( $+commands[pnpm] )) && pnpm() { _dotfiles_load_pnpm_completion "$@"; }
 
 # Final profiling checkpoint and display report
 if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
