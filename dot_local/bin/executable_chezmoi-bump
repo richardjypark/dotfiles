@@ -487,7 +487,18 @@ sha256_shasums() {
     local manifest_url="$1"
     local asset_name="$2"
     local sha
-    sha="$(curl -fsSL --retry 2 "$manifest_url" 2>/dev/null | grep "$asset_name" | awk '{print $1}')"
+    sha="$(
+        curl -fsSL --retry 2 "$manifest_url" 2>/dev/null | awk -v asset="$asset_name" '
+            {
+                file = $NF
+                sub(/^\*/, "", file)
+                if (file == asset) {
+                    print $1
+                    exit
+                }
+            }
+        '
+    )"
     if validate_sha256 "$sha"; then
         echo "$sha"
     else
