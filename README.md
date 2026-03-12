@@ -59,6 +59,7 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 
 `cz*` commands are installed in `~/.local/bin` and do not rely on shell aliases.
 Aliases in `~/.config/shell/alias.sh` are convenience shortcuts only.
+Repo-managed `jj fetch` is intentionally quiet (`jj git fetch --quiet`); run raw `jj git fetch` when you want rebase/abandon diagnostics.
 
 Shell preview behavior:
 - `fzf` and `jj-fzf` previews prefer `bat` and auto-fallback to `batcat` on Debian/Ubuntu-style installs.

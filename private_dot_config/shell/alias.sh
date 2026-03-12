@@ -63,7 +63,7 @@ alias jn='jj new'                                 # new change
 alias je='jj edit'                                # edit a revision
 alias jsq='jj squash'                             # like squash merge
 alias jrb='jj rebase'                             # like grb
-alias jf='jj git fetch'                           # like gf
+alias jf='jj fetch'                               # like gf
 alias jp='jj git push'                            # like gp
 
 # Chezmoi helper commands are defined in ~/.config/shell/chezmoi.sh

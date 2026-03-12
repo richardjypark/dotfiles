@@ -44,7 +44,7 @@
    - Split change: `jj split` (alias: `jj sp`)
    - Commit working copy and start new change: `jj commit -m "type: summary"` (alias: `jj c`)
 3. Sync with remote.
-   - Fetch: `jj git fetch` (alias: `jj fetch`)
+   - Fetch: `jj fetch` (quiet alias for `jj git fetch`)
    - Fetch all remotes: `jj sync`
    - Push current bookmark: `jj git push` (alias: `jj push`)
    - Push specific bookmark: `jj git push -b <bookmark>`
@@ -140,7 +140,7 @@ Defined in `private_dot_config/jj/config.toml.tmpl`:
 | `sp` | `split` | Split change |
 | `desc` | `describe` | Reword description |
 | `push` | `git push` | Push to remote |
-| `fetch` | `git fetch` | Fetch from remote |
+| `fetch` | `git fetch --quiet` | Fetch from remote without rewrite noise |
 | `sync` | `git fetch --all-remotes` | Fetch all remotes |
 
 ## Conflict Resolution
