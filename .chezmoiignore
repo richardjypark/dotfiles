@@ -73,3 +73,14 @@ logs/*
 {{ end }}
 .chezmoiscripts/40-setup-tmux.sh
 {{ end }}
+
+# Pi maintenance agent is opt-in per machine via a local marker file.
+# Enable on a specific host with:
+#   mkdir -p ~/.config/dotfiles
+#   touch ~/.config/dotfiles/pi-maintenance-agent.enabled
+{{ $pi_agent_enabled := stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi-maintenance-agent.enabled") }}
+{{ if not $pi_agent_enabled }}
+.config/systemd/user/pi-maintenance-agent.service
+.config/systemd/user/pi-maintenance-agent.timer
+.local/share/pi-maintenance-agent
+{{ end }}

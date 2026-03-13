@@ -130,6 +130,31 @@ chmod 600 ~/.config/dotfiles/bootstrap-private.env
 $EDITOR ~/.config/dotfiles/bootstrap-private.env
 ```
 
+## Pi Maintenance Agent
+
+The pi maintenance agent can be tracked in this repo without activating on every machine.
+
+Opt in only on the hosts that should run it:
+
+```bash
+mkdir -p ~/.config/dotfiles
+touch ~/.config/dotfiles/pi-maintenance-agent.enabled
+cp ~/.local/share/pi-maintenance-agent/config/runtime.env.example ~/.config/dotfiles/pi-maintenance-agent.env
+chmod 600 ~/.config/dotfiles/pi-maintenance-agent.env
+$EDITOR ~/.config/dotfiles/pi-maintenance-agent.env
+TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
+```
+
+Behavior:
+- the agent source renders to `~/.local/share/pi-maintenance-agent/`
+- the systemd user units render only when `~/.config/dotfiles/pi-maintenance-agent.enabled` exists
+- the timer is enabled by `chezmoi apply` only when `~/.config/dotfiles/pi-maintenance-agent.env` exists
+- removing the marker file and re-running `chezmoi apply` disables the timer on that machine
+
+Notes:
+- `pi-maintenance-agent.env` is machine-local and untracked
+- if you want the timer to run while logged out, enable lingering with `loginctl enable-linger "$USER"`
+
 ## Script Contract
 
 Setup scripts under `.chezmoiscripts/` are expected to:

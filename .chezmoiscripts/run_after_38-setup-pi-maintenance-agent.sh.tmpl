@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+MARKER_FILE="$HOME/.config/dotfiles/pi-maintenance-agent.enabled"
+ENV_FILE="$HOME/.config/dotfiles/pi-maintenance-agent.env"
+PROJECT_DIR="$HOME/.local/share/pi-maintenance-agent"
+PACKAGE_JSON="$PROJECT_DIR/package.json"
+PI_BIN="$PROJECT_DIR/node_modules/.bin/pi"
+TIMER_UNIT="pi-maintenance-agent.timer"
+
+resolve_npm_cmd() {
+    local nvm_dir current_node nvm_bin candidate resolved
+
+    nvm_dir="$HOME/.nvm"
+    if [ -f "$nvm_dir/nvm.sh" ]; then
+        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
+        if command -v nvm >/dev/null 2>&1; then
+            nvm use default >/dev/null 2>&1 || true
+            current_node="$(nvm which current 2>/dev/null || true)"
+            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
+                nvm_bin="$(dirname "$current_node")"
+                if [ -x "$nvm_bin/npm" ] && "$nvm_bin/npm" -v >/dev/null 2>&1; then
+                    NPM_CMD="$nvm_bin/npm"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+
+    if is_installed npm; then
+        candidate="$(command -v npm)"
+        resolved="$candidate"
+        if command -v readlink >/dev/null 2>&1; then
+            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
+        fi
+        if [ -x "$resolved" ]; then
+            NPM_CMD="$resolved"
+        else
+            NPM_CMD="$candidate"
+        fi
+        return 0
+    fi
+
+    return 1
+}
+
+expected_pi_version() {
+    sed -n 's/.*"@mariozechner\/pi-coding-agent": *"\([^"]*\)".*/\1/p' "$PACKAGE_JSON" | head -1
+}
+
+installed_pi_version() {
+    if [ ! -x "$PI_BIN" ]; then
+        return 0
+    fi
+    "$PI_BIN" --version 2>/dev/null | awk 'NR==1{print $1; exit}'
+}
+
+has_user_systemd() {
+    command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
+}
+
+disable_timer_if_present() {
+    if ! has_user_systemd; then
+        return 0
+    fi
+    systemctl --user disable --now "$TIMER_UNIT" >/dev/null 2>&1 || true
+}
+
+if [ ! -e "$MARKER_FILE" ]; then
+    vecho "Pi maintenance agent not enabled on this host"
+    disable_timer_if_present
+    exit 0
+fi
+
+if [ ! -f "$PACKAGE_JSON" ]; then
+    eecho "Error: pi maintenance agent source is missing at $PROJECT_DIR"
+    eecho "Rerun chezmoi apply after confirming the source files are present."
+    exit 1
+fi
+
+add_to_path "$HOME/.local/bin"
+
+NPM_CMD=""
+if ! resolve_npm_cmd; then
+    eecho "Error: npm is required to install the pi maintenance agent dependency."
+    eecho "Install Node.js/npm first, then rerun chezmoi apply."
+    exit 1
+fi
+
+EXPECTED_PI_VERSION="$(expected_pi_version)"
+if [ -z "$EXPECTED_PI_VERSION" ]; then
+    eecho "Error: could not determine the pinned pi version from $PACKAGE_JSON"
+    exit 1
+fi
+
+INSTALLED_PI_VERSION="$(installed_pi_version)"
+if [ "$INSTALLED_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
+    if ! require_trust_for_remote_installer "npm registry package download"; then
+        exit 1
+    fi
+
+    eecho "Installing pi maintenance agent dependency version $EXPECTED_PI_VERSION..."
+    if [ "$VERBOSE" = "true" ]; then
+        (
+            cd "$PROJECT_DIR"
+            "$NPM_CMD" install --ignore-scripts --no-fund --no-audit --omit=dev --package-lock=false
+        )
+    else
+        (
+            cd "$PROJECT_DIR"
+            "$NPM_CMD" install --ignore-scripts --no-fund --no-audit --omit=dev --package-lock=false >/dev/null 2>&1
+        )
+    fi
+    INSTALLED_PI_VERSION="$(installed_pi_version)"
+fi
+
+if [ "$INSTALLED_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
+    eecho "Error: expected pi version $EXPECTED_PI_VERSION but found ${INSTALLED_PI_VERSION:-missing}."
+    exit 1
+fi
+
+if ! has_user_systemd; then
+    eecho "Pi maintenance agent files are installed, but user systemd is not available in this session."
+    eecho "Rerun chezmoi apply from a regular user login to enable the timer."
+    exit 0
+fi
+
+systemctl --user daemon-reload
+if [ ! -f "$ENV_FILE" ]; then
+    eecho "Pi maintenance agent is opted in, but $ENV_FILE is missing."
+    eecho "Copy $PROJECT_DIR/config/runtime.env.example to that path, then rerun chezmoi apply to enable the timer."
+    exit 0
+fi
+
+if [ "$VERBOSE" = "true" ]; then
+    systemctl --user enable --now "$TIMER_UNIT"
+else
+    systemctl --user enable --now "$TIMER_UNIT" >/dev/null 2>&1
+fi
+
+vecho "Pi maintenance agent timer ensured: $TIMER_UNIT"
