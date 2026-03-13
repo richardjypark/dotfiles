@@ -40,7 +40,16 @@ elif [ "$(id -u)" = 0 ]; then
     chsh -s "$ZSH_PATH" "$(whoami)"
 else
     # Check if we can use sudo non-interactively
-    if sudo -n true 2>/dev/null; then
+    if sudo_disabled; then
+        if chsh -s "$ZSH_PATH" </dev/null 2>/dev/null; then
+            vecho "Changed shell without sudo"
+        else
+            eecho "Warning: could not change login shell automatically."
+            eecho "Manual fix: chsh -s \"$ZSH_PATH\" \"$(whoami)\""
+            eecho "If your system requires sudo: sudo chsh -s \"$ZSH_PATH\" \"$(whoami)\""
+            exit 0
+        fi
+    elif sudo -n true 2>/dev/null; then
         sudo chsh -s "$ZSH_PATH" "$(whoami)"
     else
         # Try chsh without sudo (some systems allow users to change their own shell)

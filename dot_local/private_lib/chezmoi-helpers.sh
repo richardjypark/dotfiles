@@ -75,13 +75,26 @@ is_installed() {
 # --- Privilege Escalation ---
 
 TRUST_ON_FIRST_USE_INSTALLERS="${TRUST_ON_FIRST_USE_INSTALLERS:-0}"
+CHEZMOI_DISABLE_SUDO="${CHEZMOI_DISABLE_SUDO:-0}"
 
 # Download/cache settings
 CHEZMOI_PREFETCH_JOBS="${CHEZMOI_PREFETCH_JOBS:-4}"
 CHEZMOI_DOWNLOAD_CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
+sudo_disabled() {
+    case "${CHEZMOI_DISABLE_SUDO:-0}" in
+        1|true|TRUE|yes|YES)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
 # Check if we can run privileged commands (root or passwordless sudo)
 ensure_sudo() {
+    if sudo_disabled; then
+        return 1
+    fi
     if [ "$(id -u)" = 0 ]; then
         return 0
     fi
@@ -99,6 +112,9 @@ ensure_sudo() {
 
 # Run a command with privilege escalation if needed
 run_privileged() {
+    if sudo_disabled; then
+        return 1
+    fi
     if [ "$(id -u)" = 0 ]; then
         "$@"
     elif ensure_sudo; then

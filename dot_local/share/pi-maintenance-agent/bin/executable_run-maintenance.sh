@@ -9,6 +9,7 @@ LOG_DIR="$STATE_DIR/logs"
 SESSION_DIR="$STATE_DIR/sessions"
 LOCK_FILE="$STATE_DIR/run.lock"
 REPO_DIR="${CHEZMOI_REPO_DIR:-$HOME/.local/share/chezmoi}"
+RUNTIME_ENV_FILE="${RUNTIME_ENV_FILE:-$HOME/.config/dotfiles/pi-maintenance-agent.env}"
 PI_BIN="${PI_BIN:-$PROJECT_DIR/node_modules/.bin/pi}"
 PI_PROVIDER="${PI_PROVIDER:-}"
 PI_MODEL="${PI_MODEL:-}"
@@ -21,6 +22,17 @@ exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   exit 0
 fi
+
+if [[ -f "$RUNTIME_ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$RUNTIME_ENV_FILE"
+  set +a
+fi
+
+PI_PROVIDER="${PI_PROVIDER:-}"
+PI_MODEL="${PI_MODEL:-}"
+PI_THINKING="${PI_THINKING:-medium}"
 
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -81,6 +93,8 @@ main() {
   require_cmd czuf
   require_cmd chezmoi-bump
   require_cmd chezmoi
+
+  export CHEZMOI_DISABLE_SUDO=1
 
   if [[ ! -x "$PI_BIN" ]]; then
     printf 'pi binary not found: %s\n' "$PI_BIN" >&2
