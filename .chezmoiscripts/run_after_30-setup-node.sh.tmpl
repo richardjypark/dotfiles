@@ -48,6 +48,42 @@ resolve_node_version() {
     return 1
 }
 
+link_node_tool() {
+    local node_bin="$1"
+    local tool_name="$2"
+    local tool_path="$node_bin/$tool_name"
+    local managed_link="$HOME/.local/bin/$tool_name"
+    local current_target=""
+
+    if [ -x "$tool_path" ]; then
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$tool_path" "$managed_link"
+        return 0
+    fi
+
+    if [ -L "$managed_link" ]; then
+        current_target="$(readlink "$managed_link" 2>/dev/null || true)"
+        case "$current_target" in
+            "$HOME/.nvm"/*)
+                rm -f "$managed_link"
+                ;;
+        esac
+    fi
+}
+
+link_node_tool_set() {
+    local node_bin="$1"
+    local tool
+
+    for tool in node npm npx corepack; do
+        link_node_tool "$node_bin" "$tool"
+    done
+
+    for tool in yarn pnpm; do
+        link_node_tool "$node_bin" "$tool"
+    done
+}
+
 # Determine if the requested Node version is already installed in NVM.
 # `nvm current` can be "none/system" in non-interactive apply runs.
 CURRENT_NODE_VERSION="$(nvm version "$NODE_VERSION" 2>/dev/null || true)"
@@ -69,6 +105,7 @@ if should_skip_state "$NODE_STATE"; then
     if [ -n "$STATE_NODE_PATH" ] && [ -x "$STATE_NODE_PATH" ]; then
         STATE_NODE_BIN="$(dirname "$STATE_NODE_PATH")"
         if [ -x "$STATE_NODE_BIN/npm" ]; then
+            link_node_tool_set "$STATE_NODE_BIN"
             vecho "Node.js setup already completed (state tracked)"
             exit 0
         fi
@@ -117,6 +154,7 @@ export PATH="$NVM_BIN:$PATH"
 hash -r 2>/dev/null || true
 NODE_CMD="$NVM_BIN/node"
 NPM_CMD="$NVM_BIN/npm"
+link_node_tool_set "$NVM_BIN"
 
 # Install global packages only if needed
 vecho "Checking global npm packages..."
@@ -138,6 +176,8 @@ if [ "${#PACKAGES_TO_INSTALL[@]}" -gt 0 ]; then
     fi
     run_quiet "$NPM_CMD" install -g "${PACKAGES_TO_INSTALL[@]}"
 fi
+
+link_node_tool_set "$NVM_BIN"
 
 # Create a simple test to verify everything is working (only if verbose)
 if [ "$VERBOSE" = "true" ]; then
