@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Pi Maintenance Agent on weekday evenings
+
+[Timer]
+OnCalendar=Mon..Fri 17:01 America/New_York
+Persistent=true
+Unit=pi-maintenance-agent.service
+
+[Install]
+WantedBy=timers.target

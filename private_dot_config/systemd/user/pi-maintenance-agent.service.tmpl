@@ -1,0 +1,15 @@
+[Unit]
+Description=Pi Maintenance Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+EnvironmentFile=-%h/.config/dotfiles/pi-maintenance-agent.env
+WorkingDirectory=%h/.local/share/pi-maintenance-agent
+ExecStart=%h/.local/share/pi-maintenance-agent/bin/run-maintenance.sh
+Nice=10
+
+[Install]
+WantedBy=default.target

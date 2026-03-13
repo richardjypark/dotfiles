@@ -11,7 +11,12 @@ The repository uses untracked local files for sensitive values. This avoids comm
 ~/.config/dotfiles/bootstrap-private.env
 ```
 
-This file is sourced by `bootstrap-omarchy.sh` and is never committed. Example contents:
+**Pi maintenance runtime config:**
+```
+~/.config/dotfiles/pi-maintenance-agent.env
+```
+
+These files are machine-local and never committed. Example bootstrap contents:
 
 ```bash
 TAILSCALE_AUTH_KEY=tskey-auth-xxxxx
@@ -75,10 +80,11 @@ chezmoi re-add
 
 1. **Never commit plaintext secrets** to the repository
 2. **Use untracked env files** (`bootstrap-private.env`) for deployment-specific secrets
-3. **Use GPG encryption** only when secrets must travel with the repo
-4. **Prefer environment variables** over files for runtime secrets
-5. **Rotate secrets** if you suspect the GPG key or env file was compromised
-6. **Add sensitive patterns to `.chezmoiignore`** to prevent accidental inclusion:
+3. **Keep machine-local runtime configs untracked** (for example `pi-maintenance-agent.env`)
+4. **Use GPG encryption** only when secrets must travel with the repo
+5. **Prefer environment variables** over files for runtime secrets
+6. **Rotate secrets** if you suspect the GPG key or env file was compromised
+7. **Add sensitive patterns to `.chezmoiignore`** to prevent accidental inclusion:
    ```
    *.env
    *credentials*
