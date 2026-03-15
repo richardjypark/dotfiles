@@ -1,8 +1,8 @@
 [Unit]
-Description=Run Pi Maintenance Agent on weekday evenings
+Description=Run Pi Maintenance Agent every day in the evening
 
 [Timer]
-OnCalendar=Mon..Fri 17:01 America/New_York
+OnCalendar=*-*-* 17:01 America/New_York
 Persistent=true
 Unit=pi-maintenance-agent.service
 
