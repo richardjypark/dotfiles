@@ -29,7 +29,7 @@ echo "==> [2/4] Updating Arch packages..."
 sudo pacman -Syu --noconfirm
 
 echo "==> [3/4] Running chezmoi-bump --all..."
-command chezmoi-bump --all
+command chezmoi-bump --all --force
 
 echo "==> [4/4] Re-applying bumped stable pins..."
 run_with_optional_output_sanitizer \
