@@ -40,7 +40,7 @@ CHEZMOI_MACOS_MAINTENANCE_MODE=1 command czuf
 echo "==> [2/3] Updating Homebrew formulae and casks..."
 brew update
 brew upgrade
-brew upgrade --cask --greedy
+brew upgrade --cask
 brew cleanup
 
 echo "==> [3/3] Running chezmoi-bump --all..."
