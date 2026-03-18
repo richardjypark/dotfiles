@@ -45,7 +45,7 @@ brew cleanup
 
 echo "==> [3/3] Running chezmoi-bump --all..."
 BEFORE_FINGERPRINT="$(fingerprint_target_files "${PIN_FILES[@]}")"
-command chezmoi-bump --all
+command chezmoi-bump --all --force
 AFTER_FINGERPRINT="$(fingerprint_target_files "${PIN_FILES[@]}")"
 
 if [ "$BEFORE_FINGERPRINT" != "$AFTER_FINGERPRINT" ]; then
