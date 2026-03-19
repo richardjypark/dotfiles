@@ -113,6 +113,8 @@ install_uv_from_pinned_release() {
         return 1
     fi
 
+    # Replace any Homebrew symlink so the pinned binary lives in ~/.local/bin.
+    rm -f "$UV_DIR/uv"
     install -m 755 "$uv_binary" "$UV_DIR/uv"
 
     if is_installed uv || [ -x "$UV_DIR/uv" ]; then
@@ -140,6 +142,26 @@ install_uv_via_homebrew() {
     if "$brew_cmd" "$action" uv; then
         return 0
     fi
+    return 1
+}
+
+ensure_uv_on_path_from_homebrew() {
+    local brew_cmd="$1"
+    local brew_prefix=""
+
+    if is_installed uv; then
+        return 0
+    fi
+
+    brew_prefix="$("$brew_cmd" --prefix 2>/dev/null || true)"
+    if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/bin/uv" ]; then
+        ln -sf "$brew_prefix/bin/uv" "$UV_DIR/uv"
+    fi
+
+    if is_installed uv; then
+        return 0
+    fi
+
     return 1
 }
 
@@ -180,13 +202,18 @@ if [ "$UV_NEEDS_INSTALL" = "true" ]; then
                     if ! install_uv_from_pinned_release "$platform"; then
                         exit 1
                     fi
-                fi
+                else
+                    # Make Homebrew's uv visible to non-login shells before version validation.
+                    if ! ensure_uv_on_path_from_homebrew "$brew_cmd"; then
+                        eecho "Homebrew reported success, but uv is not available on PATH."
+                    fi
 
-                # Ensure uv is discoverable in non-login shell PATH.
-                if ! is_installed uv; then
-                    brew_prefix="$("$brew_cmd" --prefix 2>/dev/null || true)"
-                    if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/bin/uv" ]; then
-                        ln -sf "$brew_prefix/bin/uv" "$UV_DIR/uv"
+                    INSTALLED_UV_VERSION="$(current_uv_version)"
+                    if [ -z "$INSTALLED_UV_VERSION" ] || ! version_ge "$INSTALLED_UV_VERSION" "$PINNED_UV_CLEAN"; then
+                        eecho "Homebrew uv version (${INSTALLED_UV_VERSION:-unknown}) is below pinned target $PINNED_UV_CLEAN; falling back to pinned uv release binary."
+                        if ! install_uv_from_pinned_release "$platform"; then
+                            exit 1
+                        fi
                     fi
                 fi
 
