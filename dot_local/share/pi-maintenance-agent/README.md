@@ -7,15 +7,15 @@ It runs once per weekday at `5:01 PM America/New_York`, executes the non-sudo pa
 - inspect and summarize conflicts
 - attempt one automated conflict repair
 - generate a descriptive jj commit message from the actual diff
-- move the `master` bookmark to `@`
-- push `master`
-- run `jj new`
+- let the wrapper move the `master` bookmark to `@`
+- let the wrapper push `master`
+- let the wrapper create the next working copy with `jj new master`
 
 ## Layout
 
 - `bin/run-maintenance.sh` - main scheduled entrypoint
 - `config/runtime.env.example` - machine-local runtime config example
-- `prompts/publish.md` - publish instructions for `pi`
+- `prompts/publish.md` - read-only commit-message instructions for `pi`
 - `prompts/repair.md` - one-shot repair instructions for `pi`
 - `package.json` - pinned `pi` dependency manifest
 
