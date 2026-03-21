@@ -455,17 +455,47 @@ validate_sha256() {
     return 1
 }
 
+compute_sha256_file() {
+    local file="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+        return 0
+    fi
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$file" | awk '{print $1}'
+        return 0
+    fi
+    return 1
+}
+
 # Strategy: download artifact and compute sha256 (stream, no disk)
 # Usage: sha256_download_compute URL
 sha256_download_compute() {
     local url="$1"
-    local sha
-    sha="$(curl -fsSL --retry 2 "$url" 2>/dev/null | shasum -a 256 | awk '{print $1}')"
+    local sha tmp_file
+
+    tmp_file="$(mktemp "${TMPDIR:-/tmp}/chezmoi-bump.sha.XXXXXX")" || {
+        echo ""
+        return 0
+    }
+    if ! curl -fsSL --retry 2 "$url" -o "$tmp_file" 2>/dev/null; then
+        rm -f "$tmp_file" 2>/dev/null || true
+        echo ""
+        return 0
+    fi
+
+    sha="$(compute_sha256_file "$tmp_file" 2>/dev/null || true)"
+    rm -f "$tmp_file" 2>/dev/null || true
     if validate_sha256 "$sha"; then
         echo "$sha"
     else
         echo ""
     fi
+}
+
+artifact_url_exists() {
+    local url="$1"
+    curl -fsSLI --retry 2 "$url" >/dev/null 2>&1
 }
 
 # Strategy: download <asset>.sha256 sidecar file
@@ -510,6 +540,22 @@ sha256_shasums() {
 # Sets global arrays: PLATFORM_NAMES=() and PLATFORM_SHAS=()
 PLATFORM_NAMES=()
 PLATFORM_SHAS=()
+INSTALLABILITY_ERRORS=()
+
+reset_installability_errors() {
+    INSTALLABILITY_ERRORS=()
+}
+
+record_installability_error() {
+    INSTALLABILITY_ERRORS+=("$1")
+}
+
+print_installability_errors() {
+    local err
+    for err in "${INSTALLABILITY_ERRORS[@]-}"; do
+        echo "    - ${err}"
+    done
+}
 
 fetch_checksums() {
     local dep_name="$1"
@@ -519,6 +565,7 @@ fetch_checksums() {
 
     PLATFORM_NAMES=()
     PLATFORM_SHAS=()
+    reset_installability_errors
 
     if [ "$sha_strategy" = "none" ] || [ "$num_platforms" = "0" ]; then
         return 0
@@ -619,10 +666,12 @@ fetch_checksums() {
             ;;
     esac
 
-    local i sha url
+    local i sha url manifest_url
     for i in "${!platform_keys[@]}"; do
         PLATFORM_NAMES+=("${platform_keys[$i]}_sha256")
         local asset="${asset_names[$i]}"
+        url=""
+        manifest_url=""
 
         echo "  Fetching SHA256 for ${asset}..." >&2
 
@@ -633,18 +682,42 @@ fetch_checksums() {
                 ;;
             sidecar)
                 url="${base_url}/${asset}"
+                if ! artifact_url_exists "$url"; then
+                    record_installability_error "${dep_name}: missing artifact ${asset} (${url})"
+                    PLATFORM_SHAS+=("")
+                    continue
+                fi
                 sha="$(sha256_sidecar "$url")"
                 ;;
             shasums)
                 # Bun uses SHASUMS256.txt
-                sha="$(sha256_shasums "${base_url}/SHASUMS256.txt" "$asset")"
+                url="${base_url}/${asset}"
+                manifest_url="${base_url}/SHASUMS256.txt"
+                if ! artifact_url_exists "$url"; then
+                    record_installability_error "${dep_name}: missing artifact ${asset} (${url})"
+                    PLATFORM_SHAS+=("")
+                    continue
+                fi
+                sha="$(sha256_shasums "$manifest_url" "$asset")"
                 ;;
             checksums_txt)
                 # chezmoi uses chezmoi_X.Y.Z_checksums.txt
-                sha="$(sha256_shasums "${base_url}/chezmoi_${raw_ver}_checksums.txt" "$asset")"
+                url="${base_url}/${asset}"
+                manifest_url="${base_url}/chezmoi_${raw_ver}_checksums.txt"
+                if ! artifact_url_exists "$url"; then
+                    record_installability_error "${dep_name}: missing artifact ${asset} (${url})"
+                    PLATFORM_SHAS+=("")
+                    continue
+                fi
+                sha="$(sha256_shasums "$manifest_url" "$asset")"
                 ;;
             pkgs_tailscale)
                 url="https://pkgs.tailscale.com/stable/${asset}"
+                if ! artifact_url_exists "$url"; then
+                    record_installability_error "${dep_name}: missing artifact ${asset} (${url})"
+                    PLATFORM_SHAS+=("")
+                    continue
+                fi
                 # Tailscale sidecar is at .sha256 URL
                 sha="$(curl -fsSL --retry 2 "${url}.sha256" 2>/dev/null | awk '{print $1}')"
                 if ! validate_sha256 "$sha"; then
@@ -655,6 +728,7 @@ fetch_checksums() {
         esac
 
         if [ -z "$sha" ] || ! validate_sha256 "$sha"; then
+            record_installability_error "${dep_name}: checksum unavailable for ${asset}"
             echo "  ${YELLOW}Warning: Failed to get SHA256 for ${asset}${RESET}" >&2
             PLATFORM_SHAS+=("")
         else
@@ -1698,8 +1772,11 @@ bump_dep() {
             fi
         done
 
-        if [ "$sha_ok" = "false" ]; then
-            echo "  ${RED}Failed to fetch all SHA256 checksums — skipping ${dep_name}${RESET}"
+        if [ "$sha_ok" = "false" ] || [ "${#INSTALLABILITY_ERRORS[@]}" -gt 0 ]; then
+            echo "  ${RED}Installability gate failed — refusing to pin ${dep_name}${RESET}"
+            if [ "${#INSTALLABILITY_ERRORS[@]}" -gt 0 ]; then
+                print_installability_errors
+            fi
             return 1
         fi
     fi

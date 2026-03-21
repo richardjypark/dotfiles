@@ -6,7 +6,7 @@ codex = "rust-v0.116.0"
 uv = "0.10.12"
 starship = "v1.24.2"
 bun = "bun-v1.3.11"
-tailscale = "1.96.3"
+tailscale = "1.96.2"
 claude_code_npm = "2.1.81"
 
 [update_schedule]
