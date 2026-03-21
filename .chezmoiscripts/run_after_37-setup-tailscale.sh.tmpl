@@ -10,6 +10,7 @@ PINNED_TAILSCALE_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
 {{- end }}
 
 TAILSCALE_STATE="tailscale-setup-${PINNED_TAILSCALE_VERSION}"
+TAILSCALE_PACKAGE_MANAGER_STATE="tailscale-setup-${PINNED_TAILSCALE_VERSION}-package-manager"
 
 current_tailscale_version() {
     local output line
@@ -25,6 +26,20 @@ if should_skip_state "$TAILSCALE_STATE" && is_installed tailscale; then
         exit 0
     fi
     vecho "Tailscale state exists but installed version is below pinned target; re-running setup."
+fi
+
+if should_skip_state "$TAILSCALE_PACKAGE_MANAGER_STATE" && is_installed tailscale; then
+    CURRENT_TAILSCALE_VERSION="$(current_tailscale_version)"
+    if [ -n "$CURRENT_TAILSCALE_VERSION" ] && version_ge "$CURRENT_TAILSCALE_VERSION" "$PINNED_TAILSCALE_VERSION"; then
+        clear_state "$TAILSCALE_PACKAGE_MANAGER_STATE"
+        mark_state "$TAILSCALE_STATE"
+        vecho "Tailscale now meets the pinned version target; switching back to exact state tracking."
+        exit 0
+    fi
+    if [ -n "$CURRENT_TAILSCALE_VERSION" ]; then
+        vecho "Tailscale setup already completed via package manager ($CURRENT_TAILSCALE_VERSION installed; preferred $PINNED_TAILSCALE_VERSION)."
+        exit 0
+    fi
 fi
 
 vecho "Setting up Tailscale..."
@@ -55,6 +70,7 @@ fi
 
 OS_FAMILY="${PLATFORM%%-*}"
 vecho "Detected platform: $PLATFORM"
+ALLOW_VERSION_LAG="false"
 
 if [ "$OS_FAMILY" = "macos" ]; then
     # macOS: Use Homebrew
@@ -160,12 +176,14 @@ elif [ "$OS_FAMILY" = "linux" ]; then
             vecho "Tailscale installation method: pinned tarball"
             eecho "Note: tailscaled service setup may require manual root configuration."
         elif install_via_package_manager; then
+            ALLOW_VERSION_LAG="true"
             vecho "Tailscale installation method: package manager"
         else
             eecho "Error: Could not install Tailscale automatically."
             exit 1
         fi
     elif install_via_package_manager; then
+        ALLOW_VERSION_LAG="true"
         vecho "Tailscale installation method: package manager"
     elif install_via_pinned_tarball; then
         vecho "Tailscale installation method: pinned tarball"
@@ -187,7 +205,14 @@ if is_installed tailscale && [ -n "$INSTALLED_TAILSCALE_VERSION" ] && version_ge
         tailscale version 2>/dev/null | head -1 || true
     fi
     eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
+    clear_state "$TAILSCALE_PACKAGE_MANAGER_STATE"
     mark_state "$TAILSCALE_STATE"
+elif is_installed tailscale && [ -n "$INSTALLED_TAILSCALE_VERSION" ] && [ "$ALLOW_VERSION_LAG" = "true" ]; then
+    eecho "Warning: Package manager installed Tailscale $INSTALLED_TAILSCALE_VERSION, below preferred $PINNED_TAILSCALE_VERSION."
+    eecho "Continuing because package manager channels can lag pinned artifact releases."
+    eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
+    clear_state "$TAILSCALE_STATE"
+    mark_state "$TAILSCALE_PACKAGE_MANAGER_STATE"
 else
     eecho "Error: Tailscale installation failed. Leaving state unset so it can retry."
     exit 1
