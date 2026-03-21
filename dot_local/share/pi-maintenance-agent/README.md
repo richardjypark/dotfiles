@@ -2,7 +2,7 @@
 
 Machine-local scheduled maintenance agent for opted-in hosts.
 
-It runs once per weekday at `5:01 PM America/New_York`, executes the non-sudo parts of the existing chezmoi maintenance flow, and uses `pi` to:
+It runs once per day at `5:01 PM America/New_York`, executes the non-sudo parts of the existing chezmoi maintenance flow, and uses `pi` to:
 
 - inspect and summarize conflicts
 - attempt one automated conflict repair
