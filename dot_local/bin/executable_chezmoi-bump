@@ -342,6 +342,71 @@ github_latest_tag_from_tags() {
     echo "$tag"
 }
 
+tailscale_release_is_installable() {
+    local version="$1"
+    local asset url
+
+    for asset in \
+        "tailscale_${version}_amd64.tgz" \
+        "tailscale_${version}_arm64.tgz"
+    do
+        url="https://pkgs.tailscale.com/stable/${asset}"
+        if ! artifact_url_exists "$url"; then
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+tailscale_latest_installable_version() {
+    local page=1 response tags raw_tag version
+
+    while :; do
+        response="$(_curl_gh "https://api.github.com/repos/tailscale/tailscale/releases?per_page=100&page=${page}")"
+        if [ -z "$response" ]; then
+            break
+        fi
+
+        if command -v jq >/dev/null 2>&1; then
+            tags="$(
+                printf '%s' "$response" | jq -r '
+                    .[]
+                    | select(.prerelease == false)
+                    | .tag_name // empty
+                ' 2>/dev/null || true
+            )"
+        else
+            tags="$(
+                printf '%s' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
+            )"
+        fi
+
+        if [ -z "$tags" ]; then
+            break
+        fi
+
+        while IFS= read -r raw_tag; do
+            [ -n "$raw_tag" ] || continue
+            case "$raw_tag" in
+                v[0-9]*.[0-9]*.[0-9]*|[0-9]*.[0-9]*.[0-9]*)
+                    version="${raw_tag#v}"
+                    if tailscale_release_is_installable "$version"; then
+                        echo "$version"
+                        return 0
+                    fi
+                    ;;
+            esac
+        done <<EOF
+$tags
+EOF
+
+        page=$((page + 1))
+    done
+
+    echo ""
+}
+
 npm_latest_version() {
     local package="$1"
     local response version
@@ -413,9 +478,14 @@ get_latest_version() {
         return 0
     fi
 
-    # GitHub dependency
-    raw_tag="$(github_latest_tag "$source" "$dep_name")"
-    if [ -z "$raw_tag" ]; then echo ""; return 0; fi
+    if [ "$dep_name" = "tailscale" ]; then
+        raw_tag="$(tailscale_latest_installable_version)"
+        if [ -z "$raw_tag" ]; then echo ""; return 0; fi
+    else
+        # GitHub dependency
+        raw_tag="$(github_latest_tag "$source" "$dep_name")"
+        if [ -z "$raw_tag" ]; then echo ""; return 0; fi
+    fi
 
     # Normalize to match stored format
     case "$version_format" in
