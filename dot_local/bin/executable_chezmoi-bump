@@ -360,27 +360,40 @@ tailscale_release_is_installable() {
 }
 
 tailscale_latest_installable_version() {
-    local page=1 response tags raw_tag version
+    local latest_tag latest_version page=1 response tags raw_tag version
 
+    latest_tag="$(github_latest_tag "tailscale/tailscale")"
+    case "$latest_tag" in
+        v[0-9]*.[0-9]*.[0-9]*|[0-9]*.[0-9]*.[0-9]*)
+            latest_version="${latest_tag#v}"
+            if tailscale_release_is_installable "$latest_version"; then
+                echo "$latest_version"
+                return 0
+            fi
+            ;;
+    esac
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "${YELLOW}Warning: jq is required to fall back to older Tailscale releases when the latest stable release is not installable.${RESET}" >&2
+        echo ""
+        return 0
+    fi
+
+    # Fall back to the release history only when the latest stable tag is not
+    # installable on pkgs.tailscale.com yet.
     while :; do
         response="$(_curl_gh "https://api.github.com/repos/tailscale/tailscale/releases?per_page=100&page=${page}")"
         if [ -z "$response" ]; then
             break
         fi
 
-        if command -v jq >/dev/null 2>&1; then
-            tags="$(
-                printf '%s' "$response" | jq -r '
-                    .[]
-                    | select(.prerelease == false)
-                    | .tag_name // empty
-                ' 2>/dev/null || true
-            )"
-        else
-            tags="$(
-                printf '%s' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
-            )"
-        fi
+        tags="$(
+            printf '%s' "$response" | jq -r '
+                .[]
+                | select(.prerelease == false)
+                | .tag_name // empty
+            ' 2>/dev/null || true
+        )"
 
         if [ -z "$tags" ]; then
             break
@@ -391,6 +404,7 @@ tailscale_latest_installable_version() {
             case "$raw_tag" in
                 v[0-9]*.[0-9]*.[0-9]*|[0-9]*.[0-9]*.[0-9]*)
                     version="${raw_tag#v}"
+                    [ -n "${latest_version:-}" ] && [ "$version" = "$latest_version" ] && continue
                     if tailscale_release_is_installable "$version"; then
                         echo "$version"
                         return 0
