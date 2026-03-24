@@ -188,7 +188,7 @@ _dotfiles_tmux_sync_default() {
   if [[ -n "${SSH_TTY:-}" || -n "${SSH_CONNECTION:-}" ]]; then
     segment="$(_dotfiles_tmux_render_segment "INNER_REMOTE" "$host_short" "remote" "colour232" "colour111")"
   else
-    segment="$(_dotfiles_tmux_render_segment "LOCAL" "$host_short" "home" "colour232" "colour45")"
+    segment="$(_dotfiles_tmux_render_segment "LOCAL" "$host_short" "$host_short" "colour232" "colour45")"
   fi
 
   _dotfiles_tmux_set_segment "$segment"

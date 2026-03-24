@@ -6,10 +6,10 @@
 #
 # Privacy note:
 # - Do not add IP addresses. The tmux helper masks IP-based targets.
-# - Prefer neutral aliases (home, cloud, lab) instead of sensitive names.
+# - The local machine defaults to its hostname; keep extra aliases short and non-sensitive.
 
 {{ $self := lower .chezmoi.hostname }}
-{{ $self }}|home|colour232|colour45
+{{ $self }}|{{ $self }}|colour232|colour45
 
 # Example aliases:
 # workstation|home|colour232|colour45
