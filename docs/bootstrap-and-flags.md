@@ -24,8 +24,8 @@ Environment:
 - `CHEZMOI_PREFETCH_JOBS` (default `4`)
 - `CHEZMOI_DOWNLOAD_CACHE_DIR` (default `~/.cache/chezmoi-downloads`)
 
-Base package set includes `bat`, `git-delta`, and `eza` so preview/diff/list replacements
-work immediately on Omarchy hosts.
+Base package set includes `bat`, `git-delta`, `eza`, and `gh` so preview/diff/list
+replacements and GitHub CLI workflows work immediately on Omarchy hosts.
 
 ## Debian/Ubuntu VPS Bootstrap
 
