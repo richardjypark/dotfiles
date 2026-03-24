@@ -57,6 +57,7 @@ ESSENTIAL_PACKAGES=(
     "wget"
     "zsh"
     "coreutils"
+    "gh"
 )
 
 # Optional development tools (only install if not present via other means)
@@ -69,7 +70,6 @@ OPTIONAL_PACKAGES=(
     "git-delta"
     "eza"
     "fd"
-    "gh"
 )
 
 if should_skip_state "homebrew-setup"; then
