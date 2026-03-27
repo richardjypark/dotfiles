@@ -67,9 +67,9 @@ macos_x86_64_sha256 = "c4fe2b9247218b0295f24e895aaec8fee62e74452679a9026b67eacbd
 macos_arm64_sha256 = "6f5a3467ed9caec4795bf78cd476507d9f870c7d57b86c945fcb338126772ffc"
 
 [pinned.tailscale]
-version = "1.96.2"
-linux_x86_64_sha256 = "caa2af3dec57db3c68e47ed927dcdf6d95376f0d82f8dd0bb91ff4228b7f7401"
-linux_arm64_sha256 = "9ad430177fcdd0c236684a9e22da6d0f9afb785231b400765180b10ca016f2f2"
+version = "1.96.4"
+linux_x86_64_sha256 = "a1cba18826b1f91cb25ef7f5b8259b5258339b42db7867af9269e21829ea78cc"
+linux_arm64_sha256 = "a27249bc70d7b37a68f8be7f5c4507ea5f354e592dce43cb5d4f3e742b313c3c"
 
 [pinned.chezmoi]
 version = "2.70.0"
