@@ -25,11 +25,11 @@ defaultBranch = "master"
 packages = ["yarn", "pnpm"]
 
 [pinned.neovim]
-version = "v0.11.6"
-linux_x86_64_sha256 = "2fc90b962327f73a78afbfb8203fd19db8db9cdf4ee5e2bef84704339add89cc"
-linux_arm64_sha256 = "8ddc0c101846145e830b17bbca50782ca9307eee4fab539d9e2ddaf8793c06f1"
-macos_x86_64_sha256 = "6e665bb0a711cf974050e0f7183dbb696b1e7425814eb87df7cb094a49054a06"
-macos_arm64_sha256 = "d5ee93b67630d5a87f3d336d0f7e8b2fe6973aa653d3cc93b82b820e6538c1dd"
+version = "v0.11.7"
+linux_x86_64_sha256 = "38a7c6317f94503841096c00e8fde05ef04b9472fc9d7d62b6e033cecd6f7991"
+linux_arm64_sha256 = "99bb3c53604e83ce18fc0b459e34cf1a5e212f4e5fbe2eb136b3c18092ae9905"
+macos_x86_64_sha256 = "014649c0c75e188fd70d40f787ee7cb83e7c2926264cd4e72c300d0198922371"
+macos_arm64_sha256 = "9c84686ce84bbab725ff3d88ca3ac1d6da5a72128b68d9dd8094e34d4049a126"
 
 [pinned.jj]
 version = "v0.39.0"
