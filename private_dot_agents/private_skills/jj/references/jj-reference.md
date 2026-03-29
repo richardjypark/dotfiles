@@ -90,14 +90,16 @@ jj squash
 ## Bookmarks and Remote Tracking
 
 - Create bookmark: `jj bookmark create <name>`
-- Move bookmark to current change: `jj bookmark move <name>`
+- Move bookmark to current change: `jj bookmark move --to @ <name>`
 - List bookmarks: `jj bookmark list`
 - Delete bookmark: `jj bookmark delete <name>`
 
 Publish checklist:
 1. Run `jj bookmark list` to confirm the bookmark name and remote tracking state.
-2. Ensure the intended bookmark points at the current change (for example `jj log -r '<bookmark>::@'`).
-3. Prefer `jj git push -b <bookmark>` when the target matters.
+2. If the bookmark does not exist yet, create it with `jj bookmark create <name>`.
+3. Move an existing publish bookmark to the current change with `jj bookmark move --to @ <name>`.
+4. Ensure the intended bookmark points at the current change (for example `jj log -r '<bookmark>::@'`).
+5. Prefer `jj git push -b <bookmark>` when the target matters.
 
 `push-all-bookmarks = false` in this repo, so avoid `jj git push --all` unless the user explicitly wants that scope.
 

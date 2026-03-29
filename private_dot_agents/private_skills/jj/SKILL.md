@@ -22,7 +22,7 @@ Use this skill when the task is primarily about repository history or publishing
    - local history shaping: load `references/jj-reference.md` and follow the daily-flow, advanced-workflow, conflict-resolution, and recovery sections; prefer `jj` rewrite commands over raw `git` history edits
    - publishing or sync: list bookmarks with `jj bookmark list`, confirm the bookmark/remote target first, prefer `jj git push -b <bookmark>` when the destination matters, and remember `jj fetch` is quiet so raw `jj git fetch` is better for diagnostics
 3. After every history-changing command, re-check `jj log` and `jj status`.
-4. If a reshape or rebase goes wrong, use `jj undo` immediately; if you already moved on, use the recovery guidance in `references/jj-reference.md` before trying another rewrite.
+4. If a reshape or rebase goes wrong, use `jj undo` immediately (`jj undo immediately` is usually the fastest recovery path); if you already moved on, use the recovery guidance in `references/jj-reference.md` before trying another rewrite.
 
 ## References
 
