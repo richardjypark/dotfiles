@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# chezmoi-update-helpers.sh — shared functions for czu and czuf
-# Sourced by ~/.local/bin/czu and ~/.local/bin/czuf
+# chezmoi-update-helpers.sh — shared functions for czu/czuf/czl
+# Sourced by ~/.local/bin/czu, ~/.local/bin/czuf, and ~/.local/bin/czl
 
 chezmoi_source_dir() {
     printf '%s\n' "$HOME/.local/share/chezmoi"
@@ -68,4 +68,42 @@ run_with_optional_output_sanitizer() {
         return "${PIPESTATUS[0]}"
     fi
     "$@"
+}
+
+resolve_npm_cmd() {
+    local nvm_dir current_node nvm_bin candidate resolved
+
+    nvm_dir="$HOME/.nvm"
+    if [ -f "$nvm_dir/nvm.sh" ]; then
+        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
+        if command -v nvm >/dev/null 2>&1; then
+            nvm use default >/dev/null 2>&1 || true
+            current_node="$(nvm which current 2>/dev/null || true)"
+            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
+                nvm_bin="$(dirname "$current_node")"
+                if [ -x "$nvm_bin/npm" ] && "$nvm_bin/npm" -v >/dev/null 2>&1; then
+                    printf '%s\n' "$nvm_bin/npm"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+
+    if command -v npm >/dev/null 2>&1; then
+        candidate="$(command -v npm)"
+        resolved="$candidate"
+        if command -v readlink >/dev/null 2>&1; then
+            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
+        fi
+        if [ -x "$resolved" ] && "$resolved" -v >/dev/null 2>&1; then
+            printf '%s\n' "$resolved"
+            return 0
+        fi
+        if [ -x "$candidate" ] && "$candidate" -v >/dev/null 2>&1; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    fi
+
+    return 1
 }
