@@ -46,7 +46,7 @@ Aliases: `czu` (fetch + rebase + apply), `czuf` (+ externals + force), `czvc` (c
 
 ## Version Control
 
-Use `jj` (Jujutsu) instead of `git` for all VCS operations. Use the `/jj` skill for workflow details, commands, and revsets.
+Use `jj` (Jujutsu) instead of `git` for all VCS operations. Use the `/jj` skill for workflow details, recovery, interactive helpers, commands, and revsets.
 
 **Commit convention:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
 
@@ -57,7 +57,7 @@ Invoke these skills for domain-specific tasks instead of working from memory:
 | Skill | Use when |
 |-------|----------|
 | `/chezmoi-repo-maintainer` | Cross-cutting repo changes: docs, shell/tmux config, agent instructions, or multi-subsystem work |
-| `/jj` | Commit, history, bookmarks, rebase, push — all jj workflows |
+| `/jj` | Commit, history, bookmarks, rebase, recovery, push, and interactive helpers — all jj workflows |
 | `/chezmoi-script-maintainer` | Adding/modifying `.chezmoiscripts/` setup scripts |
 | `/chezmoi-bootstrap-operator` | Running or updating bootstrap (Omarchy, VPS, lockdown) |
 | `/dotfiles-version-refresh` | Bumping pinned versions across data/external/script files |
