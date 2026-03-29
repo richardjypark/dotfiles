@@ -151,6 +151,29 @@ Defined in `private_dot_config/jj/config.toml.tmpl`:
 | `fetch` | `git fetch --quiet` | Fetch from remote without rewrite noise |
 | `sync` | `git fetch --all-remotes` | Fetch all remotes |
 
+## Repo Shell Aliases And Interactive Helpers
+
+Defined in `private_dot_config/shell/alias.sh` and `private_dot_config/shell/jj-fzf.sh`:
+
+### Shell aliases
+
+- `j` → `jj`
+- `jst` → `jj status`
+- `jd` → `jj diff`
+- `jl` → `jj log`
+- `jn` → `jj new`
+- `je` → `jj edit`
+- `jsq` → `jj squash`
+- `jrb` → `jj rebase`
+- `jf` → `jj fetch`
+- `jp` → `jj git push`
+
+### Interactive helpers
+
+- `jji [revset]` — interactive log browser for editing or reshaping a selected change. Use `Enter` to `jj edit`, `Ctrl-N` to create a child change, `Ctrl-D` to inspect the diff, `Ctrl-S` to squash from the selected change, and `Ctrl-R` to rebase the selected change onto `@`.
+- `jjbi` — interactive bookmark browser. Use `Enter` to edit the bookmark target, `Ctrl-P` to push that bookmark, `Ctrl-M` to move the bookmark to `@`, and `Ctrl-D` to delete it.
+- `jjfi [rev]` — interactive file diff browser for a revision. Use `Enter` to open a file in `$EDITOR`, and treat `Ctrl-R` restore as a caution path for your own work only.
+
 ## Conflict Resolution
 
 When conflicts arise, especially after a rebase:
