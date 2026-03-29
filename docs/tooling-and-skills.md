@@ -77,7 +77,7 @@ Installed client paths are routed to the shared tree:
 Shared skills currently include:
 
 - `chezmoi-repo-maintainer` — Cross-cutting repo maintenance for docs, templates, shell/tmux behavior, agent instructions, and multi-subsystem changes.
-- `jj` — Jujutsu version control workflows with detailed reference material in `references/jj-reference.md`.
+- `jj` — Jujutsu version control workflows, bookmark-safe publishing, recovery, and repo interactive helpers with detailed reference material in `references/jj-reference.md`.
 - `chezmoi-script-maintainer` — Create and maintain `.chezmoiscripts/*` setup scripts with `references/script-patterns.md`.
 - `chezmoi-bootstrap-operator` — Bootstrap workflow operations across Omarchy and VPS paths with `references/bootstrap-matrix.md`.
 - `dotfiles-version-refresh` — Update pinned tool versions and external dependencies with `references/version-map.md`.
