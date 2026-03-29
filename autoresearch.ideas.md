@@ -1,2 +1,2 @@
-- Build a small real-task eval harness that scores the `jj` skill against representative prompts (inspect a stacked change, publish a bookmark, recover from a bad rebase, avoid unsafe restore) instead of relying only on regex rubrics.
+- Build a higher-fidelity real-task eval harness for the `jj` skill using representative prompts (inspect a stacked change, publish a bookmark, recover from a bad rebase, avoid unsafe restore) instead of relying mostly on text-match rubrics.
 - If future real use still shows hesitation on inspect/edit/publish/recover flows, add a compact `Common Recipes` subsection to `private_dot_agents/private_skills/jj/references/jj-reference.md`; defer this unless actual usage shows the current structure is still too indirect.
