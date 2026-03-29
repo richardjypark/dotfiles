@@ -26,7 +26,6 @@ if ! command -v is_force_update >/dev/null 2>&1; then
     }
 fi
 
-PREFETCH_STATE="prefetch-assets"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 MAX_JOBS="${CHEZMOI_PREFETCH_JOBS:-4}"
 
@@ -53,6 +52,8 @@ CODEX_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
 CODEX_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 CODEX_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
+
+PREFETCH_STATE="prefetch-assets-${NVIM_VERSION}-${JJ_VERSION}-${CODEX_VERSION}"
 
 mkdir -p "$CACHE_DIR"
 
