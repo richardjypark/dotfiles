@@ -6,19 +6,6 @@ set -euo pipefail
 echo ""
 echo "=== Chezmoi Setup Complete ==="
 
-# Prefer NVM default runtime for non-interactive apply summaries.
-if [ -f "$HOME/.nvm/nvm.sh" ]; then
-    # shellcheck disable=SC1090
-    . "$HOME/.nvm/nvm.sh"
-    if command -v nvm >/dev/null 2>&1; then
-        NVM_DEFAULT_NODE="$(nvm which default 2>/dev/null || true)"
-        if [ -n "$NVM_DEFAULT_NODE" ] && [ -x "$NVM_DEFAULT_NODE" ]; then
-            export PATH="$(dirname "$NVM_DEFAULT_NODE"):$PATH"
-            hash -r 2>/dev/null || true
-        fi
-    fi
-fi
-
 # Count how many setup steps were skipped vs executed
 SKIPPED_COUNT=$(find "$STATE_DIR" -name "*.done" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$SKIPPED_COUNT" -gt 0 ]; then
@@ -29,6 +16,19 @@ fi
 
 # Show verbose mode information
 if [ "$VERBOSE" = "true" ]; then
+    # Prefer NVM default runtime only when we will actually print tool versions.
+    if [ -f "$HOME/.nvm/nvm.sh" ]; then
+        # shellcheck disable=SC1090
+        . "$HOME/.nvm/nvm.sh"
+        if command -v nvm >/dev/null 2>&1; then
+            NVM_DEFAULT_NODE="$(nvm which default 2>/dev/null || true)"
+            if [ -n "$NVM_DEFAULT_NODE" ] && [ -x "$NVM_DEFAULT_NODE" ]; then
+                export PATH="$(dirname "$NVM_DEFAULT_NODE"):$PATH"
+                hash -r 2>/dev/null || true
+            fi
+        fi
+    fi
+
     echo ""
     echo "Tools available:"
     is_installed node && echo "  node:   $(node -v 2>/dev/null || echo 'installed')"
