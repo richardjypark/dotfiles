@@ -18,6 +18,10 @@ NODE_STATE="node-setup-nvm${NVM_VERSION}-${NODE_VERSION_STATE}"
 # Setup Node.js via NVM
 vecho "Setting up Node.js via NVM..."
 
+node_tool_link_ready() {
+    [ -x "$HOME/.local/bin/$1" ]
+}
+
 # Verify that chezmoi has properly cloned the repository
 if [ ! -d "$NVM_DIR" ] || [ ! -f "$NVM_DIR/nvm.sh" ]; then
     eecho "Error: NVM repository not properly initialized at $NVM_DIR"
@@ -26,7 +30,16 @@ if [ ! -d "$NVM_DIR" ] || [ ! -f "$NVM_DIR/nvm.sh" ]; then
     exit 1
 fi
 
-# Load NVM
+if should_skip_state "$NODE_STATE"; then
+    if node_tool_link_ready node && node_tool_link_ready npm && node_tool_link_ready npx \
+        && node_tool_link_ready corepack && node_tool_link_ready yarn && node_tool_link_ready pnpm; then
+        vecho "Node.js setup already completed (state tracked)"
+        exit 0
+    fi
+    vecho "Node.js state exists but managed tool links are incomplete; re-running setup."
+fi
+
+# Load NVM only after the cheap state checks above.
 . "$NVM_DIR/nvm.sh"
 
 resolve_node_version() {
@@ -98,19 +111,6 @@ if [ "$TARGET_NODE_VERSION" = "N/A" ]; then
         eecho "Run 'nvm ls-remote --lts' to verify remote resolution, then rerun chezmoi apply."
         exit 1
     fi
-fi
-
-if should_skip_state "$NODE_STATE"; then
-    STATE_NODE_PATH="$(nvm which "$TARGET_NODE_VERSION" 2>/dev/null || true)"
-    if [ -n "$STATE_NODE_PATH" ] && [ -x "$STATE_NODE_PATH" ]; then
-        STATE_NODE_BIN="$(dirname "$STATE_NODE_PATH")"
-        if [ -x "$STATE_NODE_BIN/npm" ]; then
-            link_node_tool_set "$STATE_NODE_BIN"
-            vecho "Node.js setup already completed (state tracked)"
-            exit 0
-        fi
-    fi
-    vecho "Node.js state exists but install is incomplete; re-running setup."
 fi
 
 NEED_NODE_INSTALL=false
