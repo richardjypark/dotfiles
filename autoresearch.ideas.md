@@ -1,0 +1,3 @@
+- Add a small real-task eval harness that scores the `jj` skill against representative task prompts (inspect a stacked change, publish a bookmark, recover from a bad rebase, avoid unsafe restore) instead of only regex rubrics.
+- Consider a compact `Common Recipes` subsection in `private_dot_agents/private_skills/jj/references/jj-reference.md` if future users still hesitate on inspect/edit/publish/recover flows despite the current reference structure.
+- If routing still feels weak in practice, mirror the richer `jj` skill summary into `CLAUDE.md`'s skill table and other agent entry points so the interactive helpers and recovery affordances are visible before the skill is opened.

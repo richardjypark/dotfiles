@@ -1,6 +1,6 @@
 ---
 name: jj
-description: "Use Jujutsu (jj) for Git-backed version control workflows: inspect status/history, create and reshape changes, manage bookmarks, and sync with remotes. Trigger this skill when the user asks for commit, history, rebase, bookmark, or push operations in a jj-backed repo."
+description: "Use Jujutsu (jj) for Git-backed version control workflows: inspect status/history, create and reshape changes, recover from bad rewrites, manage bookmarks, and use repo helpers to publish or inspect changes safely. Trigger this skill when the user asks for commit, history, rebase, recovery, bookmark, push, or other jj operations in a jj-backed repo."
 ---
 
 # Jujutsu Workflow
