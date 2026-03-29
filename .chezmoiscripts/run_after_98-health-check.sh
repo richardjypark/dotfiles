@@ -2,8 +2,17 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
+should_run_full_health_check() {
+    [ "$VERBOSE" = "true" ] || [ "${CHEZMOI_RUN_HEALTH_CHECK:-0}" = "1" ] || is_force_update
+}
+
 if is_macos_maintenance_mode; then
     vecho "Skipping full environment health check during macOS maintenance apply"
+    exit 0
+fi
+
+if ! should_run_full_health_check; then
+    vecho "Skipping full environment health check on routine apply (set VERBOSE=true or CHEZMOI_RUN_HEALTH_CHECK=1 to enable)"
     exit 0
 fi
 
