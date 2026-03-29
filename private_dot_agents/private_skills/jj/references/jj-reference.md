@@ -29,6 +29,7 @@
 - Inspect graph before changes: `jj log -r '::@' --limit 12` (alias: `jj l`)
 - Show working-copy diff: `jj diff` (alias: `jj d`)
 - Show diff stats: `jj ds`
+- Inspect a specific change: `jj show -r <rev>` or `jj diff -r <rev>`
 - Shell shortcut: `j` is aliased to `jj`
 
 ## Daily Flow
@@ -44,7 +45,7 @@
    - Split change: `jj split` (alias: `jj sp`)
    - Commit working copy and start new change: `jj commit -m "type: summary"` (alias: `jj c`)
 3. Sync with remote.
-   - Fetch: `jj fetch` (quiet alias for `jj git fetch`)
+   - Fetch: `jj fetch` (quiet alias for `jj git fetch`; run raw `jj git fetch` when you want rewrite diagnostics)
    - Fetch all remotes: `jj sync`
    - Push current bookmark: `jj git push` (alias: `jj push`)
    - Push specific bookmark: `jj git push -b <bookmark>`
@@ -93,7 +94,12 @@ jj squash
 - List bookmarks: `jj bookmark list`
 - Delete bookmark: `jj bookmark delete <name>`
 
-Ensure the intended bookmark points at the current change before `jj git push`.
+Publish checklist:
+1. Run `jj bookmark list` to confirm the bookmark name and remote tracking state.
+2. Ensure the intended bookmark points at the current change (for example `jj log -r '<bookmark>::@'`).
+3. Prefer `jj git push -b <bookmark>` when the target matters.
+
+`push-all-bookmarks = false` in this repo, so avoid `jj git push --all` unless the user explicitly wants that scope.
 
 ## Revsets
 
@@ -150,6 +156,7 @@ When conflicts arise, especially after a rebase:
 1. Run `jj status` to identify conflicted files.
 2. Edit the files to resolve the conflict markers.
 3. Re-run `jj status` to confirm the resolution.
+4. If the repo is still conflicted or the intended resolution is unclear, stop and ask before stacking more rewrites.
 
 If the rebase itself was wrong, use `jj undo` immediately.
 
@@ -166,18 +173,21 @@ If the rebase itself was wrong, use `jj undo` immediately.
 - `jj squash`, `jj split`, `jj rebase`
 - `jj abandon`
 
-Inspect `jj log` after these commands to confirm the graph changed the way you intended.
+Inspect `jj log` after these commands to confirm the graph changed the way you intended, and stop if the rewrite would abandon or reshape someone else's work.
 
 ### Caution-required operations
 
 - `jj git push`
 - `jj git push --all`
+- `jj restore --to ...`
+- `jj restore --from ...`
 
 Prefer `jj` rewrite commands over raw `git` history-rewrite commands in this repo.
+Never use `jj restore --to` / `jj restore --from` or restore files you did not author without explicit written instruction.
 
 ## Recovery
 
-- Undo last operation: `jj undo`
+- Undo last operation: `jj undo` (best immediately after a mistaken rewrite)
 - Redo: `jj redo`
 - View operation history: `jj op log`
 - Restore to a specific operation: `jj op restore <op-id>`
