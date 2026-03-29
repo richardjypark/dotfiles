@@ -1,3 +1,1 @@
-- Version the `run_before_02-prefetch-assets.sh.tmpl` state key with the pinned artifact versions so prefetch automatically refreshes after pin bumps instead of silently reusing a stale `prefetch-assets.done` marker.
 - Consider extracting the full environment audit from `.chezmoiscripts/run_after_98-health-check.sh` into an explicit helper command so routine `chezmoi apply` stays lean while detailed diagnostics remain easy to run on demand.
-- Add the same cheap state-gated fast path to `.chezmoiscripts/run_after_35-setup-claude-code.sh.tmpl` that now exists for Node and the pi maintenance agent, so routine applies avoid paying Node CLI startup cost just to re-prove an unchanged pinned install.
