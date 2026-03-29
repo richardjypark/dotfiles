@@ -10,13 +10,18 @@ PINNED_CLAUDE_NPM_VERSION="2.1.44"
 
 CLAUDE_STATE="claude-code-setup-${PINNED_CLAUDE_NPM_VERSION}"
 
-if should_skip_state "$CLAUDE_STATE" && is_installed claude && claude --version >/dev/null 2>&1; then
-    installed_version="$(claude --version 2>/dev/null | awk 'NR==1{print $1; exit}')"
-    if [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
+claude_binary_ready() {
+    local claude_path
+    claude_path="$(command -v claude 2>/dev/null || true)"
+    [ -n "$claude_path" ] && [ -x "$claude_path" ]
+}
+
+if should_skip_state "$CLAUDE_STATE"; then
+    if claude_binary_ready; then
         vecho "Claude Code setup already completed (state tracked)"
         exit 0
     fi
-    vecho "Claude Code state exists but installed version is below pinned target; re-running setup."
+    vecho "Claude Code state exists but managed binary is missing; re-running setup."
 fi
 
 add_to_path "$HOME/.local/bin"
