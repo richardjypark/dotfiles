@@ -23,6 +23,11 @@ PINNED_UV_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 
 UV_STATE="uv-setup-${PINNED_UV_VERSION}-py${PYTHON_VERSION}"
 PINNED_UV_CLEAN="$(normalize_version_token "$PINNED_UV_VERSION")"
+PYTHON_BIN_NAME="python${PYTHON_VERSION%.*}"
+
+uv_python_ready() {
+    [ -x "$HOME/.local/bin/$PYTHON_BIN_NAME" ]
+}
 
 current_uv_version() {
     local output line
@@ -31,13 +36,12 @@ current_uv_version() {
     normalize_version_token "$line"
 }
 
-if should_skip_state "$UV_STATE" && is_installed uv; then
-    CURRENT_UV_VERSION="$(current_uv_version)"
-    if [ -n "$CURRENT_UV_VERSION" ] && version_ge "$CURRENT_UV_VERSION" "$PINNED_UV_CLEAN" && uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
+if should_skip_state "$UV_STATE"; then
+    if [ -x "$UV_DIR/uv" ] && uv_python_ready; then
         vecho "uv setup already completed (state tracked)"
         exit 0
     fi
-    vecho "uv state exists but the pinned version or Python runtime is missing; re-running setup."
+    vecho "uv state exists but the managed uv binary or Python runtime is missing; re-running setup."
 fi
 
 vecho "Setting up uv (Python package manager)..."

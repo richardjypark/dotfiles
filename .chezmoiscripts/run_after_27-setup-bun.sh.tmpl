@@ -14,6 +14,10 @@ PINNED_BUN_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 BUN_STATE="bun-setup-${PINNED_BUN_VERSION}"
 PINNED_BUN_CLEAN="$(normalize_version_token "$PINNED_BUN_VERSION")"
 
+bun_binary_ready() {
+    [ -x "$BUN_INSTALL/bin/bun" ] || { local bun_path; bun_path="$(command -v bun 2>/dev/null || true)"; [ -n "$bun_path" ] && [ -x "$bun_path" ]; }
+}
+
 current_bun_version() {
     local output line
     output="$(bun --version 2>/dev/null || true)"
@@ -21,13 +25,13 @@ current_bun_version() {
     normalize_version_token "$line"
 }
 
-if should_skip_state "$BUN_STATE" && is_installed bun; then
-    CURRENT_BUN_VERSION="$(current_bun_version)"
-    if [ -n "$CURRENT_BUN_VERSION" ] && version_ge "$CURRENT_BUN_VERSION" "$PINNED_BUN_CLEAN"; then
+if should_skip_state "$BUN_STATE"; then
+    export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+    if bun_binary_ready; then
         vecho "Bun setup already completed (state tracked)"
         exit 0
     fi
-    vecho "Bun state exists but installed version is below pinned target; re-running setup."
+    vecho "Bun state exists but managed binary is missing; re-running setup."
 fi
 
 vecho "Setting up Bun..."
