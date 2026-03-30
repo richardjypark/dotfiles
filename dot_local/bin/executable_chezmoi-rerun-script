@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: chezmoi-rerun-script [-S source_dir] [-D destination_dir] <source-script-path>
+
+Clears chezmoi's remembered run_onchange state for the given source script so the
+next `chezmoi apply` reruns it.
+
+Examples:
+  chezmoi-rerun-script .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl
+  chezmoi-rerun-script -S /tmp/src -D /tmp/dest .chezmoiscripts/run_onchange_after_test.sh
+EOF
+}
+
+SOURCE_DIR=""
+DEST_DIR=""
+SOURCE_SCRIPT=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -S|--source)
+            SOURCE_DIR="$2"
+            shift 2
+            ;;
+        -D|--destination)
+            DEST_DIR="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "Error: unknown flag: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+        *)
+            SOURCE_SCRIPT="$1"
+            shift
+            break
+            ;;
+    esac
+done
+
+if [ -z "$SOURCE_SCRIPT" ] && [ "$#" -gt 0 ]; then
+    SOURCE_SCRIPT="$1"
+    shift
+fi
+
+if [ -z "$SOURCE_SCRIPT" ] || [ "$#" -gt 0 ]; then
+    usage >&2
+    exit 1
+fi
+
+chezmoi_args=()
+if [ -n "$SOURCE_DIR" ]; then
+    chezmoi_args+=( -S "$SOURCE_DIR" )
+fi
+if [ -n "$DEST_DIR" ]; then
+    chezmoi_args+=( -D "$DEST_DIR" )
+fi
+
+if [[ "$SOURCE_SCRIPT" != /* ]] && [ -n "$SOURCE_DIR" ]; then
+    SOURCE_SCRIPT="$SOURCE_DIR/$SOURCE_SCRIPT"
+fi
+
+target_path="$(chezmoi "${chezmoi_args[@]}" target-path --source-path "$SOURCE_SCRIPT")"
+chezmoi "${chezmoi_args[@]}" state delete --bucket=entryState --key "$target_path" >/dev/null 2>&1 || true
+
+printf 'Cleared run_onchange state for %s\n' "$SOURCE_SCRIPT"
+printf 'Next chezmoi apply will rerun: %s\n' "$target_path"
