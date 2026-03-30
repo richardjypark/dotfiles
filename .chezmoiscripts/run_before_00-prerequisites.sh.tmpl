@@ -32,20 +32,30 @@ PINNED_CHEZMOI_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 PINNED_CHEZMOI_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
 
-# Check if we can run privileged commands
-CAN_SUDO=false
-if [ "$(id -u)" = 0 ]; then
-    CAN_SUDO=true
-elif ensure_sudo; then
-    CAN_SUDO=true
-fi
+# Determine sudo availability lazily so warm applies avoid probing it unless needed.
+CAN_SUDO=""
+ensure_can_sudo() {
+    if [ -n "$CAN_SUDO" ]; then
+        [ "$CAN_SUDO" = "true" ]
+        return
+    fi
+
+    CAN_SUDO=false
+    if [ "$(id -u)" = 0 ]; then
+        CAN_SUDO=true
+    elif ensure_sudo; then
+        CAN_SUDO=true
+    fi
+
+    [ "$CAN_SUDO" = "true" ]
+}
 
 install_optional_interactive_tools() {
     if should_skip_state "prerequisites-optional-tools"; then
         return 0
     fi
 
-    if [ "$CAN_SUDO" != "true" ]; then
+    if ! ensure_can_sudo; then
         return 0
     fi
 
@@ -120,7 +130,7 @@ if is_installed zsh && is_installed git && is_installed curl && is_installed che
 fi
 
 # Only attempt package installations if we have passwordless sudo rights
-if [ "$CAN_SUDO" = "true" ]; then
+if ensure_can_sudo; then
     # Check if essential packages are missing
     MISSING_PACKAGES=""
     for pkg in zsh git curl wget make gcc; do
