@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
-if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
-    CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
+HELPER_PATH="$HOME/.local/lib/chezmoi-helpers.sh"
+if [ -f "$HELPER_PATH" ]; then
+    # shellcheck disable=SC1090
+    . "$HELPER_PATH"
+else
+    CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
+    if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
+        CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
+    fi
+    # shellcheck disable=SC1090
+    . "$CHEZMOI_SOURCE_DIR/scripts/lib/load-helpers.sh"
 fi
-# shellcheck disable=SC1090
-. "$CHEZMOI_SOURCE_DIR/scripts/lib/load-helpers.sh"
 
 if ! command -v should_skip_state >/dev/null 2>&1; then
     should_skip_state() {
