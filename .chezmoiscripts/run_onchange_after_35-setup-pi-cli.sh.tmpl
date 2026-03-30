@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
+PI_CLI_STATE="pi-cli-setup-${EXPECTED_PI_VERSION}"
+
+pi_binary_ready() {
+    local pi_path
+    pi_path="$(command -v pi 2>/dev/null || true)"
+    [ -n "$pi_path" ] && [ -x "$pi_path" ]
+}
+
+installed_pi_version() {
+    if ! pi_binary_ready; then
+        return 0
+    fi
+
+    pi --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
+}
+
+link_pi_binary() {
+    local npm_bin_dir managed_link current_target
+
+    npm_bin_dir="$(dirname "$NPM_CMD")"
+    managed_link="$HOME/.local/bin/pi"
+
+    if [ -x "$npm_bin_dir/pi" ]; then
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$npm_bin_dir/pi" "$managed_link"
+        return 0
+    fi
+
+    if [ -L "$managed_link" ]; then
+        current_target="$(readlink "$managed_link" 2>/dev/null || true)"
+        case "$current_target" in
+            "$HOME/.nvm"/*|/opt/homebrew/*|/usr/local/*)
+                rm -f "$managed_link"
+                ;;
+        esac
+    fi
+}
+
+resolve_npm_cmd() {
+    local nvm_dir current_node nvm_bin candidate resolved
+
+    nvm_dir="$HOME/.nvm"
+    if [ -f "$nvm_dir/nvm.sh" ]; then
+        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
+        if command -v nvm >/dev/null 2>&1; then
+            nvm use default >/dev/null 2>&1 || true
+            current_node="$(nvm which current 2>/dev/null || true)"
+            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
+                nvm_bin="$(dirname "$current_node")"
+                if [ -x "$nvm_bin/npm" ] && "$nvm_bin/npm" -v >/dev/null 2>&1; then
+                    NPM_CMD="$nvm_bin/npm"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+
+    if is_installed npm; then
+        candidate="$(command -v npm)"
+        resolved="$candidate"
+        if command -v readlink >/dev/null 2>&1; then
+            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
+        fi
+        if [ -x "$resolved" ] && "$resolved" -v >/dev/null 2>&1; then
+            NPM_CMD="$resolved"
+        else
+            NPM_CMD="$candidate"
+        fi
+        return 0
+    fi
+
+    return 1
+}
+
+if [[ "${OSTYPE:-}" != darwin* ]]; then
+    exit 0
+fi
+
+if [ -z "$EXPECTED_PI_VERSION" ]; then
+    eecho "Error: could not determine the pinned pi version from the maintenance agent package manifest"
+    exit 1
+fi
+
+if should_skip_state "$PI_CLI_STATE"; then
+    if pi_binary_ready; then
+        vecho "Pi CLI setup already completed (state tracked)"
+        exit 0
+    fi
+    vecho "Pi CLI state exists but managed binary is missing; re-running setup."
+fi
+
+add_to_path "$HOME/.local/bin"
+
+vecho "Setting up Pi CLI..."
+
+CURRENT_PI_VERSION="$(installed_pi_version)"
+if [ -n "$CURRENT_PI_VERSION" ] && version_ge "$CURRENT_PI_VERSION" "$EXPECTED_PI_VERSION"; then
+    vecho "Pi CLI is already at version $CURRENT_PI_VERSION"
+    mark_state "$PI_CLI_STATE"
+    exit 0
+fi
+
+NPM_CMD=""
+if ! resolve_npm_cmd; then
+    eecho "Error: npm is required to install the Pi CLI."
+    eecho "Install Node.js/npm first, then rerun chezmoi apply."
+    exit 1
+fi
+
+if ! "$NPM_CMD" -v >/dev/null 2>&1; then
+    eecho "Error: npm command is present but not functional ($NPM_CMD)."
+    eecho "Fix Node.js/npm installation, then rerun chezmoi apply."
+    exit 1
+fi
+
+if ! require_trust_for_remote_installer "npm registry package download"; then
+    exit 1
+fi
+
+if [ -n "$CURRENT_PI_VERSION" ]; then
+    eecho "Updating Pi CLI from $CURRENT_PI_VERSION to pinned $EXPECTED_PI_VERSION..."
+else
+    eecho "Installing Pi CLI via pinned npm package..."
+fi
+
+run_quiet "$NPM_CMD" install -g "@mariozechner/pi-coding-agent@${EXPECTED_PI_VERSION}"
+link_pi_binary
+
+CURRENT_PI_VERSION="$(installed_pi_version)"
+if [ -n "$CURRENT_PI_VERSION" ] && version_ge "$CURRENT_PI_VERSION" "$EXPECTED_PI_VERSION"; then
+    eecho "Pi CLI installed successfully: $(pi --version 2>/dev/null | head -n 1)"
+    mark_state "$PI_CLI_STATE"
+else
+    eecho "Error: Pi CLI installation failed. Leaving state unset so it can retry."
+    exit 1
+fi
