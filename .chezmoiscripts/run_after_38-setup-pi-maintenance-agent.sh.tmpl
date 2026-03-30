@@ -14,49 +14,6 @@ TIMER_UNIT="pi-maintenance-agent.timer"
 EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
 PI_AGENT_STATE="pi-maintenance-agent-${EXPECTED_PI_VERSION}"
 
-resolve_npm_cmd() {
-    local nvm_dir current_node nvm_bin candidate resolved
-
-    nvm_dir="$HOME/.nvm"
-    if [ -f "$nvm_dir/nvm.sh" ]; then
-        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
-        if command -v nvm >/dev/null 2>&1; then
-            nvm use default >/dev/null 2>&1 || true
-            current_node="$(nvm which current 2>/dev/null || true)"
-            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
-                nvm_bin="$(dirname "$current_node")"
-                if [ -x "$nvm_bin/npm" ] && "$nvm_bin/npm" -v >/dev/null 2>&1; then
-                    NPM_CMD="$nvm_bin/npm"
-                    return 0
-                fi
-            fi
-        fi
-    fi
-
-    if is_installed npm; then
-        candidate="$(command -v npm)"
-        resolved="$candidate"
-        if command -v readlink >/dev/null 2>&1; then
-            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
-        fi
-        if [ -x "$resolved" ]; then
-            NPM_CMD="$resolved"
-        else
-            NPM_CMD="$candidate"
-        fi
-        return 0
-    fi
-
-    return 1
-}
-
-installed_pi_version() {
-    if [ ! -x "$PI_BIN" ]; then
-        return 0
-    fi
-    "$PI_BIN" --version 2>/dev/null | awk 'NR==1{print $1; exit}'
-}
-
 has_user_systemd() {
     command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
 }
@@ -111,6 +68,49 @@ if should_skip_state "$PI_AGENT_STATE" && pi_agent_ready && pi_timer_enabled; th
     vecho "Pi maintenance agent already ensured (state tracked)"
     exit 0
 fi
+
+resolve_npm_cmd() {
+    local nvm_dir current_node nvm_bin candidate resolved
+
+    nvm_dir="$HOME/.nvm"
+    if [ -f "$nvm_dir/nvm.sh" ]; then
+        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
+        if command -v nvm >/dev/null 2>&1; then
+            nvm use default >/dev/null 2>&1 || true
+            current_node="$(nvm which current 2>/dev/null || true)"
+            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
+                nvm_bin="$(dirname "$current_node")"
+                if [ -x "$nvm_bin/npm" ] && "$nvm_bin/npm" -v >/dev/null 2>&1; then
+                    NPM_CMD="$nvm_bin/npm"
+                    return 0
+                fi
+            fi
+        fi
+    fi
+
+    if is_installed npm; then
+        candidate="$(command -v npm)"
+        resolved="$candidate"
+        if command -v readlink >/dev/null 2>&1; then
+            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
+        fi
+        if [ -x "$resolved" ]; then
+            NPM_CMD="$resolved"
+        else
+            NPM_CMD="$candidate"
+        fi
+        return 0
+    fi
+
+    return 1
+}
+
+installed_pi_version() {
+    if [ ! -x "$PI_BIN" ]; then
+        return 0
+    fi
+    "$PI_BIN" --version 2>/dev/null | awk 'NR==1{print $1; exit}'
+}
 
 if [ ! -f "$PACKAGE_JSON" ]; then
     eecho "Error: pi maintenance agent source is missing at $PROJECT_DIR"
