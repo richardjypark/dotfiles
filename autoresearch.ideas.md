@@ -1,1 +1,0 @@
-- Consider extracting the full environment audit from `.chezmoiscripts/run_after_98-health-check.sh` into an explicit helper command so routine `chezmoi apply` stays lean while detailed diagnostics remain easy to run on demand.
