@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Rerun when tmux plugin/config content changes.
+TMUX_CONFIG_HASH="{{ include "dot_tmux.conf" | sha256sum }}"
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
 if should_skip_state "tmux-setup"; then
