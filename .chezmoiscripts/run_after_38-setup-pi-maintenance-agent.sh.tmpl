@@ -9,6 +9,7 @@ PACKAGE_JSON="$PROJECT_DIR/package.json"
 PI_BIN="$PROJECT_DIR/node_modules/.bin/pi"
 SERVICE_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.service"
 TIMER_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.timer"
+TIMER_ENABLE_LINK="$HOME/.config/systemd/user/timers.target.wants/pi-maintenance-agent.timer"
 TIMER_UNIT="pi-maintenance-agent.timer"
 PI_AGENT_STATE=""
 
@@ -81,6 +82,9 @@ pi_agent_ready() {
 }
 
 pi_timer_enabled() {
+    if [ -L "$TIMER_ENABLE_LINK" ] && [ "$(readlink -f "$TIMER_ENABLE_LINK" 2>/dev/null || true)" = "$TIMER_UNIT_FILE" ]; then
+        return 0
+    fi
     has_user_systemd && systemctl --user is-enabled "$TIMER_UNIT" >/dev/null 2>&1
 }
 
