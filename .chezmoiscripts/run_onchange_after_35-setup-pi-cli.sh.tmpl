@@ -4,11 +4,17 @@ set -euo pipefail
 
 EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
 PI_CLI_STATE="pi-cli-setup-${EXPECTED_PI_VERSION}"
+PI_AUTORESEARCH_SOURCE="https://github.com/davebcn87/pi-autoresearch"
+PI_AUTORESEARCH_STATE="pi-cli-package-pi-autoresearch"
 
 pi_binary_ready() {
     local pi_path
     pi_path="$(command -v pi 2>/dev/null || true)"
     [ -n "$pi_path" ] && [ -x "$pi_path" ]
+}
+
+pi_autoresearch_installed() {
+    pi list 2>/dev/null | grep -Fqx "  ${PI_AUTORESEARCH_SOURCE}"
 }
 
 installed_pi_version() {
@@ -86,12 +92,12 @@ if [ -z "$EXPECTED_PI_VERSION" ]; then
     exit 1
 fi
 
-if should_skip_state "$PI_CLI_STATE"; then
-    if pi_binary_ready; then
-        vecho "Pi CLI setup already completed (state tracked)"
+if should_skip_state "$PI_CLI_STATE" && should_skip_state "$PI_AUTORESEARCH_STATE"; then
+    if pi_binary_ready && pi_autoresearch_installed; then
+        vecho "Pi CLI and managed pi packages already completed (state tracked)"
         exit 0
     fi
-    vecho "Pi CLI state exists but managed binary is missing; re-running setup."
+    vecho "Pi CLI state exists but managed binary or package is missing; re-running setup."
 fi
 
 add_to_path "$HOME/.local/bin"
@@ -101,41 +107,63 @@ vecho "Setting up Pi CLI..."
 CURRENT_PI_VERSION="$(installed_pi_version)"
 if [ -n "$CURRENT_PI_VERSION" ] && version_ge "$CURRENT_PI_VERSION" "$EXPECTED_PI_VERSION"; then
     vecho "Pi CLI is already at version $CURRENT_PI_VERSION"
-    mark_state "$PI_CLI_STATE"
+else
+    NPM_CMD=""
+    if ! resolve_npm_cmd; then
+        eecho "Error: npm is required to install the Pi CLI."
+        eecho "Install Node.js/npm first, then rerun chezmoi apply."
+        exit 1
+    fi
+
+    if ! "$NPM_CMD" -v >/dev/null 2>&1; then
+        eecho "Error: npm command is present but not functional ($NPM_CMD)."
+        eecho "Fix Node.js/npm installation, then rerun chezmoi apply."
+        exit 1
+    fi
+
+    if ! require_trust_for_remote_installer "npm registry package download"; then
+        exit 1
+    fi
+
+    if [ -n "$CURRENT_PI_VERSION" ]; then
+        eecho "Updating Pi CLI from $CURRENT_PI_VERSION to pinned $EXPECTED_PI_VERSION..."
+    else
+        eecho "Installing Pi CLI via pinned npm package..."
+    fi
+
+    run_quiet "$NPM_CMD" install -g "@mariozechner/pi-coding-agent@${EXPECTED_PI_VERSION}"
+    link_pi_binary
+
+    CURRENT_PI_VERSION="$(installed_pi_version)"
+    if [ -z "$CURRENT_PI_VERSION" ] || ! version_ge "$CURRENT_PI_VERSION" "$EXPECTED_PI_VERSION"; then
+        eecho "Error: Pi CLI installation failed. Leaving state unset so it can retry."
+        exit 1
+    fi
+fi
+
+mark_state "$PI_CLI_STATE"
+
+if pi_autoresearch_installed; then
+    vecho "pi-autoresearch is already installed"
+    mark_state "$PI_AUTORESEARCH_STATE"
     exit 0
 fi
 
-NPM_CMD=""
-if ! resolve_npm_cmd; then
-    eecho "Error: npm is required to install the Pi CLI."
-    eecho "Install Node.js/npm first, then rerun chezmoi apply."
+if ! require_trust_for_remote_download "$PI_AUTORESEARCH_SOURCE"; then
     exit 1
 fi
 
-if ! "$NPM_CMD" -v >/dev/null 2>&1; then
-    eecho "Error: npm command is present but not functional ($NPM_CMD)."
-    eecho "Fix Node.js/npm installation, then rerun chezmoi apply."
+if ! require_trust_for_remote_installer "$PI_AUTORESEARCH_SOURCE"; then
     exit 1
 fi
 
-if ! require_trust_for_remote_installer "npm registry package download"; then
-    exit 1
-fi
+eecho "Installing pi-autoresearch package..."
+run_quiet pi install "$PI_AUTORESEARCH_SOURCE"
 
-if [ -n "$CURRENT_PI_VERSION" ]; then
-    eecho "Updating Pi CLI from $CURRENT_PI_VERSION to pinned $EXPECTED_PI_VERSION..."
+if pi_autoresearch_installed; then
+    eecho "Pi CLI ready with pi-autoresearch: $(pi --version 2>/dev/null | head -n 1)"
+    mark_state "$PI_AUTORESEARCH_STATE"
 else
-    eecho "Installing Pi CLI via pinned npm package..."
-fi
-
-run_quiet "$NPM_CMD" install -g "@mariozechner/pi-coding-agent@${EXPECTED_PI_VERSION}"
-link_pi_binary
-
-CURRENT_PI_VERSION="$(installed_pi_version)"
-if [ -n "$CURRENT_PI_VERSION" ] && version_ge "$CURRENT_PI_VERSION" "$EXPECTED_PI_VERSION"; then
-    eecho "Pi CLI installed successfully: $(pi --version 2>/dev/null | head -n 1)"
-    mark_state "$PI_CLI_STATE"
-else
-    eecho "Error: Pi CLI installation failed. Leaving state unset so it can retry."
+    eecho "Error: pi-autoresearch installation failed. Leaving package state unset so it can retry."
     exit 1
 fi
