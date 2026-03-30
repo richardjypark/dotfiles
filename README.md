@@ -136,7 +136,7 @@ $EDITOR ~/.config/dotfiles/bootstrap-private.env
 The pi maintenance agent can be tracked in this repo without activating on every machine.
 It is only supported on Omarchy hosts; non-Omarchy machines ignore the rendered source/systemd units to avoid conflicts.
 
-Opt in only on Omarchy hosts that should run it:
+Opt in only on Omarchy hosts that should run it. During fresh Omarchy bootstrap before the local Omarchy marker directories exist, run apply with `CHEZMOI_PROFILE=omarchy` so the managed source and user units render:
 
 ```bash
 mkdir -p ~/.config/dotfiles
@@ -144,7 +144,7 @@ touch ~/.config/dotfiles/pi-maintenance-agent.enabled
 cp ~/.local/share/pi-maintenance-agent/config/runtime.env.example ~/.config/dotfiles/pi-maintenance-agent.env
 chmod 600 ~/.config/dotfiles/pi-maintenance-agent.env
 $EDITOR ~/.config/dotfiles/pi-maintenance-agent.env
-TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
+TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_PROFILE=omarchy chezmoi apply
 ```
 
 Behavior:
