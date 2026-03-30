@@ -38,7 +38,7 @@ Fast subsequent runs rely on:
 - state-file short-circuiting
 - pinned artifacts with checksum verification
 - local download cache reuse (`~/.cache/chezmoi-downloads`)
-- optional parallel prefetch (`run_before_02-prefetch-assets.sh.tmpl`)
+- optional parallel prefetch (`run_onchange_before_02-prefetch-assets.sh.tmpl`)
 
 Tuning note:
 
