@@ -81,7 +81,7 @@ logs/*
 {{ $pi_agent_enabled := stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi-maintenance-agent.enabled") }}
 {{ $omarchy_config := stat (joinPath .chezmoi.homeDir ".config" "omarchy" "current") }}
 {{ $omarchy_share := stat (joinPath .chezmoi.homeDir ".local" "share" "omarchy") }}
-{{ $pi_agent_supported := or (eq $profile "omarchy") (or $omarchy_config $omarchy_share) }}
+{{ $pi_agent_supported := or $omarchy_config $omarchy_share }}
 {{ if not (and $pi_agent_enabled $pi_agent_supported) }}
 .config/systemd/user/pi-maintenance-agent.service
 .config/systemd/user/pi-maintenance-agent.timer
