@@ -134,8 +134,9 @@ $EDITOR ~/.config/dotfiles/bootstrap-private.env
 ## Pi Maintenance Agent
 
 The pi maintenance agent can be tracked in this repo without activating on every machine.
+It is only supported on Omarchy hosts/profiles; non-Omarchy machines ignore the rendered source/systemd units to avoid conflicts.
 
-Opt in only on the hosts that should run it:
+Opt in only on Omarchy hosts that should run it:
 
 ```bash
 mkdir -p ~/.config/dotfiles

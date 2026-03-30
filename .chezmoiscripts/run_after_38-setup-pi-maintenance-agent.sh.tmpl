@@ -85,6 +85,22 @@ pi_timer_enabled() {
     has_user_systemd && systemctl --user is-enabled "$TIMER_UNIT" >/dev/null 2>&1
 }
 
+is_pi_agent_supported_host() {
+    [ "${CHEZMOI_PROFILE:-}" = "omarchy" ] \
+        || [ -d "$HOME/.config/omarchy/current" ] \
+        || [ -d "$HOME/.local/share/omarchy" ] \
+        || command -v omarchy-menu >/dev/null 2>&1
+}
+
+if ! is_pi_agent_supported_host; then
+    clear_pi_agent_state
+    if [ -e "$MARKER_FILE" ]; then
+        vecho "Skipping Pi maintenance agent outside Omarchy hosts/profiles"
+        disable_timer_if_present
+    fi
+    exit 0
+fi
+
 if [ ! -e "$MARKER_FILE" ]; then
     vecho "Pi maintenance agent not enabled on this host"
     disable_timer_if_present
