@@ -1,13 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+VERBOSE="${VERBOSE:-false}"
+STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
+
+is_installed() {
+    command -v "$1" >/dev/null 2>&1
+}
 
 # Performance summary for chezmoi setup (always show a minimal summary)
 echo ""
 echo "=== Chezmoi Setup Complete ==="
 
 # Count how many setup steps were skipped vs executed
-SKIPPED_COUNT=$(find "$STATE_DIR" -name "*.done" 2>/dev/null | wc -l | tr -d ' ')
+SKIPPED_COUNT=0
+if [ -d "$STATE_DIR" ]; then
+    set -- "$STATE_DIR"/*.done
+    if [ -e "$1" ]; then
+        SKIPPED_COUNT=$#
+    fi
+fi
 if [ "$SKIPPED_COUNT" -gt 0 ]; then
     echo "Optimized: $SKIPPED_COUNT operations skipped"
 else
