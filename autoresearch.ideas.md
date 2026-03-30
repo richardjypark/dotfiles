@@ -1,2 +1,3 @@
 - If more warm-apply speed is needed, evaluate whether any remaining bootstrap-only scripts can safely move to `run_onchange_` without giving up important self-healing behavior.
 - If the warm-apply loop still needs larger wins after the safe `run_onchange_` conversions, consider a planned dispatcher/consolidation pass for always-noop setup scripts to reduce shell-process overhead across `.chezmoiscripts/`.
+- If more bootstrap scripts move to `run_onchange_`, add a small documented rerun path (for example a helper that clears the relevant chezmoi script state) so recovering from manual deletions stays easy.
