@@ -11,7 +11,8 @@ SERVICE_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.service"
 TIMER_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.timer"
 TIMER_ENABLE_LINK="$HOME/.config/systemd/user/timers.target.wants/pi-maintenance-agent.timer"
 TIMER_UNIT="pi-maintenance-agent.timer"
-PI_AGENT_STATE=""
+EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
+PI_AGENT_STATE="pi-maintenance-agent-${EXPECTED_PI_VERSION}"
 
 resolve_npm_cmd() {
     local nvm_dir current_node nvm_bin candidate resolved
@@ -47,10 +48,6 @@ resolve_npm_cmd() {
     fi
 
     return 1
-}
-
-expected_pi_version() {
-    sed -n 's/.*"@mariozechner\/pi-coding-agent": *"\([^"]*\)".*/\1/p' "$PACKAGE_JSON" | head -1
 }
 
 installed_pi_version() {
@@ -100,12 +97,10 @@ if [ ! -f "$PACKAGE_JSON" ]; then
     exit 1
 fi
 
-EXPECTED_PI_VERSION="$(expected_pi_version)"
 if [ -z "$EXPECTED_PI_VERSION" ]; then
-    eecho "Error: could not determine the pinned pi version from $PACKAGE_JSON"
+    eecho "Error: could not determine the pinned pi version from the rendered package.json template data"
     exit 1
 fi
-PI_AGENT_STATE="pi-maintenance-agent-${EXPECTED_PI_VERSION}"
 
 if should_skip_state "$PI_AGENT_STATE" && pi_agent_ready && pi_timer_enabled; then
     vecho "Pi maintenance agent already ensured (state tracked)"
