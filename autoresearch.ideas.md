@@ -1,0 +1,2 @@
+- If more warm-apply speed is needed, evaluate whether other bootstrap-only scripts (for example `run_after_31-change-shell.sh`) can safely move to `run_onchange_` without giving up important self-healing behavior.
+- If the warm-apply loop still needs larger wins after the safe `run_onchange_` conversions, consider a planned dispatcher/consolidation pass for always-noop setup scripts to reduce shell-process overhead across `.chezmoiscripts/`.
