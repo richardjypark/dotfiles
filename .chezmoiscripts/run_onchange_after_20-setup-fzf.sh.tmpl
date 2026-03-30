@@ -14,13 +14,7 @@ vecho "Setting up fzf..."
 FZF_REPO_PATH="$HOME/.local/share/fzf"
 FZF_BIN_PATH="$HOME/.local/bin"
 FZF_TARGET="$FZF_BIN_PATH/fzf"
-CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
-[ -n "$CHEZMOI_SOURCE_DIR" ] || CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
-CHEZMOI_VERSION_FILE="$CHEZMOI_SOURCE_DIR/.chezmoiversion.toml"
-PINNED_FZF_VERSION=""
-if [ -f "$CHEZMOI_VERSION_FILE" ]; then
-    PINNED_FZF_VERSION="$(sed -n 's/^fzf = "\([^"]*\)"/\1/p' "$CHEZMOI_VERSION_FILE" | head -1)"
-fi
+PINNED_FZF_VERSION="{{ ((include ".chezmoiversion.toml") | fromToml).versions.fzf }}"
 
 # Check if fzf needs reinstalling (version mismatch or missing)
 NEEDS_INSTALL=false
