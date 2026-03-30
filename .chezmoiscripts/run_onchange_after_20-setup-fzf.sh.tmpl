@@ -2,19 +2,20 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# State tracking with version validation fallback
-if should_skip_state "fzf-setup"; then
-    if is_installed fzf; then
-        vecho "fzf setup already completed (state tracked)"
-        exit 0
-    fi
-fi
-
 vecho "Setting up fzf..."
 FZF_REPO_PATH="$HOME/.local/share/fzf"
 FZF_BIN_PATH="$HOME/.local/bin"
 FZF_TARGET="$FZF_BIN_PATH/fzf"
 PINNED_FZF_VERSION="{{ ((include ".chezmoiversion.toml") | fromToml).versions.fzf }}"
+FZF_STATE="fzf-setup-${PINNED_FZF_VERSION}"
+
+# State tracking with version validation fallback
+if should_skip_state "$FZF_STATE"; then
+    if is_installed fzf; then
+        vecho "fzf setup already completed (state tracked)"
+        exit 0
+    fi
+fi
 
 # Check if fzf needs reinstalling (version mismatch or missing)
 NEEDS_INSTALL=false
@@ -50,7 +51,7 @@ fi
 
 if [ "$NEEDS_INSTALL" = "false" ]; then
     vecho "fzf is already installed and configured"
-    mark_state "fzf-setup"
+    mark_state "$FZF_STATE"
     exit 0
 fi
 
@@ -113,7 +114,7 @@ if [ ! -x "$FZF_TARGET" ]; then
     exit 1
 fi
 
-mark_state "fzf-setup"
+mark_state "$FZF_STATE"
 
 if [ "$VERBOSE" = "true" ]; then
     FZF_VERSION=$("$FZF_TARGET" --version)
