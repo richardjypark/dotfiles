@@ -2,19 +2,7 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-should_run_full_health_check() {
-    [ "$VERBOSE" = "true" ] || [ "${CHEZMOI_RUN_HEALTH_CHECK:-0}" = "1" ] || is_force_update
-}
-
-if is_macos_maintenance_mode; then
-    vecho "Skipping full environment health check during macOS maintenance apply"
-    exit 0
-fi
-
-if ! should_run_full_health_check; then
-    vecho "Skipping full environment health check on routine apply (set VERBOSE=true or CHEZMOI_RUN_HEALTH_CHECK=1 to enable)"
-    exit 0
-fi
+VERBOSE=true
 
 # Colors (if terminal supports them)
 if [ -t 1 ]; then
@@ -387,7 +375,7 @@ if [ "$FAIL_COUNT" -gt 0 ]; then
     if [ "$WARN_COUNT" -gt 0 ]; then
         vecho "Warnings: $WARN_COUNT"
     fi
-    eecho "Health check: $FAIL_COUNT failure(s) detected. Run 'VERBOSE=true chezmoi apply' for details."
+    eecho "Health check: $FAIL_COUNT failure(s) detected. Run 'chezmoi-health-check' again after fixing the issues."
 else
     vecho ""
     vecho "=== Health Check Summary ==="

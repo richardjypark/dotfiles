@@ -52,11 +52,12 @@ if [ "$VERBOSE" = "true" ]; then
     echo "  czb   # alias for chezmoi-bump"
     echo "  chezmoi-check-versions  # check pinned dependency versions"
     echo "  chezmoi-bump            # bump pinned dependency versions"
+    echo "  chezmoi-health-check    # full environment audit on demand"
     echo ""
     echo "Shell replacements (when installed):"
     echo "  ls/ll/la/lt  # mapped to eza (or exa fallback)"
     echo "  diff         # mapped to delta (or native diff fallback)"
 else
-    echo "Tip: export VERBOSE=true for detailed output"
+    echo "Tip: run chezmoi-health-check for a full environment audit"
 fi
 echo ""
