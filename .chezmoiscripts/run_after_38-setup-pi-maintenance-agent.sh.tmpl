@@ -91,6 +91,11 @@ if [ ! -e "$MARKER_FILE" ]; then
     exit 0
 fi
 
+if should_skip_state "$PI_AGENT_STATE" && pi_agent_ready && pi_timer_enabled; then
+    vecho "Pi maintenance agent already ensured (state tracked)"
+    exit 0
+fi
+
 if [ ! -f "$PACKAGE_JSON" ]; then
     eecho "Error: pi maintenance agent source is missing at $PROJECT_DIR"
     eecho "Rerun chezmoi apply after confirming the source files are present."
@@ -102,10 +107,6 @@ if [ -z "$EXPECTED_PI_VERSION" ]; then
     exit 1
 fi
 
-if should_skip_state "$PI_AGENT_STATE" && pi_agent_ready && pi_timer_enabled; then
-    vecho "Pi maintenance agent already ensured (state tracked)"
-    exit 0
-fi
 clear_pi_agent_state
 
 add_to_path "$HOME/.local/bin"
