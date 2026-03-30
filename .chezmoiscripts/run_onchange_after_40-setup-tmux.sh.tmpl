@@ -2,9 +2,10 @@
 set -euo pipefail
 # Rerun when tmux plugin/config content changes.
 TMUX_CONFIG_HASH="{{ include "dot_tmux.conf" | sha256sum }}"
+TMUX_STATE="tmux-setup-${TMUX_CONFIG_HASH}"
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-if should_skip_state "tmux-setup"; then
+if should_skip_state "$TMUX_STATE"; then
     vecho "tmux setup already completed (state tracked)"
     exit 0
 fi
@@ -27,7 +28,7 @@ cvecho "${BLUE}Setting up tmux and tmux plugin manager...${NC}"
 TPM_DIR="$HOME/.tmux/plugins/tpm"
 if is_installed tmux && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; then
     cvecho "${GREEN}tmux and TPM are already installed and configured${NC}"
-    mark_state "tmux-setup"
+    mark_state "$TMUX_STATE"
     exit 0
 fi
 
@@ -101,7 +102,7 @@ else
 fi
 
 if is_installed tmux && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; then
-    mark_state "tmux-setup"
+    mark_state "$TMUX_STATE"
 else
     eecho "tmux setup incomplete; leaving state unset so setup can retry."
 fi
