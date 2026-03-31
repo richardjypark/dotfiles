@@ -25,6 +25,20 @@ PI_BIN="${PI_BIN:-$PROJECT_DIR/node_modules/.bin/pi}"
 PI_PROVIDER="${PI_PROVIDER:-}"
 PI_MODEL="${PI_MODEL:-}"
 PI_THINKING="${PI_THINKING:-medium}"
+NON_NPM_BUMP_DEPS=(
+  neovim
+  jj
+  codex
+  uv
+  starship
+  bun
+  tailscale
+  chezmoi
+  nvm
+  fzf
+  zsh-syntax-highlighting
+  zsh-autosuggestions
+)
 TIMESTAMP="$(date '+%Y-%m-%dT%H-%M-%S')"
 LOG_FILE="$LOG_DIR/$TIMESTAMP.log"
 
@@ -44,6 +58,7 @@ fi
 PI_PROVIDER="${PI_PROVIDER:-}"
 PI_MODEL="${PI_MODEL:-}"
 PI_THINKING="${PI_THINKING:-medium}"
+PI_MAINTENANCE_ALLOW_NPM_BUMPS="${PI_MAINTENANCE_ALLOW_NPM_BUMPS:-0}"
 
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -52,6 +67,45 @@ require_cmd() {
     printf 'missing required command: %s\n' "$1" >&2
     exit 1
   }
+}
+
+is_truthy() {
+  case "${1:-0}" in
+    1|true|TRUE|yes|YES|on|ON)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+build_bump_args() {
+  local -a args
+
+  if is_truthy "$PI_MAINTENANCE_ALLOW_NPM_BUMPS"; then
+    args=(--all)
+  else
+    args=("${NON_NPM_BUMP_DEPS[@]}")
+  fi
+
+  printf '%s\0' "${args[@]}"
+}
+
+run_chezmoi_bump() {
+  local bump_args=()
+  while IFS= read -r -d '' arg; do
+    bump_args+=("$arg")
+  done < <(build_bump_args)
+
+  if is_truthy "$PI_MAINTENANCE_ALLOW_NPM_BUMPS"; then
+    printf '==> [%s] running chezmoi-bump --all (npm-backed bumps explicitly allowed)\n' "$(date --iso-8601=seconds)"
+  else
+    printf '==> [%s] running chezmoi-bump with frozen non-npm deps only\n' "$(date --iso-8601=seconds)"
+  fi
+
+  (
+    cd "$REPO_DIR"
+    chezmoi-bump "${bump_args[@]}"
+  )
 }
 
 prepare_publishable_working_copy() {
@@ -185,11 +239,7 @@ main() {
     czuf
   )
 
-  printf '==> [%s] running chezmoi-bump --all\n' "$(date --iso-8601=seconds)"
-  (
-    cd "$REPO_DIR"
-    chezmoi-bump --all
-  )
+  run_chezmoi_bump
 
   printf '==> [%s] re-applying bumped state\n' "$(date --iso-8601=seconds)"
   (
