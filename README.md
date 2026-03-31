@@ -52,7 +52,7 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 | `chezmoi update` | Pulls latest dotfiles from upstream and applies them. | Standard sync from repo changes. |
 | `czu` | Managed wrapper command in `~/.local/bin/czu`: runs `jj fetch` + `jj rebase -d <default-branch>` (from `.chezmoidata.toml` `[git].defaultBranch`, with remote-head fallback), defaults `CHEZMOI_PROFILE=omarchy` on Omarchy hosts when unset, then runs `chezmoi apply`. | Daily update when you want the jj-based workflow. |
 | `czuf` | Managed wrapper command in `~/.local/bin/czuf`: same as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 chezmoi apply --refresh-externals --force`. | Full refresh when pinned tools/externals changed or state needs rebuilding (macOS uses Homebrew-first `uv`, with pinned artifact fallback). |
-| `czl` | Managed wrapper command in `~/.local/bin/czl`: fail-fast Omarchy/Arch workflow that refreshes sudo credentials, runs `czuf`, upgrades official Arch packages with `pacman -Syu`, updates the globally installed Pi Coding Agent via npm when present, runs `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` so the machine converges to the newly bumped stable pins. | Single-command daily maintenance on Omarchy/Arch Linux. |
+| `czl` | Managed wrapper command in `~/.local/bin/czl`: fail-fast Omarchy/Arch workflow that refreshes sudo credentials, runs `czuf`, upgrades official Arch packages with `pacman -Syu`, runs `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` so the machine converges to the newly bumped stable pins. Pi updates are handled by the repo’s managed pinned install during apply instead of a floating global npm update. | Single-command daily maintenance on Omarchy/Arch Linux. |
 | `czm` | Managed wrapper command in `~/.local/bin/czm`: fail-fast macOS workflow that runs `czuf` in a Homebrew-maintenance mode, then `brew update` + `brew upgrade` + `brew upgrade --cask --greedy` + `brew cleanup`, then `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` only when bumped pins changed tracked source files. | Single-command daily maintenance on macOS. |
 | `czvc` | Managed wrapper command in `~/.local/bin/czvc`: runs `chezmoi-check-versions` and exits non-zero when API/network errors make results incomplete. | Check pinned versions against upstream releases. |
 | `czb` | Managed wrapper command in `~/.local/bin/czb`: runs `chezmoi-bump` with fail-closed transaction checks (preflight -> apply -> verify -> rollback on failure). | Bump pinned dependency versions safely. |
@@ -133,7 +133,7 @@ $EDITOR ~/.config/dotfiles/bootstrap-private.env
 
 ## Pi Maintenance Agent
 
-On macOS, `chezmoi apply` installs the standalone `pi` CLI and ensures the `pi-autoresearch` package is present for that user profile.
+On macOS, `chezmoi apply` installs the managed local `pi` CLI from a committed lockfile and ensures the `pi-autoresearch` package is present from a pinned git commit for that user profile.
 The scheduled `pi-maintenance-agent` remains Omarchy-only and is never rendered or activated on macOS.
 
 The pi maintenance agent can be tracked in this repo without activating on every machine.
@@ -154,10 +154,16 @@ Behavior:
 - the agent source renders to `~/.local/share/pi-maintenance-agent/`
 - the systemd user units render only when `~/.config/dotfiles/pi-maintenance-agent.enabled` exists
 - the timer is enabled by `chezmoi apply` only when `~/.config/dotfiles/pi-maintenance-agent.env` exists
+- managed npm installs for the Pi CLI and maintenance agent use committed lockfiles, `npm ci`, and `--ignore-scripts`
+- lockfile/state drift forces a fresh `npm ci` even when the top-level pinned `pi` version is unchanged
+- `pi-autoresearch` is installed from a pinned git commit instead of mutable repo HEAD
+- the public npm registry path is delayed by default with `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS=3`, and the age gate is checked against every versioned package in each committed lockfile
+- set `CHEZMOI_NPM_REGISTRY` in the machine-local env file if you want scheduled runs to use a vetted internal npm proxy
 - removing the marker file and re-running `chezmoi apply` disables the timer on that machine
 
 Notes:
 - `pi-maintenance-agent.env` is machine-local and untracked
+- if you intentionally need to bypass the npm age gate, set `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS=0` in that machine-local env file
 - if you want the timer to run while logged out, enable lingering with `loginctl enable-linger "$USER"`
 
 ## Script Contract

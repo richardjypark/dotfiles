@@ -1,0 +1,49 @@
+name: managed-npm-safety
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  managed-node-installs:
+    runs-on: ubuntu-latest
+    env:
+      npm_config_ignore_scripts: true
+      npm_config_fund: false
+      npm_config_audit: false
+      npm_config_replace_registry_host: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: npm
+          cache-dependency-path: |
+            dot_local/share/pi-cli/package-lock.json
+            dot_local/share/pi-maintenance-agent/package-lock.json
+
+      - name: Validate managed Pi CLI install
+        working-directory: dot_local/share/pi-cli
+        run: |
+          npm ci --ignore-scripts --no-fund --no-audit --omit=dev
+          ./node_modules/.bin/pi --version
+
+      - name: Validate managed Pi maintenance agent install
+        working-directory: dot_local/share/pi-maintenance-agent
+        run: |
+          npm ci --ignore-scripts --no-fund --no-audit --omit=dev
+          ./node_modules/.bin/pi --version
+
+      - name: Validate shell entrypoints
+        run: |
+          bash -n dot_local/bin/executable_czl
+          bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh

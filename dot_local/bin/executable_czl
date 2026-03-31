@@ -19,30 +19,19 @@ fi
 
 set_default_chezmoi_profile
 
-echo "==> [0/5] Refreshing sudo credentials..."
+echo "==> [0/4] Refreshing sudo credentials..."
 sudo -v
 
-echo "==> [1/5] Running czuf..."
+echo "==> [1/4] Running czuf..."
 command czuf
 
-echo "==> [2/5] Updating Arch packages..."
+echo "==> [2/4] Updating Arch packages..."
 sudo pacman -Syu --noconfirm
 
-echo "==> [3/5] Updating Pi Coding Agent (if installed)..."
-if NPM_CMD="$(resolve_npm_cmd 2>/dev/null)"; then
-    if "$NPM_CMD" list -g --depth=0 "@mariozechner/pi-coding-agent" >/dev/null 2>&1; then
-        run_with_optional_output_sanitizer "$NPM_CMD" install -g "@mariozechner/pi-coding-agent"
-    else
-        echo "czl: skipping Pi Coding Agent update because it is not installed globally."
-    fi
-else
-    echo "czl: skipping Pi Coding Agent update because npm is unavailable."
-fi
-
-echo "==> [4/5] Running chezmoi-bump --all..."
+echo "==> [3/4] Running chezmoi-bump --all..."
 command chezmoi-bump --all --force
 
-echo "==> [5/5] Re-applying bumped stable pins..."
+echo "==> [4/4] Re-applying bumped stable pins..."
 run_with_optional_output_sanitizer \
     env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
     chezmoi apply --refresh-externals --force
