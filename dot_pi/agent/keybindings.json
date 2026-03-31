@@ -1,4 +1,6 @@
 {
   "tui.input.tab": [],
-  "app.message.followUp": ["tab"]
+  "app.message.followUp": ["tab"],
+  "tab": [],
+  "followUp": ["tab", "alt+enter"]
 }
