@@ -39,3 +39,9 @@ The managed Pi dependency is installed with:
 - reinstall-on-state/lockfile drift, even when the top-level `pi` version is unchanged
 - an optional internal npm registry/proxy via `CHEZMOI_NPM_REGISTRY`
 - a default 3-day npm publish-age delay via `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`, enforced across every versioned package in the committed lockfile
+
+The scheduled maintenance flow also defaults to a freeze policy for npm-backed version bumps:
+
+- `chezmoi-bump` runs only the non-npm dependency set by default
+- npm-backed bumps such as Claude Code are excluded from unattended daily runs
+- set `PI_MAINTENANCE_ALLOW_NPM_BUMPS=1` in the machine-local runtime env only if you intentionally want the agent to include npm-backed bumps
