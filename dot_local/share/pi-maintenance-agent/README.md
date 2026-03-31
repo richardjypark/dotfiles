@@ -17,7 +17,7 @@ It runs once per day at `5:01 PM America/New_York`, executes the non-sudo parts 
 - `config/runtime.env.example` - machine-local runtime config example
 - `prompts/publish.md` - read-only commit-message instructions for `pi`
 - `prompts/repair.md` - one-shot repair instructions for `pi`
-- `package.json` - pinned `pi` dependency manifest
+- `package.json` / `package-lock.json` - pinned `pi` dependency manifest + committed lockfile
 
 ## Runtime Notes
 
@@ -27,3 +27,15 @@ It runs once per day at `5:01 PM America/New_York`, executes the non-sudo parts 
 - Session data: `~/.local/state/pi-maintenance-agent/sessions`
 - Local machine opt-in marker: `~/.config/dotfiles/pi-maintenance-agent.enabled`
 - Local runtime config: `~/.config/dotfiles/pi-maintenance-agent.env`
+
+## Managed npm Safety
+
+The managed Pi dependency is installed with:
+
+- committed `package-lock.json`
+- `npm ci`
+- `--ignore-scripts`
+- exact pinned versions
+- reinstall-on-state/lockfile drift, even when the top-level `pi` version is unchanged
+- an optional internal npm registry/proxy via `CHEZMOI_NPM_REGISTRY`
+- a default 3-day npm publish-age delay via `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`, enforced across every versioned package in the committed lockfile

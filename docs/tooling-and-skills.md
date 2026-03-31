@@ -24,7 +24,7 @@ Claude support remains compatible, but shared planning conventions should point 
 
 - `czu`: jj-based dotfiles update and apply.
 - `czuf`: forced jj-based update with externals/tool refresh.
-- `czl`: Omarchy/Arch maintenance wrapper that runs `czuf`, upgrades official Arch packages, updates the globally installed Pi Coding Agent via npm when present, bumps pinned stable versions, and re-applies the bumped state.
+- `czl`: Omarchy/Arch maintenance wrapper that runs `czuf`, upgrades official Arch packages, bumps pinned stable versions, and re-applies the bumped state. Pi updates are handled by the repo’s managed pinned install during apply instead of a floating global npm update.
 - On macOS, uv setup is Homebrew-first during apply/refresh; pinned GitHub artifact install remains fallback when Homebrew is unavailable.
 - `czm`: macOS maintenance wrapper that runs `czuf` in a Homebrew-maintenance mode, performs the dedicated Homebrew upgrade/cleanup phase, bumps pinned versions, and re-applies only when the bump changed tracked pin files.
 - `czvc`: managed `~/.local/bin/czvc` command that checks pinned versions and exits non-zero when API/network errors make the check incomplete.

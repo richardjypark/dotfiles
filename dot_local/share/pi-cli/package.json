@@ -1,0 +1,9 @@
+{
+  "name": "pi-cli-managed",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Machine-local managed pi CLI install built from a committed lockfile",
+  "dependencies": {
+    "@mariozechner/pi-coding-agent": "0.57.1"
+  }
+}

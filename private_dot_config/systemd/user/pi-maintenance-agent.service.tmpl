@@ -10,6 +10,16 @@ EnvironmentFile=-%h/.config/dotfiles/pi-maintenance-agent.env
 WorkingDirectory=%h/.local/share/pi-maintenance-agent
 ExecStart=%h/.local/share/pi-maintenance-agent/bin/run-maintenance.sh
 Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
 
 [Install]
 WantedBy=default.target

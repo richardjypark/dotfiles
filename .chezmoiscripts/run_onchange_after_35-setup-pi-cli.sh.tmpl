@@ -2,10 +2,21 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
-PI_CLI_STATE="pi-cli-setup-${EXPECTED_PI_VERSION}"
-PI_AUTORESEARCH_SOURCE="https://github.com/davebcn87/pi-autoresearch"
-PI_AUTORESEARCH_STATE="pi-cli-package-pi-autoresearch"
+EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-cli/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
+PI_CLI_LOCKFILE_HASH="{{ include "dot_local/share/pi-cli/package-lock.json" | sha256sum }}"
+PI_CLI_PROJECT_DIR="$HOME/.local/share/pi-cli"
+PI_CLI_PACKAGE_JSON="$PI_CLI_PROJECT_DIR/package.json"
+PI_CLI_LOCKFILE="$PI_CLI_PROJECT_DIR/package-lock.json"
+PI_MANAGED_BIN="$PI_CLI_PROJECT_DIR/node_modules/.bin/pi"
+PI_CLI_STATE="pi-cli-setup-${EXPECTED_PI_VERSION}-${PI_CLI_LOCKFILE_HASH}"
+PI_AUTORESEARCH_REF="62feb2f46ef2a1b8e39af381b47acc4d7af42ca8"
+PI_AUTORESEARCH_SOURCE="https://github.com/davebcn87/pi-autoresearch@${PI_AUTORESEARCH_REF}"
+PI_AUTORESEARCH_REPO_MATCH="github.com/davebcn87/pi-autoresearch"
+PI_AUTORESEARCH_STATE="pi-cli-package-pi-autoresearch-${PI_AUTORESEARCH_REF}"
+
+managed_pi_binary_ready() {
+    [ -x "$PI_MANAGED_BIN" ]
+}
 
 pi_binary_ready() {
     local pi_path
@@ -13,8 +24,45 @@ pi_binary_ready() {
     [ -n "$pi_path" ] && [ -x "$pi_path" ]
 }
 
+list_pi_autoresearch_sources() {
+    pi list 2>/dev/null | awk -v repo_match="$PI_AUTORESEARCH_REPO_MATCH" '
+        /^  [^ ]/ && index($0, repo_match) {
+            sub(/^  /, "", $0)
+            print $0
+        }
+    '
+}
+
 pi_autoresearch_installed() {
-    pi list 2>/dev/null | grep -Fqx "  ${PI_AUTORESEARCH_SOURCE}"
+    list_pi_autoresearch_sources | grep -Fqx "$PI_AUTORESEARCH_SOURCE"
+}
+
+remove_stale_pi_autoresearch_sources() {
+    local installed_sources installed_source
+
+    installed_sources="$(list_pi_autoresearch_sources || true)"
+    if [ -z "$installed_sources" ]; then
+        return 0
+    fi
+
+    while IFS= read -r installed_source; do
+        [ -n "$installed_source" ] || continue
+        if [ "$installed_source" = "$PI_AUTORESEARCH_SOURCE" ]; then
+            continue
+        fi
+        eecho "Removing stale pi-autoresearch source: $installed_source"
+        run_quiet pi remove "$installed_source" || return 1
+    done <<EOF
+$installed_sources
+EOF
+}
+
+managed_pi_version() {
+    if ! managed_pi_binary_ready; then
+        return 0
+    fi
+
+    "$PI_MANAGED_BIN" --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
 }
 
 installed_pi_version() {
@@ -26,14 +74,13 @@ installed_pi_version() {
 }
 
 link_pi_binary() {
-    local npm_bin_dir managed_link current_target
+    local managed_link current_target
 
-    npm_bin_dir="$(dirname "$NPM_CMD")"
     managed_link="$HOME/.local/bin/pi"
 
-    if [ -x "$npm_bin_dir/pi" ]; then
+    if managed_pi_binary_ready; then
         mkdir -p "$HOME/.local/bin"
-        ln -sf "$npm_bin_dir/pi" "$managed_link"
+        ln -sf "$PI_MANAGED_BIN" "$managed_link"
         return 0
     fi
 
@@ -47,67 +94,53 @@ link_pi_binary() {
     fi
 }
 
-resolve_npm_cmd() {
-    local nvm_dir current_node nvm_bin candidate resolved
-
-    nvm_dir="$HOME/.nvm"
-    if [ -f "$nvm_dir/nvm.sh" ]; then
-        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
-        if command -v nvm >/dev/null 2>&1; then
-            nvm use default >/dev/null 2>&1 || true
-            current_node="$(nvm which current 2>/dev/null || true)"
-            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
-                nvm_bin="$(dirname "$current_node")"
-                if [ -x "$nvm_bin/npm" ] && "$nvm_bin/npm" -v >/dev/null 2>&1; then
-                    NPM_CMD="$nvm_bin/npm"
-                    return 0
-                fi
-            fi
-        fi
-    fi
-
-    if is_installed npm; then
-        candidate="$(command -v npm)"
-        resolved="$candidate"
-        if command -v readlink >/dev/null 2>&1; then
-            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
-        fi
-        if [ -x "$resolved" ] && "$resolved" -v >/dev/null 2>&1; then
-            NPM_CMD="$resolved"
-        else
-            NPM_CMD="$candidate"
-        fi
-        return 0
-    fi
-
-    return 1
-}
-
 if [[ "${OSTYPE:-}" != darwin* ]]; then
     exit 0
 fi
 
 if [ -z "$EXPECTED_PI_VERSION" ]; then
-    eecho "Error: could not determine the pinned pi version from the maintenance agent package manifest"
+    eecho "Error: could not determine the pinned pi version from the managed pi CLI manifest"
     exit 1
 fi
 
-if should_skip_state "$PI_CLI_STATE" && should_skip_state "$PI_AUTORESEARCH_STATE"; then
-    if pi_binary_ready && pi_autoresearch_installed; then
-        vecho "Pi CLI and managed pi packages already completed (state tracked)"
+PI_CLI_STATE_CURRENT=0
+if should_skip_state "$PI_CLI_STATE"; then
+    PI_CLI_STATE_CURRENT=1
+fi
+
+PI_AUTORESEARCH_STATE_CURRENT=0
+if should_skip_state "$PI_AUTORESEARCH_STATE"; then
+    PI_AUTORESEARCH_STATE_CURRENT=1
+fi
+
+if [ "$PI_CLI_STATE_CURRENT" -eq 1 ] && [ "$PI_AUTORESEARCH_STATE_CURRENT" -eq 1 ]; then
+    if managed_pi_binary_ready && pi_binary_ready && pi_autoresearch_installed; then
+        vecho "Pi CLI and pinned pi packages already completed (state tracked)"
         exit 0
     fi
-    vecho "Pi CLI state exists but managed binary or package is missing; re-running setup."
+    vecho "Pi CLI state exists but managed binary or pinned package is missing; re-running setup."
+fi
+
+if [ ! -f "$PI_CLI_PACKAGE_JSON" ] || [ ! -f "$PI_CLI_LOCKFILE" ]; then
+    eecho "Error: managed Pi CLI project is missing required files at $PI_CLI_PROJECT_DIR"
+    eecho "Expected both package.json and package-lock.json from the chezmoi source repo."
+    exit 1
 fi
 
 add_to_path "$HOME/.local/bin"
 
 vecho "Setting up Pi CLI..."
 
-CURRENT_PI_VERSION="$(installed_pi_version)"
-if [ -n "$CURRENT_PI_VERSION" ] && version_ge "$CURRENT_PI_VERSION" "$EXPECTED_PI_VERSION"; then
-    vecho "Pi CLI is already at version $CURRENT_PI_VERSION"
-else
+CURRENT_MANAGED_PI_VERSION="$(managed_pi_version)"
+NEEDS_PI_CLI_INSTALL=0
+if [ "$PI_CLI_STATE_CURRENT" -ne 1 ] || ! managed_pi_binary_ready; then
+    NEEDS_PI_CLI_INSTALL=1
+fi
+if [ "$CURRENT_MANAGED_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
+    NEEDS_PI_CLI_INSTALL=1
+fi
+
+if [ "$NEEDS_PI_CLI_INSTALL" -eq 1 ]; then
     NPM_CMD=""
     if ! resolve_npm_cmd; then
         eecho "Error: npm is required to install the Pi CLI."
@@ -125,26 +158,37 @@ else
         exit 1
     fi
 
-    if [ -n "$CURRENT_PI_VERSION" ]; then
-        eecho "Updating Pi CLI from $CURRENT_PI_VERSION to pinned $EXPECTED_PI_VERSION..."
-    else
-        eecho "Installing Pi CLI via pinned npm package..."
+    if ! npm_require_minimum_lockfile_age "$PI_CLI_LOCKFILE"; then
+        exit 1
     fi
 
-    run_quiet "$NPM_CMD" install -g "@mariozechner/pi-coding-agent@${EXPECTED_PI_VERSION}"
-    link_pi_binary
+    eecho "Installing Pi CLI via committed lockfile..."
+    run_managed_npm_ci "$PI_CLI_PROJECT_DIR"
 
-    CURRENT_PI_VERSION="$(installed_pi_version)"
-    if [ -z "$CURRENT_PI_VERSION" ] || ! version_ge "$CURRENT_PI_VERSION" "$EXPECTED_PI_VERSION"; then
+    CURRENT_MANAGED_PI_VERSION="$(managed_pi_version)"
+    if [ "$CURRENT_MANAGED_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
         eecho "Error: Pi CLI installation failed. Leaving state unset so it can retry."
         exit 1
     fi
 fi
 
+link_pi_binary
+
+CURRENT_PI_VERSION="$(installed_pi_version)"
+if [ "$CURRENT_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
+    eecho "Error: expected linked pi version $EXPECTED_PI_VERSION but found ${CURRENT_PI_VERSION:-missing}."
+    exit 1
+fi
+
 mark_state "$PI_CLI_STATE"
 
+if ! remove_stale_pi_autoresearch_sources; then
+    eecho "Error: failed to remove stale pi-autoresearch sources."
+    exit 1
+fi
+
 if pi_autoresearch_installed; then
-    vecho "pi-autoresearch is already installed"
+    vecho "Pinned pi-autoresearch is already installed"
     mark_state "$PI_AUTORESEARCH_STATE"
     exit 0
 fi
@@ -157,13 +201,18 @@ if ! require_trust_for_remote_installer "$PI_AUTORESEARCH_SOURCE"; then
     exit 1
 fi
 
-eecho "Installing pi-autoresearch package..."
+eecho "Installing pinned pi-autoresearch package..."
 run_quiet pi install "$PI_AUTORESEARCH_SOURCE"
 
+if ! remove_stale_pi_autoresearch_sources; then
+    eecho "Error: failed to remove stale pi-autoresearch sources after install."
+    exit 1
+fi
+
 if pi_autoresearch_installed; then
-    eecho "Pi CLI ready with pi-autoresearch: $(pi --version 2>/dev/null | head -n 1)"
+    eecho "Pi CLI ready with pinned pi-autoresearch: $(pi --version 2>/dev/null | head -n 1)"
     mark_state "$PI_AUTORESEARCH_STATE"
 else
-    eecho "Error: pi-autoresearch installation failed. Leaving package state unset so it can retry."
+    eecho "Error: pinned pi-autoresearch installation failed. Leaving package state unset so it can retry."
     exit 1
 fi
