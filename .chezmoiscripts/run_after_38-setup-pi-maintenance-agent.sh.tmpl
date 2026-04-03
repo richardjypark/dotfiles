@@ -63,7 +63,7 @@ installed_pi_version() {
     if [ ! -x "$PI_BIN" ]; then
         return 0
     fi
-    "$PI_BIN" --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
+    "$PI_BIN" --version 2>&1 | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
 }
 
 if ! is_pi_agent_supported_host; then
