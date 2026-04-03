@@ -22,6 +22,7 @@ REPO_DIR="${CHEZMOI_REPO_DIR:-$HOME/.local/share/chezmoi}"
 RUNTIME_ENV_FILE="${RUNTIME_ENV_FILE:-$HOME/.config/dotfiles/pi-maintenance-agent.env}"
 PUBLISH_BOOKMARK="${PUBLISH_BOOKMARK:-master}"
 PI_BIN="${PI_BIN:-$PROJECT_DIR/node_modules/.bin/pi}"
+GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$PROJECT_DIR/bin/git-ssh.sh}"
 PI_PROVIDER="${PI_PROVIDER:-}"
 PI_MODEL="${PI_MODEL:-}"
 PI_THINKING="${PI_THINKING:-medium}"
@@ -59,6 +60,8 @@ PI_PROVIDER="${PI_PROVIDER:-}"
 PI_MODEL="${PI_MODEL:-}"
 PI_THINKING="${PI_THINKING:-medium}"
 PI_MAINTENANCE_ALLOW_NPM_BUMPS="${PI_MAINTENANCE_ALLOW_NPM_BUMPS:-0}"
+
+export GIT_SSH_COMMAND
 
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -225,11 +228,17 @@ main() {
   require_cmd czuf
   require_cmd chezmoi-bump
   require_cmd chezmoi
+  require_cmd ssh
 
   export CHEZMOI_DISABLE_SUDO=1
 
   if [[ ! -x "$PI_BIN" ]]; then
     printf 'pi binary not found: %s\n' "$PI_BIN" >&2
+    exit 1
+  fi
+
+  if [[ ! -x "$GIT_SSH_COMMAND" ]]; then
+    printf 'git ssh wrapper not found: %s\n' "$GIT_SSH_COMMAND" >&2
     exit 1
   fi
 
