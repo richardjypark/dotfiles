@@ -11,12 +11,9 @@ WorkingDirectory=%h/.local/share/pi-maintenance-agent
 ExecStart=%h/.local/share/pi-maintenance-agent/bin/run-maintenance.sh
 Nice=10
 NoNewPrivileges=true
-PrivateTmp=true
-PrivateDevices=true
-ProtectControlGroups=true
-ProtectKernelModules=true
-ProtectKernelTunables=true
-ProtectHostname=true
+# Several filesystem/mount-namespace hardening knobs make OpenSSH see the
+# packaged /etc/ssh/ssh_config.d systemd include as nobody-owned on Arch,
+# which breaks non-interactive git/jj pushes from this service.
 RestrictSUIDSGID=true
 LockPersonality=true
 SystemCallArchitectures=native

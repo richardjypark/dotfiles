@@ -11,6 +11,7 @@ PI_BIN="$PROJECT_DIR/node_modules/.bin/pi"
 SERVICE_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.service"
 TIMER_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.timer"
 TIMER_ENABLE_LINK="$HOME/.config/systemd/user/timers.target.wants/pi-maintenance-agent.timer"
+SERVICE_UNIT="pi-maintenance-agent.service"
 TIMER_UNIT="pi-maintenance-agent.timer"
 EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
 PI_AGENT_LOCKFILE_HASH="{{ include "dot_local/share/pi-maintenance-agent/package-lock.json" | sha256sum }}"
@@ -42,6 +43,13 @@ pi_timer_enabled() {
         return 0
     fi
     has_user_systemd && systemctl --user is-enabled "$TIMER_UNIT" >/dev/null 2>&1
+}
+
+unit_needs_daemon_reload() {
+    if ! has_user_systemd; then
+        return 1
+    fi
+    [ "$(systemctl --user show --property NeedDaemonReload --value "$1" 2>/dev/null || true)" = "yes" ]
 }
 
 is_pi_agent_supported_host() {
@@ -78,7 +86,11 @@ if should_skip_state "$PI_AGENT_STATE"; then
     PI_AGENT_STATE_CURRENT=1
 fi
 
-if [ "$PI_AGENT_STATE_CURRENT" -eq 1 ] && pi_agent_ready && pi_timer_enabled; then
+if [ "$PI_AGENT_STATE_CURRENT" -eq 1 ] \
+    && pi_agent_ready \
+    && pi_timer_enabled \
+    && ! unit_needs_daemon_reload "$SERVICE_UNIT" \
+    && ! unit_needs_daemon_reload "$TIMER_UNIT"; then
     vecho "Pi maintenance agent already ensured (state tracked)"
     exit 0
 fi
