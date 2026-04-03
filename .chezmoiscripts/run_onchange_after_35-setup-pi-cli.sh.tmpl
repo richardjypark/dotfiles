@@ -8,6 +8,7 @@ PI_CLI_PROJECT_DIR="$HOME/.local/share/pi-cli"
 PI_CLI_PACKAGE_JSON="$PI_CLI_PROJECT_DIR/package.json"
 PI_CLI_LOCKFILE="$PI_CLI_PROJECT_DIR/package-lock.json"
 PI_MANAGED_BIN="$PI_CLI_PROJECT_DIR/node_modules/.bin/pi"
+PI_LINK_BIN="$HOME/.local/bin/pi"
 PI_CLI_STATE="pi-cli-setup-${EXPECTED_PI_VERSION}-${PI_CLI_LOCKFILE_HASH}"
 PI_AUTORESEARCH_REF="62feb2f46ef2a1b8e39af381b47acc4d7af42ca8"
 PI_AUTORESEARCH_SOURCE="https://github.com/davebcn87/pi-autoresearch@${PI_AUTORESEARCH_REF}"
@@ -18,14 +19,31 @@ managed_pi_binary_ready() {
     [ -x "$PI_MANAGED_BIN" ]
 }
 
-pi_binary_ready() {
+current_pi_cmd() {
     local pi_path
+
+    if [ -x "$PI_LINK_BIN" ]; then
+        printf '%s\n' "$PI_LINK_BIN"
+        return 0
+    fi
+
     pi_path="$(command -v pi 2>/dev/null || true)"
-    [ -n "$pi_path" ] && [ -x "$pi_path" ]
+    if [ -n "$pi_path" ] && [ -x "$pi_path" ]; then
+        printf '%s\n' "$pi_path"
+    fi
+}
+
+pi_binary_ready() {
+    [ -n "$(current_pi_cmd)" ]
 }
 
 list_pi_autoresearch_sources() {
-    pi list 2>/dev/null | awk -v repo_match="$PI_AUTORESEARCH_REPO_MATCH" '
+    local pi_cmd
+
+    pi_cmd="$(current_pi_cmd)"
+    [ -n "$pi_cmd" ] || return 0
+
+    "$pi_cmd" list 2>/dev/null | awk -v repo_match="$PI_AUTORESEARCH_REPO_MATCH" '
         /^  [^ ]/ && index($0, repo_match) {
             sub(/^  /, "", $0)
             print $0
@@ -38,12 +56,15 @@ pi_autoresearch_installed() {
 }
 
 remove_stale_pi_autoresearch_sources() {
-    local installed_sources installed_source
+    local installed_sources installed_source pi_cmd
 
     installed_sources="$(list_pi_autoresearch_sources || true)"
     if [ -z "$installed_sources" ]; then
         return 0
     fi
+
+    pi_cmd="$(current_pi_cmd)"
+    [ -n "$pi_cmd" ] || return 1
 
     while IFS= read -r installed_source; do
         [ -n "$installed_source" ] || continue
@@ -51,7 +72,7 @@ remove_stale_pi_autoresearch_sources() {
             continue
         fi
         eecho "Removing stale pi-autoresearch source: $installed_source"
-        run_quiet pi remove "$installed_source" || return 1
+        run_quiet "$pi_cmd" remove "$installed_source" || return 1
     done <<EOF
 $installed_sources
 EOF
@@ -62,33 +83,35 @@ managed_pi_version() {
         return 0
     fi
 
-    "$PI_MANAGED_BIN" --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
+    "$PI_MANAGED_BIN" --version 2>&1 | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
 }
 
 installed_pi_version() {
-    if ! pi_binary_ready; then
-        return 0
-    fi
+    local pi_cmd
 
-    pi --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
+    pi_cmd="$(current_pi_cmd)"
+    [ -n "$pi_cmd" ] || return 0
+
+    "$pi_cmd" --version 2>&1 | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
 }
 
 link_pi_binary() {
-    local managed_link current_target
-
-    managed_link="$HOME/.local/bin/pi"
+    local current_target
 
     if managed_pi_binary_ready; then
         mkdir -p "$HOME/.local/bin"
-        ln -sf "$PI_MANAGED_BIN" "$managed_link"
+        ln -sf "$PI_MANAGED_BIN" "$PI_LINK_BIN"
+        export PATH="$HOME/.local/bin:$PATH"
+        hash -r 2>/dev/null || true
         return 0
     fi
 
-    if [ -L "$managed_link" ]; then
-        current_target="$(readlink "$managed_link" 2>/dev/null || true)"
+    if [ -L "$PI_LINK_BIN" ]; then
+        current_target="$(readlink "$PI_LINK_BIN" 2>/dev/null || true)"
         case "$current_target" in
             "$HOME/.nvm"/*|/opt/homebrew/*|/usr/local/*)
-                rm -f "$managed_link"
+                rm -f "$PI_LINK_BIN"
+                hash -r 2>/dev/null || true
                 ;;
         esac
     fi
@@ -180,6 +203,12 @@ if [ "$CURRENT_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
     exit 1
 fi
 
+PI_CMD="$(current_pi_cmd)"
+if [ -z "$PI_CMD" ]; then
+    eecho "Error: managed pi binary is not available on PATH after setup."
+    exit 1
+fi
+
 mark_state "$PI_CLI_STATE"
 
 if ! remove_stale_pi_autoresearch_sources; then
@@ -202,7 +231,7 @@ if ! require_trust_for_remote_installer "$PI_AUTORESEARCH_SOURCE"; then
 fi
 
 eecho "Installing pinned pi-autoresearch package..."
-run_quiet pi install "$PI_AUTORESEARCH_SOURCE"
+run_quiet "$PI_CMD" install "$PI_AUTORESEARCH_SOURCE"
 
 if ! remove_stale_pi_autoresearch_sources; then
     eecho "Error: failed to remove stale pi-autoresearch sources after install."
@@ -210,7 +239,7 @@ if ! remove_stale_pi_autoresearch_sources; then
 fi
 
 if pi_autoresearch_installed; then
-    eecho "Pi CLI ready with pinned pi-autoresearch: $(pi --version 2>/dev/null | head -n 1)"
+    eecho "Pi CLI ready with pinned pi-autoresearch: $($PI_CMD --version 2>&1 | head -n 1)"
     mark_state "$PI_AUTORESEARCH_STATE"
 else
     eecho "Error: pinned pi-autoresearch installation failed. Leaving package state unset so it can retry."

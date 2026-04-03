@@ -357,10 +357,11 @@ npm_publish_metadata_cache_file() {
 
 npm_query_publish_metadata_json() {
     local package="$1"
+    local force_refresh="${2:-0}"
     local cache_file metadata
 
     cache_file="$(npm_publish_metadata_cache_file "$package")"
-    if [ -s "$cache_file" ]; then
+    if [ "$force_refresh" != "1" ] && [ -s "$cache_file" ]; then
         cat "$cache_file"
         return 0
     fi
@@ -377,7 +378,7 @@ npm_query_publish_metadata_json() {
 npm_query_publish_epoch() {
     local package="$1"
     local version="$2"
-    local metadata node_cmd
+    local metadata node_cmd published_epoch
 
     metadata="$(npm_query_publish_metadata_json "$package" || true)"
     if [ -z "$metadata" ]; then
@@ -389,7 +390,7 @@ npm_query_publish_epoch() {
         return 1
     fi
 
-    printf '%s' "$metadata" | "$node_cmd" -e '
+    published_epoch="$(printf '%s' "$metadata" | "$node_cmd" -e '
 const fs = require("fs")
 const version = process.argv[1]
 const raw = fs.readFileSync(0, "utf8").trim()
@@ -405,7 +406,36 @@ if (!timestamp) process.exit(1)
 const epochMs = Date.parse(timestamp)
 if (!Number.isFinite(epochMs)) process.exit(1)
 process.stdout.write(String(Math.floor(epochMs / 1000)))
-' "$version"
+' "$version" 2>/dev/null || true)"
+    if [ -n "$published_epoch" ]; then
+        printf '%s\n' "$published_epoch"
+        return 0
+    fi
+
+    metadata="$(npm_query_publish_metadata_json "$package" 1 || true)"
+    if [ -z "$metadata" ]; then
+        return 1
+    fi
+
+    published_epoch="$(printf '%s' "$metadata" | "$node_cmd" -e '
+const fs = require("fs")
+const version = process.argv[1]
+const raw = fs.readFileSync(0, "utf8").trim()
+if (!raw) process.exit(1)
+let data
+try {
+  data = JSON.parse(raw)
+} catch {
+  process.exit(1)
+}
+const timestamp = data && data[version]
+if (!timestamp) process.exit(1)
+const epochMs = Date.parse(timestamp)
+if (!Number.isFinite(epochMs)) process.exit(1)
+process.stdout.write(String(Math.floor(epochMs / 1000)))
+' "$version" 2>/dev/null || true)"
+    [ -n "$published_epoch" ] || return 1
+    printf '%s\n' "$published_epoch"
 }
 
 npm_require_minimum_version_age() {

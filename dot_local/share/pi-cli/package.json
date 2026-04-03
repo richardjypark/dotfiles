@@ -4,6 +4,21 @@
   "version": "0.1.0",
   "description": "Machine-local managed pi CLI install built from a committed lockfile",
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "0.57.1"
+    "@mariozechner/pi-coding-agent": "0.64.0"
+  },
+  "overrides": {
+    "@aws-sdk/client-bedrock-runtime": "3.1019.0",
+    "@aws-sdk/credential-provider-ini": "3.972.26",
+    "@aws-sdk/credential-provider-login": "3.972.26",
+    "@aws-sdk/credential-provider-node": "3.972.27",
+    "@aws-sdk/credential-provider-sso": "3.972.26",
+    "@aws-sdk/credential-provider-web-identity": "3.972.26",
+    "@aws-sdk/middleware-user-agent": "3.972.26",
+    "@aws-sdk/nested-clients": "3.996.16",
+    "@aws-sdk/token-providers": "3.1019.0",
+    "@aws-sdk/util-user-agent-node": "3.973.12",
+    "@google/genai": "1.46.0",
+    "path-expression-matcher": "1.2.0",
+    "undici": "7.24.6"
   }
 }
