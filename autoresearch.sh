@@ -22,16 +22,12 @@ add_finding() {
   esac
 }
 
-if ! rg -q '\.claude/settings\.local\.json' docs/tooling-and-skills.md; then
-  add_finding guidance 'docs/tooling-and-skills does not mention the tracked repo-local .claude/settings.local.json policy file'
+if rg -q 'Bash\(dscl:\*\)' .claude/settings.local.json; then
+  add_finding security 'tracked repo-local Claude settings still allow Bash(dscl:*), an unrelated macOS account-management command'
 fi
 
-if ! rg -q '\.claude/' AGENTS.md; then
-  add_finding guidance 'AGENTS.md does not surface .claude/ as an agent-operating surface'
-fi
-
-if ! rg -q '\.claude/' ARCHITECTURE.md; then
-  add_finding guidance 'ARCHITECTURE.md does not route .claude/ as an agent-config surface'
+if ! rg -q 'Bash\(dscl:\*\)' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(dscl:*)'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

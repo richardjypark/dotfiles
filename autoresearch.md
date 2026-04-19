@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to this dotfiles repo's agent-operating surfaces, especially around secure defaults, prompts, skills, and best-practice guidance.
 
-The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment strengthened the specialized Codex skill metadata prompts. The current follow-up focuses on one remaining discoverability gap from `autoresearch.ideas.md`: `.claude/settings.local.json` is now security-relevant tracked project state, but the canonical cross-tool docs and routing docs still do not surface it clearly enough.
+The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment surfaced `.claude/settings.local.json` in the canonical/routing docs. The current follow-up focuses on one evidence-backed permission tightening: the tracked repo-local Claude allowlist still includes `Bash(dscl:*)`, but `dscl` does not appear to be part of this repo's documented or implemented workflows.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against repo safety/prompt invariants.
@@ -17,10 +17,9 @@ The earlier Claude/docs/health-check safety gaps were closed in prior segments. 
 The script audits a small set of high-signal invariants and prints structured `METRIC ...` lines.
 
 ## Files in Scope
-- `docs/tooling-and-skills.md` — canonical cross-tool agent/tooling guidance
-- `AGENTS.md` — high-impact agent-operating surface list
-- `ARCHITECTURE.md` — agent-config routing table and key-files overview
-- `.claude/settings.local.json` — tracked repo-local Claude permission allowlist referenced by the docs
+- `.claude/settings.local.json` — tracked repo-local Claude permission allowlist
+- `dot_local/bin/executable_chezmoi-health-check` — managed health-check helper for permission drift checks
+- `CLAUDE.md` / `docs/tooling-and-skills.md` — only if a tiny wording alignment becomes necessary
 
 ## Off Limits
 - Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
@@ -36,6 +35,6 @@ The script audits a small set of high-signal invariants and prints structured `M
 
 ## What's Been Tried
 - Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing, Codex routed files, and Claude prompt/permission defaults.
-- Kept in earlier segments: Codex trust rationale and override mechanisms are now explicit, and the tracked repo-local Claude allowlist is narrower and documented as a project-local file.
-- Kept in the latest segment: the specialized Codex metadata prompts for `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, and `dotfiles-version-refresh` now front-load trust-gate and validation reminders instead of relying only on the full skill body.
-- Next promising path from the ideas backlog: extend that `.claude/settings.local.json` explanation into `docs/tooling-and-skills.md`, and make sure the routing docs (`AGENTS.md` / `ARCHITECTURE.md`) acknowledge `.claude/` as an agent-config surface so future agents inspect it deliberately.
+- Kept in earlier segments: Codex trust rationale and override mechanisms are now explicit, and the tracked repo-local Claude allowlist is narrower, documented as a project-local file, and surfaced in canonical/routing docs.
+- New evidence from the remaining allowlist review: `Bash(dscl:*)` still exists in `.claude/settings.local.json`, but `dscl` does not show up in repo source files or the repo's user-facing/agent-facing workflow docs. It looks like stale leftover permission scope rather than an intentional repo need.
+- Current plan: remove `Bash(dscl:*)` from the tracked allowlist and add a cheap health-check warning so unrelated macOS account-management permissions do not creep back in without review.
