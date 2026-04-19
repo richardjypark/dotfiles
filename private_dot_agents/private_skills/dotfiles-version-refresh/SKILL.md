@@ -48,9 +48,9 @@ Use template rendering + shell parsing for `.tmpl` files:
 
 ```bash
 chezmoi execute-template < .chezmoiexternal.toml.tmpl >/tmp/chezmoiexternal.rendered.toml
-chezmoi execute-template < .chezmoiscripts/run_after_30-setup-node.sh.tmpl | bash -n
-chezmoi execute-template < .chezmoiscripts/run_after_25-setup-uv.sh.tmpl | bash -n
-bash -n .chezmoiscripts/run_after_20-setup-fzf.sh
+chezmoi execute-template < .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl | bash -n
 chezmoi apply --dry-run --refresh-externals
 ```
 

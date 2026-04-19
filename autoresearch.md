@@ -1,12 +1,12 @@
-# Autoresearch: maintenance-doc consistency cleanup
+# Autoresearch: script-doc path consistency cleanup
 
 ## Objective
-Find and implement minimal, low-risk improvements to consistency across the user-facing maintenance docs.
+Find and implement minimal, low-risk improvements to consistency between the actual `.chezmoiscripts/` paths and the docs/skill references that point at them.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the deferred Neovim semantics note was clarified inline. The next promising path is a small docs consistency cleanup: `docs/bootstrap-and-flags.md` still says `czl` updates the globally installed Pi Coding Agent via npm, but the canonical README and tooling docs now say Pi updates are handled by the repo's managed pinned install during apply.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, the deferred Neovim semantics note was clarified inline, and one stale `czl` doc path was aligned. The next promising path is another consistency cleanup: several skill/reference docs still point at old `run_after_*` / `run_before_*` script paths even though most of those setup scripts were converted to `run_onchange_*` long ago.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the maintenance-doc consistency invariants for this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the script-doc path consistency invariants for this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
   - `guidance_findings` — missing health-check/drift-warning coverage
@@ -14,12 +14,15 @@ The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits the maintenance docs for stale `czl` wording that still implies floating global npm-based Pi updates.
+The script audits a small set of docs/skill files for stale `.chezmoiscripts/run_after_*` or `.chezmoiscripts/run_before_*` references that should now point at `run_onchange_*` paths.
 
 ## Files in Scope
-- `docs/bootstrap-and-flags.md` — maintenance/flag reference with the stale `czl` wording
-- `README.md` — canonical current wording for `czl`
-- `docs/tooling-and-skills.md` — canonical current tooling wording for `czl`
+- `ARCHITECTURE.md` — high-level apply-time script routing
+- `docs/architecture-and-performance.md` — validation checklist
+- `private_dot_agents/private_skills/chezmoi-script-maintainer/SKILL.md` — script-maintainer workflow/validation guidance
+- `private_dot_agents/private_skills/chezmoi-script-maintainer/references/script-patterns.md` — canonical script reference examples
+- `private_dot_agents/private_skills/dotfiles-version-refresh/SKILL.md` — version-refresh validation examples
+- `private_dot_agents/private_skills/dotfiles-version-refresh/references/version-map.md` — script touchpoint map
 
 ## Off Limits
 - Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
@@ -36,6 +39,6 @@ The script audits the maintenance docs for stale `czl` wording that still implie
 - Recent segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts.
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog, improved the two remaining always-run warm paths, and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
 - The older dispatcher/consolidation performance idea now looks mostly stale because only two always-run scripts remain and both already received their low-hanging warm-path cleanups.
-- Kept in the latest segment: the Neovim setup script now explicitly states that `REQUIRED_NVIM_VERSION` is the compatibility floor while `PINNED_NVIM_VERSION` is only the preferred install source.
-- New low-hanging doc gap: `docs/bootstrap-and-flags.md` still describes `czl` as updating the Pi Coding Agent via global npm, which is now inconsistent with `README.md` and `docs/tooling-and-skills.md` after the pinned-install policy change.
-- Current plan: align `docs/bootstrap-and-flags.md` with the canonical current wording so all maintenance docs describe `czl` the same way.
+- Recent segments also fixed the stale `czl` global-npm wording and clarified the deferred Neovim version semantics inline.
+- New low-hanging doc gap: several docs/skill references still name legacy `run_after_*` / `run_before_*` paths even though the actual scripts are now mostly `run_onchange_*`.
+- Current plan: update those references to the canonical current paths so future agents do not chase nonexistent script names when validating or editing setup logic.
