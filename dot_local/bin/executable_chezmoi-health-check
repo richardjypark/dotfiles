@@ -434,6 +434,12 @@ if [ -d "$HOME/.claude" ] || is_installed claude; then
         else
             check_pass "Repo-local Claude permissions exclude Bash(czu:*)"
         fi
+
+        if grep -Eq '"Bash\(chmod:\*\)"' "$CLAUDE_PROJECT_SETTINGS_LOCAL"; then
+            check_warn "Repo-local Claude settings allow bootstrap-style Bash(chmod:*) access"
+        else
+            check_pass "Repo-local Claude permissions exclude Bash(chmod:*)"
+        fi
     else
         check_warn "$CLAUDE_PROJECT_SETTINGS_LOCAL missing"
     fi
