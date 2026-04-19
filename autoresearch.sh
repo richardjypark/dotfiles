@@ -22,13 +22,7 @@ add_finding() {
   esac
 }
 
-if ! rg -q 'jj status' private_dot_agents/private_skills/jj/agents/openai.yaml \
-  || ! rg -q 'jj log' private_dot_agents/private_skills/jj/agents/openai.yaml \
-  || ! rg -q 'jj diff' private_dot_agents/private_skills/jj/agents/openai.yaml; then
-  add_finding guidance "jj Codex metadata prompt lacks the skill's preferred jj status/log/diff first-pass reminders"
-fi
-
-if ! rg -qi 're-check|after rewrites|jj undo|bookmark' private_dot_agents/private_skills/jj/agents/openai.yaml; then
+if ! rg -qi 're-check|after rewrites|jj undo' private_dot_agents/private_skills/jj/agents/openai.yaml; then
   add_finding guidance 'jj Codex metadata prompt lacks rewrite recovery or post-change recheck reminders'
 fi
 

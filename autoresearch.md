@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to this dotfiles repo's agent-operating surfaces, especially around secure defaults, prompts, skills, and best-practice guidance.
 
-The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment removed stale `Bash(dscl:*)` access from the tracked repo-local Claude allowlist. The current follow-up focuses on the remaining metadata-prompt inconsistency: the `jj` Codex metadata prompt is still much weaker than the underlying skill body and does not front-load the repo's preferred first-pass/recheck workflow.
+The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment improved the `jj` Codex metadata prompt by front-loading `jj status / jj log / jj diff`. The current follow-up checks whether that metadata prompt should also carry one more high-value safety cue from the skill body: re-check after rewrites / use `jj undo` for recovery.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against repo safety/prompt invariants.
@@ -36,5 +36,6 @@ The script audits a small set of high-signal invariants and prints structured `M
 ## What's Been Tried
 - Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing, Codex routed files, and Claude prompt/permission defaults.
 - Kept in earlier segments: Codex trust rationale and override mechanisms are now explicit, and the tracked repo-local Claude allowlist is narrower, documented as a project-local file, and surfaced in canonical/routing docs.
-- Kept in the latest segment: stale `Bash(dscl:*)` access was removed from the tracked repo-local Claude allowlist, with a matching health-check warning to catch regressions.
-- Next promising path: the `jj` metadata prompt still says less than the skill body. It should at least nudge Codex toward `jj status`/`jj log`/`jj diff` before history changes and toward re-checking state after rewrites.
+- Kept in earlier segments: stale `Bash(dscl:*)` access was removed from the tracked repo-local Claude allowlist, with a matching health-check warning to catch regressions.
+- Kept in the latest segment: the `jj` metadata prompt now front-loads `jj status / jj log / jj diff` before rewrites.
+- Next promising micro-improvement: add one more recovery/recheck cue (`jj undo` / re-check after rewrites) so the metadata prompt better reflects the safety-critical parts of the full jj skill.
