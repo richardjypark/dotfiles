@@ -23,6 +23,7 @@ The script audits a small set of high-signal invariants and prints structured `M
 - `private_dot_agents/private_skills/chezmoi-repo-maintainer/SKILL.md` — cross-cutting repo skill used for this surface
 - `private_dot_agents/private_skills/chezmoi-repo-maintainer/agents/openai.yaml` — Codex-facing metadata prompt for the cross-cutting repo skill
 - `private_dot_codex/*` — only if a small alignment fix becomes clearly necessary
+- `dot_local/bin/executable_chezmoi-health-check` — managed health-check helper; useful for lightweight agent-config sanity checks
 - `AGENTS.md` / `ARCHITECTURE.md` — only if a minimal wording alignment is needed
 
 ## Off Limits
@@ -41,4 +42,5 @@ The script audits a small set of high-signal invariants and prints structured `M
 - Initial research identified one concrete security issue: committed Claude settings bypassed the dangerous-mode permission prompt by default.
 - Kept: `private_dot_claude/settings.json` now keeps that prompt enabled by default, and concise guardrails were added to `CLAUDE.md` plus the shared `chezmoi-repo-maintainer` skill so tracked client-config safety bypasses stay opt-in and local-only.
 - The first audit was too loose to detect the guidance gap directly, but the docs/skill reinforcement was still worth keeping because it protects against regression around the security fix.
-- Next promising low-hanging prompt/skill improvements: strengthen Claude's own first-pass workflow guidance (status/read-order/skill-loading) and improve the repo-maintainer skill's Codex metadata prompt so it nudges planning/validation earlier.
+- Kept: `CLAUDE.md` now has a concise First Pass checklist, and the repo-maintainer Codex metadata prompt now nudges read order, planning, and chezmoi validation.
+- Next promising low-hanging improvement: add lightweight agent-config sanity checks to `chezmoi-health-check` so shared skill routing and the Claude dangerous-mode prompt default are validated operationally, not just documented.

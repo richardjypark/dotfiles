@@ -42,6 +42,14 @@ if ! rg -qi 'plan|plans/README.md' private_dot_agents/private_skills/chezmoi-rep
   add_finding guidance 'repo-maintainer Codex metadata prompt lacks planning/validation reminders'
 fi
 
+if ! rg -q 'skipDangerousModePermissionPrompt' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding security 'chezmoi-health-check does not sanity-check the Claude dangerous-mode prompt setting'
+fi
+
+if ! rg -q '\.agents/skills' dot_local/bin/executable_chezmoi-health-check || ! rg -q '\.codex/skills' dot_local/bin/executable_chezmoi-health-check || ! rg -q '\.claude/skills' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not verify shared agent-skill routing for Codex and Claude'
+fi
+
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
   printf '  none\n'

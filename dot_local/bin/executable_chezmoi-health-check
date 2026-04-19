@@ -38,6 +38,25 @@ check_fail() {
     FAIL_COUNT=$((FAIL_COUNT + 1))
 }
 
+check_symlink_target() {
+    local path="$1"
+    local expected="$2"
+    local label="$3"
+    local target=""
+
+    if [ ! -L "$path" ]; then
+        check_warn "$label missing or not a symlink"
+        return
+    fi
+
+    target="$(readlink "$path" 2>/dev/null || true)"
+    if [ "$target" = "$expected" ]; then
+        check_pass "$label -> $expected"
+    else
+        check_warn "$label points to ${target:-<unknown>} (expected $expected)"
+    fi
+}
+
 CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
 if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
     CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
@@ -318,7 +337,37 @@ else
     check_warn "$HOME/.config/shell/ directory missing"
 fi
 
-# 5. State tracking
+# 5. Agent configuration
+vecho ""
+vecho "--- Agent Configuration ---"
+
+SHARED_SKILLS_DIR="$HOME/.agents/skills"
+if [ -d "$SHARED_SKILLS_DIR" ]; then
+    check_pass "$SHARED_SKILLS_DIR exists"
+else
+    check_warn "$SHARED_SKILLS_DIR missing"
+fi
+
+if [ -d "$HOME/.codex" ] || is_installed codex; then
+    check_symlink_target "$HOME/.codex/skills" "$SHARED_SKILLS_DIR" "~/.codex/skills"
+fi
+
+if [ -d "$HOME/.claude" ] || is_installed claude; then
+    check_symlink_target "$HOME/.claude/skills" "$SHARED_SKILLS_DIR" "~/.claude/skills"
+
+    CLAUDE_SETTINGS_FILE="$HOME/.claude/settings.json"
+    if [ -f "$CLAUDE_SETTINGS_FILE" ]; then
+        if grep -Eq '"skipDangerousModePermissionPrompt"[[:space:]]*:[[:space:]]*true' "$CLAUDE_SETTINGS_FILE"; then
+            check_warn "Claude dangerous-mode permission prompt bypass enabled"
+        else
+            check_pass "Claude dangerous-mode permission prompt still enabled"
+        fi
+    else
+        check_warn "$CLAUDE_SETTINGS_FILE missing"
+    fi
+fi
+
+# 6. State tracking
 vecho ""
 vecho "--- State Tracking ---"
 
@@ -329,7 +378,7 @@ else
     check_warn "State directory not initialized"
 fi
 
-# 6. Bootstrap security flags (if bootstrap-vps.sh was used)
+# 7. Bootstrap security flags (if bootstrap-vps.sh was used)
 vecho ""
 vecho "--- Bootstrap Security Defaults ---"
 
