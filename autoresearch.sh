@@ -22,48 +22,19 @@ add_finding() {
   esac
 }
 
-if rg -q '"skipDangerousModePermissionPrompt"[[:space:]]*:[[:space:]]*true' private_dot_claude/settings.json; then
-  add_finding security 'managed Claude settings bypass dangerous-mode permission prompts by default'
+if rg -q 'trust_level = "trusted"' private_dot_codex/private_config.toml.tmpl \
+  && { ! rg -qi 'repo-local|repo local|AGENTS|skills' private_dot_codex/private_config.toml.tmpl \
+       || ! rg -qi 'local untracked override|local override|machine-local|local-only|untracked' private_dot_codex/private_config.toml.tmpl; }; then
+  add_finding security 'tracked Codex trusted-workspace config lacks explicit rationale and local-override guidance'
 fi
 
-if ! rg -qi 'dangerous[- ]mode|permission prompt|approval gate|machine-local|local-only' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md lacks explicit guidance that client safety bypasses should remain opt-in and machine-local'
+if ! rg -q '\.codex/AGENTS\.md' dot_local/bin/executable_chezmoi-health-check \
+  || ! rg -q '\.codex/config\.toml' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not verify Codex AGENTS/config presence'
 fi
 
-if ! rg -qi 'permission prompt|dangerous[- ]mode|approval gate|machine-local|local-only' private_dot_agents/private_skills/chezmoi-repo-maintainer/SKILL.md; then
-  add_finding guidance 'chezmoi-repo-maintainer skill lacks guardrails for committed client-config safety bypasses'
-fi
-
-if ! rg -q '^## First Pass$' CLAUDE.md || ! rg -q 'jj status' CLAUDE.md || ! rg -qi 'load the relevant skill|invoke these skills|skill before' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md lacks a concise first-pass workflow for status checks and skill loading'
-fi
-
-if ! rg -qi 'plan|plans/README.md' private_dot_agents/private_skills/chezmoi-repo-maintainer/agents/openai.yaml || ! rg -qi 'chezmoi diff|chezmoi apply|chezmoi status|validate' private_dot_agents/private_skills/chezmoi-repo-maintainer/agents/openai.yaml; then
-  add_finding guidance 'repo-maintainer Codex metadata prompt lacks planning/validation reminders'
-fi
-
-if ! rg -q 'skipDangerousModePermissionPrompt' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding security 'chezmoi-health-check does not sanity-check the Claude dangerous-mode prompt setting'
-fi
-
-if ! rg -q '\.agents/skills' dot_local/bin/executable_chezmoi-health-check || ! rg -q '\.codex/skills' dot_local/bin/executable_chezmoi-health-check || ! rg -q '\.claude/skills' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not verify shared agent-skill routing for Codex and Claude'
-fi
-
-if ! rg -q 'chezmoi-health-check' README.md; then
-  add_finding guidance 'README does not document the managed chezmoi-health-check command'
-fi
-
-if ! rg -qi 'dangerous[- ]mode|permission prompt|approval gate' docs/tooling-and-skills.md || ! rg -qi 'local untracked override|machine-local|local-only' docs/tooling-and-skills.md; then
-  add_finding guidance 'docs/tooling-and-skills lacks a canonical cross-tool note about local-only client-config safety bypasses'
-fi
-
-if ! rg -q 'chezmoi-health-check' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md does not surface chezmoi-health-check as a maintenance/debugging command'
-fi
-
-if ! rg -q 'chezmoi-health-check' docs/tooling-and-skills.md; then
-  add_finding guidance 'docs/tooling-and-skills does not list chezmoi-health-check among managed helper commands'
+if ! rg -q '~/.codex/AGENTS.md' docs/tooling-and-skills.md; then
+  add_finding guidance 'docs/tooling-and-skills does not document the routed ~/.codex/AGENTS.md entry point'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

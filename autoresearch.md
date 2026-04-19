@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to this dotfiles repo's agent-operating surfaces, especially around secure defaults, prompts, skills, and best-practice guidance.
 
-The current session focuses on committed agent configuration and instructions under `private_dot_claude/`, `private_dot_codex/`, `AGENTS.md`, `CLAUDE.md`, `docs/tooling-and-skills.md`, and `private_dot_agents/private_skills/`.
+The earlier Claude/docs/health-check safety gaps were closed in prior segments. The current segment focuses on Codex-specific safety/discoverability gaps under `private_dot_codex/`, `docs/tooling-and-skills.md`, and `dot_local/bin/executable_chezmoi-health-check`.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against repo safety/prompt invariants.
@@ -17,15 +17,11 @@ The current session focuses on committed agent configuration and instructions un
 The script audits a small set of high-signal invariants and prints structured `METRIC ...` lines.
 
 ## Files in Scope
-- `private_dot_claude/settings.json` — managed Claude client settings
-- `README.md` — user-facing command/workflow documentation
-- `CLAUDE.md` — Claude-facing repo instructions
+- `private_dot_codex/private_config.toml.tmpl` — managed Codex config, including repo trust settings
+- `private_dot_codex/AGENTS.md.tmpl` — Codex-facing routed AGENTS entry point
 - `docs/tooling-and-skills.md` — canonical skill/tooling guidance
-- `private_dot_agents/private_skills/chezmoi-repo-maintainer/SKILL.md` — cross-cutting repo skill used for this surface
-- `private_dot_agents/private_skills/chezmoi-repo-maintainer/agents/openai.yaml` — Codex-facing metadata prompt for the cross-cutting repo skill
-- `private_dot_codex/*` — only if a small alignment fix becomes clearly necessary
 - `dot_local/bin/executable_chezmoi-health-check` — managed health-check helper; useful for lightweight agent-config sanity checks
-- `AGENTS.md` / `ARCHITECTURE.md` — only if a minimal wording alignment is needed
+- `AGENTS.md` / `CLAUDE.md` / `ARCHITECTURE.md` — only if a minimal wording alignment is needed
 
 ## Off Limits
 - Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
@@ -40,10 +36,7 @@ The script audits a small set of high-signal invariants and prints structured `M
 - Do not overfit to the audit by weakening it; improve the repo so the audit passes for principled reasons.
 
 ## What's Been Tried
-- Initial research identified one concrete security issue: committed Claude settings bypassed the dangerous-mode permission prompt by default.
-- Kept: `private_dot_claude/settings.json` now keeps that prompt enabled by default, and concise guardrails were added to `CLAUDE.md` plus the shared `chezmoi-repo-maintainer` skill so tracked client-config safety bypasses stay opt-in and local-only.
-- The first audit was too loose to detect the guidance gap directly, but the docs/skill reinforcement was still worth keeping because it protects against regression around the security fix.
-- Kept: `CLAUDE.md` now has a concise First Pass checklist, and the repo-maintainer Codex metadata prompt now nudges read order, planning, and chezmoi validation.
-- Kept: `chezmoi-health-check` now validates shared agent-skill routing and the Claude dangerous-mode permission prompt default.
-- Kept: `README.md` documents `chezmoi-health-check`, and `docs/tooling-and-skills.md` now states that tracked client-config safety bypasses belong in local untracked overrides.
-- Next promising low-hanging improvement: surface `chezmoi-health-check` in the agent-facing/tooling reference docs (`CLAUDE.md` and `docs/tooling-and-skills.md`) so it is discoverable from the places agents actually read during maintenance work.
+- Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing and Claude's prompt setting.
+- Kept in earlier segments: `chezmoi-health-check` is now documented in README, CLAUDE.md, and `docs/tooling-and-skills.md`, with a canonical note that tracked client-config safety relaxations belong in local untracked overrides.
+- The most promising remaining low-hanging idea from `autoresearch.ideas.md` is Codex-specific: `private_dot_codex/private_config.toml.tmpl` hardcodes `trust_level = "trusted"`, but the rationale and local-override path are not documented and the health check does not currently validate Codex's routed AGENTS/config files.
+- Current plan: keep the Codex trusted-workspace default for now, but make it intentional and discoverable via comments/docs plus a lightweight operational sanity check. Avoid changing the default itself unless repo evidence clearly shows it is wrong.
