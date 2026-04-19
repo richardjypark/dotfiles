@@ -22,20 +22,17 @@ add_finding() {
   esac
 }
 
-if rg -q '~/.codex/config.toml' private_dot_codex/private_config.toml.tmpl \
-  || ! rg -q 'codex -c' private_dot_codex/private_config.toml.tmpl; then
-  add_finding security 'Codex trust override guidance points to a managed config file instead of a concrete client-supported override mechanism'
+if rg -q 'WebFetch\(domain:\*\)' .claude/settings.local.json; then
+  add_finding security 'tracked repo-local Claude settings allow WebFetch(domain:*) instead of domain-scoped fetch permissions'
 fi
 
-if rg -q 'local untracked override' CLAUDE.md \
-  && ! rg -q -- '--settings|--setting-sources' CLAUDE.md; then
-  add_finding guidance "CLAUDE.md mentions local overrides without naming Claude's actual settings override mechanisms"
+if ! rg -q '\.claude/settings\.local\.json' CLAUDE.md; then
+  add_finding guidance 'CLAUDE.md does not explain that .claude/settings.local.json is a tracked repo-local allowlist for this repo'
 fi
 
-if rg -q 'local untracked overrides' docs/tooling-and-skills.md \
-  && { ! rg -q 'codex -c' docs/tooling-and-skills.md \
-       || ! rg -q -- '--settings|--setting-sources' docs/tooling-and-skills.md; }; then
-  add_finding guidance 'docs/tooling-and-skills uses generic override guidance without concrete Codex/Claude override examples'
+if ! rg -q '\.claude/settings\.local\.json' dot_local/bin/executable_chezmoi-health-check \
+  || ! rg -Fq 'WebFetch(domain:*)' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings use wildcard WebFetch permissions'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

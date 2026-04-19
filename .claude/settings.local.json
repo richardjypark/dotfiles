@@ -15,7 +15,6 @@
       "Bash(source:*)",
       "Bash(czu:*)",
       "WebSearch",
-      "WebFetch(domain:*)",
       "Bash(alias:*)",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com)",

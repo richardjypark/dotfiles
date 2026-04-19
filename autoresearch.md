@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to this dotfiles repo's agent-operating surfaces, especially around secure defaults, prompts, skills, and best-practice guidance.
 
-The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest Codex segment added rationale/comments/checks around the trusted workspace default. The current follow-up focuses on making override guidance precise: earlier wording said to use generic local overrides, but closer inspection shows the repo should point to actual client-supported override mechanisms instead of vague or misleading paths.
+The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest Codex segment clarified trusted-workspace rationale and precise override mechanisms. The current follow-up focuses on the repo-local Claude permissions file: `.claude/settings.local.json` is tracked and currently allows `WebFetch(domain:*)`, which is broader than the repo's security posture suggests.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against repo safety/prompt invariants.
@@ -17,7 +17,7 @@ The earlier Claude/docs/health-check safety gaps were closed in prior segments. 
 The script audits a small set of high-signal invariants and prints structured `METRIC ...` lines.
 
 ## Files in Scope
-- `private_dot_codex/private_config.toml.tmpl` — managed Codex config, including repo trust settings
+- `.claude/settings.local.json` — tracked repo-local Claude permissions allowlist for this repo
 - `CLAUDE.md` — Claude-facing repo instructions
 - `docs/tooling-and-skills.md` — canonical skill/tooling guidance
 - `dot_local/bin/executable_chezmoi-health-check` — managed health-check helper; useful for lightweight agent-config sanity checks
@@ -37,6 +37,6 @@ The script audits a small set of high-signal invariants and prints structured `M
 
 ## What's Been Tried
 - Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing and Claude's prompt setting.
-- Kept in earlier segments: `chezmoi-health-check` is documented in README, CLAUDE.md, and `docs/tooling-and-skills.md`; Codex now documents why this repo is trusted by default, and health-check validates `~/.codex/AGENTS.md` plus `~/.codex/config.toml` presence.
-- New insight after that Codex change: the repo still uses vague wording like "local untracked override" in agent docs, and the new Codex comment currently points at `~/.codex/config.toml` even though that file is itself managed here. The guidance should name real client-supported override mechanisms instead of implying a durable local file override that may be overwritten by chezmoi.
-- Current plan: replace vague override language with concrete mechanisms. For Codex, prefer a per-run or wrapper-based `codex -c ...` override example. For Claude, prefer documented CLI/user/local settings sources such as `--settings` / `--setting-sources` rather than changing tracked repo defaults.
+- Kept in earlier segments: `chezmoi-health-check` is documented in README, CLAUDE.md, and `docs/tooling-and-skills.md`; Codex now documents why this repo is trusted by default, validates routed AGENTS/config files, and points to concrete override mechanisms (`codex -c ...`).
+- New insight after that work: the tracked repo-local Claude settings file still contains `WebFetch(domain:*)`. That is broader than the repo's security posture and makes the more specific domain allowlist entries redundant.
+- Current plan: tighten `.claude/settings.local.json` to domain-scoped fetch permissions, document that the file is a tracked repo-local allowlist rather than a personal override file, and add a cheap health-check warning so wildcard fetch permissions do not creep back in.
