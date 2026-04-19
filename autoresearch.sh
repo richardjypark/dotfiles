@@ -22,19 +22,20 @@ add_finding() {
   esac
 }
 
-if rg -q 'trust_level = "trusted"' private_dot_codex/private_config.toml.tmpl \
-  && { ! rg -qi 'repo-local|repo local|AGENTS|skills' private_dot_codex/private_config.toml.tmpl \
-       || ! rg -qi 'local untracked override|local override|machine-local|local-only|untracked' private_dot_codex/private_config.toml.tmpl; }; then
-  add_finding security 'tracked Codex trusted-workspace config lacks explicit rationale and local-override guidance'
+if rg -q '~/.codex/config.toml' private_dot_codex/private_config.toml.tmpl \
+  || ! rg -q 'codex -c' private_dot_codex/private_config.toml.tmpl; then
+  add_finding security 'Codex trust override guidance points to a managed config file instead of a concrete client-supported override mechanism'
 fi
 
-if ! rg -q '\.codex/AGENTS\.md' dot_local/bin/executable_chezmoi-health-check \
-  || ! rg -q '\.codex/config\.toml' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not verify Codex AGENTS/config presence'
+if rg -q 'local untracked override' CLAUDE.md \
+  && ! rg -q -- '--settings|--setting-sources' CLAUDE.md; then
+  add_finding guidance "CLAUDE.md mentions local overrides without naming Claude's actual settings override mechanisms"
 fi
 
-if ! rg -q '~/.codex/AGENTS.md' docs/tooling-and-skills.md; then
-  add_finding guidance 'docs/tooling-and-skills does not document the routed ~/.codex/AGENTS.md entry point'
+if rg -q 'local untracked overrides' docs/tooling-and-skills.md \
+  && { ! rg -q 'codex -c' docs/tooling-and-skills.md \
+       || ! rg -q -- '--settings|--setting-sources' docs/tooling-and-skills.md; }; then
+  add_finding guidance 'docs/tooling-and-skills uses generic override guidance without concrete Codex/Claude override examples'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
