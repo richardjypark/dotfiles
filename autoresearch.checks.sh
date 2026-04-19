@@ -12,6 +12,7 @@ chezmoi execute-template < private_dot_codex/private_config.toml.tmpl \
 
 bash -n dot_local/bin/executable_chezmoi-health-check
 chezmoi execute-template < .chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_onchange_after_24-setup-neovim.sh.tmpl | bash -n
 bash -n .chezmoiscripts/run_after_99-performance-summary.sh
 
 check_tmpdir="$(mktemp -d)"

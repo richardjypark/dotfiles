@@ -2,6 +2,8 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
+# REQUIRED_NVIM_VERSION is the steady-state compatibility floor we enforce after install.
+# PINNED_NVIM_VERSION is the preferred install source when package managers lag; newer local versions remain acceptable.
 REQUIRED_NVIM_VERSION="${REQUIRED_NVIM_VERSION:-0.11.2}"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
