@@ -1,4 +1,4 @@
 interface:
   display_name: "Jujutsu (jj)"
   short_description: "Use Jujutsu for history inspection, bookmark-safe publishing, recovery, and interactive helper workflows in Git-backed repos."
-  default_prompt: "Use $jj to start with jj status / jj log / jj diff, then reshape or recover changes, re-check state after rewrites (or use jj undo), use the repo's interactive jj helpers, or publish a specific bookmark with Jujutsu instead of raw git commands."
+  default_prompt: "Use $jj to start with jj status / jj log / jj diff, then reshape or recover changes, re-check state after rewrites (or use jj undo), use the repo's interactive jj helpers, or run jj bookmark list to confirm the target before publishing with Jujutsu instead of raw git commands."
