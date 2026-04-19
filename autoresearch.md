@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to the tracked repo-local Claude permission surface.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, and the latest segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts. The current path continues repo-local Claude permission tightening. After removing `WebFetch(domain:*)`, `Bash(dscl:*)`, and `Bash(tree:*)`, the next suspicious leftover allow rule is `Bash(wc:*)`: exact-command searches show it in helper/health-check implementation details, but not in the repo's documented workflows or agent-facing guidance.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, and the latest segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts. The current path continues repo-local Claude permission tightening. After removing `WebFetch(domain:*)`, `Bash(dscl:*)`, `Bash(tree:*)`, and `Bash(wc:*)`, the next suspicious leftover allow rule is `Bash(cat:*)`: exact-command searches only find a fallback mention plus implementation usage, while this repo's agents are expected to inspect files with dedicated read tools rather than shelling out to `cat`.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the repo-local Claude permission invariants for this segment.
@@ -33,6 +33,6 @@ The script audits `.claude/settings.local.json` and `dot_local/bin/executable_ch
 ## What's Been Tried
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog: tracked Claude defaults are safer, docs and health checks are aligned, and Codex skill metadata now front-loads the key jj/read-first cues.
 - Recent segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts.
-- Recent segments removed stale `Bash(dscl:*)` and `Bash(tree:*)` access from the tracked allowlist, each with a matching health-check warning.
-- Current evidence: `Bash(wc:*)` remains in `.claude/settings.local.json`, but exact-command searches only find it in helper/health-check implementation details, not in repo docs, skills, or explicit workflow guidance.
-- Current plan: remove `Bash(wc:*)` from the tracked allowlist and add a matching health-check warning so the permission does not silently return.
+- Recent segments removed stale `Bash(dscl:*)`, `Bash(tree:*)`, and `Bash(wc:*)` access from the tracked allowlist, each with a matching health-check warning.
+- Current evidence: `Bash(cat:*)` remains in `.claude/settings.local.json`, but exact-command searches only find one fallback mention plus implementation usage; the repo's agent workflows otherwise rely on dedicated read tools instead of shelling out to `cat`.
+- Current plan: remove `Bash(cat:*)` from the tracked allowlist and add a matching health-check warning so the permission does not silently return.

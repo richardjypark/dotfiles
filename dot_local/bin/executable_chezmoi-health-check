@@ -410,6 +410,12 @@ if [ -d "$HOME/.claude" ] || is_installed claude; then
         else
             check_pass "Repo-local Claude permissions exclude Bash(wc:*)"
         fi
+
+        if grep -Eq '"Bash\(cat:\*\)"' "$CLAUDE_PROJECT_SETTINGS_LOCAL"; then
+            check_warn "Repo-local Claude settings allow undocumented Bash(cat:*) access"
+        else
+            check_pass "Repo-local Claude permissions exclude Bash(cat:*)"
+        fi
     else
         check_warn "$CLAUDE_PROJECT_SETTINGS_LOCAL missing"
     fi
