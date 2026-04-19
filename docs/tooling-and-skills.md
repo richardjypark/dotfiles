@@ -76,6 +76,8 @@ Installed client paths are routed to the shared tree:
 - `~/.claude/skills` → symlink to `~/.agents/skills`
 - `~/.codex/AGENTS.md` → rendered include of the repo-root `AGENTS.md` so Codex starts from the same control-plane rules
 
+This repo also tracks a project-local Claude policy file at `.claude/settings.local.json`. Treat it as repo policy, not as a personal escape hatch, and keep its permissions narrow and domain-scoped.
+
 Shared skills currently include:
 
 - `chezmoi-repo-maintainer` — Cross-cutting repo maintenance for docs, templates, shell/tmux behavior, agent instructions, and multi-subsystem changes.

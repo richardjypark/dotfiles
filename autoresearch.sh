@@ -22,19 +22,16 @@ add_finding() {
   esac
 }
 
-if ! rg -qi 'trust gate|TRUST_ON_FIRST_USE_INSTALLERS' private_dot_agents/private_skills/chezmoi-script-maintainer/agents/openai.yaml \
-  || ! rg -qi 'bash -n|chezmoi diff|chezmoi apply|chezmoi status|validate' private_dot_agents/private_skills/chezmoi-script-maintainer/agents/openai.yaml; then
-  add_finding guidance 'script-maintainer Codex metadata prompt lacks trust-gate and validation reminders'
+if ! rg -q '\.claude/settings\.local\.json' docs/tooling-and-skills.md; then
+  add_finding guidance 'docs/tooling-and-skills does not mention the tracked repo-local .claude/settings.local.json policy file'
 fi
 
-if ! rg -qi 'security defaults|TRUST_ON_FIRST_USE_INSTALLERS|hardening' private_dot_agents/private_skills/chezmoi-bootstrap-operator/agents/openai.yaml \
-  || ! rg -qi 'bash -n|chezmoi diff|chezmoi apply|chezmoi status|validate' private_dot_agents/private_skills/chezmoi-bootstrap-operator/agents/openai.yaml; then
-  add_finding guidance 'bootstrap-operator Codex metadata prompt lacks security/validation reminders'
+if ! rg -q '\.claude/' AGENTS.md; then
+  add_finding guidance 'AGENTS.md does not surface .claude/ as an agent-operating surface'
 fi
 
-if ! rg -qi 'refresh-externals|externals' private_dot_agents/private_skills/dotfiles-version-refresh/agents/openai.yaml \
-  || ! rg -qi 'chezmoi apply|chezmoi status|validate' private_dot_agents/private_skills/dotfiles-version-refresh/agents/openai.yaml; then
-  add_finding guidance 'version-refresh Codex metadata prompt lacks refresh/validation reminders'
+if ! rg -q '\.claude/' ARCHITECTURE.md; then
+  add_finding guidance 'ARCHITECTURE.md does not route .claude/ as an agent-config surface'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

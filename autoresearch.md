@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to this dotfiles repo's agent-operating surfaces, especially around secure defaults, prompts, skills, and best-practice guidance.
 
-The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment tightened the tracked repo-local Claude allowlist by removing wildcard WebFetch access. The current follow-up focuses on remaining low-hanging Codex metadata prompts for the specialized skills: several `agents/openai.yaml` files are still much weaker than the repo-maintainer prompt and do not nudge validation or trust-gate behavior early enough.
+The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment strengthened the specialized Codex skill metadata prompts. The current follow-up focuses on one remaining discoverability gap from `autoresearch.ideas.md`: `.claude/settings.local.json` is now security-relevant tracked project state, but the canonical cross-tool docs and routing docs still do not surface it clearly enough.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against repo safety/prompt invariants.
@@ -17,10 +17,10 @@ The earlier Claude/docs/health-check safety gaps were closed in prior segments. 
 The script audits a small set of high-signal invariants and prints structured `METRIC ...` lines.
 
 ## Files in Scope
-- `private_dot_agents/private_skills/chezmoi-script-maintainer/agents/openai.yaml` — Codex metadata prompt for setup-script work
-- `private_dot_agents/private_skills/chezmoi-bootstrap-operator/agents/openai.yaml` — Codex metadata prompt for bootstrap/hardening work
-- `private_dot_agents/private_skills/dotfiles-version-refresh/agents/openai.yaml` — Codex metadata prompt for version/external refresh work
-- `docs/tooling-and-skills.md` / `AGENTS.md` / `ARCHITECTURE.md` — only if a minimal wording alignment becomes necessary
+- `docs/tooling-and-skills.md` — canonical cross-tool agent/tooling guidance
+- `AGENTS.md` — high-impact agent-operating surface list
+- `ARCHITECTURE.md` — agent-config routing table and key-files overview
+- `.claude/settings.local.json` — tracked repo-local Claude permission allowlist referenced by the docs
 
 ## Off Limits
 - Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
@@ -37,5 +37,5 @@ The script audits a small set of high-signal invariants and prints structured `M
 ## What's Been Tried
 - Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing, Codex routed files, and Claude prompt/permission defaults.
 - Kept in earlier segments: Codex trust rationale and override mechanisms are now explicit, and the tracked repo-local Claude allowlist is narrower and documented as a project-local file.
-- New insight after those prompt/config fixes: the repo-maintainer Codex metadata prompt is now high quality, but the three other specialized skill metadata prompts are still short and under-specified. They do not remind Codex about trust gates or subsystem-specific validation the way the underlying skill docs do.
-- Current plan: strengthen the script-maintainer, bootstrap-operator, and version-refresh `agents/openai.yaml` prompts with concise reminders about trust gates, planning, and validation so Codex gets the right nudge before loading the full skill body.
+- Kept in the latest segment: the specialized Codex metadata prompts for `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, and `dotfiles-version-refresh` now front-load trust-gate and validation reminders instead of relying only on the full skill body.
+- Next promising path from the ideas backlog: extend that `.claude/settings.local.json` explanation into `docs/tooling-and-skills.md`, and make sure the routing docs (`AGENTS.md` / `ARCHITECTURE.md`) acknowledge `.claude/` as an agent-config surface so future agents inspect it deliberately.

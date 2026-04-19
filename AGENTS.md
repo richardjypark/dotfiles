@@ -91,7 +91,7 @@ Higher-level harness/system instructions still take precedence over this file.
 - `dot_zshrc.tmpl`, `dot_tmux.conf` — daily shell/tmux behavior
 - `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh` — bootstrap and hardening
 - `.chezmoiscripts/` and `dot_local/private_lib/chezmoi-helpers.sh` — apply-time automation and idempotency
-- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` — agent operating system and tool-specific guidance
+- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `.claude/settings.local.json`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` — agent operating system and tool-specific guidance
 
 ## Commit Guidance
 
