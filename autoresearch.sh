@@ -22,29 +22,9 @@ add_finding() {
   esac
 }
 
-audit_prompt() {
-  local skill="$1"
-  local prompt="$2"
-  local reference="$3"
-
-  if ! rg -q 'ARCHITECTURE' "$prompt"; then
-    add_finding guidance "$skill Codex metadata prompt lacks the skill's ARCHITECTURE read-first reminder"
-  fi
-
-  if ! rg -q "$reference" "$prompt"; then
-    add_finding guidance "$skill Codex metadata prompt lacks the skill-specific read-first reference ($reference)"
-  fi
-}
-
-audit_prompt chezmoi-script-maintainer \
-  private_dot_agents/private_skills/chezmoi-script-maintainer/agents/openai.yaml \
-  'script-patterns.md'
-audit_prompt chezmoi-bootstrap-operator \
-  private_dot_agents/private_skills/chezmoi-bootstrap-operator/agents/openai.yaml \
-  'bootstrap-matrix.md'
-audit_prompt dotfiles-version-refresh \
-  private_dot_agents/private_skills/dotfiles-version-refresh/agents/openai.yaml \
-  'version-map.md'
+if ! rg -qi 'bookmark list|confirm .*bookmark|confirm .*target' private_dot_agents/private_skills/jj/agents/openai.yaml; then
+  add_finding guidance "jj Codex metadata prompt lacks the skill's bookmark-target confirmation cue before publishing"
+fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
