@@ -1,12 +1,12 @@
-# Autoresearch: repo-local Claude permission cleanup
+# Autoresearch: repo-local Claude fetch-domain cleanup
 
 ## Objective
-Find and implement minimal, low-risk improvements to the tracked repo-local Claude permission surface.
+Find and implement minimal, low-risk improvements to the tracked repo-local Claude fetch permission surface.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, and the latest segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts. The current path continues repo-local Claude permission tightening. After removing `WebFetch(domain:*)`, `Bash(dscl:*)`, `Bash(tree:*)`, `Bash(wc:*)`, and `Bash(cat:*)`, the next suspicious leftover allow rule is `Bash(alias:*)`: exact-command searches only find noun-style documentation references plus shell-config implementation uses, not a documented agent workflow that needs the `alias` builtin pre-approved.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, and the latest segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts. Recent permission-cleanup passes also removed the easiest stale repo-local Claude Bash rules. The next promising path is an explicit fetch-domain cleanup: `.claude/settings.local.json` still allows `WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com)`, but repo source/docs do not appear to reference that domain or an Influx-backed workflow.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the repo-local Claude permission invariants for this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the repo-local Claude fetch-domain invariants for this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
   - `guidance_findings` — missing health-check/drift-warning coverage
@@ -14,7 +14,7 @@ The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits `.claude/settings.local.json` and `dot_local/bin/executable_chezmoi-health-check` for one evidence-backed stale permission and its matching drift warning.
+The script audits `.claude/settings.local.json` and `dot_local/bin/executable_chezmoi-health-check` for one evidence-backed stale fetch domain and its matching drift warning.
 
 ## Files in Scope
 - `.claude/settings.local.json` — tracked repo-local Claude allowlist
@@ -33,6 +33,7 @@ The script audits `.claude/settings.local.json` and `dot_local/bin/executable_ch
 ## What's Been Tried
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog: tracked Claude defaults are safer, docs and health checks are aligned, and Codex skill metadata now front-loads the key jj/read-first cues.
 - Recent segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts.
-- Recent segments removed stale `Bash(dscl:*)`, `Bash(tree:*)`, `Bash(wc:*)`, and `Bash(cat:*)` access from the tracked allowlist, each with a matching health-check warning.
-- Current evidence: `Bash(alias:*)` remains in `.claude/settings.local.json`, but exact-command searches only find noun-style documentation references and shell-config implementation lines, not an explicit workflow telling agents to run the `alias` builtin.
-- Current plan: remove `Bash(alias:*)` from the tracked allowlist and add a matching health-check warning so the permission does not silently return.
+- Recent segments removed stale `Bash(dscl:*)`, `Bash(tree:*)`, `Bash(wc:*)`, `Bash(cat:*)`, and `Bash(alias:*)` access from the tracked allowlist, each with a matching health-check warning.
+- Remaining Bash permissions now look materially harder to trim: `chezmoi`, `jj`, `git`, `zsh`, `tmux`, `mkdir`, `chmod`, `source`, and `czu` all have clearer repo workflow grounding.
+- New evidence: exact searches across repo docs/source do not show `eu-central-1-1.aws.cloud2.influxdata.com` or `influxdata`, making that explicit WebFetch domain look like stale leftover permission scope rather than an intentional repo requirement.
+- Current plan: remove the Influx fetch domain from `.claude/settings.local.json` and add a matching health-check warning so it does not silently return.

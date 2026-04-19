@@ -22,12 +22,12 @@ add_finding() {
   esac
 }
 
-if rg -Fq 'Bash(alias:*)' .claude/settings.local.json; then
-  add_finding security 'tracked repo-local Claude settings still allow Bash(alias:*), even though the repo does not document alias as an agent workflow command'
+if rg -Fq 'WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com)' .claude/settings.local.json; then
+  add_finding security 'tracked repo-local Claude settings still allow WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com), which has no repo workflow footprint'
 fi
 
-if ! rg -Fq 'Bash\(alias:\*\)' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(alias:*)'
+if ! rg -Fq 'eu-central-1-1.aws.cloud2.influxdata.com' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow the stale Influx WebFetch domain'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
