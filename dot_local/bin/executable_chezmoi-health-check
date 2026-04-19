@@ -446,6 +446,12 @@ if [ -d "$HOME/.claude" ] || is_installed claude; then
         else
             check_pass "Repo-local Claude permissions exclude Bash(mkdir:*)"
         fi
+
+        if grep -Eq '"Bash\(source:\*\)"' "$CLAUDE_PROJECT_SETTINGS_LOCAL"; then
+            check_warn "Repo-local Claude settings allow implementation-focused Bash(source:*) access"
+        else
+            check_pass "Repo-local Claude permissions exclude Bash(source:*)"
+        fi
     else
         check_warn "$CLAUDE_PROJECT_SETTINGS_LOCAL missing"
     fi
