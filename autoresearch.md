@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to the tracked repo-local Claude command permission surface.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, and the latest segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts. Recent permission-cleanup passes also removed the easiest stale repo-local Claude Bash rules plus one stale explicit fetch domain. The next promising path is another agent-workflow cleanup: `.claude/settings.local.json` still allows `Bash(mkdir:*)`, but exact hits are mostly user bootstrap examples and script implementation details rather than an explicit agent workflow that needs `mkdir` pre-approved.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, and the latest segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts. Recent permission-cleanup passes also removed the easiest stale repo-local Claude Bash rules plus one stale explicit fetch domain. The next promising path is another agent-workflow cleanup: `.claude/settings.local.json` still allows `Bash(source:*)`, but exact hits are mostly script-contract and implementation details rather than an explicit first-pass or validation workflow that needs `source` pre-approved.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the repo-local Claude command-permission invariants for this segment.
@@ -33,7 +33,7 @@ The script audits `.claude/settings.local.json` and `dot_local/bin/executable_ch
 ## What's Been Tried
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog: tracked Claude defaults are safer, docs and health checks are aligned, and Codex skill metadata now front-loads the key jj/read-first cues.
 - Recent segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts.
-- Recent segments removed stale `Bash(dscl:*)`, `Bash(tree:*)`, `Bash(wc:*)`, `Bash(cat:*)`, `Bash(alias:*)`, `Bash(czu:*)`, and `Bash(chmod:*)` access from the tracked allowlist, each with a matching health-check warning.
+- Recent segments removed stale `Bash(dscl:*)`, `Bash(tree:*)`, `Bash(wc:*)`, `Bash(cat:*)`, `Bash(alias:*)`, `Bash(czu:*)`, `Bash(chmod:*)`, and `Bash(mkdir:*)` access from the tracked allowlist, each with a matching health-check warning.
 - A recent segment also removed the stale explicit Influx WebFetch domain from the tracked allowlist, again with a matching health-check warning.
-- Remaining Bash permissions are harder to trim, but `mkdir` currently looks like the next best candidate: exact hits are confined to user bootstrap snippets plus implementation details, not the repo's agent-facing first-pass or validation workflows.
-- Current plan: remove `Bash(mkdir:*)` from `.claude/settings.local.json` and add a matching health-check warning so bootstrap-style directory creation does not stay pre-approved without an explicit agent-workflow need.
+- Remaining Bash permissions are harder to trim, but `source` currently looks like the next best candidate: exact hits are confined to script-contract and implementation details, not the repo's agent-facing first-pass or validation workflows.
+- Current plan: remove `Bash(source:*)` from `.claude/settings.local.json` and add a matching health-check warning so shell sourcing is not pre-approved unless a workflow truly needs it.

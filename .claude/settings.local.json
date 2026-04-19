@@ -6,7 +6,6 @@
       "Bash(tmux:*)",
       "Bash(zsh:*)",
       "Bash(jj:*)",
-      "Bash(source:*)",
       "WebSearch",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:github.com)",

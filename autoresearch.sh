@@ -22,12 +22,12 @@ add_finding() {
   esac
 }
 
-if rg -Fq 'Bash(mkdir:*)' .claude/settings.local.json; then
-  add_finding security 'tracked repo-local Claude settings still allow Bash(mkdir:*), even though mkdir only appears in bootstrap snippets and implementation details'
+if rg -Fq 'Bash(source:*)' .claude/settings.local.json; then
+  add_finding security 'tracked repo-local Claude settings still allow Bash(source:*), even though source mainly appears in script-contract and implementation details'
 fi
 
-if ! rg -Fq 'Bash\(mkdir:\*\)' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(mkdir:*)'
+if ! rg -Fq 'Bash\(source:\*\)' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(source:*)'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
