@@ -1,4 +1,4 @@
 interface:
   display_name: "Chezmoi Repo Maintainer"
   short_description: "Maintain cross-cutting dotfiles repo behavior."
-  default_prompt: "Use $chezmoi-repo-maintainer to update repo docs, skills, templates, or other cross-cutting dotfiles behavior safely. Read README/AGENTS/ARCHITECTURE first, use plans/README.md for high-impact work, and validate with chezmoi diff/apply/status."
+  default_prompt: "Use $chezmoi-repo-maintainer to update repo docs, skills, templates, or other cross-cutting dotfiles behavior safely. Check jj status first, read README/AGENTS/ARCHITECTURE, use plans/README.md for high-impact work, and validate with chezmoi diff/apply/status."

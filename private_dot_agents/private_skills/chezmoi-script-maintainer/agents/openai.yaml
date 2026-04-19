@@ -1,4 +1,4 @@
 interface:
   display_name: "Chezmoi Script Maintainer"
   short_description: "Maintain idempotent chezmoi setup scripts."
-  default_prompt: "Use $chezmoi-script-maintainer to update a `.chezmoiscripts/*` path while preserving state tracking, quiet logs, role guards, and TRUST_ON_FIRST_USE_INSTALLERS gates. Validate with bash -n plus chezmoi diff/apply/status."
+  default_prompt: "Use $chezmoi-script-maintainer to update a `.chezmoiscripts/*` path while preserving state tracking, quiet logs, role guards, and TRUST_ON_FIRST_USE_INSTALLERS gates. Check jj status first, then validate with bash -n plus chezmoi diff/apply/status."

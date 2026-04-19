@@ -22,9 +22,16 @@ add_finding() {
   esac
 }
 
-if ! rg -qi 're-check|after rewrites|jj undo' private_dot_agents/private_skills/jj/agents/openai.yaml; then
-  add_finding guidance 'jj Codex metadata prompt lacks rewrite recovery or post-change recheck reminders'
-fi
+for prompt in \
+  private_dot_agents/private_skills/chezmoi-repo-maintainer/agents/openai.yaml \
+  private_dot_agents/private_skills/chezmoi-script-maintainer/agents/openai.yaml \
+  private_dot_agents/private_skills/chezmoi-bootstrap-operator/agents/openai.yaml \
+  private_dot_agents/private_skills/dotfiles-version-refresh/agents/openai.yaml
+ do
+  if ! rg -q 'jj status' "$prompt"; then
+    add_finding guidance "$(basename "$(dirname "$(dirname "$prompt")")") Codex metadata prompt lacks the repo's jj status first-pass reminder"
+  fi
+ done
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
