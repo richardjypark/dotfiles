@@ -22,12 +22,12 @@ add_finding() {
   esac
 }
 
-if rg -Fq 'Bash(czu:*)' .claude/settings.local.json; then
-  add_finding security 'tracked repo-local Claude settings still allow Bash(czu:*), even though czu is primarily a user-facing wrapper rather than a core agent workflow command'
+if rg -Fq 'Bash(chmod:*)' .claude/settings.local.json; then
+  add_finding security 'tracked repo-local Claude settings still allow Bash(chmod:*), even though chmod only appears in bootstrap snippets and implementation details'
 fi
 
-if ! rg -Fq 'Bash\(czu:\*\)' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(czu:*)'
+if ! rg -Fq 'Bash\(chmod:\*\)' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(chmod:*)'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
