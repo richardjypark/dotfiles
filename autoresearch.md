@@ -1,42 +1,39 @@
-# Autoresearch: agent safety low-hanging improvements
+# Autoresearch: warm apply hot-path cleanup
 
 ## Objective
-Find and implement minimal, low-risk improvements to this dotfiles repo's agent-operating surfaces, especially around secure defaults, prompts, skills, and best-practice guidance.
+Find and implement minimal, low-risk improvements to the remaining always-run chezmoi scripts that still affect warm apply time.
 
-The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment added skill-specific read-first references to the specialized Codex metadata prompts. The current follow-up focuses on one last small `jj` metadata gap: the prompt now covers inspect-first and rewrite-recovery behavior, but it still does not surface the skill body's publish-safety cue to confirm the bookmark target before pushing.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments. The low-hanging prompt alignment work now looks mostly exhausted, so this segment returns to warm-apply performance. The first target is the no-op path for `.chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl`: on unsupported hosts with no opt-in marker, the script should exit very cheaply because the Pi maintenance agent is intentionally inactive there.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against repo safety/prompt invariants.
+- **Primary**: `total_us` (µs, lower is better) — total wall-clock time for repeatedly executing the rendered `run_after_38` script in a controlled unsupported-host/no-marker benchmark harness.
 - **Secondary**:
-  - `security_findings` — findings that weaken security defaults
-  - `guidance_findings` — missing or inconsistent prompt/skill guidance findings
+  - `per_run_us` — average warm-path cost per script invocation
+  - `loops` — benchmark iteration count used for the run
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits a small set of high-signal invariants and prints structured `METRIC ...` lines.
+The script renders `.chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl`, builds a temporary HOME with the shared helper library, simulates an unsupported host with no Pi-agent opt-in marker, and times repeated no-op executions.
 
 ## Files in Scope
-- `private_dot_agents/private_skills/jj/agents/openai.yaml` — Codex metadata prompt for jj workflows
-- `private_dot_agents/private_skills/jj/SKILL.md` — canonical publish/recovery workflow guidance
-- `private_dot_agents/private_skills/jj/references/jj-reference.md` — detailed jj publish/recovery reference
+- `.chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl` — always-run script under benchmark
+- `dot_local/private_lib/chezmoi-helpers.sh` — only if a tiny helper-facing simplification becomes clearly necessary for the hot path
+- `.chezmoiscripts/run_after_99-performance-summary.sh` — adjacent always-run script, but only if `run_after_38` proves unproductive
 
 ## Off Limits
-- Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
+- Benchmark cheating: do not weaken the unsupported-host or no-marker semantics just to make the benchmark faster.
 - Secret files, env files, machine-local private inputs, or unrelated bootstrap/tool version changes.
-- Broad prompt rewrites or style-only edits with no measurable audit improvement.
+- Big script architecture changes (dispatcher/consolidation) that should be plan-first work.
 
 ## Constraints
 - Keep changes minimal and low risk.
-- Preserve secure defaults.
-- Prefer one source of truth; avoid duplicated guidance unless the duplication is intentionally cross-tool.
+- Preserve current Pi maintenance agent behavior, including self-healing and explicit opt-in.
+- Prefer structural hot-path simplifications over shell micro-optimizations with no clear behavior-preserving rationale.
 - Validation must pass via `autoresearch.checks.sh`.
-- Do not overfit to the audit by weakening it; improve the repo so the audit passes for principled reasons.
+- Do not overfit to the benchmark; improve the real no-op path for principled reasons.
 
 ## What's Been Tried
-- Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing, Codex routed files, and Claude prompt/permission defaults.
-- Kept in earlier segments: Codex trust rationale and override mechanisms are now explicit, and the tracked repo-local Claude allowlist is narrower, documented as a project-local file, and surfaced in canonical/routing docs.
-- Kept in earlier segments: stale `Bash(dscl:*)` access was removed from the tracked repo-local Claude allowlist, with a matching health-check warning to catch regressions.
-- Kept in recent segments: the `jj` metadata prompt now front-loads `jj status / jj log / jj diff`, carries a concise re-check / `jj undo` safety cue, and the other mutating Codex skill metadata prompts now front-load `jj status` plus their canonical read-first references.
-- Remaining small `jj` gap from reviewing the full skill body: the metadata prompt still does not remind Codex to confirm the bookmark target before publishing, even though bookmark/remote ambiguity is one of the most expensive `jj` mistakes.
-- Current plan: add one concise publish-safety cue (`jj bookmark list` or equivalent target-confirmation wording) without turning the metadata prompt into a full command reference.
+- Earlier segments spent down the low-hanging agent-safety/prompt backlog: tracked Claude defaults are safer, docs and health checks are aligned, and Codex skill metadata now front-loads the key jj/read-first cues.
+- The remaining backlog items are harder by nature: broader Claude Bash allowlist reductions need workflow evidence, while warm-apply speedups need behavior-preserving script simplification.
+- Current hypothesis: `run_after_38-setup-pi-maintenance-agent.sh.tmpl` still pays avoidable setup cost on unsupported hosts with no opt-in marker because it defines many later-path functions and variables before the script can exit. Delaying those definitions until after the early gates should reduce warm-path cost without changing behavior.

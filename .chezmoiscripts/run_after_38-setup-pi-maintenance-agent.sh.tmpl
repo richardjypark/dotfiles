@@ -3,33 +3,60 @@ set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
 MARKER_FILE="$HOME/.config/dotfiles/pi-maintenance-agent.enabled"
+EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
+PI_AGENT_LOCKFILE_HASH="{{ include "dot_local/share/pi-maintenance-agent/package-lock.json" | sha256sum }}"
+PI_AGENT_STATE="pi-maintenance-agent-${EXPECTED_PI_VERSION}-${PI_AGENT_LOCKFILE_HASH}"
+
+is_pi_agent_supported_host() {
+    [ "${CHEZMOI_PROFILE:-}" = "omarchy" ] \
+        || [ -d "$HOME/.config/omarchy/current" ] \
+        || [ -d "$HOME/.local/share/omarchy" ] \
+        || command -v omarchy-menu >/dev/null 2>&1
+}
+
+if ! is_pi_agent_supported_host; then
+    if [ -n "$PI_AGENT_STATE" ] && state_exists "$PI_AGENT_STATE"; then
+        clear_state "$PI_AGENT_STATE"
+    fi
+    if [ -e "$MARKER_FILE" ]; then
+        vecho "Skipping Pi maintenance agent outside Omarchy hosts/profiles"
+        command -v systemctl >/dev/null 2>&1 \
+            && systemctl --user show-environment >/dev/null 2>&1 \
+            && systemctl --user disable --now "pi-maintenance-agent.timer" >/dev/null 2>&1 \
+            || true
+    fi
+    exit 0
+fi
+
+disable_timer_if_present() {
+    command -v systemctl >/dev/null 2>&1 || return 0
+    systemctl --user show-environment >/dev/null 2>&1 || return 0
+    systemctl --user disable --now "pi-maintenance-agent.timer" >/dev/null 2>&1 || true
+}
+
+if [ ! -e "$MARKER_FILE" ]; then
+    vecho "Pi maintenance agent not enabled on this host"
+    disable_timer_if_present
+    exit 0
+fi
+
 ENV_FILE="$HOME/.config/dotfiles/pi-maintenance-agent.env"
 PROJECT_DIR="$HOME/.local/share/pi-maintenance-agent"
 PACKAGE_JSON="$PROJECT_DIR/package.json"
 PACKAGE_LOCK="$PROJECT_DIR/package-lock.json"
 PI_BIN="$PROJECT_DIR/node_modules/.bin/pi"
+SERVICE_UNIT="pi-maintenance-agent.service"
+TIMER_UNIT="pi-maintenance-agent.timer"
 SERVICE_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.service"
 TIMER_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.timer"
 TIMER_ENABLE_LINK="$HOME/.config/systemd/user/timers.target.wants/pi-maintenance-agent.timer"
-SERVICE_UNIT="pi-maintenance-agent.service"
-TIMER_UNIT="pi-maintenance-agent.timer"
-EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
-PI_AGENT_LOCKFILE_HASH="{{ include "dot_local/share/pi-maintenance-agent/package-lock.json" | sha256sum }}"
-PI_AGENT_STATE="pi-maintenance-agent-${EXPECTED_PI_VERSION}-${PI_AGENT_LOCKFILE_HASH}"
 
 has_user_systemd() {
     command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
 }
 
-disable_timer_if_present() {
-    if ! has_user_systemd; then
-        return 0
-    fi
-    systemctl --user disable --now "$TIMER_UNIT" >/dev/null 2>&1 || true
-}
-
 clear_pi_agent_state() {
-    if [ -n "$PI_AGENT_STATE" ]; then
+    if [ -n "$PI_AGENT_STATE" ] && state_exists "$PI_AGENT_STATE"; then
         clear_state "$PI_AGENT_STATE"
     fi
 }
@@ -52,34 +79,12 @@ unit_needs_daemon_reload() {
     [ "$(systemctl --user show --property NeedDaemonReload --value "$1" 2>/dev/null || true)" = "yes" ]
 }
 
-is_pi_agent_supported_host() {
-    [ "${CHEZMOI_PROFILE:-}" = "omarchy" ] \
-        || [ -d "$HOME/.config/omarchy/current" ] \
-        || [ -d "$HOME/.local/share/omarchy" ] \
-        || command -v omarchy-menu >/dev/null 2>&1
-}
-
 installed_pi_version() {
     if [ ! -x "$PI_BIN" ]; then
         return 0
     fi
     "$PI_BIN" --version 2>&1 | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
 }
-
-if ! is_pi_agent_supported_host; then
-    clear_pi_agent_state
-    if [ -e "$MARKER_FILE" ]; then
-        vecho "Skipping Pi maintenance agent outside Omarchy hosts/profiles"
-        disable_timer_if_present
-    fi
-    exit 0
-fi
-
-if [ ! -e "$MARKER_FILE" ]; then
-    vecho "Pi maintenance agent not enabled on this host"
-    disable_timer_if_present
-    exit 0
-fi
 
 PI_AGENT_STATE_CURRENT=0
 if should_skip_state "$PI_AGENT_STATE"; then
