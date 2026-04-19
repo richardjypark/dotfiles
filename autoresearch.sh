@@ -34,6 +34,14 @@ if ! rg -qi 'permission prompt|dangerous[- ]mode|approval gate|machine-local|loc
   add_finding guidance 'chezmoi-repo-maintainer skill lacks guardrails for committed client-config safety bypasses'
 fi
 
+if ! rg -q '^## First Pass$' CLAUDE.md || ! rg -q 'jj status' CLAUDE.md || ! rg -qi 'load the relevant skill|invoke these skills|skill before' CLAUDE.md; then
+  add_finding guidance 'CLAUDE.md lacks a concise first-pass workflow for status checks and skill loading'
+fi
+
+if ! rg -qi 'plan|plans/README.md' private_dot_agents/private_skills/chezmoi-repo-maintainer/agents/openai.yaml || ! rg -qi 'chezmoi diff|chezmoi apply|chezmoi status|validate' private_dot_agents/private_skills/chezmoi-repo-maintainer/agents/openai.yaml; then
+  add_finding guidance 'repo-maintainer Codex metadata prompt lacks planning/validation reminders'
+fi
+
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
   printf '  none\n'
