@@ -384,6 +384,17 @@ if [ -d "$HOME/.claude" ] || is_installed claude; then
     else
         check_warn "$CLAUDE_SETTINGS_FILE missing"
     fi
+
+    CLAUDE_PROJECT_SETTINGS_LOCAL="$CHEZMOI_SOURCE_DIR/.claude/settings.local.json"
+    if [ -f "$CLAUDE_PROJECT_SETTINGS_LOCAL" ]; then
+        if grep -Eq '"WebFetch\(domain:\*\)"' "$CLAUDE_PROJECT_SETTINGS_LOCAL"; then
+            check_warn "Repo-local Claude settings allow wildcard WebFetch(domain:*)"
+        else
+            check_pass "Repo-local Claude WebFetch permissions are domain-scoped"
+        fi
+    else
+        check_warn "$CLAUDE_PROJECT_SETTINGS_LOCAL missing"
+    fi
 fi
 
 # 6. State tracking
