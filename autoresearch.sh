@@ -22,12 +22,12 @@ add_finding() {
   esac
 }
 
-if rg -Fq 'Bash(cat:*)' .claude/settings.local.json; then
-  add_finding security 'tracked repo-local Claude settings still allow Bash(cat:*), even though repo agents are expected to read files without shelling out to cat'
+if rg -Fq 'Bash(alias:*)' .claude/settings.local.json; then
+  add_finding security 'tracked repo-local Claude settings still allow Bash(alias:*), even though the repo does not document alias as an agent workflow command'
 fi
 
-if ! rg -Fq 'Bash\(cat:\*\)' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(cat:*)'
+if ! rg -Fq 'Bash\(alias:\*\)' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(alias:*)'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
