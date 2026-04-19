@@ -22,14 +22,12 @@ add_finding() {
   esac
 }
 
-script='.chezmoiscripts/run_onchange_after_24-setup-neovim.sh.tmpl'
-
-if ! rg -qi 'compatibility floor|steady-state contract|required .*compatib' "$script"; then
-  add_finding guidance 'Neovim setup script does not explicitly say REQUIRED_NVIM_VERSION is the compatibility floor / steady-state contract'
+if rg -q 'updates the globally installed Pi Coding Agent via npm when present' docs/bootstrap-and-flags.md; then
+  add_finding guidance 'docs/bootstrap-and-flags.md still describes czl as updating the Pi Coding Agent via global npm'
 fi
 
-if ! rg -qi 'preferred install source|package managers lag|newer versions remain acceptable|pinned .*preferred' "$script"; then
-  add_finding guidance 'Neovim setup script does not explicitly say PINNED_NVIM_VERSION is a preferred install source rather than a strict must-match version'
+if ! rg -q 'managed pinned install during apply instead of a floating global npm update' docs/bootstrap-and-flags.md; then
+  add_finding guidance 'docs/bootstrap-and-flags.md does not reflect the current pinned-install wording for Pi updates'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
