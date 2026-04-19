@@ -1,4 +1,4 @@
 interface:
   display_name: "Dotfiles Version Refresh"
   short_description: "Refresh pinned versions and externals safely."
-  default_prompt: "Use $dotfiles-version-refresh to update version pins and external refs consistently across data files, scripts, and docs."
+  default_prompt: "Use $dotfiles-version-refresh to update version pins and external refs consistently across data files, scripts, and docs. Use chezmoi apply --refresh-externals when externals change, then validate with chezmoi status."

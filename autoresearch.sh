@@ -22,17 +22,19 @@ add_finding() {
   esac
 }
 
-if rg -q 'WebFetch\(domain:\*\)' .claude/settings.local.json; then
-  add_finding security 'tracked repo-local Claude settings allow WebFetch(domain:*) instead of domain-scoped fetch permissions'
+if ! rg -qi 'trust gate|TRUST_ON_FIRST_USE_INSTALLERS' private_dot_agents/private_skills/chezmoi-script-maintainer/agents/openai.yaml \
+  || ! rg -qi 'bash -n|chezmoi diff|chezmoi apply|chezmoi status|validate' private_dot_agents/private_skills/chezmoi-script-maintainer/agents/openai.yaml; then
+  add_finding guidance 'script-maintainer Codex metadata prompt lacks trust-gate and validation reminders'
 fi
 
-if ! rg -q '\.claude/settings\.local\.json' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md does not explain that .claude/settings.local.json is a tracked repo-local allowlist for this repo'
+if ! rg -qi 'security defaults|TRUST_ON_FIRST_USE_INSTALLERS|hardening' private_dot_agents/private_skills/chezmoi-bootstrap-operator/agents/openai.yaml \
+  || ! rg -qi 'bash -n|chezmoi diff|chezmoi apply|chezmoi status|validate' private_dot_agents/private_skills/chezmoi-bootstrap-operator/agents/openai.yaml; then
+  add_finding guidance 'bootstrap-operator Codex metadata prompt lacks security/validation reminders'
 fi
 
-if ! rg -q '\.claude/settings\.local\.json' dot_local/bin/executable_chezmoi-health-check \
-  || ! rg -Fq 'WebFetch(domain:*)' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings use wildcard WebFetch permissions'
+if ! rg -qi 'refresh-externals|externals' private_dot_agents/private_skills/dotfiles-version-refresh/agents/openai.yaml \
+  || ! rg -qi 'chezmoi apply|chezmoi status|validate' private_dot_agents/private_skills/dotfiles-version-refresh/agents/openai.yaml; then
+  add_finding guidance 'version-refresh Codex metadata prompt lacks refresh/validation reminders'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

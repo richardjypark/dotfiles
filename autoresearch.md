@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to this dotfiles repo's agent-operating surfaces, especially around secure defaults, prompts, skills, and best-practice guidance.
 
-The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest Codex segment clarified trusted-workspace rationale and precise override mechanisms. The current follow-up focuses on the repo-local Claude permissions file: `.claude/settings.local.json` is tracked and currently allows `WebFetch(domain:*)`, which is broader than the repo's security posture suggests.
+The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment tightened the tracked repo-local Claude allowlist by removing wildcard WebFetch access. The current follow-up focuses on remaining low-hanging Codex metadata prompts for the specialized skills: several `agents/openai.yaml` files are still much weaker than the repo-maintainer prompt and do not nudge validation or trust-gate behavior early enough.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against repo safety/prompt invariants.
@@ -17,11 +17,10 @@ The earlier Claude/docs/health-check safety gaps were closed in prior segments. 
 The script audits a small set of high-signal invariants and prints structured `METRIC ...` lines.
 
 ## Files in Scope
-- `.claude/settings.local.json` — tracked repo-local Claude permissions allowlist for this repo
-- `CLAUDE.md` — Claude-facing repo instructions
-- `docs/tooling-and-skills.md` — canonical skill/tooling guidance
-- `dot_local/bin/executable_chezmoi-health-check` — managed health-check helper; useful for lightweight agent-config sanity checks
-- `AGENTS.md` / `ARCHITECTURE.md` — only if a minimal wording alignment is needed
+- `private_dot_agents/private_skills/chezmoi-script-maintainer/agents/openai.yaml` — Codex metadata prompt for setup-script work
+- `private_dot_agents/private_skills/chezmoi-bootstrap-operator/agents/openai.yaml` — Codex metadata prompt for bootstrap/hardening work
+- `private_dot_agents/private_skills/dotfiles-version-refresh/agents/openai.yaml` — Codex metadata prompt for version/external refresh work
+- `docs/tooling-and-skills.md` / `AGENTS.md` / `ARCHITECTURE.md` — only if a minimal wording alignment becomes necessary
 
 ## Off Limits
 - Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
@@ -36,7 +35,7 @@ The script audits a small set of high-signal invariants and prints structured `M
 - Do not overfit to the audit by weakening it; improve the repo so the audit passes for principled reasons.
 
 ## What's Been Tried
-- Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing and Claude's prompt setting.
-- Kept in earlier segments: `chezmoi-health-check` is documented in README, CLAUDE.md, and `docs/tooling-and-skills.md`; Codex now documents why this repo is trusted by default, validates routed AGENTS/config files, and points to concrete override mechanisms (`codex -c ...`).
-- New insight after that work: the tracked repo-local Claude settings file still contains `WebFetch(domain:*)`. That is broader than the repo's security posture and makes the more specific domain allowlist entries redundant.
-- Current plan: tighten `.claude/settings.local.json` to domain-scoped fetch permissions, document that the file is a tracked repo-local allowlist rather than a personal override file, and add a cheap health-check warning so wildcard fetch permissions do not creep back in.
+- Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing, Codex routed files, and Claude prompt/permission defaults.
+- Kept in earlier segments: Codex trust rationale and override mechanisms are now explicit, and the tracked repo-local Claude allowlist is narrower and documented as a project-local file.
+- New insight after those prompt/config fixes: the repo-maintainer Codex metadata prompt is now high quality, but the three other specialized skill metadata prompts are still short and under-specified. They do not remind Codex about trust gates or subsystem-specific validation the way the underlying skill docs do.
+- Current plan: strengthen the script-maintainer, bootstrap-operator, and version-refresh `agents/openai.yaml` prompts with concise reminders about trust gates, planning, and validation so Codex gets the right nudge before loading the full skill body.
