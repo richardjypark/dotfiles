@@ -58,6 +58,14 @@ if ! rg -qi 'dangerous[- ]mode|permission prompt|approval gate' docs/tooling-and
   add_finding guidance 'docs/tooling-and-skills lacks a canonical cross-tool note about local-only client-config safety bypasses'
 fi
 
+if ! rg -q 'chezmoi-health-check' CLAUDE.md; then
+  add_finding guidance 'CLAUDE.md does not surface chezmoi-health-check as a maintenance/debugging command'
+fi
+
+if ! rg -q 'chezmoi-health-check' docs/tooling-and-skills.md; then
+  add_finding guidance 'docs/tooling-and-skills does not list chezmoi-health-check among managed helper commands'
+fi
+
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
   printf '  none\n'

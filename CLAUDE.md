@@ -20,6 +20,7 @@ chezmoi apply --refresh-externals   # Force refresh external resources
 chezmoi diff                        # See pending changes
 chezmoi edit ~/.zshrc               # Edit in source directory
 chezmoi status                      # Check status
+chezmoi-health-check                # Quick managed sanity check for tools/config/safety drift
 VERBOSE=true chezmoi apply          # Scripts with verbose output
 ```
 

@@ -45,4 +45,5 @@ The script audits a small set of high-signal invariants and prints structured `M
 - The first audit was too loose to detect the guidance gap directly, but the docs/skill reinforcement was still worth keeping because it protects against regression around the security fix.
 - Kept: `CLAUDE.md` now has a concise First Pass checklist, and the repo-maintainer Codex metadata prompt now nudges read order, planning, and chezmoi validation.
 - Kept: `chezmoi-health-check` now validates shared agent-skill routing and the Claude dangerous-mode permission prompt default.
-- Next promising low-hanging improvement: document `chezmoi-health-check` in user-facing docs and add a canonical cross-tool note that tracked client-config safety bypasses belong in local untracked overrides.
+- Kept: `README.md` documents `chezmoi-health-check`, and `docs/tooling-and-skills.md` now states that tracked client-config safety bypasses belong in local untracked overrides.
+- Next promising low-hanging improvement: surface `chezmoi-health-check` in the agent-facing/tooling reference docs (`CLAUDE.md` and `docs/tooling-and-skills.md`) so it is discoverable from the places agents actually read during maintenance work.
