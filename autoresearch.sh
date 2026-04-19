@@ -22,12 +22,12 @@ add_finding() {
   esac
 }
 
-if rg -Fq 'Bash(tree:*)' .claude/settings.local.json; then
-  add_finding security "tracked repo-local Claude settings still allow Bash(tree:*), which does not appear in the repo's documented workflows"
+if rg -Fq 'Bash(wc:*)' .claude/settings.local.json; then
+  add_finding security "tracked repo-local Claude settings still allow Bash(wc:*), which does not appear in the repo's documented workflows"
 fi
 
-if ! rg -Fq 'Bash\(tree:\*\)' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(tree:*)'
+if ! rg -Fq 'Bash\(wc:\*\)' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(wc:*)'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

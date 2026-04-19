@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wc:*)",
       "Bash(chmod:*)",
       "Bash(chezmoi:*)",
       "Bash(git:*)",
