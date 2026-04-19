@@ -7,6 +7,11 @@ model_context_window = 500000
 model_auto_compact_token_limit = 400000
 personality = "pragmatic"
 
+# Trust this repo's source directory so Codex can use the repo-local AGENTS,
+# shared skills, and maintenance helpers without repeated workspace trust
+# prompts on every run.
+# If a specific machine needs stricter confirmation, prefer a local untracked
+# override in ~/.codex/config.toml instead of changing the tracked default here.
 [projects."{{ .chezmoi.sourceDir }}"]
 trust_level = "trusted"
 

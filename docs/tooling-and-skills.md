@@ -74,6 +74,7 @@ Installed client paths are routed to the shared tree:
 
 - `~/.codex/skills` → symlink to `~/.agents/skills`
 - `~/.claude/skills` → symlink to `~/.agents/skills`
+- `~/.codex/AGENTS.md` → rendered include of the repo-root `AGENTS.md` so Codex starts from the same control-plane rules
 
 Shared skills currently include:
 

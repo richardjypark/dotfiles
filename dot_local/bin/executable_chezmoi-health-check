@@ -350,6 +350,25 @@ fi
 
 if [ -d "$HOME/.codex" ] || is_installed codex; then
     check_symlink_target "$HOME/.codex/skills" "$SHARED_SKILLS_DIR" "~/.codex/skills"
+
+    CODEX_AGENTS_FILE="$HOME/.codex/AGENTS.md"
+    if [ -f "$CODEX_AGENTS_FILE" ]; then
+        check_pass "$CODEX_AGENTS_FILE exists"
+    else
+        check_warn "$CODEX_AGENTS_FILE missing"
+    fi
+
+    CODEX_CONFIG_FILE="$HOME/.codex/config.toml"
+    if [ -f "$CODEX_CONFIG_FILE" ]; then
+        check_pass "$CODEX_CONFIG_FILE exists"
+        if grep -Fq "[projects.\"$CHEZMOI_SOURCE_DIR\"]" "$CODEX_CONFIG_FILE"; then
+            check_pass "Codex source-dir project config present"
+        else
+            check_warn "Codex source-dir project config missing"
+        fi
+    else
+        check_warn "$CODEX_CONFIG_FILE missing"
+    fi
 fi
 
 if [ -d "$HOME/.claude" ] || is_installed claude; then
@@ -360,7 +379,7 @@ if [ -d "$HOME/.claude" ] || is_installed claude; then
         if grep -Eq '"skipDangerousModePermissionPrompt"[[:space:]]*:[[:space:]]*true' "$CLAUDE_SETTINGS_FILE"; then
             check_warn "Claude dangerous-mode permission prompt bypass enabled"
         else
-            check_pass "Claude dangerous-mode permission prompt still enabled"
+            check_pass "Claude dangerous-mode permission prompt enforced"
         fi
     else
         check_warn "$CLAUDE_SETTINGS_FILE missing"
