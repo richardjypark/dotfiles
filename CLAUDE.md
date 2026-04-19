@@ -51,7 +51,7 @@ Aliases: `czu` (fetch + rebase + apply), `czuf` (+ externals + force), `czvc` (c
 - **External refresh:** weekly (168h); use `--refresh-externals` to force
 - **Server role:** `CHEZMOI_ROLE=server chezmoi apply` skips Node/Bun/Homebrew/Ansible/Claude Code
 - **Secrets:** untracked local env files only; see `docs/secrets-management.md`
-- **Client safety prompts:** keep dangerous-mode / permission-prompt bypasses disabled in tracked client config. If a machine needs a temporary bypass, use a local untracked override instead of changing repo defaults.
+- **Client safety prompts:** keep dangerous-mode / permission-prompt bypasses disabled in tracked client config. If a machine needs a temporary deviation, prefer Claude's own override mechanisms such as `--settings <file>` or `--setting-sources user,project,local` instead of changing repo defaults.
 - **Planning:** follow the canonical Codex planning workflow in `plans/README.md` for substantial work: deep-read first, write local-only `*-research.md` and `*-plan.md` artifacts, revise the plan from notes, and do not implement until the user approves the plan
 
 ## Version Control

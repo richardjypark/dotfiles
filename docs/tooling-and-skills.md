@@ -90,7 +90,7 @@ Optional tool metadata lives alongside the shared skill when needed. For example
 
 Skills should have one source of truth: the shared `private_dot_agents/private_skills/` tree. Client-specific paths should be routing only, not separate copies of skill content.
 
-Keep tracked client config conservative as well: dangerous-mode / permission-prompt bypasses and similar safety relaxations belong in local untracked overrides, not repo defaults.
+Keep tracked client config conservative as well: dangerous-mode / permission-prompt bypasses and similar safety relaxations belong in client-supported local or per-run overrides, not repo defaults. For example, prefer `codex -c 'projects."/path/to/repo".trust_level="untrusted"'` or `claude --settings /path/to/settings.json --setting-sources user,project,local` over changing tracked repo config.
 
 For cross-cutting work, the canonical references can still live in repo-root docs instead of skill-local copies:
 
