@@ -50,6 +50,14 @@ if ! rg -q '\.agents/skills' dot_local/bin/executable_chezmoi-health-check || ! 
   add_finding guidance 'chezmoi-health-check does not verify shared agent-skill routing for Codex and Claude'
 fi
 
+if ! rg -q 'chezmoi-health-check' README.md; then
+  add_finding guidance 'README does not document the managed chezmoi-health-check command'
+fi
+
+if ! rg -qi 'dangerous[- ]mode|permission prompt|approval gate' docs/tooling-and-skills.md || ! rg -qi 'local untracked override|machine-local|local-only' docs/tooling-and-skills.md; then
+  add_finding guidance 'docs/tooling-and-skills lacks a canonical cross-tool note about local-only client-config safety bypasses'
+fi
+
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
   printf '  none\n'

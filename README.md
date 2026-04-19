@@ -56,6 +56,7 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 | `czm` | Managed wrapper command in `~/.local/bin/czm`: fail-fast macOS workflow that runs `czuf` in a Homebrew-maintenance mode, then `brew update` + `brew upgrade` + `brew upgrade --cask --greedy` + `brew cleanup`, then `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` only when bumped pins changed tracked source files. | Single-command daily maintenance on macOS. |
 | `czvc` | Managed wrapper command in `~/.local/bin/czvc`: runs `chezmoi-check-versions` and exits non-zero when API/network errors make results incomplete. | Check pinned versions against upstream releases. |
 | `czb` | Managed wrapper command in `~/.local/bin/czb`: runs `chezmoi-bump` with fail-closed transaction checks (preflight -> apply -> verify -> rollback on failure). | Bump pinned dependency versions safely. |
+| `chezmoi-health-check` | Managed helper in `~/.local/bin/chezmoi-health-check`: audits key tool installs, config files, bootstrap security defaults, and agent configuration safety/routing checks. | Run after bootstrap/apply or when debugging local drift. |
 | `chezmoi-rerun-script <source-script-path>` | Managed helper in `~/.local/bin/chezmoi-rerun-script`: clears chezmoi's remembered `run_onchange_*` state for the given source script so the next `chezmoi apply` reruns it. | Recover from manual deletions or force a one-off rerun of a bootstrap/setup script after local drift. |
 
 `cz*` commands are installed in `~/.local/bin` and do not rely on shell aliases.

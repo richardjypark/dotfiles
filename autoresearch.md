@@ -18,6 +18,7 @@ The script audits a small set of high-signal invariants and prints structured `M
 
 ## Files in Scope
 - `private_dot_claude/settings.json` — managed Claude client settings
+- `README.md` — user-facing command/workflow documentation
 - `CLAUDE.md` — Claude-facing repo instructions
 - `docs/tooling-and-skills.md` — canonical skill/tooling guidance
 - `private_dot_agents/private_skills/chezmoi-repo-maintainer/SKILL.md` — cross-cutting repo skill used for this surface
@@ -43,4 +44,5 @@ The script audits a small set of high-signal invariants and prints structured `M
 - Kept: `private_dot_claude/settings.json` now keeps that prompt enabled by default, and concise guardrails were added to `CLAUDE.md` plus the shared `chezmoi-repo-maintainer` skill so tracked client-config safety bypasses stay opt-in and local-only.
 - The first audit was too loose to detect the guidance gap directly, but the docs/skill reinforcement was still worth keeping because it protects against regression around the security fix.
 - Kept: `CLAUDE.md` now has a concise First Pass checklist, and the repo-maintainer Codex metadata prompt now nudges read order, planning, and chezmoi validation.
-- Next promising low-hanging improvement: add lightweight agent-config sanity checks to `chezmoi-health-check` so shared skill routing and the Claude dangerous-mode prompt default are validated operationally, not just documented.
+- Kept: `chezmoi-health-check` now validates shared agent-skill routing and the Claude dangerous-mode permission prompt default.
+- Next promising low-hanging improvement: document `chezmoi-health-check` in user-facing docs and add a canonical cross-tool note that tracked client-config safety bypasses belong in local untracked overrides.

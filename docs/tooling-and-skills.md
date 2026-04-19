@@ -88,6 +88,8 @@ Optional tool metadata lives alongside the shared skill when needed. For example
 
 Skills should have one source of truth: the shared `private_dot_agents/private_skills/` tree. Client-specific paths should be routing only, not separate copies of skill content.
 
+Keep tracked client config conservative as well: dangerous-mode / permission-prompt bypasses and similar safety relaxations belong in local untracked overrides, not repo defaults.
+
 For cross-cutting work, the canonical references can still live in repo-root docs instead of skill-local copies:
 
 - `ARCHITECTURE.md`
