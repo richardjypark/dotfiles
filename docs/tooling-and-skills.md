@@ -76,7 +76,7 @@ Installed client paths are routed to the shared tree:
 - `~/.claude/skills` → symlink to `~/.agents/skills`
 - `~/.codex/AGENTS.md` → rendered include of the repo-root `AGENTS.md` so Codex starts from the same control-plane rules
 
-This repo also tracks a project-local Claude policy file at `.claude/settings.local.json`. Treat it as repo policy, not as a personal escape hatch, and keep its permissions narrow and domain-scoped.
+This repo also tracks a project-local Claude policy file at `.claude/settings.local.json`. Treat it as repo policy, not as a personal escape hatch, keep its permissions narrow and domain-scoped, reserve tracked entries for core workflow primitives, and let one-off convenience/bootstrap commands rely on explicit approval instead of tracked pre-approval.
 
 Shared skills currently include:
 
