@@ -9,7 +9,6 @@
       "Bash(jj:*)",
       "Bash(mkdir:*)",
       "Bash(source:*)",
-      "Bash(czu:*)",
       "WebSearch",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:github.com)",
