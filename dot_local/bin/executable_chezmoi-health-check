@@ -393,6 +393,12 @@ if [ -d "$HOME/.claude" ] || is_installed claude; then
             check_pass "Repo-local Claude WebFetch permissions are domain-scoped"
         fi
 
+        if grep -Eq '"WebFetch\(domain:eu-central-1-1\.aws\.cloud2\.influxdata\.com\)"' "$CLAUDE_PROJECT_SETTINGS_LOCAL"; then
+            check_warn "Repo-local Claude settings allow stale WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com) access"
+        else
+            check_pass "Repo-local Claude permissions exclude stale Influx WebFetch access"
+        fi
+
         if grep -Eq '"Bash\(dscl:\*\)"' "$CLAUDE_PROJECT_SETTINGS_LOCAL"; then
             check_warn "Repo-local Claude settings allow unrelated Bash(dscl:*) access"
         else
