@@ -15,6 +15,9 @@ bash -n dot_local/bin/executable_chezmoi-health-check
 chezmoi apply --dry-run \
   "$HOME/.codex/config.toml" \
   "$HOME/.codex/AGENTS.md" \
-  "$HOME/.agents/skills/jj/agents/openai.yaml" \
+  "$HOME/.agents/skills/chezmoi-repo-maintainer/agents/openai.yaml" \
+  "$HOME/.agents/skills/chezmoi-script-maintainer/agents/openai.yaml" \
+  "$HOME/.agents/skills/chezmoi-bootstrap-operator/agents/openai.yaml" \
+  "$HOME/.agents/skills/dotfiles-version-refresh/agents/openai.yaml" \
   "$HOME/.local/bin/chezmoi-health-check" \
   >/dev/null
