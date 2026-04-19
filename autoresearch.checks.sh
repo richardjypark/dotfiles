@@ -10,4 +10,5 @@ PY
 chezmoi apply --dry-run \
   "$HOME/.claude/settings.json" \
   "$HOME/.agents/skills/chezmoi-repo-maintainer/SKILL.md" \
+  "$HOME/.agents/skills/chezmoi-repo-maintainer/agents/openai.yaml" \
   >/dev/null

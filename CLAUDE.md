@@ -25,6 +25,14 @@ VERBOSE=true chezmoi apply          # Scripts with verbose output
 
 Aliases: `czu` (fetch + rebase + apply), `czuf` (+ externals + force), `czvc` (check pinned versions)
 
+## First Pass
+
+1. Run `jj status` before editing.
+2. Read `README.md` first; add `ARCHITECTURE.md` when the task is cross-cutting or changes behavior.
+3. Load the relevant shared skill before domain work (`/chezmoi-repo-maintainer`, `/chezmoi-script-maintainer`, `/chezmoi-bootstrap-operator`, `/dotfiles-version-refresh`, `/jj`).
+4. Prefer source files in this repo over rendered files in `~/`.
+5. For substantial or high-impact work, follow `plans/README.md` before implementing.
+
 ## Key Files
 
 **Shell:** `dot_zshenv` (all shells: NVM/Bun/Cargo paths) · `dot_zshrc.tmpl` (interactive: Oh My Zsh, plugins, Starship) · `private_dot_config/starship.toml` (prompt config) · `private_dot_config/shell/*.sh` (modular: alias, env, fzf, history, path, profile, jj-fzf, gpg, zsh-fix, bat)
