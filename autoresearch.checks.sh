@@ -12,6 +12,7 @@ chezmoi execute-template < private_dot_codex/private_config.toml.tmpl \
 
 bash -n dot_local/bin/executable_chezmoi-health-check
 chezmoi execute-template < .chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl | bash -n
+bash -n .chezmoiscripts/run_after_99-performance-summary.sh
 
 check_tmpdir="$(mktemp -d)"
 cleanup() {
@@ -20,11 +21,14 @@ cleanup() {
 trap cleanup EXIT
 
 check_home="$check_tmpdir/home"
-mkdir -p "$check_home/.local/lib" "$check_home/.cache/chezmoi-state"
+check_state_dir="$check_tmpdir/state"
+mkdir -p "$check_home/.local/lib" "$check_home/.cache/chezmoi-state" "$check_state_dir"
 cp dot_local/private_lib/chezmoi-helpers.sh "$check_home/.local/lib/chezmoi-helpers.sh"
 chezmoi execute-template < .chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl > "$check_tmpdir/run_after_38.sh"
 chmod +x "$check_tmpdir/run_after_38.sh"
 HOME="$check_home" VERBOSE=false "$check_tmpdir/run_after_38.sh" >/dev/null
+: > "$check_state_dir/example.done"
+HOME="$check_home" STATE_DIR="$check_state_dir" VERBOSE=false bash .chezmoiscripts/run_after_99-performance-summary.sh >/dev/null
 
 chezmoi apply --dry-run \
   "$HOME/.codex/config.toml" \
