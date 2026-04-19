@@ -1,4 +1,4 @@
 interface:
   display_name: "Chezmoi Bootstrap Operator"
   short_description: "Maintain Omarchy and VPS bootstrap workflows."
-  default_prompt: "Use $chezmoi-bootstrap-operator to choose a bootstrap path, preserve security defaults and installer trust gates, update related scripts/docs consistently. Check jj status first, then validate with bash -n plus chezmoi diff/apply/status."
+  default_prompt: "Use $chezmoi-bootstrap-operator to choose a bootstrap path, preserve security defaults and installer trust gates, update related scripts/docs consistently. Check jj status first, read ARCHITECTURE.md plus references/bootstrap-matrix.md, then validate with bash -n plus chezmoi diff/apply/status."
