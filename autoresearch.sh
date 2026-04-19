@@ -22,12 +22,14 @@ add_finding() {
   esac
 }
 
-if rg -q 'Bash\(dscl:\*\)' .claude/settings.local.json; then
-  add_finding security 'tracked repo-local Claude settings still allow Bash(dscl:*), an unrelated macOS account-management command'
+if ! rg -q 'jj status' private_dot_agents/private_skills/jj/agents/openai.yaml \
+  || ! rg -q 'jj log' private_dot_agents/private_skills/jj/agents/openai.yaml \
+  || ! rg -q 'jj diff' private_dot_agents/private_skills/jj/agents/openai.yaml; then
+  add_finding guidance "jj Codex metadata prompt lacks the skill's preferred jj status/log/diff first-pass reminders"
 fi
 
-if ! rg -q 'Bash\(dscl:\*\)' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(dscl:*)'
+if ! rg -qi 're-check|after rewrites|jj undo|bookmark' private_dot_agents/private_skills/jj/agents/openai.yaml; then
+  add_finding guidance 'jj Codex metadata prompt lacks rewrite recovery or post-change recheck reminders'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

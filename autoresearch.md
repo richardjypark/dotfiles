@@ -3,7 +3,7 @@
 ## Objective
 Find and implement minimal, low-risk improvements to this dotfiles repo's agent-operating surfaces, especially around secure defaults, prompts, skills, and best-practice guidance.
 
-The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment surfaced `.claude/settings.local.json` in the canonical/routing docs. The current follow-up focuses on one evidence-backed permission tightening: the tracked repo-local Claude allowlist still includes `Bash(dscl:*)`, but `dscl` does not appear to be part of this repo's documented or implemented workflows.
+The earlier Claude/docs/health-check safety gaps were closed in prior segments. The latest segment removed stale `Bash(dscl:*)` access from the tracked repo-local Claude allowlist. The current follow-up focuses on the remaining metadata-prompt inconsistency: the `jj` Codex metadata prompt is still much weaker than the underlying skill body and does not front-load the repo's preferred first-pass/recheck workflow.
 
 ## Metrics
 - **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against repo safety/prompt invariants.
@@ -17,9 +17,9 @@ The earlier Claude/docs/health-check safety gaps were closed in prior segments. 
 The script audits a small set of high-signal invariants and prints structured `METRIC ...` lines.
 
 ## Files in Scope
-- `.claude/settings.local.json` — tracked repo-local Claude permission allowlist
-- `dot_local/bin/executable_chezmoi-health-check` — managed health-check helper for permission drift checks
-- `CLAUDE.md` / `docs/tooling-and-skills.md` — only if a tiny wording alignment becomes necessary
+- `private_dot_agents/private_skills/jj/agents/openai.yaml` — Codex metadata prompt for Jujutsu workflows
+- `private_dot_agents/private_skills/jj/SKILL.md` — canonical jj workflow guidance the metadata prompt should align with
+- `private_dot_agents/private_skills/jj/references/jj-reference.md` — detailed jj reference used to confirm high-leverage reminders
 
 ## Off Limits
 - Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
@@ -36,5 +36,5 @@ The script audits a small set of high-signal invariants and prints structured `M
 ## What's Been Tried
 - Kept in earlier segments: Claude no longer bypasses dangerous-mode confirmation by default; CLAUDE/docs/skills now carry matching safety and first-pass guidance; `chezmoi-health-check` now validates shared skill routing, Codex routed files, and Claude prompt/permission defaults.
 - Kept in earlier segments: Codex trust rationale and override mechanisms are now explicit, and the tracked repo-local Claude allowlist is narrower, documented as a project-local file, and surfaced in canonical/routing docs.
-- New evidence from the remaining allowlist review: `Bash(dscl:*)` still exists in `.claude/settings.local.json`, but `dscl` does not show up in repo source files or the repo's user-facing/agent-facing workflow docs. It looks like stale leftover permission scope rather than an intentional repo need.
-- Current plan: remove `Bash(dscl:*)` from the tracked allowlist and add a cheap health-check warning so unrelated macOS account-management permissions do not creep back in without review.
+- Kept in the latest segment: stale `Bash(dscl:*)` access was removed from the tracked repo-local Claude allowlist, with a matching health-check warning to catch regressions.
+- Next promising path: the `jj` metadata prompt still says less than the skill body. It should at least nudge Codex toward `jj status`/`jj log`/`jj diff` before history changes and toward re-checking state after rewrites.

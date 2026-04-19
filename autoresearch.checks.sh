@@ -15,5 +15,6 @@ bash -n dot_local/bin/executable_chezmoi-health-check
 chezmoi apply --dry-run \
   "$HOME/.codex/config.toml" \
   "$HOME/.codex/AGENTS.md" \
+  "$HOME/.agents/skills/jj/agents/openai.yaml" \
   "$HOME/.local/bin/chezmoi-health-check" \
   >/dev/null
