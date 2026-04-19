@@ -1,46 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-loops="${AUTORESEARCH_LOOPS:-400}"
+issue_count=0
+security_findings=0
+guidance_findings=0
 
-tmpdir="$(mktemp -d)"
-cleanup() {
-  rm -rf "$tmpdir"
+findings=()
+
+add_finding() {
+  local kind="$1"
+  local message="$2"
+  findings+=("$kind: $message")
+  issue_count=$((issue_count + 1))
+  case "$kind" in
+    security)
+      security_findings=$((security_findings + 1))
+      ;;
+    guidance)
+      guidance_findings=$((guidance_findings + 1))
+      ;;
+  esac
 }
-trap cleanup EXIT
 
-state_dir="$tmpdir/state"
-mkdir -p "$state_dir"
-for i in $(seq 1 24); do
-  : > "$state_dir/$i.done"
-done
+if rg -Fq 'Bash(tree:*)' .claude/settings.local.json; then
+  add_finding security "tracked repo-local Claude settings still allow Bash(tree:*), which does not appear in the repo's documented workflows"
+fi
 
-python3 - "$tmpdir" "$state_dir" "$loops" <<'PY'
-import os
-import subprocess
-import sys
-import time
+if ! rg -Fq 'Bash\(tree:\*\)' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(tree:*)'
+fi
 
-bench_home, state_dir, loops_raw = sys.argv[1:4]
-loops = int(loops_raw)
+printf 'Audit findings (%s):\n' "$issue_count"
+if [ "$issue_count" -eq 0 ]; then
+  printf '  none\n'
+else
+  for finding in "${findings[@]}"; do
+    printf '  %s\n' "$finding"
+  done
+fi
 
-env = os.environ.copy()
-env['HOME'] = bench_home
-env['STATE_DIR'] = state_dir
-env['VERBOSE'] = 'false'
-
-script = '.chezmoiscripts/run_after_99-performance-summary.sh'
-
-for _ in range(25):
-    subprocess.run(['bash', script], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-
-start = time.perf_counter()
-for _ in range(loops):
-    subprocess.run(['bash', script], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-elapsed_us = (time.perf_counter() - start) * 1_000_000
-
-print(f"Benchmark: run_after_99 non-verbose warm path over {loops} loops")
-print(f"METRIC total_us={elapsed_us:.0f}")
-print(f"METRIC per_run_us={elapsed_us / loops:.2f}")
-print(f"METRIC loops={loops}")
-PY
+printf 'METRIC issue_count=%s\n' "$issue_count"
+printf 'METRIC security_findings=%s\n' "$security_findings"
+printf 'METRIC guidance_findings=%s\n' "$guidance_findings"

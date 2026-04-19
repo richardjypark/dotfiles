@@ -398,6 +398,12 @@ if [ -d "$HOME/.claude" ] || is_installed claude; then
         else
             check_pass "Repo-local Claude permissions exclude Bash(dscl:*)"
         fi
+
+        if grep -Eq '"Bash\(tree:\*\)"' "$CLAUDE_PROJECT_SETTINGS_LOCAL"; then
+            check_warn "Repo-local Claude settings allow undocumented Bash(tree:*) access"
+        else
+            check_pass "Repo-local Claude permissions exclude Bash(tree:*)"
+        fi
     else
         check_warn "$CLAUDE_PROJECT_SETTINGS_LOCAL missing"
     fi
