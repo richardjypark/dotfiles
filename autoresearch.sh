@@ -22,20 +22,14 @@ add_finding() {
   esac
 }
 
-if ! rg -qi 'core workflow primitives|routine workflow primitives' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md does not state that tracked repo-local Claude permissions are reserved for core workflow primitives'
+script='.chezmoiscripts/run_onchange_after_24-setup-neovim.sh.tmpl'
+
+if ! rg -qi 'compatibility floor|steady-state contract|required .*compatib' "$script"; then
+  add_finding guidance 'Neovim setup script does not explicitly say REQUIRED_NVIM_VERSION is the compatibility floor / steady-state contract'
 fi
 
-if ! rg -qi 'explicit approval|prompt.*one-off|one-off.*prompt' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md does not state that one-off convenience commands should rely on explicit approval'
-fi
-
-if ! rg -qi 'core workflow primitives|routine workflow primitives' docs/tooling-and-skills.md; then
-  add_finding guidance 'docs/tooling-and-skills.md does not state that tracked repo-local Claude permissions are reserved for core workflow primitives'
-fi
-
-if ! rg -qi 'explicit approval|prompt.*one-off|one-off.*prompt' docs/tooling-and-skills.md; then
-  add_finding guidance 'docs/tooling-and-skills.md does not state that one-off convenience commands should rely on explicit approval'
+if ! rg -qi 'preferred install source|package managers lag|newer versions remain acceptable|pinned .*preferred' "$script"; then
+  add_finding guidance 'Neovim setup script does not explicitly say PINNED_NVIM_VERSION is a preferred install source rather than a strict must-match version'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
