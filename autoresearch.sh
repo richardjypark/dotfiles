@@ -22,12 +22,20 @@ add_finding() {
   esac
 }
 
-if rg -Fq 'Bash(source:*)' .claude/settings.local.json; then
-  add_finding security 'tracked repo-local Claude settings still allow Bash(source:*), even though source mainly appears in script-contract and implementation details'
+if ! rg -qi 'core workflow primitives|routine workflow primitives' CLAUDE.md; then
+  add_finding guidance 'CLAUDE.md does not state that tracked repo-local Claude permissions are reserved for core workflow primitives'
 fi
 
-if ! rg -Fq 'Bash\(source:\*\)' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not warn when repo-local Claude settings allow Bash(source:*)'
+if ! rg -qi 'explicit approval|prompt.*one-off|one-off.*prompt' CLAUDE.md; then
+  add_finding guidance 'CLAUDE.md does not state that one-off convenience commands should rely on explicit approval'
+fi
+
+if ! rg -qi 'core workflow primitives|routine workflow primitives' docs/tooling-and-skills.md; then
+  add_finding guidance 'docs/tooling-and-skills.md does not state that tracked repo-local Claude permissions are reserved for core workflow primitives'
+fi
+
+if ! rg -qi 'explicit approval|prompt.*one-off|one-off.*prompt' docs/tooling-and-skills.md; then
+  add_finding guidance 'docs/tooling-and-skills.md does not state that one-off convenience commands should rely on explicit approval'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

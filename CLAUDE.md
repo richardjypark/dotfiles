@@ -52,7 +52,7 @@ Aliases: `czu` (fetch + rebase + apply), `czuf` (+ externals + force), `czvc` (c
 - **Server role:** `CHEZMOI_ROLE=server chezmoi apply` skips Node/Bun/Homebrew/Ansible/Claude Code
 - **Secrets:** untracked local env files only; see `docs/secrets-management.md`
 - **Client safety prompts:** keep dangerous-mode / permission-prompt bypasses disabled in tracked client config. If a machine needs a temporary deviation, prefer Claude's own override mechanisms such as `--settings <file>` or `--setting-sources user,project,local` instead of changing repo defaults.
-- **Repo-local Claude permissions:** `.claude/settings.local.json` in this repo is a tracked project-local allowlist, not a machine-local escape hatch. Keep it narrow and domain-scoped.
+- **Repo-local Claude permissions:** `.claude/settings.local.json` in this repo is a tracked project-local allowlist, not a machine-local escape hatch. Keep it narrow and domain-scoped, reserve it for core workflow primitives, and let one-off convenience/bootstrap commands rely on explicit approval instead of tracked pre-approval.
 - **Planning:** follow the canonical Codex planning workflow in `plans/README.md` for substantial work: deep-read first, write local-only `*-research.md` and `*-plan.md` artifacts, revise the plan from notes, and do not implement until the user approves the plan
 
 ## Version Control
