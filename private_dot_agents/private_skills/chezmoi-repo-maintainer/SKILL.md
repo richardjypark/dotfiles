@@ -42,6 +42,7 @@ Use this skill when:
 ## Stop and ask
 
 - the change would weaken security defaults or alter secret handling
+- a tracked `private_dot_codex/*` or `private_dot_claude/*` change would lower permission prompts, approval gates, or other safety confirmations by default
 - it is unclear whether behavior belongs in root docs, a skill, or a tool-specific config file
 - deleting a file seems like the easiest way to resolve drift or validation issues
 
