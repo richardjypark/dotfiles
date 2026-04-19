@@ -34,7 +34,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 
 ### Apply-Time Setup Scripts
 
-- Key files: `.chezmoiscripts/run_before_*`, `.chezmoiscripts/run_after_*`
+- Key files: `.chezmoiscripts/run_onchange_before_*`, `.chezmoiscripts/run_onchange_after_*`, and the small set of always-run `.chezmoiscripts/run_after_*` follow-up scripts
 - Responsibility: install and configure tools during `chezmoi apply`
 - Constraints: helper-driven, quiet by default, state-aware, role/profile aware
 

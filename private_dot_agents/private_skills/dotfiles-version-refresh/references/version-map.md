@@ -19,11 +19,11 @@ Use this map to propagate version bumps safely.
 
 ## Script Touchpoints
 
-- `.chezmoiscripts/run_after_20-setup-fzf.sh`
+- `.chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl`
   - Keep version extraction logic compatible with external pin format.
-- `.chezmoiscripts/run_after_30-setup-node.sh.tmpl`
+- `.chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl`
   - Keep Node/NVM setup logic aligned with `.chezmoidata.toml`.
-- `.chezmoiscripts/run_after_25-setup-uv.sh.tmpl`
+- `.chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl`
   - Keep Python setup aligned with `.chezmoidata.toml`.
 
 ## Documentation Touchpoints

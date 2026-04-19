@@ -1,6 +1,6 @@
 ---
 name: chezmoi-script-maintainer
-description: "Maintain `.chezmoiscripts/*` setup scripts in this repo. Trigger when work touches run_before/run_after scripts, helper-driven installer logic, or role/profile-gated tool setup behavior."
+description: "Maintain `.chezmoiscripts/*` setup scripts in this repo. Trigger when work touches run_onchange/run_after scripts, helper-driven installer logic, or role/profile-gated tool setup behavior."
 ---
 
 # Chezmoi Script Maintainer
@@ -9,7 +9,7 @@ description: "Maintain `.chezmoiscripts/*` setup scripts in this repo. Trigger w
 
 Use this skill when:
 
-- editing `.chezmoiscripts/run_before_*` or `.chezmoiscripts/run_after_*`
+- editing `.chezmoiscripts/run_onchange_*` or `.chezmoiscripts/run_after_*`
 - changing helper-driven install/setup behavior
 - adding or adjusting trust gates, role/profile guards, or state tracking for setup tasks
 
@@ -22,8 +22,9 @@ Use this skill when:
 ## Workflow
 
 1. Inspect adjacent scripts to match naming and ordering:
-   - `run_before_*.sh` for prerequisites
-   - `run_after_*.sh` for post-apply setup
+   - `run_onchange_before_*.sh` for prerequisites
+   - `run_onchange_after_*.sh` for most post-apply setup
+   - `run_after_*.sh` for the small set of intentional always-run follow-ups
 2. Reuse existing helpers and guard patterns:
    - installer trust gate (`TRUST_ON_FIRST_USE_INSTALLERS`)
    - role gate (`CHEZMOI_ROLE=server`)
@@ -64,6 +65,6 @@ chezmoi apply --dry-run
 When editing `.tmpl` scripts, validate rendered output:
 
 ```bash
-chezmoi execute-template < .chezmoiscripts/run_after_25-setup-uv.sh.tmpl | bash -n
-chezmoi execute-template < .chezmoiscripts/run_after_30-setup-node.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl | bash -n
 ```

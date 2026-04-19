@@ -37,18 +37,19 @@ fi
 ## Existing Files to Reuse
 
 - Shared helper library: `dot_local/private_lib/chezmoi-helpers.sh`
-- Prereq package installs: `.chezmoiscripts/run_before_00-prerequisites.sh`
-- Role-gated tool setup: `.chezmoiscripts/run_after_36-setup-codex.sh`
+- Prereq package installs: `.chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl`
+- Role-gated tool setup: `.chezmoiscripts/run_onchange_after_36-setup-codex.sh.tmpl`
 - Installer trust gate examples:
-  - `.chezmoiscripts/run_after_35-setup-claude-code.sh`
-  - `.chezmoiscripts/run_after_37-setup-tailscale.sh`
+  - `.chezmoiscripts/run_onchange_after_35-setup-claude-code.sh.tmpl`
+  - `.chezmoiscripts/run_onchange_after_37-setup-tailscale.sh.tmpl`
 - Templated script examples:
-  - `.chezmoiscripts/run_after_25-setup-uv.sh.tmpl`
-  - `.chezmoiscripts/run_after_30-setup-node.sh.tmpl`
+  - `.chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl`
+  - `.chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl`
 
 ## Order and Naming
 
-- `run_before_XX-*` for prerequisites.
-- `run_after_XX-*` for post-apply tasks.
+- `run_onchange_before_XX-*` for prerequisites.
+- `run_onchange_after_XX-*` for most post-apply tasks.
+- `run_after_XX-*` only for intentional always-run follow-up tasks.
 - Reserve lower numbers for foundational dependencies.
 - Keep one responsibility per script.
