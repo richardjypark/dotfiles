@@ -67,6 +67,7 @@ chezmoi execute-template < .chezmoiscripts/run_onchange_after_30-setup-node.sh.t
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_35-setup-claude-code.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_35-setup-pi-cli.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_36-setup-codex.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_onchange_after_37-setup-tailscale.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl | bash -n
 bash -n .chezmoiscripts/run_after_99-performance-summary.sh
 

@@ -22,13 +22,9 @@ add_finding() {
   esac
 }
 
-for remaining_entrypoint in \
-  'bash -n dot_local/bin/executable_omarchy-screenshot-active-window-clipboard' \
-  'sh -n dot_local/bin/executable_tmux-status-host'; do
-  if ! rg -qF "$remaining_entrypoint" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not validate ${remaining_entrypoint#*-n }"
-  fi
-done
+if ! rg -qF 'chezmoi execute-template < .chezmoiscripts/run_onchange_after_37-setup-tailscale.sh.tmpl | bash -n' autoresearch.checks.sh; then
+  add_finding guidance 'autoresearch.checks.sh does not validate .chezmoiscripts/run_onchange_after_37-setup-tailscale.sh.tmpl'
+fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
