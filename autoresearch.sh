@@ -22,12 +22,8 @@ add_finding() {
   esac
 }
 
-if ! rg -qF 'bash -n dot_local/bin/executable_omarchy-screenshot-active-window-clipboard' .github/workflows/managed-npm-safety.yml; then
-  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_omarchy-screenshot-active-window-clipboard'
-fi
-
-if ! rg -qF 'sh -n dot_local/bin/executable_tmux-status-host' .github/workflows/managed-npm-safety.yml; then
-  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_tmux-status-host with sh -n'
+if ! rg -qF 'bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh' .github/workflows/managed-npm-safety.yml; then
+  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_git-ssh.sh'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
