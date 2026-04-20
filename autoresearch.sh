@@ -22,9 +22,15 @@ add_finding() {
   esac
 }
 
-for file in .chezmoidata.toml .chezmoiversion.toml; do
+for file in private_dot_claude/settings.json dot_pi/agent/settings.json; do
   if ! rg -qF "Path('${file}').read_text()" autoresearch.checks.sh; then
     add_finding guidance "autoresearch.checks.sh does not parse ${file}"
+  fi
+done
+
+for target in '$HOME/.claude/settings.json' '$HOME/.pi/agent/settings.json'; do
+  if ! rg -qF "\"${target}\"" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not dry-run ${target}"
   fi
 done
 

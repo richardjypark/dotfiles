@@ -6,6 +6,8 @@ import json
 import tomllib
 from pathlib import Path
 json.loads(Path('.claude/settings.local.json').read_text())
+json.loads(Path('private_dot_claude/settings.json').read_text())
+json.loads(Path('dot_pi/agent/settings.json').read_text())
 tomllib.loads(Path('.chezmoidata.toml').read_text())
 tomllib.loads(Path('.chezmoiversion.toml').read_text())
 PY
@@ -43,6 +45,8 @@ HOME="$check_home" STATE_DIR="$check_state_dir" VERBOSE=false bash .chezmoiscrip
 chezmoi apply --dry-run \
   "$HOME/.codex/config.toml" \
   "$HOME/.codex/AGENTS.md" \
+  "$HOME/.claude/settings.json" \
+  "$HOME/.pi/agent/settings.json" \
   "$HOME/.agents/skills/chezmoi-repo-maintainer/agents/openai.yaml" \
   "$HOME/.agents/skills/chezmoi-script-maintainer/agents/openai.yaml" \
   "$HOME/.agents/skills/chezmoi-bootstrap-operator/agents/openai.yaml" \
