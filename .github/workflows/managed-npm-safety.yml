@@ -59,3 +59,6 @@ jobs:
           sh -n dot_local/bin/executable_tmux-status-host
           bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh
           bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh
+          bash -n bootstrap-vps.sh
+          bash -n scripts/bootstrap-omarchy.sh
+          bash -n scripts/server-lockdown-tailscale.sh
