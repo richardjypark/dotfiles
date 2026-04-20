@@ -21,6 +21,7 @@ chezmoi diff                        # See pending changes
 chezmoi edit ~/.zshrc               # Edit in source directory
 chezmoi status                      # Check status
 chezmoi-health-check                # Quick managed sanity check for tools/config/safety drift
+chezmoi-rerun-script <source-script-path>  # Clear remembered run_onchange state for one source script
 VERBOSE=true chezmoi apply          # Scripts with verbose output
 ```
 

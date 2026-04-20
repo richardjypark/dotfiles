@@ -22,12 +22,12 @@ add_finding() {
   esac
 }
 
-if ! rg -q '\bczl\b' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md does not mention the managed czl maintenance wrapper'
+if ! rg -q 'chezmoi-rerun-script' CLAUDE.md; then
+  add_finding guidance 'CLAUDE.md does not mention the managed chezmoi-rerun-script helper'
 fi
 
-if ! rg -q '\bczm\b' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md does not mention the managed czm maintenance wrapper'
+if ! rg -q 'chezmoi-rerun-script' docs/tooling-and-skills.md; then
+  add_finding guidance 'docs/tooling-and-skills.md does not mention the managed chezmoi-rerun-script helper'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
