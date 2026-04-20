@@ -126,7 +126,7 @@ else
     check_warn "~/.local/bin missing from PATH (managed cz* commands may be unavailable in this shell)"
 fi
 
-for tool in czu czuf czl czm czb czvc chezmoi-bump chezmoi-check-versions; do
+for tool in czu czuf czl czm czb czvc chezmoi-rerun-script chezmoi-bump chezmoi-check-versions; do
     if is_installed "$tool"; then
         check_pass "$tool: $(command -v "$tool")"
     else

@@ -1,25 +1,24 @@
-# Autoresearch: update-wrapper CI syntax coverage cleanup
+# Autoresearch: health-check helper-command coverage cleanup
 
 ## Objective
-Find and implement minimal, low-risk CI syntax-check coverage fixes for the remaining managed update wrappers `czu` and `czuf`.
+Find and implement minimal, low-risk improvements so `chezmoi-health-check` verifies the repo's other documented managed helper commands too.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the low-risk helper-command/state-guidance/doc-symmetry cleanup is now mostly spent down. The latest segment brought `czm` into the same health-check and CI syntax coverage as `czl`; the next principled follow-through is to make sure the two base update wrappers `czu` and `czuf` also get explicit CI shell-parse coverage.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the low-risk helper-command/state-guidance/doc-symmetry cleanup is now mostly spent down. The latest validation-symmetry passes aligned CI and health-check coverage for the four update wrappers; the next principled follow-through is to make sure the health-check command list also includes the repo's documented managed helpers `chezmoi-health-check` and `chezmoi-rerun-script`.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of remaining CI syntax-coverage omissions for `czu`/`czuf` in this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of remaining managed-helper omissions in `chezmoi-health-check` for this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
-  - `guidance_findings` — missing CI validation coverage
+  - `guidance_findings` — missing local validation coverage
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits the GitHub workflow syntax-check step for whether it still skips `dot_local/bin/executable_czu` and `dot_local/bin/executable_czuf`.
+The script audits `dot_local/bin/executable_chezmoi-health-check` for whether its managed-command loop still omits the documented helper commands `chezmoi-health-check` and `chezmoi-rerun-script`.
 
 ## Files in Scope
-- `.github/workflows/managed-npm-safety.yml` — shell entrypoint syntax validation should include `dot_local/bin/executable_czu` and `dot_local/bin/executable_czuf`
-- `dot_local/bin/executable_czu` — base jj/chezmoi update wrapper
-- `dot_local/bin/executable_czuf` — forced refresh/update wrapper
+- `dot_local/bin/executable_chezmoi-health-check` — helper-command coverage should include the documented helper commands too
+- `README.md` and `docs/tooling-and-skills.md` — source-of-truth docs already describing `chezmoi-health-check` and `chezmoi-rerun-script` as managed helpers
 
 ## Off Limits
 - Benchmark cheating or audit cheating: do not weaken the audit; improve the maintainer docs for principled reasons.
@@ -35,5 +34,5 @@ The script audits the GitHub workflow syntax-check step for whether it still ski
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
 - Recent segments also improved the two remaining always-run warm paths individually and then measured their combined residual cost at about 5.6 ms per apply in the current harness, which makes further performance work look deeper by nature.
 - Recent helper-command discoverability/state-guidance passes surfaced `chezmoi-rerun-script` broadly, tightened `CLAUDE.md` so it now prefers targeted reruns over clearing all state, and cleaned up the remaining low-risk command-family symmetry gaps around `czm` in docs/comments.
-- The latest validation-symmetry pass brought `czm` into the managed helper audit and CI shell-entrypoint syntax checks.
-- Current plan: extend that same CI shell-parse coverage to the base update wrappers `czu` and `czuf`, which are also first-class managed entrypoints.
+- The latest validation-symmetry passes aligned CI shell-parse coverage across `czu`, `czuf`, `czl`, and `czm`.
+- Current plan: make the local health-check's managed-command loop match the documented helper set by adding `chezmoi-health-check` and `chezmoi-rerun-script`.
