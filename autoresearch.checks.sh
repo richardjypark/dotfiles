@@ -46,6 +46,8 @@ bash -n dot_local/bin/executable_czb
 bash -n dot_local/bin/executable_czvc
 bash -n dot_local/bin/executable_chezmoi-bump
 bash -n dot_local/bin/executable_chezmoi-check-versions
+bash -n dot_local/bin/executable_omarchy-screenshot-active-window-clipboard
+sh -n dot_local/bin/executable_tmux-status-host
 bash -n dot_local/bin/executable_chezmoi-health-check
 bash -n dot_local/bin/executable_chezmoi-rerun-script
 bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh
