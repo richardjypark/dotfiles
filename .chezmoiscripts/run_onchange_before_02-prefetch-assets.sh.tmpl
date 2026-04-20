@@ -10,7 +10,7 @@ fi
 . "$CHEZMOI_SOURCE_DIR/scripts/lib/load-helpers.sh"
 
 # Minimal safety net: should_skip_state/is_force_update may not exist on very
-# first bootstrap before helpers are applied (consistent with other run_before_* scripts).
+# first bootstrap before helpers are applied (consistent with other run_onchange_before_* scripts).
 if ! command -v should_skip_state >/dev/null 2>&1; then
     should_skip_state() {
         local state_name="$1"
