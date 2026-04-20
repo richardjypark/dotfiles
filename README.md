@@ -132,6 +132,18 @@ chmod 600 ~/.config/dotfiles/bootstrap-private.env
 $EDITOR ~/.config/dotfiles/bootstrap-private.env
 ```
 
+Create an untracked local Pi settings override file for this repository if you want to use a different model/provider locally without changing tracked defaults:
+
+```bash
+mkdir -p ~/.config/dotfiles/pi
+cp ~/.pi/agent/settings.json ~/.config/dotfiles/pi/settings.local.json
+# edit model/thinking settings as needed
+$EDITOR ~/.config/dotfiles/pi/settings.local.json
+```
+
+If `~/.config/dotfiles/pi/settings.local.json` exists, `chezmoi apply` will prefer it over the tracked `~/.pi/agent/settings.json` for this machine.
+
+
 ## Pi Maintenance Agent
 
 On macOS, `chezmoi apply` installs the managed local `pi` CLI from a committed lockfile and ensures the `pi-autoresearch` package is present from a pinned git commit for that user profile.
