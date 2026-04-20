@@ -26,6 +26,7 @@ Key capabilities:
 
 - logging helpers (`vecho`, `eecho`)
 - state helpers (`state_exists`, `mark_state`, `clear_state`)
+- targeted rerun helper (`chezmoi-rerun-script <source-script-path>`) for clearing one remembered `run_onchange_*` state entry without wiping the whole state directory
 - privilege helpers (`ensure_sudo`, `run_privileged`)
 - trust gates (`require_trust_for_remote_installer`, `require_trust_for_remote_download`)
 - platform detection (`detect_platform`, `platform_key`)

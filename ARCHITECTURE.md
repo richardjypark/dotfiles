@@ -15,7 +15,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 1. Source files live in this repo as chezmoi templates, scripts, docs, and skills.
 2. `chezmoi` renders those sources into the home directory.
 3. `.chezmoiscripts/*` run around apply and install/configure tools.
-4. Scripts depend on `dot_local/private_lib/chezmoi-helpers.sh` plus state markers in `~/.cache/chezmoi-state`.
+4. Scripts depend on `dot_local/private_lib/chezmoi-helpers.sh` plus state markers in `~/.cache/chezmoi-state`; use `chezmoi-rerun-script <source-script-path>` when you need to invalidate one remembered `run_onchange_*` step without clearing all state.
 5. Shell, tmux, jj, and helper commands are layered on top of that rendered state.
 
 ## Subsystems

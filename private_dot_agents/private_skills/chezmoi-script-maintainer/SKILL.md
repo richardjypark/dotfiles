@@ -52,6 +52,7 @@ Follow `references/script-patterns.md`. For new scripts:
 - Define `VERBOSE`, `vecho`, and `eecho` with quiet-by-default output.
 - Use `STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"`.
 - Add an early state-file exit when the task is one-time setup.
+- When debugging a single remembered `run_onchange_*` step locally, prefer `chezmoi-rerun-script <source-script-path>` over clearing the entire state directory.
 - Prefer fast checks before installers (for example, command existence + version check).
 - Keep non-interactive defaults; only use interactive sudo when explicitly gated.
 
