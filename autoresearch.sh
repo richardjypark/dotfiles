@@ -22,13 +22,14 @@ add_finding() {
   esac
 }
 
-if ! rg -qF 'chezmoi cat "$HOME/.zshrc" | zsh -n' autoresearch.checks.sh; then
-  add_finding guidance 'autoresearch.checks.sh does not validate the rendered ~/.zshrc target'
-fi
-
-if ! rg -qF 'tmux -L "$tmux_check_socket" -f /dev/null start-server' autoresearch.checks.sh; then
-  add_finding guidance 'autoresearch.checks.sh does not validate the rendered ~/.tmux.conf target via an isolated tmux socket'
-fi
+for entrypoint in \
+  'bash -n bootstrap-vps.sh' \
+  'bash -n scripts/bootstrap-omarchy.sh' \
+  'bash -n scripts/server-lockdown-tailscale.sh'; do
+  if ! rg -qF "$entrypoint" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not validate ${entrypoint#bash -n }"
+  fi
+done
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
