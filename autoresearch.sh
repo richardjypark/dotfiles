@@ -22,22 +22,12 @@ add_finding() {
   esac
 }
 
-for target in \
-  '$HOME/.codex/config.toml' \
-  '$HOME/.codex/AGENTS.md' \
-  '$HOME/.agents/skills/chezmoi-repo-maintainer/agents/openai.yaml' \
-  '$HOME/.agents/skills/chezmoi-script-maintainer/agents/openai.yaml' \
-  '$HOME/.agents/skills/chezmoi-bootstrap-operator/agents/openai.yaml' \
-  '$HOME/.agents/skills/dotfiles-version-refresh/agents/openai.yaml' \
-  '$HOME/.agents/skills/jj/agents/openai.yaml' \
-  '$HOME/.local/bin/chezmoi-health-check'; do
-  if ! rg -qF "chezmoi cat \"${target}\"" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not non-interactively validate ${target}"
-  fi
-done
+if ! rg -qF 'chezmoi cat "$HOME/.zshrc" | zsh -n' autoresearch.checks.sh; then
+  add_finding guidance 'autoresearch.checks.sh does not validate the rendered ~/.zshrc target'
+fi
 
-if rg -qF 'chezmoi apply --dry-run' autoresearch.checks.sh; then
-  add_finding guidance 'autoresearch.checks.sh still relies on chezmoi apply --dry-run for managed target validation'
+if ! rg -qF 'tmux -L "$tmux_check_socket" -f /dev/null start-server' autoresearch.checks.sh; then
+  add_finding guidance 'autoresearch.checks.sh does not validate the rendered ~/.tmux.conf target via an isolated tmux socket'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
