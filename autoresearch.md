@@ -1,24 +1,24 @@
-# Autoresearch: stale pre-run_onchange comment cleanup
+# Autoresearch: bootstrap doc maintenance-wrapper symmetry cleanup
 
 ## Objective
-Find and remove any remaining low-risk stale references to the legacy `run_before_*` naming in source comments that should now point at `run_onchange_before_*`.
+Find and implement a minimal, low-risk consistency fix in `docs/bootstrap-and-flags.md` so its update-helper intro line includes the macOS maintenance wrapper `czm` alongside the already-documented `czl`.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the helper-command discoverability/state-guidance cleanup is now largely spent down. A final small consistency pass is still justified if any source comments continue to mention the old pre-`run_onchange_*` naming even though the docs and skills were already updated.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the helper-command discoverability/state-guidance cleanup is now largely spent down. One small doc-consistency gap remains in the bootstrap flags doc: the intro line above the helper bullets still lists `czu`, `czuf`, and `czl` but omits `czm`, even though the bullets below already document both platform-specific maintenance wrappers.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of stale legacy `run_before_*` comment references still present in the targeted source scan.
+- **Primary**: `issue_count` (unitless, lower is better) — number of bootstrap-doc helper-list omissions for this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
-  - `guidance_findings` — stale or misleading source comments
+  - `guidance_findings` — stale or misleading doc wording
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits a narrow source/doc scan for legacy `run_before_*` wording that no longer matches the current `run_onchange_before_*` naming.
+The script audits `docs/bootstrap-and-flags.md` for whether its update-helper intro line still omits `czm` while the rest of the section documents it.
 
 ## Files in Scope
-- `.chezmoiscripts/run_onchange_before_02-prefetch-assets.sh.tmpl` — currently contains a legacy `run_before_*` comment reference
-- related docs/skills already aligned in earlier segments and used as the naming source of truth
+- `docs/bootstrap-and-flags.md` — update-helper intro line still omits `czm`
+- `README.md` and `docs/tooling-and-skills.md` — source-of-truth docs already treating `czm` as a first-class maintenance wrapper
 
 ## Off Limits
 - Benchmark cheating or audit cheating: do not weaken the audit; improve the maintainer docs for principled reasons.
@@ -34,5 +34,5 @@ The script audits a narrow source/doc scan for legacy `run_before_*` wording tha
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
 - Recent segments also improved the two remaining always-run warm paths individually and then measured their combined residual cost at about 5.6 ms per apply in the current harness, which makes further performance work look deeper by nature.
 - Recent helper-command discoverability/state-guidance passes surfaced `chezmoi-rerun-script` broadly and tightened `CLAUDE.md` so it now prefers targeted reruns over clearing all state.
-- The larger stale doc/reference cleanup for `run_onchange_*` paths already landed earlier, so the only remaining low-risk follow-up is to catch any leftover source comments that still use the old naming.
-- Current plan: fix the remaining legacy `run_before_*` comment reference if the narrow scan confirms it is unique.
+- The larger stale doc/reference cleanup for `run_onchange_*` paths is now effectively complete, including the last targeted source comment.
+- Current plan: clean up one remaining command-family symmetry gap where `docs/bootstrap-and-flags.md` names `czl` but omits `czm` in the section intro despite documenting both below.

@@ -22,9 +22,10 @@ add_finding() {
   esac
 }
 
-while IFS= read -r match; do
-  add_finding guidance "$match"
-done < <(rg -n 'run_before_\*|other run_before_|legacy run_before_' .chezmoiscripts README.md ARCHITECTURE.md docs private_dot_agents -S || true)
+intro_line="$(rg -n '^`czu`, `czuf`,.*managed wrapper commands installed to `~/.local/bin`\.$' docs/bootstrap-and-flags.md || true)"
+if [[ "$intro_line" != *'`czm`'* ]]; then
+  add_finding guidance 'docs/bootstrap-and-flags.md update-helper intro still omits czm'
+fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
