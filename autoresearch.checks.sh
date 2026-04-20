@@ -7,6 +7,8 @@ from pathlib import Path
 json.loads(Path('.claude/settings.local.json').read_text())
 PY
 
+chezmoi execute-template < .chezmoiexternal.toml.tmpl \
+  | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
 chezmoi execute-template < private_dot_codex/private_config.toml.tmpl \
   | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
 
