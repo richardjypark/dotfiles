@@ -43,6 +43,9 @@ chezmoi cat "$HOME/.local/bin/chezmoi-health-check" | bash -n
 bash -n bootstrap-vps.sh
 bash -n scripts/bootstrap-omarchy.sh
 bash -n scripts/server-lockdown-tailscale.sh
+bash -n scripts/lib/load-helpers.sh
+bash -n dot_local/private_lib/chezmoi-helpers.sh
+bash -n dot_local/private_lib/chezmoi-update-helpers.sh
 chezmoi execute-template < .chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_24-setup-neovim.sh.tmpl | bash -n
