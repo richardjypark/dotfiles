@@ -22,11 +22,11 @@ add_finding() {
   esac
 }
 
-for maintenance_entrypoint in \
-  'bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh' \
-  'bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh'; do
-  if ! rg -qF "$maintenance_entrypoint" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not validate ${maintenance_entrypoint#bash -n }"
+for remaining_entrypoint in \
+  'bash -n dot_local/bin/executable_omarchy-screenshot-active-window-clipboard' \
+  'sh -n dot_local/bin/executable_tmux-status-host'; do
+  if ! rg -qF "$remaining_entrypoint" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not validate ${remaining_entrypoint#*-n }"
   fi
 done
 
