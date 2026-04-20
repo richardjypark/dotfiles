@@ -22,8 +22,8 @@ add_finding() {
   esac
 }
 
-if ! rg -q '\bczb\b' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md does not mention the managed czb helper command'
+if ! rg -q '\bczm\b' .chezmoiscripts/run_after_99-performance-summary.sh; then
+  add_finding guidance 'run_after_99 does not mention the managed czm maintenance helper'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
