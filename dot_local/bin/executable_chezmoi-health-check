@@ -452,6 +452,53 @@ if [ -d "$HOME/.claude" ] || is_installed claude; then
         else
             check_pass "Repo-local Claude permissions exclude Bash(source:*)"
         fi
+
+        unexpected_claude_bash_permissions="$({ python3 - "$CLAUDE_PROJECT_SETTINGS_LOCAL" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+allow = set(json.loads(Path(sys.argv[1]).read_text()).get("permissions", {}).get("allow", []))
+expected = {
+    "Bash(chezmoi:*)",
+    "Bash(git:*)",
+    "Bash(jj:*)",
+    "Bash(tmux:*)",
+    "Bash(zsh:*)",
+}
+unexpected = sorted(item for item in allow if item.startswith("Bash(") and item not in expected)
+print(", ".join(unexpected))
+PY
+        } || true)"
+        unexpected_claude_bash_permissions="${unexpected_claude_bash_permissions//$'\n'/}"
+        if [ -n "$unexpected_claude_bash_permissions" ]; then
+            check_warn "Repo-local Claude settings allow unexpected Claude Bash permissions: $unexpected_claude_bash_permissions"
+        else
+            check_pass "Repo-local Claude Bash permissions match the expected allowlist"
+        fi
+
+        unexpected_claude_webfetch_permissions="$({ python3 - "$CLAUDE_PROJECT_SETTINGS_LOCAL" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+allow = set(json.loads(Path(sys.argv[1]).read_text()).get("permissions", {}).get("allow", []))
+expected = {
+    "WebFetch(domain:api.github.com)",
+    "WebFetch(domain:github.com)",
+    "WebFetch(domain:pkgs.tailscale.com)",
+    "WebFetch(domain:release-assets.githubusercontent.com)",
+}
+unexpected = sorted(item for item in allow if item.startswith("WebFetch(") and item not in expected)
+print(", ".join(unexpected))
+PY
+        } || true)"
+        unexpected_claude_webfetch_permissions="${unexpected_claude_webfetch_permissions//$'\n'/}"
+        if [ -n "$unexpected_claude_webfetch_permissions" ]; then
+            check_warn "Repo-local Claude settings allow unexpected Claude WebFetch permissions: $unexpected_claude_webfetch_permissions"
+        else
+            check_pass "Repo-local Claude WebFetch permissions match the expected allowlist"
+        fi
     else
         check_warn "$CLAUDE_PROJECT_SETTINGS_LOCAL missing"
     fi

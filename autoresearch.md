@@ -1,38 +1,37 @@
-# Autoresearch: autoresearch.checks.sh runtime without reducing coverage
+# Autoresearch: generic Claude allowlist drift guard in chezmoi-health-check
 
 ## Objective
-Find and implement a minimal, low-risk speedup for `autoresearch.checks.sh` while preserving its current validation coverage and loop-safety guarantees.
+Find and implement a minimal, low-risk safety refinement so `chezmoi-health-check` warns about unexpected repo-local Claude Bash/WebFetch allowlist drift instead of only recognizing a hardcoded list of already-removed stale entries.
 
-Recent segments spent down a long list of concrete local-validation gaps, and `autoresearch.checks.sh` now covers the repo's high-impact config, script, bootstrap, helper-library, and command-entrypoint surfaces much more broadly. The next promising path is no longer more coverage breadth by default, but reducing the cost of running that broader safety net. Any change in this segment must preserve the same checks and avoid reintroducing interactive `chezmoi apply --dry-run` behavior.
+Recent segments tightened the tracked `.claude/settings.local.json` allowlist substantially, leaving only the apparent workflow primitives (`chezmoi`, `jj`, `git`, `zsh`, `tmux`) plus a small set of explicit WebFetch domains. The remaining idea backlog explicitly says further tightening now needs materially stronger evidence. One concrete gap remains regardless of whether those last permissions stay: `chezmoi-health-check` only checks for a fixed list of known-bad stale permissions, so a future unexpected Bash(...) or WebFetch(domain:...) entry could slip in without a targeted warning.
 
 ## Metrics
-- **Primary**: `total_ms` (milliseconds, lower is better) — wall-clock time to run `autoresearch.checks.sh` for a fixed small loop count.
+- **Primary**: `issue_count` (unitless, lower is better) — number of missing generic repo-local Claude allowlist drift guards in this segment.
 - **Secondary**:
-  - `per_run_ms` — average milliseconds per `autoresearch.checks.sh` run
-  - `loops` — benchmark loop count used for stability
+  - `security_findings` — concrete permission-surface problems
+  - `guidance_findings` — missing drift-guard coverage
 
 ## How to Run
-Use an inline Python benchmark that runs `./autoresearch.checks.sh` repeatedly and emits:
-- `METRIC total_ms=...`
-- `METRIC per_run_ms=...`
-- `METRIC loops=...`
+`./autoresearch.sh`
+
+The script audits `dot_local/bin/executable_chezmoi-health-check` for whether it still lacks a generic unexpected-Bash allowlist check and a generic unexpected-WebFetch-domain check for `.claude/settings.local.json`.
 
 ## Files in Scope
-- `autoresearch.checks.sh` — optimize structure without weakening coverage
-- `autoresearch.ideas.md` — prune/add ideas only if a promising but deferred optimization is discovered
+- `dot_local/bin/executable_chezmoi-health-check` — should gain generic repo-local Claude allowlist drift guards
+- `.claude/settings.local.json` — tracked project-local Claude permission policy file
+- `autoresearch.ideas.md` — prune the now-stale remaining Claude-permission note if the new generic drift guard makes it non-actionable
 
 ## Off Limits
-- Benchmark cheating or audit cheating: do not remove or weaken checks just to make the benchmark faster.
-- Reintroducing `chezmoi apply --dry-run` on drift-prone targets.
+- Benchmark cheating or audit cheating: do not weaken the allowlist checks or silently drop existing warnings.
 - Secret files, env files, machine-local private inputs, or unrelated bootstrap/tool version changes.
 
 ## Constraints
 - Keep changes minimal and low risk.
-- Preserve validation semantics.
-- Validation must still pass via `autoresearch.checks.sh` after the benchmark command completes.
-- Prefer structure changes like batching or safe parallelization of independent read-only checks over semantic changes.
+- Preserve current allowlist semantics; this segment is guardrail-only unless a genuinely stale idea should be pruned.
+- Validation must pass via `autoresearch.checks.sh`.
+- Prefer one generic parser-based drift check over growing an unbounded list of one-off grep warnings.
 
 ## What's Been Tried
-- Earlier segments tightened agent safety, broadened local validation coverage, and replaced interactive-prone rendered-target checks with render-safe `chezmoi cat` + parser validation.
-- The two remaining always-run apply scripts were already micro-optimized earlier; recent work instead focused on coverage symmetry and now leaves `autoresearch.checks.sh` as the main recurring local-loop cost.
-- Current plan: baseline the widened checks script, then try a low-risk structural speedup such as grouping independent read-only checks into a few parallel batches while keeping the stateful tmux/temp-home validation path serialized.
+- Earlier segments removed the easy stale Claude permission candidates (`WebFetch(domain:*)`, stale Influx fetch, `Bash(dscl:*)`, `tree`, `wc`, `cat`, `alias`, `czu`, `chmod`, `mkdir`, `source`) and added matching health-check warnings for them.
+- The remaining allowlist now looks much more like true workflow primitives, which makes further permission tightening less certain and shifts the best low-risk win from removing entries to guarding against unexpected future broadening.
+- Current plan: add a generic health-check comparison against the expected Bash/WebFetch allowlist for `.claude/settings.local.json`, then prune the stale ideas backlog note if no concrete immediate tightening path remains.
