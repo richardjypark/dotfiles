@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+(
 python3 - <<'PY'
 import json
 import tomllib
@@ -37,7 +38,10 @@ chezmoi cat "$HOME/.agents/skills/dotfiles-version-refresh/agents/openai.yaml" \
   | ruby -e 'require "yaml"; YAML.safe_load(STDIN.read, permitted_classes: [], aliases: true)' >/dev/null
 chezmoi cat "$HOME/.agents/skills/jj/agents/openai.yaml" \
   | ruby -e 'require "yaml"; YAML.safe_load(STDIN.read, permitted_classes: [], aliases: true)' >/dev/null
+) &
+render_checks_pid=$!
 
+(
 bash -n dot_local/bin/executable_czu
 bash -n dot_local/bin/executable_czuf
 bash -n dot_local/bin/executable_czl
@@ -60,25 +64,35 @@ bash -n scripts/lib/load-helpers.sh
 bash -n dot_local/private_lib/chezmoi-helpers.sh
 bash -n dot_local/private_lib/chezmoi-update-helpers.sh
 bash -n .chezmoiscripts/run_onchange_after_10-setup-homebrew.sh
+bash -n .chezmoiscripts/run_onchange_before_01-setup-omz.sh
+bash -n .chezmoiscripts/run_onchange_after_28-setup-ansible.sh
+bash -n .chezmoiscripts/run_onchange_after_31-change-shell.sh
+bash -n .chezmoiscripts/run_after_99-performance-summary.sh
+) &
+source_checks_pid=$!
+
+(
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_12-setup-starship.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl | bash -n
-bash -n .chezmoiscripts/run_onchange_before_01-setup-omz.sh
 chezmoi execute-template < .chezmoiscripts/run_onchange_before_02-prefetch-assets.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_24-setup-neovim.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_26-setup-jj.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_27-setup-bun.sh.tmpl | bash -n
-bash -n .chezmoiscripts/run_onchange_after_28-setup-ansible.sh
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl | bash -n
-bash -n .chezmoiscripts/run_onchange_after_31-change-shell.sh
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_35-setup-claude-code.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_35-setup-pi-cli.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_36-setup-codex.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_37-setup-tailscale.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_40-setup-tmux.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl | bash -n
-bash -n .chezmoiscripts/run_after_99-performance-summary.sh
+) &
+template_checks_pid=$!
+
+wait "$render_checks_pid"
+wait "$source_checks_pid"
+wait "$template_checks_pid"
 
 check_tmpdir="$(mktemp -d)"
 cleanup() {
