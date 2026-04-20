@@ -22,16 +22,8 @@ add_finding() {
   esac
 }
 
-if rg -q '^Aliases: `czu`' CLAUDE.md; then
-  add_finding guidance 'CLAUDE.md still describes the managed cz* helpers as aliases'
-fi
-
-if rg -q 'alias for chezmoi-check-versions' .chezmoiscripts/run_after_99-performance-summary.sh; then
-  add_finding guidance 'run_after_99 still labels czvc as an alias instead of a managed command'
-fi
-
-if rg -q 'alias for chezmoi-bump' .chezmoiscripts/run_after_99-performance-summary.sh; then
-  add_finding guidance 'run_after_99 still labels czb as an alias instead of a managed command'
+if ! rg -q '\bczb\b' CLAUDE.md; then
+  add_finding guidance 'CLAUDE.md does not mention the managed czb helper command'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

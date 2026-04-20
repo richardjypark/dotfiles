@@ -24,7 +24,7 @@ chezmoi-health-check                # Quick managed sanity check for tools/confi
 VERBOSE=true chezmoi apply          # Scripts with verbose output
 ```
 
-Managed helper commands: `czu` (fetch + rebase + apply), `czuf` (+ externals + force), `czvc` (check pinned versions)
+Managed helper commands: `czu` (fetch + rebase + apply), `czuf` (+ externals + force), `czvc` (check pinned versions), `czb` (bump pinned versions)
 
 ## First Pass
 
