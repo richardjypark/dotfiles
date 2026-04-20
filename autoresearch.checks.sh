@@ -81,6 +81,10 @@ chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmp
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_26-setup-jj.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_27-setup-bun.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl | bash -n
+) &
+template_core_checks_pid=$!
+
+(
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_35-setup-claude-code.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_35-setup-pi-cli.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_36-setup-codex.sh.tmpl | bash -n
@@ -88,7 +92,7 @@ chezmoi execute-template < .chezmoiscripts/run_onchange_after_37-setup-tailscale
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_40-setup-tmux.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl | bash -n
 ) &
-template_checks_pid=$!
+template_extra_checks_pid=$!
 
 check_tmpdir="$(mktemp -d)"
 cleanup() {
@@ -116,6 +120,7 @@ stateful_checks_pid=$!
 
 wait "$render_checks_pid"
 wait "$source_checks_pid"
-wait "$template_checks_pid"
+wait "$template_core_checks_pid"
+wait "$template_extra_checks_pid"
 wait "$stateful_checks_pid"
 
