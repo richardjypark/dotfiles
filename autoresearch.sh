@@ -22,15 +22,9 @@ add_finding() {
   esac
 }
 
-for script in \
-  bootstrap-vps.sh \
-  scripts/bootstrap-omarchy.sh \
-  scripts/server-lockdown-tailscale.sh
- do
-  if ! rg -qF "bash -n ${script}" .github/workflows/managed-npm-safety.yml; then
-    add_finding guidance "managed-npm-safety workflow does not syntax-check ${script}"
-  fi
-done
+if ! rg -qF 'chezmoi execute-template < .chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl | bash -n' autoresearch.checks.sh; then
+  add_finding guidance 'autoresearch.checks.sh does not template-parse run_onchange_before_00-prerequisites.sh.tmpl'
+fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
