@@ -90,16 +90,13 @@ chezmoi execute-template < .chezmoiscripts/run_after_38-setup-pi-maintenance-age
 ) &
 template_checks_pid=$!
 
-wait "$render_checks_pid"
-wait "$source_checks_pid"
-wait "$template_checks_pid"
-
 check_tmpdir="$(mktemp -d)"
 cleanup() {
   rm -rf "$check_tmpdir"
 }
 trap cleanup EXIT
 
+(
 tmux_check_file="$check_tmpdir/tmux.conf"
 tmux_check_socket="autoresearch-check-$$"
 chezmoi cat "$HOME/.tmux.conf" > "$tmux_check_file"
@@ -114,4 +111,11 @@ chmod +x "$check_tmpdir/run_after_38.sh"
 HOME="$check_home" VERBOSE=false "$check_tmpdir/run_after_38.sh" >/dev/null
 : > "$check_state_dir/example.done"
 HOME="$check_home" STATE_DIR="$check_state_dir" VERBOSE=false bash .chezmoiscripts/run_after_99-performance-summary.sh >/dev/null
+) &
+stateful_checks_pid=$!
+
+wait "$render_checks_pid"
+wait "$source_checks_pid"
+wait "$template_checks_pid"
+wait "$stateful_checks_pid"
 
