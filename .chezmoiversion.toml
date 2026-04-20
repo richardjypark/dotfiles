@@ -7,7 +7,7 @@ uv = "0.11.7"
 starship = "v1.25.0"
 bun = "bun-v1.3.12"
 tailscale = "1.96.4"
-claude_code_npm = "2.1.113"
+claude_code_npm = "2.1.114"
 
 [update_schedule]
 check_interval = "168h" # Weekly
