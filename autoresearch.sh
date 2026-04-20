@@ -22,16 +22,13 @@ add_finding() {
   esac
 }
 
-if ! rg -q 'chezmoi-rerun-script' ARCHITECTURE.md; then
-  add_finding guidance 'ARCHITECTURE.md does not mention the managed chezmoi-rerun-script helper'
+state_line="$(rg -n '^\- \*\*State files:\*\*' CLAUDE.md || true)"
+if [[ "$state_line" != *"chezmoi-rerun-script"* ]]; then
+  add_finding guidance 'CLAUDE.md state-file guidance does not mention chezmoi-rerun-script for targeted reruns'
 fi
 
-if ! rg -q 'chezmoi-rerun-script' docs/architecture-and-performance.md; then
-  add_finding guidance 'docs/architecture-and-performance.md does not mention the managed chezmoi-rerun-script helper'
-fi
-
-if ! rg -q 'chezmoi-rerun-script' private_dot_agents/private_skills/chezmoi-script-maintainer/SKILL.md; then
-  add_finding guidance 'chezmoi-script-maintainer/SKILL.md does not mention the managed chezmoi-rerun-script helper'
+if [[ "$state_line" != *"full rerun"* && "$state_line" != *"full re-run"* ]]; then
+  add_finding guidance 'CLAUDE.md state-file guidance does not reserve clearing ~/.cache/chezmoi-state for full reruns'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
