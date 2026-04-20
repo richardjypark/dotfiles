@@ -22,8 +22,16 @@ add_finding() {
   esac
 }
 
-if ! rg -q 'chezmoi-rerun-script' .chezmoiscripts/run_after_99-performance-summary.sh; then
-  add_finding guidance 'run_after_99 does not mention the managed chezmoi-rerun-script helper'
+if ! rg -q 'chezmoi-rerun-script' ARCHITECTURE.md; then
+  add_finding guidance 'ARCHITECTURE.md does not mention the managed chezmoi-rerun-script helper'
+fi
+
+if ! rg -q 'chezmoi-rerun-script' docs/architecture-and-performance.md; then
+  add_finding guidance 'docs/architecture-and-performance.md does not mention the managed chezmoi-rerun-script helper'
+fi
+
+if ! rg -q 'chezmoi-rerun-script' private_dot_agents/private_skills/chezmoi-script-maintainer/SKILL.md; then
+  add_finding guidance 'chezmoi-script-maintainer/SKILL.md does not mention the managed chezmoi-rerun-script helper'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

@@ -1,41 +1,40 @@
-# Autoresearch: performance-summary rerun-helper discoverability cleanup
+# Autoresearch: targeted rerun-helper discoverability in maintainer docs
 
 ## Objective
-Find and implement minimal, low-risk improvements to discoverability for the managed `chezmoi-rerun-script` helper in the always-run apply summary.
+Find and implement minimal, low-risk improvements to discoverability for the managed `chezmoi-rerun-script` helper in maintainer-facing architecture and script docs.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, the deferred Neovim semantics note was clarified inline, and several doc-consistency gaps were closed. The next promising path is another discoverability cleanup: README, CLAUDE.md, and docs/tooling-and-skills.md now all surface `chezmoi-rerun-script`, but the always-run performance summary still does not mention the helper.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and recent helper-command discoverability cleanups surfaced `chezmoi-rerun-script` in README, `CLAUDE.md`, `docs/tooling-and-skills.md`, and the always-run performance summary. The next promising low-risk path is to surface that same helper in the maintainer docs that currently discuss raw state markers without mentioning the sanctioned one-script rerun command.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the performance-summary rerun-helper discoverability invariants for this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of missing maintainer-doc references to the managed `chezmoi-rerun-script` helper.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
-  - `guidance_findings` — missing health-check/drift-warning coverage
+  - `guidance_findings` — missing maintainer-guidance references
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits the always-run performance summary script for whether it still omits the managed `chezmoi-rerun-script` helper.
+The script audits maintainer-facing docs that already talk about `.chezmoiscripts/*` state markers to make sure they also mention the managed `chezmoi-rerun-script` recovery helper.
 
 ## Files in Scope
-- `.chezmoiscripts/run_after_99-performance-summary.sh` — always-run summary script missing `chezmoi-rerun-script`
-- `README.md` — canonical source of truth already documenting `chezmoi-rerun-script`
-- `CLAUDE.md` / `docs/tooling-and-skills.md` — maintenance docs that now surface the helper and can anchor the summary wording
+- `ARCHITECTURE.md` — maintainer-facing architecture doc that mentions state markers
+- `docs/architecture-and-performance.md` — maintainer-facing script contract/performance doc
+- `private_dot_agents/private_skills/chezmoi-script-maintainer/SKILL.md` — script-maintainer workflow doc
+- `README.md`, `CLAUDE.md`, and `docs/tooling-and-skills.md` — existing source-of-truth docs that already mention `chezmoi-rerun-script`
 
 ## Off Limits
-- Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
+- Benchmark cheating or audit cheating: do not weaken the audit; improve the maintainer docs for principled reasons.
 - Secret files, env files, machine-local private inputs, or unrelated bootstrap/tool version changes.
 
 ## Constraints
 - Keep changes minimal and low risk.
-- Preserve secure defaults.
+- Preserve current script behavior; this segment is docs-only.
 - Validation must pass via `autoresearch.checks.sh`.
-- Do not overfit to the audit by weakening it; improve the repo for principled reasons.
+- Do not add vague prose if a concise command reference is enough.
 
 ## What's Been Tried
-- Earlier segments spent down the low-hanging agent-safety/prompt backlog: tracked Claude defaults are safer, docs and health checks are aligned, and Codex skill metadata now front-loads the key jj/read-first cues.
-- Recent segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts.
-- Earlier segments spent down the low-hanging agent-safety/prompt backlog, improved the two remaining always-run warm paths, and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
-- The older dispatcher/consolidation performance idea now looks mostly stale because only two always-run scripts remain and both already received their low-hanging warm-path cleanups.
-- Recent segments also fixed the stale `czl` global-npm wording, clarified the deferred Neovim version semantics inline, updated stale pre-run_onchange script references across the architecture/skill docs, aligned helper-command wording in CLAUDE.md, surfaced `czm` in the performance summary, and surfaced `chezmoi-rerun-script` in the maintenance docs.
-- New low-hanging discoverability gap: the always-run performance summary still omits `chezmoi-rerun-script`, even though the helper is now documented in the main maintenance docs.
-- Current plan: add `chezmoi-rerun-script` to the summary helper list so users see the run_onchange recovery helper alongside the other managed maintenance commands.
+- Earlier segments spent down the low-hanging agent-safety/prompt backlog and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
+- Recent segments also improved the two remaining always-run warm paths individually and then measured their combined residual cost at about 5.6 ms per apply in the current harness, which makes further performance work look deeper by nature.
+- Recent helper-command discoverability passes surfaced `chezmoi-rerun-script` in README, `CLAUDE.md`, `docs/tooling-and-skills.md`, and the always-run performance summary.
+- The remaining low-risk gap is narrower: maintainer docs still talk about raw state markers without pointing to the sanctioned helper that clears one script's remembered `run_onchange_*` state.
+- Current plan: add concise `chezmoi-rerun-script` references where maintainers learn about script state tracking.
