@@ -1,27 +1,26 @@
-# Autoresearch: shared helper-library coverage in autoresearch checks
+# Autoresearch: documented managed-command entrypoint coverage in autoresearch checks
 
 ## Objective
-Find and implement a minimal, low-risk validation refinement so `autoresearch.checks.sh` also syntax-checks the shared helper libraries that many apply-time scripts depend on.
+Find and implement a minimal, low-risk validation refinement so `autoresearch.checks.sh` also syntax-checks the documented managed helper/wrapper commands under `dot_local/bin/`.
 
-The latest local-validation passes broadened `autoresearch.checks.sh` across key rendered templates, authoritative TOML/JSON config surfaces, managed Claude/Pi settings targets, agent-tool setup templates, rendered shell/tmux configs, and documented bootstrap/hardening entrypoints. One concrete high-leverage gap remains: the repo's apply-time scripts depend on `dot_local/private_lib/chezmoi-helpers.sh` and related loaders/helpers, `ARCHITECTURE.md` explicitly calls `dot_local/private_lib/chezmoi-helpers.sh` the shared contract for setup scripts, and CI already syntax-checks the helper libraries directly — but the lightweight local autoresearch safety net still doesn't.
+The latest local-validation passes broadened `autoresearch.checks.sh` across key rendered templates, authoritative TOML/JSON config surfaces, managed Claude/Pi settings targets, agent-tool setup templates, rendered shell/tmux configs, documented bootstrap/hardening entrypoints, and the shared helper libraries. One concrete user-facing gap remains: README and the tooling docs present `czu`, `czuf`, `czl`, `czm`, `czb`, `czvc`, and `chezmoi-rerun-script` as first-class managed commands in `~/.local/bin`, and CI already syntax-checks their source entrypoints — but the lightweight local autoresearch safety net still doesn't.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of missing local shared-helper syntax checks in this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of missing local managed-command syntax checks in this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
-  - `guidance_findings` — missing shared-helper validation coverage
+  - `guidance_findings` — missing managed-command validation coverage
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits `autoresearch.checks.sh` for whether it still skips local syntax checks for the shared helper libraries.
+The script audits `autoresearch.checks.sh` for whether it still skips local syntax checks for the documented managed helper/wrapper commands.
 
 ## Files in Scope
-- `autoresearch.checks.sh` — should syntax-check the shared helper libraries too
-- `scripts/lib/load-helpers.sh` — shared loader used by setup scripts
-- `dot_local/private_lib/chezmoi-helpers.sh` — shared helper contract for apply-time scripts
-- `dot_local/private_lib/chezmoi-update-helpers.sh` — shared update helper library
-- `AGENTS.md`, `ARCHITECTURE.md`, README, and `chezmoi-script-maintainer` guidance — already describe the repo's helper-driven script model
+- `autoresearch.checks.sh` — should syntax-check the documented managed command entrypoints too
+- `dot_local/bin/executable_czu`, `executable_czuf`, `executable_czl`, `executable_czm`, `executable_czb`, `executable_czvc` — documented maintenance wrappers
+- `dot_local/bin/executable_chezmoi-rerun-script` — documented recovery helper
+- README and docs/tooling-and-skills.md — already document these commands as managed first-class entrypoints
 
 ## Off Limits
 - Benchmark cheating or audit cheating: do not weaken the audit; improve the local safety net for principled reasons.
@@ -36,5 +35,5 @@ The script audits `autoresearch.checks.sh` for whether it still skips local synt
 ## What's Been Tried
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog, tightened the tracked repo-local Claude allowlist, and aligned docs plus health checks around the resulting policy.
 - Recent segments also improved the two remaining always-run warm paths individually and then measured their combined residual cost at about 5.6 ms per apply in the current harness, which makes further performance work look deeper by nature.
-- The latest validation-symmetry passes completed CI shell syntax coverage for managed shell entrypoints, bootstrap scripts, and shared helper libraries, broadened `autoresearch.checks.sh` across high-leverage templates plus the authoritative externals/version-data TOML sources, added managed Claude/Pi settings plus agent-tool setup-template coverage, replaced the remaining `apply --dry-run` target checks with render-safe validation, aligned the local safety net with the documented shell/tmux checks, and then added the documented bootstrap entrypoints locally too.
-- Current plan: mirror CI's direct helper-library syntax checks locally so autoresearch catches shared helper regressions at the source rather than only via selected caller scripts.
+- The latest validation-symmetry passes completed CI shell syntax coverage for managed shell entrypoints, bootstrap scripts, shared helper libraries, and key rendered/user-facing config surfaces; the local autoresearch safety net now mirrors many of those high-impact checks, including shell/tmux configs, bootstrap entrypoints, and helper libraries.
+- Current plan: mirror CI's direct syntax checks for the documented maintenance/recovery command entrypoints too, so local experiments touching those user-facing wrappers inherit the same lightweight guardrails.

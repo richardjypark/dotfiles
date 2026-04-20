@@ -22,12 +22,16 @@ add_finding() {
   esac
 }
 
-for helper in \
-  'bash -n scripts/lib/load-helpers.sh' \
-  'bash -n dot_local/private_lib/chezmoi-helpers.sh' \
-  'bash -n dot_local/private_lib/chezmoi-update-helpers.sh'; do
-  if ! rg -qF "$helper" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not validate ${helper#bash -n }"
+for command_entrypoint in \
+  'bash -n dot_local/bin/executable_czu' \
+  'bash -n dot_local/bin/executable_czuf' \
+  'bash -n dot_local/bin/executable_czl' \
+  'bash -n dot_local/bin/executable_czm' \
+  'bash -n dot_local/bin/executable_czb' \
+  'bash -n dot_local/bin/executable_czvc' \
+  'bash -n dot_local/bin/executable_chezmoi-rerun-script'; do
+  if ! rg -qF "$command_entrypoint" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not validate ${command_entrypoint#bash -n }"
   fi
 done
 

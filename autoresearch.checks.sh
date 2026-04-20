@@ -38,7 +38,14 @@ chezmoi cat "$HOME/.agents/skills/dotfiles-version-refresh/agents/openai.yaml" \
 chezmoi cat "$HOME/.agents/skills/jj/agents/openai.yaml" \
   | ruby -e 'require "yaml"; YAML.safe_load(STDIN.read, permitted_classes: [], aliases: true)' >/dev/null
 
+bash -n dot_local/bin/executable_czu
+bash -n dot_local/bin/executable_czuf
+bash -n dot_local/bin/executable_czl
+bash -n dot_local/bin/executable_czm
+bash -n dot_local/bin/executable_czb
+bash -n dot_local/bin/executable_czvc
 bash -n dot_local/bin/executable_chezmoi-health-check
+bash -n dot_local/bin/executable_chezmoi-rerun-script
 chezmoi cat "$HOME/.local/bin/chezmoi-health-check" | bash -n
 bash -n bootstrap-vps.sh
 bash -n scripts/bootstrap-omarchy.sh
