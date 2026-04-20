@@ -1,25 +1,26 @@
-# Autoresearch: externals template render coverage in autoresearch checks
+# Autoresearch: shared helper-library syntax coverage in CI
 
 ## Objective
-Find and implement a minimal, low-risk validation fix so `autoresearch.checks.sh` renders and parses `.chezmoiexternal.toml.tmpl` too.
+Find and implement minimal, low-risk CI syntax-check coverage fixes for the repo's shared shell helper libraries.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the low-risk helper-command/state-guidance/doc-symmetry cleanup is now mostly spent down. The latest validation-symmetry passes expanded CI syntax coverage across the managed bin directory, the Pi maintenance-agent helper, and the documented bootstrap/hardening scripts, and broadened `autoresearch.checks.sh` to cover the core rendered tool-setup templates. One concrete validation gap remains for version-refresh style changes: `autoresearch.checks.sh` still doesn't render and parse `.chezmoiexternal.toml.tmpl`, even though maintainer guidance already calls that file out as a key validation target.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the low-risk helper-command/state-guidance/doc-symmetry cleanup is now mostly spent down. The latest validation-symmetry passes expanded CI syntax coverage across the managed bin directory, the Pi maintenance-agent helper, and the documented bootstrap/hardening scripts, and broadened `autoresearch.checks.sh` across key rendered templates and the externals template. A remaining concrete gap is that the shared helper libraries those scripts source still are not syntax-checked directly in CI.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of remaining autoresearch-check omissions for `.chezmoiexternal.toml.tmpl` render coverage in this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of remaining CI syntax omissions for the shared helper libraries in this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
-  - `guidance_findings` — missing local validation coverage
+  - `guidance_findings` — missing CI validation coverage
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits `autoresearch.checks.sh` for whether it still skips rendering/parsing `.chezmoiexternal.toml.tmpl`.
+The script audits the GitHub workflow syntax-check step for whether it still skips the shared helper libraries `scripts/lib/load-helpers.sh`, `dot_local/private_lib/chezmoi-helpers.sh`, and `dot_local/private_lib/chezmoi-update-helpers.sh`.
 
 ## Files in Scope
-- `autoresearch.checks.sh` — should render/parse the externals template too
-- `.chezmoiexternal.toml.tmpl` — high-impact externals source-of-truth template
-- `private_dot_agents/private_skills/dotfiles-version-refresh/SKILL.md` — validation guidance already naming `.chezmoiexternal.toml.tmpl`
+- `.github/workflows/managed-npm-safety.yml` — shell syntax validation should include the shared helper libraries too
+- `scripts/lib/load-helpers.sh` — sourced by early bootstrap/prereq scripts
+- `dot_local/private_lib/chezmoi-helpers.sh` — shared apply-time helper library
+- `dot_local/private_lib/chezmoi-update-helpers.sh` — shared update-wrapper helper library
 
 ## Off Limits
 - Benchmark cheating or audit cheating: do not weaken the audit; improve the maintainer docs for principled reasons.
@@ -35,5 +36,5 @@ The script audits `autoresearch.checks.sh` for whether it still skips rendering/
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
 - Recent segments also improved the two remaining always-run warm paths individually and then measured their combined residual cost at about 5.6 ms per apply in the current harness, which makes further performance work look deeper by nature.
 - Recent helper-command discoverability/state-guidance passes surfaced `chezmoi-rerun-script` broadly, tightened `CLAUDE.md` so it now prefers targeted reruns over clearing all state, and cleaned up the remaining low-risk command-family symmetry gaps around `czm` in docs/comments.
-- The latest validation-symmetry passes completed CI shell syntax coverage for the top-level managed bin directory, the Pi maintenance-agent helper, and the documented bootstrap/hardening scripts, and broadened the local autoresearch safety net across the prerequisites plus `uv`/`node`/`fzf` setup templates.
-- Current plan: add `.chezmoiexternal.toml.tmpl` rendering/parsing to `autoresearch.checks.sh` so version-refresh style experiments inherit the same basic template safety net.
+- The latest validation-symmetry passes completed CI shell syntax coverage for the managed bin directory, the Pi maintenance-agent helper, and the documented bootstrap/hardening scripts, and broadened the local autoresearch safety net across the externals plus key setup templates.
+- Current plan: add direct CI parse coverage for the shared helper libraries that many of those already-validated scripts source.

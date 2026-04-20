@@ -22,9 +22,15 @@ add_finding() {
   esac
 }
 
-if ! rg -qF 'chezmoi execute-template < .chezmoiexternal.toml.tmpl' autoresearch.checks.sh; then
-  add_finding guidance 'autoresearch.checks.sh does not render .chezmoiexternal.toml.tmpl'
-fi
+for script in \
+  scripts/lib/load-helpers.sh \
+  dot_local/private_lib/chezmoi-helpers.sh \
+  dot_local/private_lib/chezmoi-update-helpers.sh
+ do
+  if ! rg -qF "bash -n ${script}" .github/workflows/managed-npm-safety.yml; then
+    add_finding guidance "managed-npm-safety workflow does not syntax-check ${script}"
+  fi
+done
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
