@@ -22,13 +22,9 @@ add_finding() {
   esac
 }
 
-for script in \
-  scripts/lib/load-helpers.sh \
-  dot_local/private_lib/chezmoi-helpers.sh \
-  dot_local/private_lib/chezmoi-update-helpers.sh
- do
-  if ! rg -qF "bash -n ${script}" .github/workflows/managed-npm-safety.yml; then
-    add_finding guidance "managed-npm-safety workflow does not syntax-check ${script}"
+for file in .chezmoidata.toml .chezmoiversion.toml; do
+  if ! rg -qF "Path('${file}').read_text()" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not parse ${file}"
   fi
 done
 

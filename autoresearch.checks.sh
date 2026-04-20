@@ -3,8 +3,11 @@ set -euo pipefail
 
 python3 - <<'PY'
 import json
+import tomllib
 from pathlib import Path
 json.loads(Path('.claude/settings.local.json').read_text())
+tomllib.loads(Path('.chezmoidata.toml').read_text())
+tomllib.loads(Path('.chezmoiversion.toml').read_text())
 PY
 
 chezmoi execute-template < .chezmoiexternal.toml.tmpl \
