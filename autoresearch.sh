@@ -22,9 +22,16 @@ add_finding() {
   esac
 }
 
-if ! rg -qF 'chezmoi execute-template < .chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl | bash -n' autoresearch.checks.sh; then
-  add_finding guidance 'autoresearch.checks.sh does not template-parse run_onchange_before_00-prerequisites.sh.tmpl'
-fi
+for template in \
+  .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl \
+  .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl \
+  .chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl
+ do
+  expected="chezmoi execute-template < ${template} | bash -n"
+  if ! rg -qF "$expected" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not template-parse ${template}"
+  fi
+done
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
