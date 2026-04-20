@@ -45,6 +45,8 @@ jobs:
 
       - name: Validate shell entrypoints
         run: |
+          bash -n dot_local/bin/executable_czu
+          bash -n dot_local/bin/executable_czuf
           bash -n dot_local/bin/executable_czl
           bash -n dot_local/bin/executable_czm
           bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh

@@ -22,12 +22,12 @@ add_finding() {
   esac
 }
 
-if ! rg -q 'for tool in czu czuf czl czm czb czvc chezmoi-bump chezmoi-check-versions; do' dot_local/bin/executable_chezmoi-health-check; then
-  add_finding guidance 'chezmoi-health-check does not include czm in the managed helper command checks'
+if ! rg -q 'bash -n dot_local/bin/executable_czu' .github/workflows/managed-npm-safety.yml; then
+  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_czu'
 fi
 
-if ! rg -q 'bash -n dot_local/bin/executable_czm' .github/workflows/managed-npm-safety.yml; then
-  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_czm'
+if ! rg -q 'bash -n dot_local/bin/executable_czuf' .github/workflows/managed-npm-safety.yml; then
+  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_czuf'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

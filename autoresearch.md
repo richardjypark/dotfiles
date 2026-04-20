@@ -1,25 +1,25 @@
-# Autoresearch: czm validation symmetry cleanup
+# Autoresearch: update-wrapper CI syntax coverage cleanup
 
 ## Objective
-Find and implement minimal, low-risk validation-symmetry fixes so the macOS maintenance wrapper `czm` is checked anywhere the repo already treats sibling managed wrappers as first-class entrypoints.
+Find and implement minimal, low-risk CI syntax-check coverage fixes for the remaining managed update wrappers `czu` and `czuf`.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the low-risk helper-command/state-guidance/doc-symmetry cleanup is now mostly spent down. A remaining principled path is validation symmetry: `czm` is now documented everywhere as a first-class managed wrapper, so health checks and CI syntax checks should not silently skip it while still checking sibling wrappers.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the low-risk helper-command/state-guidance/doc-symmetry cleanup is now mostly spent down. The latest segment brought `czm` into the same health-check and CI syntax coverage as `czl`; the next principled follow-through is to make sure the two base update wrappers `czu` and `czuf` also get explicit CI shell-parse coverage.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of remaining `czm` validation-symmetry omissions for this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of remaining CI syntax-coverage omissions for `czu`/`czuf` in this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
-  - `guidance_findings` — missing health-check or CI validation coverage
+  - `guidance_findings` — missing CI validation coverage
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits the repo's lightweight validation surfaces for whether they still skip `czm` while already validating sibling managed wrappers.
+The script audits the GitHub workflow syntax-check step for whether it still skips `dot_local/bin/executable_czu` and `dot_local/bin/executable_czuf`.
 
 ## Files in Scope
-- `dot_local/bin/executable_chezmoi-health-check` — helper-command presence checks should include `czm`
-- `.github/workflows/managed-npm-safety.yml` — shell entrypoint syntax validation should include `dot_local/bin/executable_czm`
-- `dot_local/bin/executable_czm` — target entrypoint whose existence justifies the added checks
+- `.github/workflows/managed-npm-safety.yml` — shell entrypoint syntax validation should include `dot_local/bin/executable_czu` and `dot_local/bin/executable_czuf`
+- `dot_local/bin/executable_czu` — base jj/chezmoi update wrapper
+- `dot_local/bin/executable_czuf` — forced refresh/update wrapper
 
 ## Off Limits
 - Benchmark cheating or audit cheating: do not weaken the audit; improve the maintainer docs for principled reasons.
@@ -35,5 +35,5 @@ The script audits the repo's lightweight validation surfaces for whether they st
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
 - Recent segments also improved the two remaining always-run warm paths individually and then measured their combined residual cost at about 5.6 ms per apply in the current harness, which makes further performance work look deeper by nature.
 - Recent helper-command discoverability/state-guidance passes surfaced `chezmoi-rerun-script` broadly, tightened `CLAUDE.md` so it now prefers targeted reruns over clearing all state, and cleaned up the remaining low-risk command-family symmetry gaps around `czm` in docs/comments.
-- The next low-risk path is no longer more prose; it is making sure lightweight validation surfaces treat `czm` like the other managed wrappers they already mention or syntax-check.
-- Current plan: add `czm` to the managed helper command checks in `chezmoi-health-check` and to the CI shell-entrypoint syntax validation list if the audit confirms both omissions.
+- The latest validation-symmetry pass brought `czm` into the managed helper audit and CI shell-entrypoint syntax checks.
+- Current plan: extend that same CI shell-parse coverage to the base update wrappers `czu` and `czuf`, which are also first-class managed entrypoints.
