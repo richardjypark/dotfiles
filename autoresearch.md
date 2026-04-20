@@ -1,24 +1,25 @@
-# Autoresearch: update-helper shared-library comment symmetry cleanup
+# Autoresearch: czm validation symmetry cleanup
 
 ## Objective
-Find and implement a minimal, low-risk consistency fix in `dot_local/private_lib/chezmoi-update-helpers.sh` so its header comment includes the macOS maintenance wrapper `czm` alongside the other helper scripts that source it.
+Find and implement minimal, low-risk validation-symmetry fixes so the macOS maintenance wrapper `czm` is checked anywhere the repo already treats sibling managed wrappers as first-class entrypoints.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the helper-command discoverability/state-guidance cleanup is now largely spent down. After fixing the bootstrap doc intro, one similar comment-level symmetry gap remains: the shared update-helper library still says it is only for `czu`/`czuf`/`czl` even though `czm` also sources it.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the low-risk helper-command/state-guidance/doc-symmetry cleanup is now mostly spent down. A remaining principled path is validation symmetry: `czm` is now documented everywhere as a first-class managed wrapper, so health checks and CI syntax checks should not silently skip it while still checking sibling wrappers.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of shared-library header omissions for this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of remaining `czm` validation-symmetry omissions for this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
-  - `guidance_findings` — stale or misleading comment wording
+  - `guidance_findings` — missing health-check or CI validation coverage
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits `dot_local/private_lib/chezmoi-update-helpers.sh` for whether its header comment still omits `czm` even though the macOS wrapper sources the file.
+The script audits the repo's lightweight validation surfaces for whether they still skip `czm` while already validating sibling managed wrappers.
 
 ## Files in Scope
-- `dot_local/private_lib/chezmoi-update-helpers.sh` — header comment still omits `czm`
-- `dot_local/bin/executable_czm` — current source of truth confirming `czm` sources the shared helper library
+- `dot_local/bin/executable_chezmoi-health-check` — helper-command presence checks should include `czm`
+- `.github/workflows/managed-npm-safety.yml` — shell entrypoint syntax validation should include `dot_local/bin/executable_czm`
+- `dot_local/bin/executable_czm` — target entrypoint whose existence justifies the added checks
 
 ## Off Limits
 - Benchmark cheating or audit cheating: do not weaken the audit; improve the maintainer docs for principled reasons.
@@ -33,7 +34,6 @@ The script audits `dot_local/private_lib/chezmoi-update-helpers.sh` for whether 
 ## What's Been Tried
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
 - Recent segments also improved the two remaining always-run warm paths individually and then measured their combined residual cost at about 5.6 ms per apply in the current harness, which makes further performance work look deeper by nature.
-- Recent helper-command discoverability/state-guidance passes surfaced `chezmoi-rerun-script` broadly and tightened `CLAUDE.md` so it now prefers targeted reruns over clearing all state.
-- The larger stale doc/reference cleanup for `run_onchange_*` paths is now effectively complete, including the last targeted source comment.
-- After the bootstrap doc intro fix, one similar symmetry gap remains in the shared update-helper library header: `czm` uses the file but is not named in the comment.
-- Current plan: update the helper-library header comment so it accurately lists all wrapper scripts that source it.
+- Recent helper-command discoverability/state-guidance passes surfaced `chezmoi-rerun-script` broadly, tightened `CLAUDE.md` so it now prefers targeted reruns over clearing all state, and cleaned up the remaining low-risk command-family symmetry gaps around `czm` in docs/comments.
+- The next low-risk path is no longer more prose; it is making sure lightweight validation surfaces treat `czm` like the other managed wrappers they already mention or syntax-check.
+- Current plan: add `czm` to the managed helper command checks in `chezmoi-health-check` and to the CI shell-entrypoint syntax validation list if the audit confirms both omissions.

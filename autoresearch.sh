@@ -22,14 +22,12 @@ add_finding() {
   esac
 }
 
-header_block="$(python3 - <<'PY'
-from pathlib import Path
-lines = Path('dot_local/private_lib/chezmoi-update-helpers.sh').read_text().splitlines()
-print('\n'.join(lines[:3]))
-PY
-)"
-if [[ "$header_block" != *'czm'* ]]; then
-  add_finding guidance 'chezmoi-update-helpers.sh header still omits czm even though executable_czm sources it'
+if ! rg -q 'for tool in czu czuf czl czm czb czvc chezmoi-bump chezmoi-check-versions; do' dot_local/bin/executable_chezmoi-health-check; then
+  add_finding guidance 'chezmoi-health-check does not include czm in the managed helper command checks'
+fi
+
+if ! rg -q 'bash -n dot_local/bin/executable_czm' .github/workflows/managed-npm-safety.yml; then
+  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_czm'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
