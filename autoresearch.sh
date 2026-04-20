@@ -22,14 +22,13 @@ add_finding() {
   esac
 }
 
-for template in \
-  .chezmoiscripts/run_onchange_after_35-setup-claude-code.sh.tmpl \
-  .chezmoiscripts/run_onchange_after_35-setup-pi-cli.sh.tmpl \
-  .chezmoiscripts/run_onchange_after_36-setup-codex.sh.tmpl; do
-  if ! rg -qF "chezmoi execute-template < ${template} | bash -n" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not parse ${template}"
-  fi
-done
+if ! rg -qF "Path('dot_pi/agent/keybindings.json').read_text()" autoresearch.checks.sh; then
+  add_finding guidance "autoresearch.checks.sh does not parse dot_pi/agent/keybindings.json"
+fi
+
+if ! rg -qF 'chezmoi cat "$HOME/.pi/agent/keybindings.json"' autoresearch.checks.sh; then
+  add_finding guidance 'autoresearch.checks.sh does not non-interactively validate $HOME/.pi/agent/keybindings.json'
+fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then

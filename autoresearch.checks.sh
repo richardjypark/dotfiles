@@ -8,6 +8,7 @@ from pathlib import Path
 json.loads(Path('.claude/settings.local.json').read_text())
 json.loads(Path('private_dot_claude/settings.json').read_text())
 json.loads(Path('dot_pi/agent/settings.json').read_text())
+json.loads(Path('dot_pi/agent/keybindings.json').read_text())
 tomllib.loads(Path('.chezmoidata.toml').read_text())
 tomllib.loads(Path('.chezmoiversion.toml').read_text())
 PY
@@ -16,6 +17,8 @@ chezmoi execute-template < .chezmoiexternal.toml.tmpl \
   | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
 chezmoi execute-template < private_dot_codex/private_config.toml.tmpl \
   | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
+chezmoi cat "$HOME/.pi/agent/keybindings.json" \
+  | python3 -c 'import sys, json; json.loads(sys.stdin.read())'
 
 bash -n dot_local/bin/executable_chezmoi-health-check
 chezmoi execute-template < .chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl | bash -n
