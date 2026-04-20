@@ -22,18 +22,13 @@ add_finding() {
   esac
 }
 
-for entrypoint in \
-  dot_local/bin/executable_czb \
-  dot_local/bin/executable_czvc \
-  dot_local/bin/executable_chezmoi-health-check \
-  dot_local/bin/executable_chezmoi-rerun-script \
-  dot_local/bin/executable_chezmoi-bump \
-  dot_local/bin/executable_chezmoi-check-versions
- do
-  if ! rg -qF "bash -n ${entrypoint}" .github/workflows/managed-npm-safety.yml; then
-    add_finding guidance "managed-npm-safety workflow does not syntax-check ${entrypoint}"
-  fi
-done
+if ! rg -qF 'bash -n dot_local/bin/executable_omarchy-screenshot-active-window-clipboard' .github/workflows/managed-npm-safety.yml; then
+  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_omarchy-screenshot-active-window-clipboard'
+fi
+
+if ! rg -qF 'sh -n dot_local/bin/executable_tmux-status-host' .github/workflows/managed-npm-safety.yml; then
+  add_finding guidance 'managed-npm-safety workflow does not syntax-check executable_tmux-status-host with sh -n'
+fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then
