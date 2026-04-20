@@ -5,3 +5,9 @@ __pycache__/
 
 scripts/dev/*
 plans/[0-9]*.md
+
+# Local autoresearch session artifacts
+/autoresearch.md
+/autoresearch.sh
+/autoresearch.jsonl
+/autoresearch.ideas.md
