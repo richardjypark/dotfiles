@@ -44,6 +44,8 @@ bash -n dot_local/bin/executable_czl
 bash -n dot_local/bin/executable_czm
 bash -n dot_local/bin/executable_czb
 bash -n dot_local/bin/executable_czvc
+bash -n dot_local/bin/executable_chezmoi-bump
+bash -n dot_local/bin/executable_chezmoi-check-versions
 bash -n dot_local/bin/executable_chezmoi-health-check
 bash -n dot_local/bin/executable_chezmoi-rerun-script
 chezmoi cat "$HOME/.local/bin/chezmoi-health-check" | bash -n

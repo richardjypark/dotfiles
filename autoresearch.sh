@@ -22,16 +22,11 @@ add_finding() {
   esac
 }
 
-for command_entrypoint in \
-  'bash -n dot_local/bin/executable_czu' \
-  'bash -n dot_local/bin/executable_czuf' \
-  'bash -n dot_local/bin/executable_czl' \
-  'bash -n dot_local/bin/executable_czm' \
-  'bash -n dot_local/bin/executable_czb' \
-  'bash -n dot_local/bin/executable_czvc' \
-  'bash -n dot_local/bin/executable_chezmoi-rerun-script'; do
-  if ! rg -qF "$command_entrypoint" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not validate ${command_entrypoint#bash -n }"
+for direct_command in \
+  'bash -n dot_local/bin/executable_chezmoi-bump' \
+  'bash -n dot_local/bin/executable_chezmoi-check-versions'; do
+  if ! rg -qF "$direct_command" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not validate ${direct_command#bash -n }"
   fi
 done
 
