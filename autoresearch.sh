@@ -22,8 +22,8 @@ add_finding() {
   esac
 }
 
-if ! rg -qF 'chezmoi execute-template < .chezmoiscripts/run_onchange_after_37-setup-tailscale.sh.tmpl | bash -n' autoresearch.checks.sh; then
-  add_finding guidance 'autoresearch.checks.sh does not validate .chezmoiscripts/run_onchange_after_37-setup-tailscale.sh.tmpl'
+if ! rg -qF 'chezmoi execute-template < .chezmoiscripts/run_onchange_before_02-prefetch-assets.sh.tmpl | bash -n' autoresearch.checks.sh; then
+  add_finding guidance 'autoresearch.checks.sh does not validate .chezmoiscripts/run_onchange_before_02-prefetch-assets.sh.tmpl'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
