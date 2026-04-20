@@ -48,7 +48,7 @@ Managed helper commands: `czu` (fetch + rebase + apply), `czuf` (+ externals + f
 ## Operational Notes
 
 - **Git auto-commit enabled** in source dir (`.chezmoi.toml`); no auto-push
-- **State files:** clear `~/.cache/chezmoi-state/` to force script re-runs
+- **State files:** use `chezmoi-rerun-script <source-script-path>` for a targeted `run_onchange_*` rerun; clear `~/.cache/chezmoi-state/` only when you want a full rerun of remembered setup steps
 - **External refresh:** weekly (168h); use `--refresh-externals` to force
 - **Server role:** `CHEZMOI_ROLE=server chezmoi apply` skips Node/Bun/Homebrew/Ansible/Claude Code
 - **Secrets:** untracked local env files only; see `docs/secrets-management.md`
