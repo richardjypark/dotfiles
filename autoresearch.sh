@@ -22,32 +22,16 @@ add_finding() {
   esac
 }
 
-if ! rg -q 'run_onchange_' ARCHITECTURE.md; then
-  add_finding guidance 'ARCHITECTURE.md still describes apply-time scripts without mentioning the run_onchange_* paths now used by most setup scripts'
+if rg -q '^Aliases: `czu`' CLAUDE.md; then
+  add_finding guidance 'CLAUDE.md still describes the managed cz* helpers as aliases'
 fi
 
-if rg -q '\.chezmoiscripts/run_before_00-prerequisites\.sh\.tmpl' docs/architecture-and-performance.md; then
-  add_finding guidance 'docs/architecture-and-performance.md still validates the old run_before_00-prerequisites path'
+if rg -q 'alias for chezmoi-check-versions' .chezmoiscripts/run_after_99-performance-summary.sh; then
+  add_finding guidance 'run_after_99 still labels czvc as an alias instead of a managed command'
 fi
 
-if ! rg -q 'run_onchange_' private_dot_agents/private_skills/chezmoi-script-maintainer/SKILL.md; then
-  add_finding guidance 'chezmoi-script-maintainer SKILL.md still describes the script namespace without mentioning run_onchange_* paths'
-fi
-
-if rg -q '\.chezmoiscripts/run_after_(25|30)-' private_dot_agents/private_skills/chezmoi-script-maintainer/SKILL.md; then
-  add_finding guidance 'chezmoi-script-maintainer SKILL.md still uses stale run_after_* validation examples'
-fi
-
-if rg -q '\.chezmoiscripts/run_(before_00|after_(25|30|35|36|37))-' private_dot_agents/private_skills/chezmoi-script-maintainer/references/script-patterns.md; then
-  add_finding guidance 'script-patterns.md still points at stale pre-run_onchange script paths'
-fi
-
-if rg -q '\.chezmoiscripts/run_after_(20|25|30)-' private_dot_agents/private_skills/dotfiles-version-refresh/SKILL.md; then
-  add_finding guidance 'dotfiles-version-refresh SKILL.md still uses stale run_after_* validation examples'
-fi
-
-if rg -q '\.chezmoiscripts/run_after_(20|25|30)-' private_dot_agents/private_skills/dotfiles-version-refresh/references/version-map.md; then
-  add_finding guidance 'version-map.md still points at stale run_after_* script touchpoints'
+if rg -q 'alias for chezmoi-bump' .chezmoiscripts/run_after_99-performance-summary.sh; then
+  add_finding guidance 'run_after_99 still labels czb as an alias instead of a managed command'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"

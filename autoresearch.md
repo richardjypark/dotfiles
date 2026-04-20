@@ -1,12 +1,12 @@
-# Autoresearch: script-doc path consistency cleanup
+# Autoresearch: cz* command wording consistency cleanup
 
 ## Objective
-Find and implement minimal, low-risk improvements to consistency between the actual `.chezmoiscripts/` paths and the docs/skill references that point at them.
+Find and implement minimal, low-risk improvements to consistency in how the repo documents the managed `cz*` helper commands.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, the deferred Neovim semantics note was clarified inline, and one stale `czl` doc path was aligned. The next promising path is another consistency cleanup: several skill/reference docs still point at old `run_after_*` / `run_before_*` script paths even though most of those setup scripts were converted to `run_onchange_*` long ago.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, the deferred Neovim semantics note was clarified inline, and stale script-path/docs references were updated. The next promising path is another small consistency cleanup: README already says the `cz*` helpers are managed commands installed in `~/.local/bin`, but `CLAUDE.md` still calls them aliases and the performance summary script still labels `czvc`/`czb` as aliases.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the script-doc path consistency invariants for this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of audit findings against the `cz*` command wording consistency invariants for this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
   - `guidance_findings` — missing health-check/drift-warning coverage
@@ -14,15 +14,12 @@ The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits a small set of docs/skill files for stale `.chezmoiscripts/run_after_*` or `.chezmoiscripts/run_before_*` references that should now point at `run_onchange_*` paths.
+The script audits the Claude-facing docs and the performance summary script for stale alias wording around the managed `cz*` helper commands.
 
 ## Files in Scope
-- `ARCHITECTURE.md` — high-level apply-time script routing
-- `docs/architecture-and-performance.md` — validation checklist
-- `private_dot_agents/private_skills/chezmoi-script-maintainer/SKILL.md` — script-maintainer workflow/validation guidance
-- `private_dot_agents/private_skills/chezmoi-script-maintainer/references/script-patterns.md` — canonical script reference examples
-- `private_dot_agents/private_skills/dotfiles-version-refresh/SKILL.md` — version-refresh validation examples
-- `private_dot_agents/private_skills/dotfiles-version-refresh/references/version-map.md` — script touchpoint map
+- `CLAUDE.md` — Claude-facing maintenance doc that still calls the helpers aliases
+- `.chezmoiscripts/run_after_99-performance-summary.sh` — summary script that still labels `czvc`/`czb` as aliases
+- `README.md` — canonical source of truth stating that `cz*` helpers are managed commands in `~/.local/bin`
 
 ## Off Limits
 - Benchmark cheating: do not remove audit checks unless a stronger equivalent guarantee replaces them.
@@ -39,6 +36,6 @@ The script audits a small set of docs/skill files for stale `.chezmoiscripts/run
 - Recent segments also spent down the low-hanging warm-apply work in the two remaining always-run scripts.
 - Earlier segments spent down the low-hanging agent-safety/prompt backlog, improved the two remaining always-run warm paths, and then narrowed the tracked repo-local Claude allowlist plus aligned docs/health checks around the resulting policy.
 - The older dispatcher/consolidation performance idea now looks mostly stale because only two always-run scripts remain and both already received their low-hanging warm-path cleanups.
-- Recent segments also fixed the stale `czl` global-npm wording and clarified the deferred Neovim version semantics inline.
-- New low-hanging doc gap: several docs/skill references still name legacy `run_after_*` / `run_before_*` paths even though the actual scripts are now mostly `run_onchange_*`.
-- Current plan: update those references to the canonical current paths so future agents do not chase nonexistent script names when validating or editing setup logic.
+- Recent segments also fixed the stale `czl` global-npm wording, clarified the deferred Neovim version semantics inline, and updated stale pre-run_onchange script references across the architecture/skill docs.
+- New low-hanging doc gap: README already says the `cz*` helpers are managed commands in `~/.local/bin`, but `CLAUDE.md` and the performance summary script still call some of them aliases.
+- Current plan: align those remaining surfaces with the canonical command wording so agents and humans get one consistent mental model.
