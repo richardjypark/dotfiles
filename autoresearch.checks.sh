@@ -60,6 +60,7 @@ bash -n scripts/lib/load-helpers.sh
 bash -n dot_local/private_lib/chezmoi-helpers.sh
 bash -n dot_local/private_lib/chezmoi-update-helpers.sh
 chezmoi execute-template < .chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_onchange_before_02-prefetch-assets.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_24-setup-neovim.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
