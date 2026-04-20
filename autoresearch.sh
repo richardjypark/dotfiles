@@ -22,13 +22,11 @@ add_finding() {
   esac
 }
 
-if ! rg -qF "Path('dot_pi/agent/keybindings.json').read_text()" autoresearch.checks.sh; then
-  add_finding guidance "autoresearch.checks.sh does not parse dot_pi/agent/keybindings.json"
-fi
-
-if ! rg -qF 'chezmoi cat "$HOME/.pi/agent/keybindings.json"' autoresearch.checks.sh; then
-  add_finding guidance 'autoresearch.checks.sh does not non-interactively validate $HOME/.pi/agent/keybindings.json'
-fi
+for target in '$HOME/.claude/settings.json' '$HOME/.pi/agent/settings.json'; do
+  if ! rg -qF "chezmoi cat \"${target}\"" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not non-interactively validate ${target}"
+  fi
+done
 
 printf 'Audit findings (%s):\n' "$issue_count"
 if [ "$issue_count" -eq 0 ]; then

@@ -17,6 +17,10 @@ chezmoi execute-template < .chezmoiexternal.toml.tmpl \
   | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
 chezmoi execute-template < private_dot_codex/private_config.toml.tmpl \
   | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
+chezmoi cat "$HOME/.claude/settings.json" \
+  | python3 -c 'import sys, json; json.loads(sys.stdin.read())'
+chezmoi cat "$HOME/.pi/agent/settings.json" \
+  | python3 -c 'import sys, json; json.loads(sys.stdin.read())'
 chezmoi cat "$HOME/.pi/agent/keybindings.json" \
   | python3 -c 'import sys, json; json.loads(sys.stdin.read())'
 
@@ -51,8 +55,6 @@ HOME="$check_home" STATE_DIR="$check_state_dir" VERBOSE=false bash .chezmoiscrip
 chezmoi apply --dry-run \
   "$HOME/.codex/config.toml" \
   "$HOME/.codex/AGENTS.md" \
-  "$HOME/.claude/settings.json" \
-  "$HOME/.pi/agent/settings.json" \
   "$HOME/.agents/skills/chezmoi-repo-maintainer/agents/openai.yaml" \
   "$HOME/.agents/skills/chezmoi-script-maintainer/agents/openai.yaml" \
   "$HOME/.agents/skills/chezmoi-bootstrap-operator/agents/openai.yaml" \
