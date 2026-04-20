@@ -26,6 +26,7 @@ chezmoi cat "$HOME/.pi/agent/settings.json" \
   | python3 -c 'import sys, json; json.loads(sys.stdin.read())'
 chezmoi cat "$HOME/.pi/agent/keybindings.json" \
   | python3 -c 'import sys, json; json.loads(sys.stdin.read())'
+chezmoi cat "$HOME/.zshrc" | zsh -n
 chezmoi cat "$HOME/.agents/skills/chezmoi-repo-maintainer/agents/openai.yaml" \
   | ruby -e 'require "yaml"; YAML.safe_load(STDIN.read, permitted_classes: [], aliases: true)' >/dev/null
 chezmoi cat "$HOME/.agents/skills/chezmoi-script-maintainer/agents/openai.yaml" \
@@ -55,6 +56,11 @@ cleanup() {
   rm -rf "$check_tmpdir"
 }
 trap cleanup EXIT
+
+tmux_check_file="$check_tmpdir/tmux.conf"
+tmux_check_socket="autoresearch-check-$$"
+chezmoi cat "$HOME/.tmux.conf" > "$tmux_check_file"
+tmux -L "$tmux_check_socket" -f /dev/null start-server \; source-file "$tmux_check_file" \; kill-server >/dev/null 2>&1
 
 check_home="$check_tmpdir/home"
 check_state_dir="$check_tmpdir/state"
