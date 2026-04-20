@@ -22,15 +22,12 @@ add_finding() {
   esac
 }
 
-for file in private_dot_claude/settings.json dot_pi/agent/settings.json; do
-  if ! rg -qF "Path('${file}').read_text()" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not parse ${file}"
-  fi
-done
-
-for target in '$HOME/.claude/settings.json' '$HOME/.pi/agent/settings.json'; do
-  if ! rg -qF "\"${target}\"" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not dry-run ${target}"
+for template in \
+  .chezmoiscripts/run_onchange_after_35-setup-claude-code.sh.tmpl \
+  .chezmoiscripts/run_onchange_after_35-setup-pi-cli.sh.tmpl \
+  .chezmoiscripts/run_onchange_after_36-setup-codex.sh.tmpl; do
+  if ! rg -qF "chezmoi execute-template < ${template} | bash -n" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not parse ${template}"
   fi
 done
 
