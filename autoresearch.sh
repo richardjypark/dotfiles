@@ -22,11 +22,11 @@ add_finding() {
   esac
 }
 
-for direct_command in \
-  'bash -n dot_local/bin/executable_chezmoi-bump' \
-  'bash -n dot_local/bin/executable_chezmoi-check-versions'; do
-  if ! rg -qF "$direct_command" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not validate ${direct_command#bash -n }"
+for maintenance_entrypoint in \
+  'bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh' \
+  'bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh'; do
+  if ! rg -qF "$maintenance_entrypoint" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not validate ${maintenance_entrypoint#bash -n }"
   fi
 done
 

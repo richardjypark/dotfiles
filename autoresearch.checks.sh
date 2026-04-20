@@ -48,6 +48,8 @@ bash -n dot_local/bin/executable_chezmoi-bump
 bash -n dot_local/bin/executable_chezmoi-check-versions
 bash -n dot_local/bin/executable_chezmoi-health-check
 bash -n dot_local/bin/executable_chezmoi-rerun-script
+bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh
+bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh
 chezmoi cat "$HOME/.local/bin/chezmoi-health-check" | bash -n
 bash -n bootstrap-vps.sh
 bash -n scripts/bootstrap-omarchy.sh
