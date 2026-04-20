@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# chezmoi-update-helpers.sh — shared functions for czu/czuf/czl
-# Sourced by ~/.local/bin/czu, ~/.local/bin/czuf, and ~/.local/bin/czl
+# chezmoi-update-helpers.sh — shared functions for czu/czuf/czl/czm
+# Sourced by ~/.local/bin/czu, ~/.local/bin/czuf, ~/.local/bin/czl, and ~/.local/bin/czm
 
 chezmoi_source_dir() {
     printf '%s\n' "$HOME/.local/share/chezmoi"

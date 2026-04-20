@@ -1,24 +1,24 @@
-# Autoresearch: bootstrap doc maintenance-wrapper symmetry cleanup
+# Autoresearch: update-helper shared-library comment symmetry cleanup
 
 ## Objective
-Find and implement a minimal, low-risk consistency fix in `docs/bootstrap-and-flags.md` so its update-helper intro line includes the macOS maintenance wrapper `czm` alongside the already-documented `czl`.
+Find and implement a minimal, low-risk consistency fix in `dot_local/private_lib/chezmoi-update-helpers.sh` so its header comment includes the macOS maintenance wrapper `czm` alongside the other helper scripts that source it.
 
-The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the helper-command discoverability/state-guidance cleanup is now largely spent down. One small doc-consistency gap remains in the bootstrap flags doc: the intro line above the helper bullets still lists `czu`, `czuf`, and `czl` but omits `czm`, even though the bullets below already document both platform-specific maintenance wrappers.
+The earlier Claude/docs/health-check/prompt gaps were closed in prior segments, the low-hanging warm-apply work in the two remaining always-run scripts was addressed, recent permission-cleanup passes removed most stale repo-local Claude Bash rules plus one stale explicit fetch domain, and the helper-command discoverability/state-guidance cleanup is now largely spent down. After fixing the bootstrap doc intro, one similar comment-level symmetry gap remains: the shared update-helper library still says it is only for `czu`/`czuf`/`czl` even though `czm` also sources it.
 
 ## Metrics
-- **Primary**: `issue_count` (unitless, lower is better) — number of bootstrap-doc helper-list omissions for this segment.
+- **Primary**: `issue_count` (unitless, lower is better) — number of shared-library header omissions for this segment.
 - **Secondary**:
   - `security_findings` — concrete permission-surface problems
-  - `guidance_findings` — stale or misleading doc wording
+  - `guidance_findings` — stale or misleading comment wording
 
 ## How to Run
 `./autoresearch.sh`
 
-The script audits `docs/bootstrap-and-flags.md` for whether its update-helper intro line still omits `czm` while the rest of the section documents it.
+The script audits `dot_local/private_lib/chezmoi-update-helpers.sh` for whether its header comment still omits `czm` even though the macOS wrapper sources the file.
 
 ## Files in Scope
-- `docs/bootstrap-and-flags.md` — update-helper intro line still omits `czm`
-- `README.md` and `docs/tooling-and-skills.md` — source-of-truth docs already treating `czm` as a first-class maintenance wrapper
+- `dot_local/private_lib/chezmoi-update-helpers.sh` — header comment still omits `czm`
+- `dot_local/bin/executable_czm` — current source of truth confirming `czm` sources the shared helper library
 
 ## Off Limits
 - Benchmark cheating or audit cheating: do not weaken the audit; improve the maintainer docs for principled reasons.
@@ -35,4 +35,5 @@ The script audits `docs/bootstrap-and-flags.md` for whether its update-helper in
 - Recent segments also improved the two remaining always-run warm paths individually and then measured their combined residual cost at about 5.6 ms per apply in the current harness, which makes further performance work look deeper by nature.
 - Recent helper-command discoverability/state-guidance passes surfaced `chezmoi-rerun-script` broadly and tightened `CLAUDE.md` so it now prefers targeted reruns over clearing all state.
 - The larger stale doc/reference cleanup for `run_onchange_*` paths is now effectively complete, including the last targeted source comment.
-- Current plan: clean up one remaining command-family symmetry gap where `docs/bootstrap-and-flags.md` names `czl` but omits `czm` in the section intro despite documenting both below.
+- After the bootstrap doc intro fix, one similar symmetry gap remains in the shared update-helper library header: `czm` uses the file but is not named in the comment.
+- Current plan: update the helper-library header comment so it accurately lists all wrapper scripts that source it.

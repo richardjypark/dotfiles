@@ -22,9 +22,14 @@ add_finding() {
   esac
 }
 
-intro_line="$(rg -n '^`czu`, `czuf`,.*managed wrapper commands installed to `~/.local/bin`\.$' docs/bootstrap-and-flags.md || true)"
-if [[ "$intro_line" != *'`czm`'* ]]; then
-  add_finding guidance 'docs/bootstrap-and-flags.md update-helper intro still omits czm'
+header_block="$(python3 - <<'PY'
+from pathlib import Path
+lines = Path('dot_local/private_lib/chezmoi-update-helpers.sh').read_text().splitlines()
+print('\n'.join(lines[:3]))
+PY
+)"
+if [[ "$header_block" != *'czm'* ]]; then
+  add_finding guidance 'chezmoi-update-helpers.sh header still omits czm even though executable_czm sources it'
 fi
 
 printf 'Audit findings (%s):\n' "$issue_count"
