@@ -22,12 +22,12 @@ add_finding() {
   esac
 }
 
-for entrypoint in \
-  'bash -n bootstrap-vps.sh' \
-  'bash -n scripts/bootstrap-omarchy.sh' \
-  'bash -n scripts/server-lockdown-tailscale.sh'; do
-  if ! rg -qF "$entrypoint" autoresearch.checks.sh; then
-    add_finding guidance "autoresearch.checks.sh does not validate ${entrypoint#bash -n }"
+for helper in \
+  'bash -n scripts/lib/load-helpers.sh' \
+  'bash -n dot_local/private_lib/chezmoi-helpers.sh' \
+  'bash -n dot_local/private_lib/chezmoi-update-helpers.sh'; do
+  if ! rg -qF "$helper" autoresearch.checks.sh; then
+    add_finding guidance "autoresearch.checks.sh does not validate ${helper#bash -n }"
   fi
 done
 
