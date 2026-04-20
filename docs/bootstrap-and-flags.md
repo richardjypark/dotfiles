@@ -63,7 +63,7 @@ Use role/profile conditions in templates/scripts before adding hostname-specific
 
 ## Update Helper Commands
 
-`czu`, `czuf`, and `czl` are managed wrapper commands installed to `~/.local/bin`.
+`czu`, `czuf`, `czl`, and `czm` are managed wrapper commands installed to `~/.local/bin`.
 
 - `czu`/`czuf` choose the rebase target from `.chezmoidata.toml` `[git].defaultBranch`, then fallback to the Git remote default branch, then `master`
 - on Omarchy hosts, if `CHEZMOI_PROFILE` is unset, wrappers default it to `omarchy`
