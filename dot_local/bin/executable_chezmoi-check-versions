@@ -146,7 +146,7 @@ if [ "$has_update" = "true" ]; then
     output="${output}
 
 Updates available! To bump versions automatically:
-  chezmoi-bump --check           # Full report (all 13 deps)
+  chezmoi-bump --check           # Full report (all 14 deps)
   chezmoi-bump <dep> [<dep>...]  # Bump specific deps
   chezmoi-bump --all             # Bump all outdated deps"
 fi

@@ -11,6 +11,7 @@ The apply-time setup script installs this project with:
 - reinstall-on-state/lockfile drift, even when the top-level `pi` version is unchanged
 - optional `CHEZMOI_NPM_REGISTRY` support for an internal npm proxy
 - a default 3-day npm publish-age delay via `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`, enforced across every versioned package in the committed lockfile
+- `chezmoi-bump pi` resolves the newest `@mariozechner/pi-coding-agent` version that already satisfies that publish-age delay and regenerates both committed Pi lockfiles
 - a pinned `pi-autoresearch` git source instead of mutable repo HEAD
 
 The resulting binary is linked to:

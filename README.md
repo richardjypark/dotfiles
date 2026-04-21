@@ -55,7 +55,7 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 | `czl` | Managed wrapper command in `~/.local/bin/czl`: fail-fast Omarchy/Arch workflow that refreshes sudo credentials, runs `czuf`, upgrades official Arch packages with `pacman -Syu`, runs `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` so the machine converges to the newly bumped stable pins. Pi updates are handled by the repo’s managed pinned install during apply instead of a floating global npm update. | Single-command daily maintenance on Omarchy/Arch Linux. |
 | `czm` | Managed wrapper command in `~/.local/bin/czm`: fail-fast macOS workflow that runs `czuf` in a Homebrew-maintenance mode, then `brew update` + `brew upgrade` + `brew upgrade --cask --greedy` + `brew cleanup`, then `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` only when bumped pins changed tracked source files. | Single-command daily maintenance on macOS. |
 | `czvc` | Managed wrapper command in `~/.local/bin/czvc`: runs `chezmoi-check-versions` and exits non-zero when API/network errors make results incomplete. | Check pinned versions against upstream releases. |
-| `czb` | Managed wrapper command in `~/.local/bin/czb`: runs `chezmoi-bump` with fail-closed transaction checks (preflight -> apply -> verify -> rollback on failure). | Bump pinned dependency versions safely. |
+| `czb` | Managed wrapper command in `~/.local/bin/czb`: runs `chezmoi-bump` with fail-closed transaction checks (preflight -> apply -> verify -> rollback on failure). `chezmoi-bump pi` resolves to the newest `@mariozechner/pi-coding-agent` version that already satisfies `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`. | Bump pinned dependency versions safely. |
 | `chezmoi-health-check` | Managed helper in `~/.local/bin/chezmoi-health-check`: audits key tool installs, config files, bootstrap security defaults, and agent configuration safety/routing checks. | Run after bootstrap/apply or when debugging local drift. |
 | `chezmoi-rerun-script <source-script-path>` | Managed helper in `~/.local/bin/chezmoi-rerun-script`: clears chezmoi's remembered `run_onchange_*` state for the given source script so the next `chezmoi apply` reruns it. | Recover from manual deletions or force a one-off rerun of a bootstrap/setup script after local drift. |
 
@@ -171,6 +171,7 @@ Behavior:
 - lockfile/state drift forces a fresh `npm ci` even when the top-level pinned `pi` version is unchanged
 - `pi-autoresearch` is installed from a pinned git commit instead of mutable repo HEAD
 - the public npm registry path is delayed by default with `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS=3`, and the age gate is checked against every versioned package in each committed lockfile
+- `chezmoi-bump pi` regenerates both committed Pi lockfiles against the newest npm version that already satisfies that publish-age delay
 - the scheduled Pi maintenance agent excludes npm-backed `chezmoi-bump` updates by default; opt in with `PI_MAINTENANCE_ALLOW_NPM_BUMPS=1` only if you intentionally want unattended npm bumps
 - set `CHEZMOI_NPM_REGISTRY` in the machine-local env file if you want scheduled runs to use a vetted internal npm proxy
 - removing the marker file and re-running `chezmoi apply` disables the timer on that machine
