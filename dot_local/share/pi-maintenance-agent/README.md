@@ -43,5 +43,5 @@ The managed Pi dependency is installed with:
 The scheduled maintenance flow also defaults to a freeze policy for npm-backed version bumps:
 
 - `chezmoi-bump` runs only the non-npm dependency set by default
-- npm-backed bumps such as Claude Code are excluded from unattended daily runs
-- set `PI_MAINTENANCE_ALLOW_NPM_BUMPS=1` in the machine-local runtime env only if you intentionally want the agent to include npm-backed bumps
+- npm-backed bumps such as Claude Code and Pi are excluded from unattended daily runs
+- set `PI_MAINTENANCE_ALLOW_NPM_BUMPS=1` in the machine-local runtime env only if you intentionally want the agent to include npm-backed bumps; when enabled, Pi bumps still resolve only to versions that already satisfy `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`

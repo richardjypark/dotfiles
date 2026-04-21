@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # chezmoi-bump — Automated dependency version bumper for chezmoi dotfiles
-# Queries latest versions for all 13 pinned dependencies, fetches SHA256
-# checksums where needed, and edits TOML config files in place.
+# Queries latest versions for all 14 pinned dependencies, fetches SHA256
+# checksums where needed, and edits pinned source files in place.
 #
 # Usage:
 #   chezmoi-bump --check             # Report all deps (like chezmoi-check-versions but complete)
@@ -48,7 +48,7 @@ else
     RED="" GREEN="" YELLOW="" CYAN="" BOLD="" RESET=""
 fi
 
-# --- All 13 dependencies ---
+# --- All 14 dependencies ---
 # Format: name|github_repo_or_source|version_format|sha_strategy|has_4_platforms
 # version_format: raw (no prefix), v (v prefix), bun (bun-v prefix), codex (rust-v prefix)
 # sha_strategy: none, download_compute, sidecar, shasums, checksums_txt, pkgs_tailscale
@@ -62,6 +62,7 @@ ALL_DEPS=(
     "tailscale|tailscale/tailscale|raw|pkgs_tailscale|2"
     "chezmoi|twpayne/chezmoi|raw|checksums_txt|4"
     "claude|npm:@anthropic-ai/claude-code|raw|none|0"
+    "pi|npm:@mariozechner/pi-coding-agent|raw|none|0"
     "nvm|nvm-sh/nvm|v|none|0"
     "fzf|junegunn/fzf|raw|none|0"
     "zsh-syntax-highlighting|zsh-users/zsh-syntax-highlighting|raw|none|0"
@@ -194,7 +195,7 @@ usage() {
 Usage: chezmoi-bump [OPTIONS] [DEPS...]
 
 Options:
-  --check, -c        Report versions for all 13 deps (default if no deps given)
+  --check, -c        Report versions for all 14 deps (default if no deps given)
   --all, -a          Bump all deps with available updates
   --dry-run, -n      Show what would change without writing
   --skip-sha         Version-only bump (skip SHA256 artifact downloads)
@@ -206,7 +207,7 @@ Options:
   --help, -h         Show this help
 
 Examples:
-  chezmoi-bump --check             # Report all 13 deps
+  chezmoi-bump --check             # Report all 14 deps
   chezmoi-bump jj uv               # Bump specific deps
   chezmoi-bump --all               # Bump everything outdated
   chezmoi-bump --dry-run jj        # Preview changes for jj
@@ -215,7 +216,7 @@ Examples:
   chezmoi-bump --skip-sha --all    # Version-only bump (no downloads)
 
 Dependencies: neovim, jj, codex, uv, starship, bun, tailscale, chezmoi,
-              claude, nvm, fzf, zsh-syntax-highlighting, zsh-autosuggestions
+              claude, pi, nvm, fzf, zsh-syntax-highlighting, zsh-autosuggestions
 EOF
 }
 
@@ -421,18 +422,154 @@ EOF
     echo ""
 }
 
+bump_npm_registry_url() {
+    local registry
+    registry="${CHEZMOI_NPM_REGISTRY:-${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org/}}"
+    registry="${registry%/}"
+    printf '%s\n' "$registry"
+}
+
+bump_npm_registry_is_public() {
+    case "$(bump_npm_registry_url)" in
+        https://registry.npmjs.org|http://registry.npmjs.org|registry.npmjs.org)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+bump_npm_package_metadata_url() {
+    local package="$1"
+    local encoded="$package"
+    encoded="${encoded//@/%40}"
+    encoded="${encoded//\//%2F}"
+    printf '%s/%s\n' "$(bump_npm_registry_url)" "$encoded"
+}
+
+bump_npm_fetch_package_metadata() {
+    local package="$1"
+    curl -fsSL --retry 2 "$(bump_npm_package_metadata_url "$package")" 2>/dev/null || true
+}
+
+bump_npm_min_version_age_days() {
+    local value
+    value="${CHEZMOI_NPM_MIN_VERSION_AGE_DAYS:-3}"
+    case "$value" in
+        ''|0)
+            printf '0\n'
+            return 0
+            ;;
+        *[!0-9]*)
+            echo "${RED}Error: CHEZMOI_NPM_MIN_VERSION_AGE_DAYS must be a non-negative integer.${RESET}" >&2
+            return 1
+            ;;
+    esac
+    printf '%s\n' "$value"
+}
+
 npm_latest_version() {
     local package="$1"
     local response version
-    response="$(curl -fsSL --retry 2 "https://registry.npmjs.org/${package}/latest" 2>/dev/null || true)"
+    response="$(bump_npm_fetch_package_metadata "$package")"
     if [ -z "$response" ]; then echo ""; return 0; fi
 
     if command -v jq >/dev/null 2>&1; then
-        version="$(printf '%s' "$response" | jq -r '.version // empty' 2>/dev/null || true)"
+        version="$(printf '%s' "$response" | jq -r '.["dist-tags"].latest // empty' 2>/dev/null || true)"
+    elif command -v python3 >/dev/null 2>&1; then
+        version="$(printf '%s' "$response" | python3 -c 'import json, sys; data = json.load(sys.stdin); print((data.get("dist-tags") or {}).get("latest", ""))' 2>/dev/null || true)"
     else
-        version="$(printf '%s' "$response" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+        version="$(printf '%s' "$response" | sed -n 's/.*"latest"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
     fi
     echo "$version"
+}
+
+npm_latest_eligible_version() {
+    local package="$1"
+    local min_days response version
+    min_days="$(bump_npm_min_version_age_days)" || return 1
+    case "$min_days" in
+        0)
+            npm_latest_version "$package"
+            return 0
+            ;;
+    esac
+
+    response="$(bump_npm_fetch_package_metadata "$package")"
+    if [ -z "$response" ]; then
+        echo ""
+        return 0
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        version="$(printf '%s' "$response" | jq -r --argjson min_days "$min_days" '
+            [
+              (.time // {})
+              | to_entries[]
+              | select(.key | test("^[0-9]+(\\.[0-9]+)+$"))
+              | select((.value | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) <= (now - ($min_days * 86400)))
+              | .key
+            ]
+            | sort_by(split(".") | map(tonumber))
+            | last // empty
+        ' 2>/dev/null || true)"
+    elif command -v python3 >/dev/null 2>&1; then
+        version="$(printf '%s' "$response" | python3 -c '
+import json
+import re
+import sys
+from datetime import datetime, timedelta, timezone
+
+min_days = int(sys.argv[1])
+data = json.load(sys.stdin)
+threshold = datetime.now(timezone.utc) - timedelta(days=min_days)
+pattern = re.compile(r"^\d+(?:\.\d+)+$")
+eligible = []
+
+for version_name, published_at in (data.get("time") or {}).items():
+    if not pattern.match(version_name):
+        continue
+    try:
+        parsed = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+    except ValueError:
+        continue
+    if parsed <= threshold:
+        eligible.append((tuple(int(part) for part in version_name.split(".")), version_name))
+
+if eligible:
+    eligible.sort()
+    print(eligible[-1][1])
+' "$min_days" 2>/dev/null || true)"
+    else
+        version=""
+    fi
+
+    if [ -z "$version" ] && ! bump_npm_registry_is_public; then
+        version="$(npm_latest_version "$package")"
+    fi
+
+    echo "$version"
+}
+
+get_current_pi_version() {
+    local cli_file="$CHEZMOI_DIR/dot_local/share/pi-cli/package.json"
+    local agent_file="$CHEZMOI_DIR/dot_local/share/pi-maintenance-agent/package.json"
+    local settings_file="$CHEZMOI_DIR/dot_pi/agent/settings.json"
+    local cli_version agent_version settings_version
+
+    cli_version="$(sed -n 's/.*"@mariozechner\/pi-coding-agent":[[:space:]]*"\([^"]*\)".*/\1/p' "$cli_file" | head -1)"
+    agent_version="$(sed -n 's/.*"@mariozechner\/pi-coding-agent":[[:space:]]*"\([^"]*\)".*/\1/p' "$agent_file" | head -1)"
+    settings_version="$(sed -n 's/.*"lastChangelogVersion":[[:space:]]*"\([^"]*\)".*/\1/p' "$settings_file" | head -1)"
+
+    if [ -z "$cli_version" ] || [ -z "$agent_version" ] || [ -z "$settings_version" ]; then
+        return 0
+    fi
+
+    if [ "$cli_version" != "$agent_version" ] || [ "$cli_version" != "$settings_version" ]; then
+        echo "${YELLOW}Warning: Pi pin drift detected across managed source files; expected a single version.${RESET}" >&2
+        return 0
+    fi
+
+    printf '%s\n' "$cli_version"
 }
 
 # ============================================================================
@@ -454,6 +591,9 @@ get_current_version() {
         claude)
             sed -n '/^\[pinned\.claude\]/,/^\[/{s/^npm_version = "\([^"]*\)".*/\1/p;}' \
                 "$CHEZMOI_DIR/.chezmoidata.toml" | head -1
+            ;;
+        pi)
+            get_current_pi_version
             ;;
         nvm)
             sed -n '/^\[nvm\]/,/^\[/{s/^version = "\([^"]*\)".*/\1/p;}' \
@@ -487,7 +627,11 @@ get_latest_version() {
     # npm dependency
     if [[ "$source" == npm:* ]]; then
         local package="${source#npm:}"
-        raw_tag="$(npm_latest_version "$package")"
+        if [ "$dep_name" = "pi" ]; then
+            raw_tag="$(npm_latest_eligible_version "$package")"
+        else
+            raw_tag="$(npm_latest_version "$package")"
+        fi
         echo "$raw_tag"
         return 0
     fi
@@ -1716,7 +1860,7 @@ run_check() {
         return 0
     fi
 
-    echo "Checking all 13 pinned dependency versions..."
+    echo "Checking all 14 pinned dependency versions..."
     echo ""
 
     local output=""
@@ -1792,6 +1936,442 @@ run_check() {
 }
 
 # ============================================================================
+# Pi dependency bump helpers
+# ============================================================================
+
+pi_package_json_files() {
+    printf '%s\n' \
+        "$CHEZMOI_DIR/dot_local/share/pi-cli/package.json" \
+        "$CHEZMOI_DIR/dot_local/share/pi-maintenance-agent/package.json"
+}
+
+pi_project_dirs() {
+    printf '%s\n' \
+        "$CHEZMOI_DIR/dot_local/share/pi-cli" \
+        "$CHEZMOI_DIR/dot_local/share/pi-maintenance-agent"
+}
+
+pi_lockfile_files() {
+    printf '%s\n' \
+        "$CHEZMOI_DIR/dot_local/share/pi-cli/package-lock.json" \
+        "$CHEZMOI_DIR/dot_local/share/pi-maintenance-agent/package-lock.json"
+}
+
+pi_settings_file() {
+    printf '%s\n' "$CHEZMOI_DIR/dot_pi/agent/settings.json"
+}
+
+pi_lockfile_regen_description() {
+    local before_cutoff="$1"
+    if [ -n "$before_cutoff" ]; then
+        printf 'regenerate committed npm lockfile with npm install --package-lock-only --ignore-scripts --omit=dev --before %s\n' "$before_cutoff"
+    else
+        printf 'regenerate committed npm lockfile with npm install --package-lock-only --ignore-scripts --omit=dev\n'
+    fi
+}
+
+ensure_repo_npm_helpers_loaded() {
+    if [ -n "${CHEZMOI_BUMP_REPO_HELPERS_LOADED:-}" ]; then
+        return 0
+    fi
+
+    local helper_file="$CHEZMOI_DIR/dot_local/private_lib/chezmoi-helpers.sh"
+    if [ ! -f "$helper_file" ]; then
+        tx_fail "Missing helper library: $(display_repo_path "$helper_file")"
+        return 1
+    fi
+
+    # shellcheck disable=SC1090
+    . "$helper_file"
+    CHEZMOI_BUMP_REPO_HELPERS_LOADED=1
+}
+
+pi_before_cutoff_iso() {
+    local min_days="$1"
+    python3 - "$min_days" <<'PY'
+import sys
+from datetime import datetime, timedelta, timezone
+
+min_days = int(sys.argv[1])
+cutoff = datetime.now(timezone.utc) - timedelta(days=min_days)
+print(cutoff.strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+}
+
+pi_write_version_literals() {
+    local current="$1"
+    local latest="$2"
+    local file settings_file
+
+    while IFS= read -r file; do
+        if ! replace_literal_once \
+            "$file" \
+            "\"@mariozechner/pi-coding-agent\": \"${current}\"" \
+            "\"@mariozechner/pi-coding-agent\": \"${latest}\""
+        then
+            tx_fail "Failed to update $(display_repo_path "$file")"
+            return 1
+        fi
+    done <<EOF
+$(pi_package_json_files)
+EOF
+
+    settings_file="$(pi_settings_file)"
+    if ! replace_literal_once \
+        "$settings_file" \
+        "\"lastChangelogVersion\": \"${current}\"" \
+        "\"lastChangelogVersion\": \"${latest}\""
+    then
+        tx_fail "Failed to update $(display_repo_path "$settings_file")"
+        return 1
+    fi
+}
+
+pi_regenerate_lockfile() {
+    local project_dir="$1"
+    local before_cutoff="$2"
+    local registry
+
+    if ! command -v npm >/dev/null 2>&1; then
+        tx_fail "npm is required to regenerate committed Pi lockfiles"
+        return 1
+    fi
+
+    registry="$(bump_npm_registry_url)"
+
+    if [ -n "$before_cutoff" ]; then
+        if ! (
+            cd "$project_dir"
+            NPM_CONFIG_REGISTRY="$registry" \
+            NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
+                npm install --package-lock-only --ignore-scripts --no-fund --no-audit --omit=dev --before "$before_cutoff" >/dev/null
+        ); then
+            tx_fail "Failed to regenerate $(display_repo_path "$project_dir/package-lock.json")"
+            return 1
+        fi
+        return 0
+    fi
+
+    if ! (
+        cd "$project_dir"
+        NPM_CONFIG_REGISTRY="$registry" \
+        NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
+            npm install --package-lock-only --ignore-scripts --no-fund --no-audit --omit=dev >/dev/null
+    ); then
+        tx_fail "Failed to regenerate $(display_repo_path "$project_dir/package-lock.json")"
+        return 1
+    fi
+}
+
+pi_verify_managed_literals() {
+    local expected="$1"
+    local actual
+
+    actual="$(get_current_pi_version)"
+    if [ "$actual" != "$expected" ]; then
+        tx_fail "Expected Pi source pins to resolve to ${expected}, found ${actual:-missing}"
+        return 1
+    fi
+}
+
+pi_verify_lockfile() {
+    local lockfile="$1"
+    local expected="$2"
+    local versions root_version installed_version
+
+    if ! versions="$(python3 - "$lockfile" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], 'r', encoding='utf-8') as fh:
+    data = json.load(fh)
+
+packages = data.get('packages') or {}
+root = packages.get('') or {}
+installed = packages.get('node_modules/@mariozechner/pi-coding-agent') or {}
+print((root.get('dependencies') or {}).get('@mariozechner/pi-coding-agent', ''))
+print(installed.get('version', ''))
+PY
+)"; then
+        tx_fail "Failed to parse $(display_repo_path "$lockfile")"
+        return 1
+    fi
+
+    IFS=$'\n' read -r root_version installed_version <<EOF
+$versions
+EOF
+
+    if [ "$root_version" != "$expected" ] || [ "$installed_version" != "$expected" ]; then
+        tx_fail "Expected $(display_repo_path "$lockfile") to pin ${expected}, found root=${root_version:-missing} installed=${installed_version:-missing}"
+        return 1
+    fi
+
+    if ! ensure_repo_npm_helpers_loaded; then
+        return 1
+    fi
+
+    NPM_CMD=""
+    if ! resolve_npm_cmd; then
+        tx_fail "npm is required to validate $(display_repo_path "$lockfile")"
+        return 1
+    fi
+
+    if ! npm_require_minimum_lockfile_age "$lockfile"; then
+        tx_fail "npm publish-age policy failed for $(display_repo_path "$lockfile")"
+        return 1
+    fi
+}
+
+print_pi_bump_plan() {
+    local current="$1"
+    local latest="$2"
+    local before_cutoff="$3"
+    local lockfile_desc settings_file file
+
+    lockfile_desc="$(pi_lockfile_regen_description "$before_cutoff")"
+    settings_file="$(pi_settings_file)"
+
+    while IFS= read -r file; do
+        echo "    $(display_repo_path "$file") @mariozechner/pi-coding-agent: ${current} → ${latest}"
+    done <<EOF
+$(pi_package_json_files)
+EOF
+
+    echo "    $(display_repo_path "$settings_file") lastChangelogVersion: ${current} → ${latest}"
+
+    while IFS= read -r file; do
+        echo "    $(display_repo_path "$file") ${lockfile_desc}"
+    done <<EOF
+$(pi_lockfile_files)
+EOF
+}
+
+write_pi_manifest_json() {
+    local current="$1"
+    local latest="$2"
+    local before_cutoff="$3"
+    local path tmpfile lockfile_desc
+    local cli_pkg cli_lock agent_pkg agent_lock settings_file
+
+    if ! path="$(manifest_output_path_for_dep "pi")"; then
+        return 0
+    fi
+
+    if ! mkdir -p "$(dirname "$path")"; then
+        tx_fail "Failed to create manifest directory for ${path}"
+        return 1
+    fi
+
+    tmpfile="${path}.tmp.$$"
+    cli_pkg="$CHEZMOI_DIR/dot_local/share/pi-cli/package.json"
+    cli_lock="$CHEZMOI_DIR/dot_local/share/pi-cli/package-lock.json"
+    agent_pkg="$CHEZMOI_DIR/dot_local/share/pi-maintenance-agent/package.json"
+    agent_lock="$CHEZMOI_DIR/dot_local/share/pi-maintenance-agent/package-lock.json"
+    settings_file="$(pi_settings_file)"
+    lockfile_desc="$(pi_lockfile_regen_description "$before_cutoff")"
+
+    if ! {
+        echo "{"
+        echo "  \"dep\": \"pi\","
+        echo "  \"current\": \"$(json_escape "$current")\","
+        echo "  \"target\": \"$(json_escape "$latest")\","
+        echo "  \"strict\": $STRICT,"
+        echo "  \"rollbackOnFailure\": $ROLLBACK_ON_FAILURE,"
+        echo "  \"generatedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
+        echo "  \"operations\": ["
+        cat <<EOF
+    {
+      "type": "literal",
+      "file": "$(json_escape "$cli_pkg")",
+      "section": "",
+      "key": "@mariozechner/pi-coding-agent",
+      "old": "$(json_escape "$current")",
+      "new": "$(json_escape "$latest")",
+      "description": "$(json_escape "$(display_repo_path "$cli_pkg") dependency")",
+      "required": true
+    },
+    {
+      "type": "literal",
+      "file": "$(json_escape "$agent_pkg")",
+      "section": "",
+      "key": "@mariozechner/pi-coding-agent",
+      "old": "$(json_escape "$current")",
+      "new": "$(json_escape "$latest")",
+      "description": "$(json_escape "$(display_repo_path "$agent_pkg") dependency")",
+      "required": true
+    },
+    {
+      "type": "literal",
+      "file": "$(json_escape "$settings_file")",
+      "section": "",
+      "key": "lastChangelogVersion",
+      "old": "$(json_escape "$current")",
+      "new": "$(json_escape "$latest")",
+      "description": "$(json_escape "$(display_repo_path "$settings_file") lastChangelogVersion")",
+      "required": true
+    },
+    {
+      "type": "lockfile-regenerate",
+      "file": "$(json_escape "$cli_lock")",
+      "section": "",
+      "key": "",
+      "old": "$(json_escape "$current")",
+      "new": "$(json_escape "$latest")",
+      "description": "$(json_escape "$(display_repo_path "$cli_lock") ${lockfile_desc}")",
+      "required": true
+    },
+    {
+      "type": "lockfile-regenerate",
+      "file": "$(json_escape "$agent_lock")",
+      "section": "",
+      "key": "",
+      "old": "$(json_escape "$current")",
+      "new": "$(json_escape "$latest")",
+      "description": "$(json_escape "$(display_repo_path "$agent_lock") ${lockfile_desc}")",
+      "required": true
+    }
+EOF
+        echo "  ]"
+        echo "}"
+    } > "$tmpfile"; then
+        rm -f "$tmpfile" 2>/dev/null || true
+        tx_fail "Failed to render manifest JSON to ${path}"
+        return 1
+    fi
+
+    if ! mv "$tmpfile" "$path"; then
+        rm -f "$tmpfile" 2>/dev/null || true
+        tx_fail "Failed to write manifest JSON to ${path}"
+        return 1
+    fi
+
+    echo "  Manifest written: $(display_repo_path "$path")"
+}
+
+run_pi_bump_transaction() {
+    local current="$1"
+    local latest="$2"
+    local min_days before_cutoff="" file project_dir lockfile
+    local rc=0
+
+    min_days="$(bump_npm_min_version_age_days)" || {
+        echo "  ${RED}Failed to determine npm age-gate policy${RESET}" >&2
+        return "$EXIT_CONTRACT_BUILD_FAILED"
+    }
+
+    if [ "$min_days" != "0" ]; then
+        if ! command -v python3 >/dev/null 2>&1; then
+            echo "  ${RED}python3 is required to compute the Pi npm age-gate cutoff${RESET}" >&2
+            return "$EXIT_CONTRACT_BUILD_FAILED"
+        fi
+        before_cutoff="$(pi_before_cutoff_iso "$min_days")" || {
+            echo "  ${RED}Failed to compute the Pi npm age-gate cutoff${RESET}" >&2
+            return "$EXIT_CONTRACT_BUILD_FAILED"
+        }
+    fi
+
+    tx_reset
+    TX_DEP_NAME="pi"
+    TX_CURRENT_VERSION="$current"
+    TX_TARGET_VERSION="$latest"
+
+    while IFS= read -r file; do
+        [ -n "$file" ] || continue
+        tx_add_touched_file "$file"
+    done <<EOF
+$(pi_package_json_files)
+$(pi_lockfile_files)
+$(pi_settings_file)
+EOF
+
+    for file in "${TX_TOUCHED_FILES[@]}"; do
+        if ! tx_snapshot_file "$file"; then
+            echo "  ${RED}${TX_LAST_ERROR:-Failed to snapshot Pi files}${RESET}" >&2
+            tx_cleanup_snapshots
+            return "$EXIT_CONTRACT_BUILD_FAILED"
+        fi
+    done
+
+    if [ "$DRY_RUN" = "true" ]; then
+        echo "  ${YELLOW}[dry-run]${RESET} Would update:"
+        print_pi_bump_plan "$current" "$latest" "$before_cutoff"
+        if ! write_pi_manifest_json "$current" "$latest" "$before_cutoff"; then
+            echo "  ${RED}${TX_LAST_ERROR:-Manifest write failed}${RESET}" >&2
+            tx_cleanup_snapshots
+            return "$EXIT_CONTRACT_BUILD_FAILED"
+        fi
+        tx_cleanup_snapshots
+        return 0
+    fi
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "  ${RED}python3 is required to validate regenerated Pi lockfiles${RESET}" >&2
+        tx_cleanup_snapshots
+        return "$EXIT_CONTRACT_BUILD_FAILED"
+    fi
+
+    if ! write_pi_manifest_json "$current" "$latest" "$before_cutoff"; then
+        echo "  ${RED}${TX_LAST_ERROR:-Manifest write failed}${RESET}" >&2
+        tx_cleanup_snapshots
+        return "$EXIT_CONTRACT_BUILD_FAILED"
+    fi
+
+    if ! pi_write_version_literals "$current" "$latest"; then
+        rc="$EXIT_APPLY_FAILED"
+    fi
+
+    if [ "$rc" -eq 0 ]; then
+        while IFS= read -r project_dir; do
+            [ -n "$project_dir" ] || continue
+            echo "  Regenerating $(display_repo_path "$project_dir/package-lock.json")..."
+            if ! pi_regenerate_lockfile "$project_dir" "$before_cutoff"; then
+                rc="$EXIT_APPLY_FAILED"
+                break
+            fi
+        done <<EOF
+$(pi_project_dirs)
+EOF
+    fi
+
+    if [ "$rc" -eq 0 ] && ! pi_verify_managed_literals "$latest"; then
+        rc="$EXIT_VERIFY_FAILED"
+    fi
+
+    if [ "$rc" -eq 0 ]; then
+        while IFS= read -r lockfile; do
+            [ -n "$lockfile" ] || continue
+            if ! pi_verify_lockfile "$lockfile" "$latest"; then
+                rc="$EXIT_VERIFY_FAILED"
+                break
+            fi
+        done <<EOF
+$(pi_lockfile_files)
+EOF
+    fi
+
+    if [ "$rc" -ne 0 ]; then
+        echo "  ${RED}${TX_LAST_ERROR:-Pi bump failed}${RESET}" >&2
+        if [ "$ROLLBACK_ON_FAILURE" = "true" ]; then
+            echo "  Rolling back transaction..."
+            if ! rollback_manifest; then
+                echo "  ${RED}${TX_LAST_ERROR:-Rollback failed}${RESET}" >&2
+                tx_cleanup_snapshots
+                return "$EXIT_ROLLBACK_FAILED"
+            fi
+        else
+            echo "  ${YELLOW}Rollback disabled (--no-rollback); leaving modified files for inspection.${RESET}" >&2
+        fi
+        tx_cleanup_snapshots
+        return "$rc"
+    fi
+
+    tx_cleanup_snapshots
+    invalidate_version_cache
+    echo "  ${GREEN}Done${RESET}"
+    return 0
+}
+
+# ============================================================================
 # Bump a single dependency
 # ============================================================================
 
@@ -1800,7 +2380,7 @@ bump_dep() {
     local entry
     if ! entry="$(find_dep_entry "$dep_name")"; then
         echo "${RED}Error: Unknown dependency '${dep_name}'${RESET}" >&2
-        echo "Valid deps: neovim jj codex uv starship bun tailscale chezmoi claude nvm fzf zsh-syntax-highlighting zsh-autosuggestions" >&2
+        echo "Valid deps: neovim jj codex uv starship bun tailscale chezmoi claude pi nvm fzf zsh-syntax-highlighting zsh-autosuggestions" >&2
         return 1
     fi
 
@@ -1841,6 +2421,11 @@ bump_dep() {
     fi
 
     echo "  ${current} → ${CYAN}${latest}${RESET}"
+
+    if [ "$dep_name" = "pi" ]; then
+        run_pi_bump_transaction "$current" "$latest"
+        return $?
+    fi
 
     # Fetch checksums if applicable
     if [ "$sha_strategy" != "none" ] && [ "$num_platforms" != "0" ] && [ "$SKIP_SHA" != "true" ]; then
