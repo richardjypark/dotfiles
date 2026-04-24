@@ -23,7 +23,7 @@ The resulting binary is linked to:
 ## Local Pi Agent Settings Override
 
 This repo tracks a default `~/.pi/agent/settings.json` with
-`defaultModel = "gpt-5.4"` and `defaultThinkingLevel = "xhigh"`.
+`defaultModel = "gpt-5.5"` and `defaultThinkingLevel = "xhigh"`.
 
 To override Pi settings just for this machine (without committing anything), create:
 
