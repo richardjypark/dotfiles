@@ -146,7 +146,7 @@ If `~/.config/dotfiles/pi/settings.local.json` exists, `chezmoi apply` will pref
 
 ## Pi Maintenance Agent
 
-On macOS, `chezmoi apply` installs the managed local `pi` CLI from a committed lockfile and ensures the `pi-autoresearch` package is present from a pinned git commit for that user profile.
+On macOS and Omarchy hosts, `chezmoi apply` installs the managed local `pi` CLI from a committed lockfile and ensures the `pi-autoresearch` package is present from a pinned git commit for that user profile.
 The scheduled `pi-maintenance-agent` remains Omarchy-only and is never rendered or activated on macOS.
 
 The pi maintenance agent can be tracked in this repo without activating on every machine.
