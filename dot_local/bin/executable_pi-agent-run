@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat >&2 <<'EOF'
+Usage: pi-agent-run <agent-markdown-file> [task...]
+
+Runs a Pi markdown agent non-interactively using the agent's declared model and tools.
+If no task arguments are provided, the task is read from stdin.
+
+Environment:
+  PI_AGENT_RUN_DEBUG_JSON=/path/to/file.jsonl  Save raw Pi JSONL output for debugging.
+  PI_AGENT_RUN_DEBUG=1                         Print resolved agent metadata to stderr.
+EOF
+}
+
+if [ "$#" -lt 1 ]; then
+    usage
+    exit 2
+fi
+
+agent_file="$1"
+shift
+
+if [ ! -f "$agent_file" ]; then
+    echo "pi-agent-run: agent file not found: $agent_file" >&2
+    exit 1
+fi
+
+if ! command -v pi >/dev/null 2>&1; then
+    echo "pi-agent-run: pi is not installed or not in PATH" >&2
+    exit 1
+fi
+
+if [ "$#" -gt 0 ]; then
+    task="$*"
+else
+    if [ -t 0 ]; then
+        usage
+        exit 2
+    fi
+    task="$(cat)"
+fi
+
+if [ -z "${task//[$' \t\r\n']/}" ]; then
+    echo "pi-agent-run: task must not be empty" >&2
+    exit 2
+fi
+
+tmpdir="$(mktemp -d)"
+cleanup() {
+    rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+source_agent_dir="${PI_AGENT_RUN_SOURCE_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}}"
+runtime_agent_dir="$tmpdir/pi-agent-dir"
+mkdir -p "$runtime_agent_dir"
+for file in auth.json models.json keybindings.json; do
+    if [ -f "$source_agent_dir/$file" ]; then
+        cp "$source_agent_dir/$file" "$runtime_agent_dir/$file"
+    fi
+done
+if [ -f "$source_agent_dir/settings.json" ]; then
+    python3 - "$source_agent_dir/settings.json" "$runtime_agent_dir/settings.json" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+source = Path(sys.argv[1])
+target = Path(sys.argv[2])
+data = json.loads(source.read_text())
+for key in ("packages", "extensions", "skills", "prompts", "themes"):
+    data.pop(key, None)
+target.write_text(json.dumps(data))
+PY
+fi
+
+meta_file="$tmpdir/meta.sh"
+system_prompt_file="$tmpdir/system-prompt.md"
+json_out="$tmpdir/pi-output.jsonl"
+stderr_out="$tmpdir/pi-output.stderr"
+
+python3 - "$agent_file" "$meta_file" "$system_prompt_file" <<'PY'
+from pathlib import Path
+import shlex
+import sys
+
+agent_path = Path(sys.argv[1])
+meta_path = Path(sys.argv[2])
+prompt_path = Path(sys.argv[3])
+text = agent_path.read_text()
+frontmatter = {}
+body = text
+
+if text.startswith("---\n"):
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        raise SystemExit(f"pi-agent-run: malformed frontmatter in {agent_path}")
+    raw_frontmatter = text[4:end]
+    body = text[end + 5 :]
+    for line in raw_frontmatter.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        key, sep, value = line.partition(":")
+        if not sep:
+            continue
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+            value = value[1:-1]
+        if key == "tools":
+            value = ",".join(part.strip() for part in value.split(",") if part.strip())
+        frontmatter[key] = value
+
+model = frontmatter.get("model", "")
+tools = frontmatter.get("tools", "")
+body = body.lstrip("\n")
+
+meta_path.write_text(
+    "MODEL=" + shlex.quote(model) + "\n" +
+    "TOOLS=" + shlex.quote(tools) + "\n",
+)
+prompt_path.write_text(body)
+PY
+
+# shellcheck disable=SC1090
+. "$meta_file"
+
+if [ "${PI_AGENT_RUN_DEBUG:-0}" = "1" ]; then
+    echo "pi-agent-run: agent=$agent_file" >&2
+    echo "pi-agent-run: model=${MODEL:-<default>} tools=${TOOLS:-<default>} cwd=$(pwd)" >&2
+    echo "pi-agent-run: source_agent_dir=$source_agent_dir runtime_agent_dir=$runtime_agent_dir" >&2
+fi
+
+cmd=(
+    pi
+    --mode json
+    --print
+    --no-session
+    --no-extensions
+    --no-skills
+    --no-prompt-templates
+    --no-context-files
+    --no-themes
+)
+
+if [ -n "${MODEL:-}" ]; then
+    cmd+=(--model "$MODEL")
+fi
+
+if [ -n "${TOOLS:-}" ]; then
+    cmd+=(--tools "$TOOLS")
+fi
+
+cmd+=(--append-system-prompt "$system_prompt_file" "Task: $task")
+
+if ! PI_CODING_AGENT_DIR="$runtime_agent_dir" "${cmd[@]}" >"$json_out" 2>"$stderr_out"; then
+    if [ -n "${PI_AGENT_RUN_DEBUG_JSON:-}" ]; then
+        cp "$json_out" "$PI_AGENT_RUN_DEBUG_JSON" 2>/dev/null || true
+    fi
+    cat "$stderr_out" >&2 || true
+    exit 1
+fi
+
+if [ -n "${PI_AGENT_RUN_DEBUG_JSON:-}" ]; then
+    cp "$json_out" "$PI_AGENT_RUN_DEBUG_JSON"
+fi
+
+python3 - "$json_out" "$stderr_out" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+json_path = Path(sys.argv[1])
+stderr_path = Path(sys.argv[2])
+last_assistant = None
+
+for line in json_path.read_text().splitlines():
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        obj = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    if obj.get("type") == "message_end":
+        message = obj.get("message", {})
+        if message.get("role") == "assistant":
+            last_assistant = message
+
+if last_assistant is None:
+    stderr = stderr_path.read_text()
+    sys.stderr.write(stderr or "pi-agent-run: no assistant response found\n")
+    raise SystemExit(1)
+
+error_message = last_assistant.get("errorMessage")
+if last_assistant.get("stopReason") == "error" or error_message:
+    text_parts = [part.get("text", "") for part in last_assistant.get("content", []) if part.get("type") == "text"]
+    message = error_message or "".join(text_parts).strip() or stderr_path.read_text().strip()
+    sys.stderr.write((message or "pi-agent-run: agent returned an error") + "\n")
+    raise SystemExit(1)
+
+text_parts = [part.get("text", "") for part in last_assistant.get("content", []) if part.get("type") == "text"]
+output = "".join(text_parts).rstrip("\n")
+if output:
+    print(output)
+PY

@@ -54,6 +54,8 @@ bash -n dot_local/bin/executable_omarchy-screenshot-active-window-clipboard
 sh -n dot_local/bin/executable_tmux-status-host
 bash -n dot_local/bin/executable_chezmoi-health-check
 bash -n dot_local/bin/executable_chezmoi-rerun-script
+bash -n dot_local/bin/executable_pi-agent-run
+bash -n dot_local/bin/executable_jj-fast-agent
 bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh
 bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh
 chezmoi cat "$HOME/.local/bin/chezmoi-health-check" | bash -n
