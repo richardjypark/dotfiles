@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+agent_file="${PI_JJ_AGENT_FILE:-$HOME/.pi/agent/agents/jj.md}"
+exec pi-agent-run "$agent_file" "$@"
