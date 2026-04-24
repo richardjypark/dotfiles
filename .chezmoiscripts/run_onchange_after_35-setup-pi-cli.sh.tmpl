@@ -117,7 +117,15 @@ link_pi_binary() {
     fi
 }
 
-if [[ "${OSTYPE:-}" != darwin* ]]; then
+is_pi_cli_supported_host() {
+    [[ "${OSTYPE:-}" == darwin* ]] \
+        || [ "${CHEZMOI_PROFILE:-}" = "omarchy" ] \
+        || [ -d "$HOME/.config/omarchy/current" ] \
+        || [ -d "$HOME/.local/share/omarchy" ] \
+        || command -v omarchy-menu >/dev/null 2>&1
+}
+
+if ! is_pi_cli_supported_host; then
     exit 0
 fi
 
