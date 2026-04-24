@@ -194,10 +194,21 @@ _dotfiles_tmux_sync_default() {
   _dotfiles_tmux_set_segment "$segment"
 }
 
+_dotfiles_sanitize_command_text() {
+  emulate -L zsh
+
+  local text="${1-}"
+  text="${text//$'\003'/}"
+  text="${text//$'\r'/}"
+  print -r -- "$text"
+}
+
 _dotfiles_command_words() {
   emulate -L zsh
 
-  reply=("${(z)1}")
+  local command_line
+  command_line="$(_dotfiles_sanitize_command_text "$1")"
+  reply=("${(z)command_line}")
 }
 
 _dotfiles_command_index() {
@@ -391,10 +402,11 @@ _dotfiles_prompt_state_precmd() {
 _dotfiles_prompt_state_preexec() {
   emulate -L zsh
 
-  local cmdline="$1"
+  local cmdline
   local -a words
   local index command_name remote_host
 
+  cmdline="$(_dotfiles_sanitize_command_text "$1")"
   _dotfiles_command_words "$cmdline"
   words=("${reply[@]}")
   _dotfiles_command_index "$cmdline" || return 0
@@ -414,6 +426,22 @@ _dotfiles_prompt_state_preexec() {
   esac
 }
 
+_dotfiles_accept_line() {
+  emulate -L zsh
+
+  local sanitized
+  sanitized="${BUFFER//$'\003'/}"
+  sanitized="${sanitized//$'\r'/}"
+
+  if [[ -n "$sanitized" && "$sanitized" != "$BUFFER" ]]; then
+    BUFFER="$sanitized"
+    CURSOR="${#BUFFER}"
+  fi
+
+  zle .accept-line
+}
+
 add-zsh-hook chpwd _dotfiles_prompt_state_chpwd
 add-zsh-hook precmd _dotfiles_prompt_state_precmd
 add-zsh-hook preexec _dotfiles_prompt_state_preexec
+zle -N accept-line _dotfiles_accept_line
