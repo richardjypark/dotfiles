@@ -1,8 +1,10 @@
 # Keep reasoning and context xhigh here because this repo relies on large local docs
-# and shared skills more than on prompt brevity alone.
+# and shared skills more than on prompt brevity alone; use the fast service tier
+# by default so gpt-5.5 stays responsive without lowering reasoning effort.
 # Prefer improving repo instructions and skills before changing these knobs.
 model = "gpt-5.5"
 model_reasoning_effort = "xhigh"
+service_tier = "fast"
 model_context_window = 500000
 model_auto_compact_token_limit = 400000
 personality = "pragmatic"
