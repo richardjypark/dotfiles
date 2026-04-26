@@ -1,5 +1,5 @@
 [versions]
-fzf = "0.71.0"
+fzf = "0.72.0"
 neovim = "v0.12.2"
 jj = "v0.40.0"
 codex = "rust-v0.125.0"
