@@ -1,4 +1,4 @@
 interface:
   display_name: "Jujutsu (jj)"
   short_description: "Use Jujutsu for history inspection, bookmark-safe publishing, recovery, and interactive helper workflows in Git-backed repos."
-  default_prompt: "Use $jj to route jj/git-only history tasks through the `jj` subagent when the `subagent` tool is available; otherwise invoke `jj-fast-agent` via bash before any manual jj/git commands when it is available in PATH, then fall back to direct jj status / jj log / jj diff inspection, reshaping, and recovery with jj undo. Prefer Jujutsu over raw git commands."
+  default_prompt: "Use $jj for jj/git-only history tasks, but do not self-delegate when maintaining the jj skill, jj agent, JJFast command, or wrappers. Delegate to the `jj` subagent when available; otherwise invoke `jj-fast-agent` via bash when available. Fall back to local `jj status` first, then targeted `jj log`, `jj diff --summary`, or full `jj diff` only as needed. Prefer Jujutsu over raw git commands and use plain `jj undo` for immediate recovery."
