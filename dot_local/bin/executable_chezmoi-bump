@@ -2089,15 +2089,18 @@ with open(sys.argv[1], 'r', encoding='utf-8') as fh:
 packages = data.get('packages') or {}
 root = packages.get('') or {}
 installed = packages.get('node_modules/@mariozechner/pi-coding-agent') or {}
-print((root.get('dependencies') or {}).get('@mariozechner/pi-coding-agent', ''))
-print(installed.get('version', ''))
+root_version = (root.get('dependencies') or {}).get('@mariozechner/pi-coding-agent', '')
+installed_version = installed.get('version', '')
+print(f'{root_version}|{installed_version}')
 PY
 )"; then
         tx_fail "Failed to parse $(display_repo_path "$lockfile")"
         return 1
     fi
 
-    IFS=$'\n' read -r root_version installed_version <<EOF
+    # `read` consumes one line only. Keep both values on one non-whitespace
+    # delimiter-separated line so an empty root or installed value is preserved.
+    IFS='|' read -r root_version installed_version <<EOF
 $versions
 EOF
 
