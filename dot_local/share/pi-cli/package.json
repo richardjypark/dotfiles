@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Machine-local managed pi CLI install built from a committed lockfile",
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "0.70.2"
+    "@mariozechner/pi-coding-agent": "0.70.5"
   },
   "overrides": {
     "@aws-sdk/client-bedrock-runtime": "3.1019.0",
