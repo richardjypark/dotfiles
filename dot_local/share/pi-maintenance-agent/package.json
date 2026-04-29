@@ -7,7 +7,7 @@
     "test": "bash tests/e2e.sh"
   },
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "0.70.5"
+    "@mariozechner/pi-coding-agent": "0.70.6"
   },
   "overrides": {
     "@aws-sdk/client-bedrock-runtime": "3.1019.0",
