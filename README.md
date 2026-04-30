@@ -175,6 +175,7 @@ Behavior:
 - the public npm registry path is delayed by default with `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS=3`, and the age gate is checked against every versioned package in each committed lockfile
 - `chezmoi-bump pi` regenerates both committed Pi lockfiles against the newest npm version that already satisfies that publish-age delay
 - the scheduled Pi maintenance agent excludes npm-backed `chezmoi-bump` updates by default; opt in with `PI_MAINTENANCE_ALLOW_NPM_BUMPS=1` only if you intentionally want unattended npm bumps
+- if a committed managed npm lockfile is still too new for the publish-age gate, scheduled runs defer that npm setup, apply file changes without scripts, and continue non-npm bump/publish work instead of failing the whole run
 - set `CHEZMOI_NPM_REGISTRY` in the machine-local env file if you want scheduled runs to use a vetted internal npm proxy
 - removing the marker file and re-running `chezmoi apply` disables the timer on that machine
 

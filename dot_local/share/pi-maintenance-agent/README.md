@@ -44,4 +44,5 @@ The scheduled maintenance flow also defaults to a freeze policy for npm-backed v
 
 - `chezmoi-bump` runs only the non-npm dependency set by default
 - npm-backed bumps such as Claude Code and Pi are excluded from unattended daily runs
+- if an already-committed managed npm lockfile is still inside the publish-age gate, scheduled maintenance defers that npm setup, applies file changes without scripts, and continues non-npm bump/publish work instead of failing the whole run
 - set `PI_MAINTENANCE_ALLOW_NPM_BUMPS=1` in the machine-local runtime env only if you intentionally want the agent to include npm-backed bumps; when enabled, Pi bumps still resolve only to versions that already satisfy `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`
