@@ -111,6 +111,46 @@ run_chezmoi_bump() {
   )
 }
 
+is_managed_npm_age_gate_failure() {
+  local output="$1"
+
+  [[ "$output" == *"npm publish age is below"* ]] || return 1
+  [[ "$output" == *"chezmoi: .chezmoiscripts/"* ]] || return 1
+  [[ "$output" == *"setup-claude-code.sh"* \
+    || "$output" == *"setup-pi-cli.sh"* \
+    || "$output" == *"setup-pi-maintenance-agent.sh"* ]] || return 1
+}
+
+run_chezmoi_apply_allowing_deferred_npm_setup() {
+  local context="$1"
+  shift
+
+  local -a command=("$@")
+  local output status
+
+  set +e
+  output="$("${command[@]}" 2>&1)"
+  status=$?
+  set -e
+
+  if [[ -n "$output" ]]; then
+    printf '%s\n' "$output"
+  fi
+
+  if [[ "$status" -eq 0 ]]; then
+    return 0
+  fi
+
+  if is_managed_npm_age_gate_failure "$output"; then
+    printf '==> [%s] deferring managed npm setup during %s because a locked npm package is still inside the publish-age gate\n' "$(date --iso-8601=seconds)" "$context"
+    printf '==> [%s] applying file changes without scripts so non-npm maintenance can continue\n' "$(date --iso-8601=seconds)"
+    "${command[@]}" --exclude=scripts
+    return 0
+  fi
+
+  return "$status"
+}
+
 prepare_publishable_working_copy() {
   if ! working_copy_descends_from_publish_bookmark; then
     printf 'working copy is not based on %s; refusing to publish automated changes\n' "$PUBLISH_BOOKMARK" >&2
@@ -245,7 +285,7 @@ main() {
   printf '==> [%s] running czuf\n' "$(date --iso-8601=seconds)"
   (
     cd "$REPO_DIR"
-    czuf
+    run_chezmoi_apply_allowing_deferred_npm_setup "initial sync" czuf
   )
 
   run_chezmoi_bump
@@ -253,8 +293,9 @@ main() {
   printf '==> [%s] re-applying bumped state\n' "$(date --iso-8601=seconds)"
   (
     cd "$REPO_DIR"
-    env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
-      chezmoi apply --refresh-externals --force
+    run_chezmoi_apply_allowing_deferred_npm_setup "post-bump apply" \
+      env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
+        chezmoi apply --refresh-externals --force
   )
 
   printf '==> [%s] checking repo state\n' "$(date --iso-8601=seconds)"
