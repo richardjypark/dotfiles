@@ -145,6 +145,19 @@ $EDITOR ~/.config/dotfiles/pi/settings.local.json
 
 If `~/.config/dotfiles/pi/settings.local.json` exists, `chezmoi apply` will prefer it over the tracked `~/.pi/agent/settings.json` for this machine.
 
+### IBKR data platform local dependencies
+
+Opt in on a single workstation when developing the `data.tildacapital.com` IBKR access-discovery worker:
+
+```bash
+mkdir -p ~/.config/dotfiles
+touch ~/.config/dotfiles/ibkr-data-platform-deps.enabled
+TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
+```
+
+When enabled, chezmoi ensures a pinned user-local Go toolchain under `~/.local/share/go/` and checks
+for a Java runtime for the IBKR Client Portal Gateway. The marker file is machine-local and
+untracked, so other hosts do not install these dependencies by default.
 
 ## Pi Maintenance Agent
 

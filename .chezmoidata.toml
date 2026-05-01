@@ -52,6 +52,10 @@ linux_arm64_sha256 = "eee8dd658d20e5ac85fec9c2326b6cbc9d83a1eef09ef07433e58698ac
 macos_x86_64_sha256 = "c59d73bf34b58bc8e33a11629f7a255c11789fd00f03cd3e68ab2d1603645de9"
 macos_arm64_sha256 = "c729adb365114e844dd7f9316313a7ed6443b89bb5681d409eebac78b0bd06c8"
 
+[pinned.go]
+version = "go1.26.2"
+linux_x86_64_sha256 = "990e6b4bbba816dc3ee129eaeaf4b42f17c2800b88a2166c265ac1a200262282"
+
 [pinned.starship]
 version = "v1.25.1"
 linux_x86_64_sha256 = "c6ddd3ecb9c0071a2ad38d98cee748160066b7c4f197421268058f4a5d6f8504"
