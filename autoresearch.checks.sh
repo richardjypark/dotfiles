@@ -69,6 +69,7 @@ bash -n .chezmoiscripts/run_onchange_after_10-setup-homebrew.sh
 bash -n .chezmoiscripts/run_onchange_before_01-setup-omz.sh
 bash -n .chezmoiscripts/run_onchange_after_28-setup-ansible.sh
 bash -n .chezmoiscripts/run_onchange_after_31-change-shell.sh
+bash -n .chezmoiscripts/run_after_41-setup-brave-policy.sh
 bash -n .chezmoiscripts/run_after_99-performance-summary.sh
 ) &
 source_checks_pid=$!
