@@ -11,6 +11,7 @@ Use this map to propagate version bumps safely.
   - `npm.packages` (if package set changes with version policy)
 - `.chezmoiversion.toml`
   - `versions.fzf`
+  - `versions.go`
 - `.chezmoiexternal.toml.tmpl`
   - Oh My Zsh archive commit URL
   - zsh plugin release tarball URLs
@@ -25,6 +26,8 @@ Use this map to propagate version bumps safely.
   - Keep Node/NVM setup logic aligned with `.chezmoidata.toml`.
 - `.chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl`
   - Keep Python setup aligned with `.chezmoidata.toml`.
+- `.chezmoiscripts/run_onchange_after_29-setup-ibkr-data-deps.sh.tmpl`
+  - Keep managed Go setup aligned with `.chezmoidata.toml` `[pinned.go]`.
 
 ## Documentation Touchpoints
 
