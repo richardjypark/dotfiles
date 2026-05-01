@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
+MARKER_FILE="$HOME/.config/dotfiles/ibkr-data-platform-deps.enabled"
+
+{{- with .pinned.go }}
+PINNED_GO_VERSION="{{ .version }}"
+PINNED_GO_LINUX_X86_64_SHA="{{ .linux_x86_64_sha256 }}"
+{{- end }}
+
+GO_STATE="ibkr-data-platform-deps-${PINNED_GO_VERSION}-${PINNED_GO_LINUX_X86_64_SHA}"
+GO_ROOT_BASE="$HOME/.local/share/go"
+GO_INSTALL_DIR="$GO_ROOT_BASE/$PINNED_GO_VERSION"
+GO_LINK="$HOME/.local/bin/go"
+GOFMT_LINK="$HOME/.local/bin/gofmt"
+
+if [ ! -e "$MARKER_FILE" ]; then
+    vecho "IBKR data platform deps not enabled on this host"
+    exit 0
+fi
+
+add_to_path "$HOME/.local/bin"
+
+current_go_version() {
+    go version 2>/dev/null | awk '{print $3; exit}'
+}
+
+go_ready() {
+    [ -x "$GO_LINK" ] || return 1
+    [ "$("$GO_LINK" version 2>/dev/null | awk '{print $3; exit}')" = "$PINNED_GO_VERSION" ] || return 1
+    [ -x "$GOFMT_LINK" ] || return 1
+}
+
+java_ready() {
+    command -v java >/dev/null 2>&1 && java -version >/dev/null 2>&1
+}
+
+if should_skip_state "$GO_STATE" && go_ready && java_ready; then
+    vecho "IBKR data platform Go/Java deps already completed (state tracked)"
+    exit 0
+fi
+
+install_go_user_local() {
+    local platform archive url cache_file temp_dir staging_dir
+
+    if go_ready; then
+        vecho "Go $PINNED_GO_VERSION is already managed at $GO_INSTALL_DIR"
+        return 0
+    fi
+
+    if ! platform="$(platform_key)"; then
+        return 1
+    fi
+
+    case "$platform" in
+        linux-x86_64)
+            archive="${PINNED_GO_VERSION}.linux-amd64.tar.gz"
+            ;;
+        *)
+            eecho "Unsupported platform for managed Go install: $platform"
+            return 1
+            ;;
+    esac
+
+    if ! require_trust_for_remote_download "go.dev/dl"; then
+        return 1
+    fi
+
+    url="https://go.dev/dl/${archive}"
+    cache_file="$CACHE_DIR/$archive"
+    temp_dir="$(mktemp -d)"
+    staging_dir="$GO_INSTALL_DIR.tmp.$$"
+    trap 'rm -rf "$temp_dir" "$staging_dir"' RETURN
+
+    eecho "Installing Go $PINNED_GO_VERSION from verified upstream tarball..."
+    download_and_verify "$url" "$cache_file" "$PINNED_GO_LINUX_X86_64_SHA"
+
+    rm -rf "$staging_dir"
+    mkdir -p "$staging_dir"
+    tar -C "$staging_dir" --strip-components=1 -xzf "$cache_file"
+
+    mkdir -p "$GO_ROOT_BASE" "$HOME/.local/bin"
+    rm -rf "$GO_INSTALL_DIR.prev"
+    if [ -e "$GO_INSTALL_DIR" ]; then
+        mv "$GO_INSTALL_DIR" "$GO_INSTALL_DIR.prev"
+    fi
+    mv "$staging_dir" "$GO_INSTALL_DIR"
+    ln -sfn "$GO_INSTALL_DIR/bin/go" "$GO_LINK"
+    ln -sfn "$GO_INSTALL_DIR/bin/gofmt" "$GOFMT_LINK"
+}
+
+install_java_runtime() {
+    if java_ready; then
+        vecho "Java runtime already available: $(java -version 2>&1 | head -1)"
+        return 0
+    fi
+
+    if command -v brew >/dev/null 2>&1; then
+        eecho "Installing Java runtime via Homebrew..."
+        run_quiet brew install openjdk
+        return 0
+    fi
+
+    if [ "$(id -u)" != 0 ] && ! ensure_sudo; then
+        eecho "Error: Java runtime is required for IBKR Client Portal Gateway, but sudo is unavailable."
+        eecho "Install Java manually or rerun with CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO=1."
+        return 1
+    fi
+
+    if command -v pacman >/dev/null 2>&1; then
+        eecho "Installing Java runtime via pacman..."
+        run_privileged pacman -S --noconfirm --needed --quiet jdk-openjdk
+    elif command -v apt-get >/dev/null 2>&1; then
+        eecho "Installing Java runtime via apt..."
+        run_privileged apt-get update -qq
+        run_privileged apt-get install -y -qq default-jre-headless
+    elif command -v dnf >/dev/null 2>&1; then
+        eecho "Installing Java runtime via dnf..."
+        run_privileged dnf install -y -q java-latest-openjdk-headless || run_privileged dnf install -y -q java-21-openjdk-headless
+    elif command -v yum >/dev/null 2>&1; then
+        eecho "Installing Java runtime via yum..."
+        run_privileged yum install -y -q java-21-openjdk-headless
+    elif command -v zypper >/dev/null 2>&1; then
+        eecho "Installing Java runtime via zypper..."
+        run_privileged zypper install -y java-21-openjdk-headless >/dev/null 2>&1
+    else
+        eecho "Error: no supported package manager found for Java runtime install."
+        return 1
+    fi
+}
+
+install_go_user_local
+install_java_runtime
+
+if go_ready && java_ready; then
+    eecho "IBKR data platform deps ready: $("$GO_LINK" version 2>/dev/null); $(java -version 2>&1 | head -1)"
+    mark_state "$GO_STATE"
+else
+    eecho "Error: IBKR data platform dependency setup did not complete."
+    exit 1
+fi
