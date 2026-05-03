@@ -156,7 +156,57 @@ fi
 
 cmd+=(--append-system-prompt "$system_prompt_file" "Task: $task")
 
-if ! PI_CODING_AGENT_DIR="$runtime_agent_dir" "${cmd[@]}" >"$json_out" 2>"$stderr_out"; then
+json_fifo="$tmpdir/pi-output.fifo"
+agent_done_marker="$tmpdir/pi-agent.done"
+mkfifo "$json_fifo"
+
+PI_CODING_AGENT_DIR="$runtime_agent_dir" "${cmd[@]}" >"$json_fifo" 2>"$stderr_out" &
+pi_pid=$!
+
+monitor_rc=0
+python3 - "$json_fifo" "$json_out" "$agent_done_marker" <<'PY' || monitor_rc=$?
+import json
+import sys
+from pathlib import Path
+
+fifo_path = Path(sys.argv[1])
+out_path = Path(sys.argv[2])
+done_path = Path(sys.argv[3])
+
+with fifo_path.open('r', encoding='utf-8', errors='replace') as src, \
+        out_path.open('w', encoding='utf-8') as dst:
+    for line in src:
+        dst.write(line)
+        dst.flush()
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if obj.get('type') == 'agent_end':
+            done_path.write_text('1')
+            break
+PY
+
+agent_finished=false
+if [ -f "$agent_done_marker" ]; then
+    agent_finished=true
+fi
+
+if [ "$agent_finished" = "true" ] && kill -0 "$pi_pid" 2>/dev/null; then
+    for _ in 1 2 3 4 5; do
+        sleep 0.1
+        kill -0 "$pi_pid" 2>/dev/null || break
+    done
+    kill "$pi_pid" 2>/dev/null || true
+fi
+
+if wait "$pi_pid" 2>/dev/null; then
+    pi_rc=0
+else
+    pi_rc=$?
+fi
+
+if [ "$monitor_rc" -ne 0 ] || { [ "$pi_rc" -ne 0 ] && [ "$agent_finished" != "true" ]; }; then
     if [ -n "${PI_AGENT_RUN_DEBUG_JSON:-}" ]; then
         cp "$json_out" "$PI_AGENT_RUN_DEBUG_JSON" 2>/dev/null || true
     fi

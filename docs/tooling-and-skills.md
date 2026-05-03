@@ -32,7 +32,7 @@ Claude support remains compatible, but shared planning conventions should point 
 - `chezmoi-health-check`: managed `~/.local/bin/chezmoi-health-check` command that audits key tools, config files, bootstrap security defaults, and agent configuration safety/routing checks.
 - `chezmoi-rerun-script`: managed `~/.local/bin/chezmoi-rerun-script` command that clears remembered `run_onchange_*` state for a given source script so the next apply reruns it.
 - `pi-agent-run`: managed `~/.local/bin/pi-agent-run` command that executes a Pi markdown agent file non-interactively with its declared model and tools. Use it when another CLI can run shell commands but does not support Pi's native subagent extension model.
-- `jj-fast-agent`: managed `~/.local/bin/jj-fast-agent` wrapper around the shared `~/.pi/agent/agents/jj.md` agent on `openai-codex/gpt-5.3-codex-spark`. This is the tool-agnostic fallback path for the `jj` skill outside Pi.
+- `jj-fast-agent`: managed `~/.local/bin/jj-fast-agent` wrapper around the shared `~/.pi/agent/agents/jj.md` agent on `openai-codex/gpt-5.3-codex-spark:minimal`. This is the tool-agnostic fallback path for the `jj` skill outside Pi.
 - `dot_pi/agent/extensions/jj-fast-command.ts` overrides `/skill:jj` (and adds `/jj`) inside Pi so explicit jj requests go straight to the spark-backed helper instead of paying an extra routing LLM turn.
 - Nested Pi helpers still need outbound provider network access from the invoking shell. Fully sandboxed Codex runs can block that path; if so, use a Codex shell mode that permits network access or run the helper directly outside the sandbox.
 - `czu`/`czuf` rebase to `[git].defaultBranch` from `.chezmoidata.toml` (with remote-head fallback) to avoid hardcoding branch names.
