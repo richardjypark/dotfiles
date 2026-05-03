@@ -44,6 +44,7 @@
    - Interactive squash: `jj squash -i`
    - Split change: `jj split` (alias: `jj sp`)
    - Commit working copy and start new change: `jj commit -m "type: summary"` (alias: `jj c`)
+   - Note: after `jj commit`, jj creates a new empty working-copy commit at `@`; the committed change is `@-`. This is normal and does not need cleanup with `jj abandon`, `jj edit`, or `jj squash`.
 3. Sync with remote.
    - Fetch: `jj fetch` (quiet alias for `jj git fetch`; run raw `jj git fetch` when you want rewrite diagnostics)
    - Fetch all remotes: `jj sync`
@@ -93,13 +94,15 @@ jj squash
 - Move bookmark to current change: `jj bookmark move --to @ <name>`
 - List bookmarks: `jj bookmark list`
 - Delete bookmark: `jj bookmark delete <name>`
+- Remote bookmark revsets use `<bookmark>@<remote>` (for example `master@origin`). Git-style `origin/master` and invalid `@origin` revsets are not valid jj remote bookmark syntax.
 
 Publish checklist:
 1. Run `jj bookmark list` to confirm the bookmark name and remote tracking state.
 2. If the bookmark does not exist yet, create it with `jj bookmark create <name>`.
 3. Move an existing publish bookmark to the current change with `jj bookmark move --to @ <name>`.
 4. Ensure the intended bookmark points at the current change (for example `jj log -r '<bookmark>::@'`).
-5. Prefer `jj git push -b <bookmark>` when the target matters.
+5. Prefer `jj git push --remote <remote> -b <bookmark>` when the target matters.
+6. Verify with `jj log -r '<bookmark>@<remote>' --no-graph` and `jj status`, then stop; do not run post-push cleanup for the normal empty `@`.
 
 `push-all-bookmarks = false` in this repo, so avoid `jj git push --all` unless the user explicitly wants that scope.
 
