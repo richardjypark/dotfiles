@@ -59,7 +59,7 @@ TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 | `chezmoi-health-check` | Managed helper in `~/.local/bin/chezmoi-health-check`: audits key tool installs, config files, bootstrap security defaults, and agent configuration safety/routing checks. | Run after bootstrap/apply or when debugging local drift. |
 | `chezmoi-rerun-script <source-script-path>` | Managed helper in `~/.local/bin/chezmoi-rerun-script`: clears chezmoi's remembered `run_onchange_*` state for the given source script so the next `chezmoi apply` reruns it. | Recover from manual deletions or force a one-off rerun of a bootstrap/setup script after local drift. |
 | `pi-agent-run <agent-markdown-file> [task...]` | Managed helper in `~/.local/bin/pi-agent-run`: runs a Pi markdown agent file non-interactively with its declared model and tools. | Reuse a Pi agent from another shell-driven CLI or script. |
-| `jj-fast-agent [task...]` | Managed wrapper in `~/.local/bin/jj-fast-agent`: runs the shared `jj` Pi agent on `openai-codex/gpt-5.3-codex-spark`. | Fast jj/git-only delegation from tools that can run shell commands but do not support Pi subagents directly. |
+| `jj-fast-agent [task...]` | Managed wrapper in `~/.local/bin/jj-fast-agent`: runs the shared `jj` Pi agent on `openai-codex/gpt-5.3-codex-spark:minimal`. | Fast jj/git-only delegation from tools that can run shell commands but do not support Pi subagents directly. |
 
 `cz*` commands are installed in `~/.local/bin` and do not rely on shell aliases.
 Aliases in `~/.config/shell/alias.sh` are convenience shortcuts only.
