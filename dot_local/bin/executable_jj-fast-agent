@@ -1,5 +1,92 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+    cat >&2 <<'EOF'
+Usage: jj-fast-agent [--model MODEL] [--agent-file PATH] [task...]
+
+Runs the shared Pi jj agent for jj/git-only work. If no task arguments are
+provided, the task is read from stdin.
+
+Model selection:
+  --model MODEL                 Override the jj agent model for this run.
+  --model default               Use Pi's configured default model instead of
+                                the jj agent frontmatter model.
+  JJ_FAST_AGENT_MODEL=MODEL     Wrapper-specific model override.
+  PI_JJ_AGENT_MODEL=MODEL       Shared jj model override for wrappers/subagents.
+  JJ_AGENT_MODEL=MODEL          Legacy/benchmark-compatible override.
+EOF
+}
+
 agent_file="${PI_JJ_AGENT_FILE:-$HOME/.pi/agent/agents/jj.md}"
-exec pi-agent-run "$agent_file" "$@"
+model_override=""
+for value in "${JJ_AGENT_MODEL-}" "${PI_JJ_AGENT_MODEL-}" "${JJ_FAST_AGENT_MODEL-}"; do
+    if [ -n "$value" ]; then
+        model_override="$value"
+    fi
+done
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --model|-m)
+            if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "jj-fast-agent: --model requires a value" >&2
+                usage
+                exit 2
+            fi
+            model_override="$2"
+            shift 2
+            ;;
+        --model=*)
+            model_override="${1#--model=}"
+            if [ -z "$model_override" ]; then
+                echo "jj-fast-agent: --model requires a value" >&2
+                usage
+                exit 2
+            fi
+            shift
+            ;;
+        --agent-file)
+            if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "jj-fast-agent: --agent-file requires a path" >&2
+                usage
+                exit 2
+            fi
+            agent_file="$2"
+            shift 2
+            ;;
+        --agent-file=*)
+            agent_file="${1#--agent-file=}"
+            if [ -z "$agent_file" ]; then
+                echo "jj-fast-agent: --agent-file requires a path" >&2
+                usage
+                exit 2
+            fi
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "jj-fast-agent: unknown option: $1" >&2
+            usage
+            exit 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+cmd=(pi-agent-run)
+if [ -n "$model_override" ]; then
+    cmd+=(--model "$model_override")
+fi
+cmd+=("$agent_file")
+
+exec "${cmd[@]}" "$@"
