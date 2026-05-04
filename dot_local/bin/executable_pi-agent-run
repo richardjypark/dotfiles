@@ -3,16 +3,60 @@ set -euo pipefail
 
 usage() {
     cat >&2 <<'EOF'
-Usage: pi-agent-run <agent-markdown-file> [task...]
+Usage: pi-agent-run [--model MODEL] <agent-markdown-file> [task...]
 
 Runs a Pi markdown agent non-interactively using the agent's declared model and tools.
+Use --model (or PI_AGENT_RUN_MODEL) to override the agent model; use "default"
+or "settings" to ignore the agent model and use Pi's configured default model.
 If no task arguments are provided, the task is read from stdin.
 
 Environment:
+  PI_AGENT_RUN_MODEL=MODEL                     Override the agent's declared model.
   PI_AGENT_RUN_DEBUG_JSON=/path/to/file.jsonl  Save raw Pi JSONL output for debugging.
   PI_AGENT_RUN_DEBUG=1                         Print resolved agent metadata to stderr.
 EOF
 }
+
+model_override="${PI_AGENT_RUN_MODEL-}"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --model|-m)
+            if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "pi-agent-run: --model requires a value" >&2
+                usage
+                exit 2
+            fi
+            model_override="$2"
+            shift 2
+            ;;
+        --model=*)
+            model_override="${1#--model=}"
+            if [ -z "$model_override" ]; then
+                echo "pi-agent-run: --model requires a value" >&2
+                usage
+                exit 2
+            fi
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "pi-agent-run: unknown option: $1" >&2
+            usage
+            exit 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
 if [ "$#" -lt 1 ]; then
     usage
@@ -127,6 +171,17 @@ PY
 
 # shellcheck disable=SC1090
 . "$meta_file"
+
+if [ -n "${model_override:-}" ]; then
+    case "$model_override" in
+        default|DEFAULT|settings|SETTINGS|pi-default|PI-DEFAULT|none|NONE)
+            MODEL=""
+            ;;
+        *)
+            MODEL="$model_override"
+            ;;
+    esac
+fi
 
 if [ "${PI_AGENT_RUN_DEBUG:-0}" = "1" ]; then
     echo "pi-agent-run: agent=$agent_file" >&2

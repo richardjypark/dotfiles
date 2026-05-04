@@ -160,6 +160,43 @@ interface SubagentDetails {
 	results: SingleResult[];
 }
 
+type ModelOverride = { kind: "unset" } | { kind: "default" } | { kind: "model"; model: string };
+
+function normalizeModelOverride(value: string | undefined): ModelOverride {
+	const trimmed = value?.trim();
+	if (!trimmed) return { kind: "unset" };
+	const lower = trimmed.toLowerCase();
+	if (lower === "default" || lower === "settings" || lower === "pi-default" || lower === "none") {
+		return { kind: "default" };
+	}
+	return { kind: "model", model: trimmed };
+}
+
+function agentEnvSuffix(agentName: string): string {
+	return agentName.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
+function resolveAgentModel(agent: AgentConfig): string | undefined {
+	let selected: ModelOverride = { kind: "unset" };
+	const envNames = ["PI_SUBAGENT_MODEL"];
+	if (agent.name === "jj") {
+		envNames.push("JJ_AGENT_MODEL");
+	}
+	envNames.push(`PI_SUBAGENT_MODEL_${agentEnvSuffix(agent.name)}`);
+	if (agent.name === "jj") {
+		envNames.push("PI_JJ_AGENT_MODEL");
+	}
+
+	for (const envName of envNames) {
+		const override = normalizeModelOverride(process.env[envName]);
+		if (override.kind !== "unset") selected = override;
+	}
+
+	if (selected.kind === "default") return undefined;
+	if (selected.kind === "model") return selected.model;
+	return agent.model;
+}
+
 function getFinalOutput(messages: Message[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const msg = messages[i];
@@ -262,8 +299,9 @@ async function runSingleAgent(
 		};
 	}
 
+	const model = resolveAgentModel(agent);
 	const args: string[] = ["--mode", "json", "-p", "--no-session"];
-	if (agent.model) args.push("--model", agent.model);
+	if (model) args.push("--model", model);
 	if (agent.tools && agent.tools.length > 0) args.push("--tools", agent.tools.join(","));
 
 	let tmpPromptDir: string | null = null;
@@ -277,7 +315,7 @@ async function runSingleAgent(
 		messages: [],
 		stderr: "",
 		usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0, turns: 0 },
-		model: agent.model,
+		model,
 		step,
 	};
 
@@ -300,6 +338,7 @@ async function runSingleAgent(
 
 		args.push(`Task: ${task}`);
 		let wasAborted = false;
+		let endedNormally = false;
 
 		const exitCode = await new Promise<number>((resolve) => {
 			const invocation = getPiInvocation(args);
@@ -309,6 +348,21 @@ async function runSingleAgent(
 				stdio: ["ignore", "pipe", "pipe"],
 			});
 			let buffer = "";
+			let childClosed = false;
+			let stopAfterAgentEndTimer: NodeJS.Timeout | undefined;
+
+			const terminateChild = () => {
+				if (childClosed) return;
+				proc.kill("SIGTERM");
+				setTimeout(() => {
+					if (!childClosed) proc.kill("SIGKILL");
+				}, 5000);
+			};
+
+			const stopAfterAgentEnd = () => {
+				if (stopAfterAgentEndTimer) return;
+				stopAfterAgentEndTimer = setTimeout(terminateChild, 100);
+			};
 
 			const processLine = (line: string) => {
 				if (!line.trim()) return;
@@ -317,6 +371,11 @@ async function runSingleAgent(
 					event = JSON.parse(line);
 				} catch {
 					return;
+				}
+
+				if (event.type === "agent_end") {
+					endedNormally = true;
+					stopAfterAgentEnd();
 				}
 
 				if (event.type === "message_end" && event.message) {
@@ -359,21 +418,21 @@ async function runSingleAgent(
 			});
 
 			proc.on("close", (code) => {
+				childClosed = true;
+				if (stopAfterAgentEndTimer) clearTimeout(stopAfterAgentEndTimer);
 				if (buffer.trim()) processLine(buffer);
-				resolve(code ?? 0);
+				resolve(endedNormally ? 0 : (code ?? 0));
 			});
 
 			proc.on("error", () => {
+				childClosed = true;
 				resolve(1);
 			});
 
 			if (signal) {
 				const killProc = () => {
 					wasAborted = true;
-					proc.kill("SIGTERM");
-					setTimeout(() => {
-						if (!proc.killed) proc.kill("SIGKILL");
-					}, 5000);
+					terminateChild();
 				};
 				if (signal.aborted) killProc();
 				else signal.addEventListener("abort", killProc, { once: true });
@@ -437,6 +496,7 @@ export default function (pi: ExtensionAPI) {
 			"Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).",
 			'Default agent scope is "user" (from ~/.pi/agent/agents).',
 			'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
+			"Override models with PI_SUBAGENT_MODEL, PI_SUBAGENT_MODEL_<AGENT>, or PI_JJ_AGENT_MODEL/JJ_AGENT_MODEL for the jj agent; use default/settings to use Pi defaults.",
 		].join(" "),
 		parameters: SubagentParams,
 
