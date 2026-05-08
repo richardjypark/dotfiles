@@ -8,7 +8,7 @@ go = "go1.26.2"
 starship = "v1.25.1"
 bun = "bun-v1.3.13"
 tailscale = "1.96.4"
-claude_code_npm = "2.1.131"
+claude_code_npm = "2.1.133"
 
 [update_schedule]
 check_interval = "168h" # Weekly
