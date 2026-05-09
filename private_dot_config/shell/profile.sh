@@ -53,6 +53,15 @@ zsh_profile_report() {
     done
 }
 
+zsh_profile_report_once() {
+    if [[ -n "${_zsh_profile_report_printed:-}" ]]; then
+        return 0
+    fi
+
+    _zsh_profile_report_printed=1
+    zsh_profile_report
+}
+
 # Millisecond timer (gdate on macOS, GNU date on Linux, python3 fallback)
 # macOS built-in date outputs literal %3N, so validate output is numeric
 _profile_get_ms() { local t; t=$(gdate +%s%3N 2>/dev/null) || t=$(date +%s%3N 2>/dev/null); [[ "$t" =~ ^[0-9]+$ ]] && echo "$t" || python3 -c 'import time; print(int(time.time()*1000))'; }
@@ -70,7 +79,7 @@ zsh_startup_time() {
     for i in {1..$runs}; do
         # Time a new shell startup
         start_time=$(_profile_get_ms)
-        zsh -ic 'exit' 2>/dev/null
+        NOTMUX=1 ZSH_PROFILE_STARTUP= zsh -ic 'exit' 2>/dev/null
         end_time=$(_profile_get_ms)
 
         local delta=$(( end_time - start_time ))

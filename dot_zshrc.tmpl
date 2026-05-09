@@ -164,7 +164,9 @@ if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
     _zsh_profile_end=$(_get_ms)
 
     # Auto-display report if function is available
-    if typeset -f zsh_profile_report >/dev/null; then
+    if typeset -f zsh_profile_report_once >/dev/null; then
+        zsh_profile_report_once
+    elif typeset -f zsh_profile_report >/dev/null; then
         zsh_profile_report
     fi
 fi

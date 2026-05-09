@@ -28,25 +28,56 @@ fi
 # - ~/.config/shell/path.sh: Manages full PATH with deduplication (loaded by ~/.zshrc)
 #   This handles all other paths and ensures no duplicates accumulate
 
+_dotfiles_path_prepend_once() {
+    [ -n "$1" ] || return 0
+
+    _dotfiles_path_new="$1"
+    _dotfiles_path_old="${PATH:-}"
+
+    while [ -n "$_dotfiles_path_old" ]; do
+        case "$_dotfiles_path_old" in
+            *:*)
+                _dotfiles_path_entry="${_dotfiles_path_old%%:*}"
+                _dotfiles_path_old="${_dotfiles_path_old#*:}"
+                ;;
+            *)
+                _dotfiles_path_entry="$_dotfiles_path_old"
+                _dotfiles_path_old=""
+                ;;
+        esac
+
+        [ -n "$_dotfiles_path_entry" ] || continue
+        [ "$_dotfiles_path_entry" = "$1" ] && continue
+        case ":$_dotfiles_path_new:" in
+            *":$_dotfiles_path_entry:"*) ;;
+            *) _dotfiles_path_new="$_dotfiles_path_new:$_dotfiles_path_entry" ;;
+        esac
+    done
+
+    export PATH="$_dotfiles_path_new"
+    unset _dotfiles_path_new _dotfiles_path_old _dotfiles_path_entry
+}
+
 # Ensure ~/.local/bin is in PATH for tools like jj, uv, etc.
-export PATH="$HOME/.local/bin:$PATH"
+_dotfiles_path_prepend_once "$HOME/.local/bin"
 
 # Disable Homebrew analytics for all zsh shells.
 export HOMEBREW_NO_ANALYTICS="1"
 
-# NVM lazy loading - sourced on first use of nvm/node/npm/npx
+# NVM lazy loading - sourced on first use of nvm/node/npm/npx/claude
 export NVM_DIR="$HOME/.nvm"
 
 if [ -s "$NVM_DIR/nvm.sh" ]; then
     _nvm_lazy_load() {
-        unset -f nvm node npm npx
+        unset -f nvm node npm npx claude
         source "$NVM_DIR/nvm.sh"
         [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
     }
-    nvm()  { _nvm_lazy_load; nvm  "$@"; }
-    node() { _nvm_lazy_load; node "$@"; }
-    npm()  { _nvm_lazy_load; npm  "$@"; }
-    npx()  { _nvm_lazy_load; npx  "$@"; }
+    nvm()    { _nvm_lazy_load; nvm    "$@"; }
+    node()   { _nvm_lazy_load; node   "$@"; }
+    npm()    { _nvm_lazy_load; npm    "$@"; }
+    npx()    { _nvm_lazy_load; npx    "$@"; }
+    claude() { _nvm_lazy_load; claude "$@"; }
 fi
 
 # Profile NVM setup (lazy wrappers only, no actual load)
@@ -54,7 +85,9 @@ fi
 
 # Bun
 export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+_dotfiles_path_prepend_once "$BUN_INSTALL/bin"
+
+unset -f _dotfiles_path_prepend_once
 
 # Cargo/Rust
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
