@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+MARKER_FILE="$HOME/.config/dotfiles/hermes-agent.enabled"
+GATEWAY_MARKER_FILE="$HOME/.config/dotfiles/hermes-agent-gateway.enabled"
+INSTALL_DIR="$HOME/.local/share/hermes-agent"
+HERMES_HOME_DIR="$HOME/.hermes"
+VENV_DIR="$INSTALL_DIR/.venv"
+HERMES_BIN="$VENV_DIR/bin/hermes"
+LAUNCHER="$HOME/.local/bin/hermes"
+SERVICE_UNIT="hermes-gateway.service"
+
+{{- with .pinned.hermes_agent }}
+HERMES_REPO_URL="{{ .repo_url }}"
+HERMES_BRANCH="{{ .branch }}"
+HERMES_REF="{{ .ref }}"
+HERMES_VERSION="{{ .version }}"
+HERMES_EXTRAS=(
+{{- range .extras }}
+  "{{ . }}"
+{{- end }}
+)
+{{- end }}
+PYTHON_VERSION="{{ .python.version }}"
+
+HERMES_EXTRAS_KEY="$(IFS=,; printf '%s' "${HERMES_EXTRAS[*]}")"
+HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}"
+
+has_user_systemd() {
+    command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
+}
+
+hermes_current_ref() {
+    [ -d "$INSTALL_DIR/.git" ] || return 1
+    git -C "$INSTALL_DIR" rev-parse HEAD 2>/dev/null
+}
+
+hermes_ready() {
+    [ "$(hermes_current_ref 2>/dev/null || true)" = "$HERMES_REF" ] || return 1
+    [ -x "$HERMES_BIN" ] || return 1
+    HERMES_HOME="$HERMES_HOME_DIR" "$HERMES_BIN" --version >/dev/null 2>&1
+}
+
+launcher_ready() {
+    [ -x "$LAUNCHER" ] && grep -Fq "exec \"$HERMES_BIN\"" "$LAUNCHER" 2>/dev/null
+}
+
+config_ready() {
+    [ -d "$HERMES_HOME_DIR" ] && [ -f "$HERMES_HOME_DIR/config.yaml" ] && [ -f "$HERMES_HOME_DIR/SOUL.md" ]
+}
+
+gateway_state_satisfied() {
+    if [ -e "$GATEWAY_MARKER_FILE" ]; then
+        has_user_systemd || return 1
+        systemctl --user is-enabled --quiet "$SERVICE_UNIT" || return 1
+        systemctl --user is-active --quiet "$SERVICE_UNIT" || return 1
+        return 0
+    fi
+
+    if has_user_systemd; then
+        if systemctl --user is-enabled --quiet "$SERVICE_UNIT" 2>/dev/null \
+            || systemctl --user is-active --quiet "$SERVICE_UNIT" 2>/dev/null; then
+            return 1
+        fi
+    fi
+    return 0
+}
+
+disable_gateway_service_if_needed() {
+    has_user_systemd || return 0
+    if systemctl --user is-enabled --quiet "$SERVICE_UNIT" 2>/dev/null \
+        || systemctl --user is-active --quiet "$SERVICE_UNIT" 2>/dev/null; then
+        eecho "Disabling Hermes gateway user service (marker not present)..."
+        systemctl --user disable --now "$SERVICE_UNIT" >/dev/null 2>&1 || true
+    fi
+}
+
+run_hermes_cli() {
+    env -u PYTHONPATH -u PYTHONHOME HERMES_HOME="$HERMES_HOME_DIR" "$HERMES_BIN" "$@"
+}
+
+write_launcher() {
+    mkdir -p "$HOME/.local/bin"
+    cat > "$LAUNCHER" <<EOF
+#!/usr/bin/env bash
+unset PYTHONPATH
+unset PYTHONHOME
+export HERMES_HOME="$HERMES_HOME_DIR"
+exec "$HERMES_BIN" "\$@"
+EOF
+    chmod 755 "$LAUNCHER"
+}
+
+checkout_hermes_ref() {
+    if ! command -v git >/dev/null 2>&1; then
+        eecho "Error: git is required before Hermes Agent setup. Install git, then rerun chezmoi apply."
+        return 1
+    fi
+    if ! require_trust_for_remote_download "github.com/NousResearch/hermes-agent git checkout"; then
+        return 1
+    fi
+
+    if [ -e "$INSTALL_DIR" ] && [ ! -d "$INSTALL_DIR/.git" ]; then
+        eecho "Error: $INSTALL_DIR exists but is not a git checkout. Move it aside and rerun chezmoi apply."
+        return 1
+    fi
+
+    mkdir -p "$(dirname "$INSTALL_DIR")"
+    if [ -d "$INSTALL_DIR/.git" ]; then
+        if [ -n "$(git -C "$INSTALL_DIR" status --porcelain 2>/dev/null || true)" ]; then
+            eecho "Error: local changes exist in $INSTALL_DIR; refusing to overwrite them."
+            return 1
+        fi
+        run_quiet git -C "$INSTALL_DIR" remote set-url origin "$HERMES_REPO_URL"
+        run_quiet git -C "$INSTALL_DIR" fetch --depth 1 origin "$HERMES_BRANCH"
+    else
+        eecho "Cloning Hermes Agent $HERMES_VERSION for this host..."
+        run_quiet git clone --depth 1 --branch "$HERMES_BRANCH" "$HERMES_REPO_URL" "$INSTALL_DIR"
+    fi
+
+    if ! git -C "$INSTALL_DIR" cat-file -e "$HERMES_REF^{commit}" 2>/dev/null; then
+        run_quiet git -C "$INSTALL_DIR" fetch --depth 1 origin "$HERMES_REF"
+    fi
+    run_quiet git -C "$INSTALL_DIR" checkout --detach "$HERMES_REF"
+}
+
+sync_hermes_environment() {
+    if ! require_trust_for_remote_download "PyPI packages for Hermes Agent"; then
+        return 1
+    fi
+    if ! command -v uv >/dev/null 2>&1; then
+        eecho "Error: uv is required before Hermes Agent setup. Rerun chezmoi apply after uv setup completes."
+        return 1
+    fi
+
+    local sync_args=(sync --locked --python "$PYTHON_VERSION" --no-dev)
+    local extra
+    for extra in "${HERMES_EXTRAS[@]}"; do
+        sync_args+=(--extra "$extra")
+    done
+
+    eecho "Installing Hermes Agent lean VPS profile (${HERMES_EXTRAS_KEY})..."
+    (
+        cd "$INSTALL_DIR"
+        export UV_PROJECT_ENVIRONMENT="$VENV_DIR"
+        export UV_LINK_MODE="copy"
+        run_quiet uv "${sync_args[@]}"
+    )
+}
+
+seed_hermes_home() {
+    mkdir -p "$HERMES_HOME_DIR"/{cron,sessions,logs,pairing,hooks,image_cache,audio_cache,memories,skills}
+
+    if [ ! -f "$HERMES_HOME_DIR/config.yaml" ] && [ -f "$INSTALL_DIR/cli-config.yaml.example" ]; then
+        cp "$INSTALL_DIR/cli-config.yaml.example" "$HERMES_HOME_DIR/config.yaml"
+        chmod 600 "$HERMES_HOME_DIR/config.yaml"
+    fi
+
+    if [ ! -f "$HERMES_HOME_DIR/SOUL.md" ]; then
+        cat > "$HERMES_HOME_DIR/SOUL.md" <<'SOUL_EOF'
+# Hermes Agent Persona
+
+<!--
+Machine-local Hermes persona. Edit this file to customize the agent's tone.
+This dotfiles setup does not manage Hermes API keys or .env files.
+-->
+SOUL_EOF
+    fi
+
+    if [ -x "$VENV_DIR/bin/python" ] && [ -f "$INSTALL_DIR/tools/skills_sync.py" ]; then
+        (
+            export HERMES_HOME="$HERMES_HOME_DIR"
+            run_quiet "$VENV_DIR/bin/python" "$INSTALL_DIR/tools/skills_sync.py"
+        ) || true
+    fi
+}
+
+ensure_gateway_service() {
+    if [ ! -e "$GATEWAY_MARKER_FILE" ]; then
+        disable_gateway_service_if_needed
+        return 0
+    fi
+
+    if ! has_user_systemd; then
+        eecho "Hermes Agent is installed, but user systemd is unavailable; gateway service not started."
+        eecho "Rerun chezmoi apply from a normal login session or enable linger for this user."
+        return 0
+    fi
+
+    eecho "Ensuring Hermes gateway user service is enabled for this always-on host..."
+    run_quiet run_hermes_cli gateway install
+    systemctl --user daemon-reload
+    if [ "$VERBOSE" = "true" ]; then
+        systemctl --user enable --now "$SERVICE_UNIT"
+    else
+        systemctl --user enable --now "$SERVICE_UNIT" >/dev/null 2>&1
+    fi
+}
+
+if [ ! -e "$MARKER_FILE" ]; then
+    vecho "Hermes Agent not enabled on this host"
+    disable_gateway_service_if_needed
+    exit 0
+fi
+
+add_to_path "$HOME/.local/bin"
+
+if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied; then
+    vecho "Hermes Agent already ensured (state tracked)"
+    exit 0
+fi
+
+if ! hermes_ready; then
+    checkout_hermes_ref
+    sync_hermes_environment
+fi
+
+write_launcher
+seed_hermes_home
+
+if ! hermes_ready; then
+    eecho "Error: Hermes Agent installation did not pass verification."
+    exit 1
+fi
+
+ensure_gateway_service
+mark_state "$HERMES_STATE"
+vecho "Hermes Agent ensured: $($LAUNCHER --version 2>/dev/null || printf '%s' "$HERMES_VERSION")"
