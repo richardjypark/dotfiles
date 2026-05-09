@@ -176,9 +176,11 @@ creates `~/.local/bin/hermes`, and uses a lean locked uv environment for messagi
 without the heavier browser, voice, RL, or development extras. Hermes runtime data lives in
 `~/.hermes/`. API keys and other secret env values are not managed by this repo; run
 `hermes setup` or `hermes gateway setup` locally after install. For public-repo safety,
-this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`; the setup script
-only enforces the non-sensitive defaults `display.show_reasoning=true` and
-`agent.reasoning_effort=xhigh`.
+this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensitive
+Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]`, and the
+always-run Hermes setup script reapplies them with `hermes config set` on each
+`chezmoi apply`: `display.show_reasoning=true`, `agent.reasoning_effort=xhigh`,
+`agent.max_turns=500`, `goals.max_turns=500`, and `model.context_length=500000`.
 
 Removing `~/.config/dotfiles/hermes-agent-gateway.enabled` and re-running `chezmoi apply` disables
 the gateway user service on that machine. Removing the install marker stops future managed setup but
