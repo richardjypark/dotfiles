@@ -8,3 +8,6 @@ plans/[0-9]*.md
 
 # Local autoresearch session artifacts
 /autoresearch*
+
+# Hermes runtime config/state is machine-local; enforce public-safe defaults via scripts.
+/private_dot_hermes/
