@@ -11,3 +11,14 @@ plans/[0-9]*.md
 
 # Hermes runtime config/state is machine-local; enforce public-safe defaults via scripts.
 /private_dot_hermes/
+
+# Machine-local secrets and credentials should stay out of the public dotfiles repo.
+*.env
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*.json
+*secrets*.json

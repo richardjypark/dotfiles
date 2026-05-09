@@ -62,6 +62,7 @@ if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
     CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
 fi
 CHEZMOI_VERSION_FILE="$CHEZMOI_SOURCE_DIR/.chezmoiversion.toml"
+CHEZMOI_DATA_FILE="$CHEZMOI_SOURCE_DIR/.chezmoidata.toml"
 
 get_pinned_version() {
     local key="$1"
@@ -69,6 +70,93 @@ get_pinned_version() {
         return 1
     fi
     sed -n "s/^${key} = \"\\([^\"]*\\)\"/\\1/p" "$CHEZMOI_VERSION_FILE" | head -1
+}
+
+get_toml_section_value() {
+    local file="$1"
+    local section="$2"
+    local key="$3"
+
+    if [ ! -f "$file" ]; then
+        return 1
+    fi
+
+    awk -v section="[$section]" -v key="$key" '
+    BEGIN { in_section = 0 }
+    {
+        if ($0 ~ /^\[/) {
+            in_section = ($0 == section)
+        }
+        if (in_section && $0 ~ ("^" key "[[:space:]]*=")) {
+            line = $0
+            sub(/^[^=]+=[[:space:]]*"/, "", line)
+            sub(/".*$/, "", line)
+            print line
+            exit
+        }
+    }
+    ' "$file"
+}
+
+get_pinned_data_value() {
+    local section="$1"
+    local key="$2"
+    get_toml_section_value "$CHEZMOI_DATA_FILE" "$section" "$key"
+}
+
+extract_semver() {
+    local value="$1"
+    printf '%s\n' "$value" | grep -Eo '[0-9]+([.][0-9]+)+' | head -1 || true
+}
+
+normalize_version() {
+    local value="$1"
+    local semver=""
+
+    value="${value#rust-v}"
+    value="${value#bun-v}"
+    value="${value#go}"
+    value="${value#v}"
+    semver="$(extract_semver "$value" || true)"
+    if [ -n "$semver" ]; then
+        printf '%s\n' "$semver"
+    else
+        printf '%s\n' "$value"
+    fi
+}
+
+is_normalized_semver() {
+    [[ "$1" =~ ^[0-9]+([.][0-9]+)+$ ]]
+}
+
+check_tool_version_against_pin() {
+    local label="$1"
+    local current="$2"
+    local pinned="$3"
+    local current_clean=""
+    local pinned_clean=""
+
+    if [ -z "$pinned" ]; then
+        check_pass "$label: $current"
+        return
+    fi
+
+    current_clean="$(normalize_version "$current")"
+    pinned_clean="$(normalize_version "$pinned")"
+
+    if [ -z "$current_clean" ] || [ -z "$pinned_clean" ]; then
+        check_warn "$label: ${current:-unknown} (pinned: $pinned; unable to compare)"
+    elif ! is_normalized_semver "$current_clean" || ! is_normalized_semver "$pinned_clean"; then
+        check_warn "$label: ${current:-unknown} (pinned: $pinned; unable to compare)"
+    elif version_ge "$current_clean" "$pinned_clean"; then
+        if [ "$current_clean" = "$pinned_clean" ]; then
+            check_pass "$label: $current"
+        else
+            check_pass "$label: $current (pinned minimum: $pinned)"
+        fi
+    else
+        check_warn "$label: $current (below pinned: $pinned)"
+    fi
 }
 
 vecho ""
@@ -116,6 +204,14 @@ for tool in zsh git curl; do
         check_fail "$tool not found"
     fi
 done
+
+if is_installed chezmoi; then
+    CHEZMOI_VERSION="$(chezmoi --version 2>/dev/null | head -1 || echo "unknown")"
+    CHEZMOI_PINNED="$(get_pinned_data_value "pinned.chezmoi" "version" || true)"
+    check_tool_version_against_pin "chezmoi" "$CHEZMOI_VERSION" "$CHEZMOI_PINNED"
+else
+    check_fail "chezmoi not found"
+fi
 
 vecho ""
 vecho "--- Chezmoi Helper Commands ---"
@@ -196,6 +292,33 @@ else
     check_warn "eza/exa not installed"
 fi
 
+# Neovim
+if is_installed nvim; then
+    NVIM_VERSION="$(nvim --version 2>/dev/null | head -1 || echo "unknown")"
+    NVIM_PINNED="$(get_pinned_version "neovim" || true)"
+    check_tool_version_against_pin "neovim" "$NVIM_VERSION" "$NVIM_PINNED"
+else
+    check_warn "neovim not installed"
+fi
+
+# Starship
+if is_installed starship; then
+    STARSHIP_VERSION="$(starship --version 2>/dev/null | head -1 || echo "unknown")"
+    STARSHIP_PINNED="$(get_pinned_version "starship" || true)"
+    check_tool_version_against_pin "starship" "$STARSHIP_VERSION" "$STARSHIP_PINNED"
+else
+    check_warn "starship not installed"
+fi
+
+# Go
+if is_installed go; then
+    GO_VERSION="$(go version 2>/dev/null || echo "unknown")"
+    GO_PINNED="$(get_pinned_data_value "pinned.go" "version" || true)"
+    check_tool_version_against_pin "go" "$GO_VERSION" "$GO_PINNED"
+else
+    check_warn "go not installed"
+fi
+
 # Node.js / NVM
 if [ -d "$HOME/.nvm" ]; then
     check_pass "NVM installed"
@@ -213,11 +336,7 @@ fi
 if is_installed uv; then
     UV_VERSION=$(uv --version 2>/dev/null | awk '{print $2}' || echo "unknown")
     UV_PINNED="$(get_pinned_version "uv" || true)"
-    if [ -n "$UV_PINNED" ] && [ "$UV_VERSION" != "$UV_PINNED" ]; then
-        check_warn "uv: $UV_VERSION (pinned: $UV_PINNED)"
-    else
-        check_pass "uv: $UV_VERSION"
-    fi
+    check_tool_version_against_pin "uv" "$UV_VERSION" "$UV_PINNED"
 else
     check_warn "uv not installed"
 fi
@@ -225,21 +344,20 @@ fi
 # Jujutsu (jj)
 if is_installed jj; then
     JJ_VERSION=$(jj version 2>/dev/null | awk '{print $2}' || echo "unknown")
-    JJ_VERSION_CLEAN="$(printf '%s\n' "$JJ_VERSION" | cut -d- -f1)"
     JJ_PINNED="$(get_pinned_version "jj" || true)"
-    JJ_PINNED_CLEAN="${JJ_PINNED#v}"
-    if [ -n "$JJ_PINNED_CLEAN" ] && [ "$JJ_VERSION_CLEAN" != "$JJ_PINNED_CLEAN" ]; then
-        check_warn "jj: $JJ_VERSION (pinned: $JJ_PINNED)"
-    else
-        check_pass "jj: $JJ_VERSION"
-    fi
+    check_tool_version_against_pin "jj" "$JJ_VERSION" "$JJ_PINNED"
 else
     check_warn "jj not installed"
 fi
 
 # Claude Code
 if is_installed claude; then
-    check_pass "Claude Code installed"
+    CLAUDE_VERSION="$(claude --version 2>/dev/null | head -1 || echo "unknown")"
+    CLAUDE_PINNED="$(get_pinned_version "claude_code_npm" || true)"
+    if [ -z "$CLAUDE_PINNED" ]; then
+        CLAUDE_PINNED="$(get_pinned_data_value "pinned.claude" "npm_version" || true)"
+    fi
+    check_tool_version_against_pin "Claude Code" "$CLAUDE_VERSION" "$CLAUDE_PINNED"
 else
     check_warn "Claude Code not installed"
 fi
@@ -248,12 +366,7 @@ fi
 if is_installed codex; then
     CODEX_VERSION="$(codex --version 2>/dev/null | awk '{print $NF}' || echo "unknown")"
     CODEX_PINNED="$(get_pinned_version "codex" || true)"
-    CODEX_PINNED_CLEAN="${CODEX_PINNED#rust-v}"
-    if [ -n "$CODEX_PINNED_CLEAN" ] && [ "$CODEX_VERSION" != "$CODEX_PINNED_CLEAN" ]; then
-        check_warn "Codex CLI: $CODEX_VERSION (pinned: $CODEX_PINNED)"
-    else
-        check_pass "Codex CLI: $CODEX_VERSION"
-    fi
+    check_tool_version_against_pin "Codex CLI" "$CODEX_VERSION" "$CODEX_PINNED"
 else
     check_warn "Codex CLI not installed"
 fi
@@ -262,12 +375,7 @@ fi
 if is_installed bun; then
     BUN_VERSION=$(bun --version 2>/dev/null || echo "unknown")
     BUN_PINNED="$(get_pinned_version "bun" || true)"
-    BUN_PINNED_CLEAN="${BUN_PINNED#bun-v}"
-    if [ -n "$BUN_PINNED_CLEAN" ] && [ "$BUN_VERSION" != "$BUN_PINNED_CLEAN" ]; then
-        check_warn "bun: $BUN_VERSION (pinned: $BUN_PINNED)"
-    else
-        check_pass "bun: $BUN_VERSION"
-    fi
+    check_tool_version_against_pin "bun" "$BUN_VERSION" "$BUN_PINNED"
 else
     check_warn "bun not installed"
 fi
@@ -276,11 +384,7 @@ fi
 if is_installed tailscale; then
     TAILSCALE_VERSION="$(tailscale version 2>/dev/null | awk 'NR==1{print $1}' || echo "unknown")"
     TAILSCALE_PINNED="$(get_pinned_version "tailscale" || true)"
-    if [ -n "$TAILSCALE_PINNED" ] && [ "$TAILSCALE_VERSION" != "$TAILSCALE_PINNED" ]; then
-        check_warn "tailscale: $TAILSCALE_VERSION (pinned: $TAILSCALE_PINNED)"
-    else
-        check_pass "tailscale: $TAILSCALE_VERSION"
-    fi
+    check_tool_version_against_pin "tailscale" "$TAILSCALE_VERSION" "$TAILSCALE_PINNED"
 else
     check_warn "tailscale not installed"
 fi
