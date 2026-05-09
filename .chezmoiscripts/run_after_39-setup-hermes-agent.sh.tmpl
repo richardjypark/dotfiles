@@ -80,6 +80,17 @@ run_hermes_cli() {
     env -u PYTHONPATH -u PYTHONHOME HERMES_HOME="$HERMES_HOME_DIR" "$HERMES_BIN" "$@"
 }
 
+ensure_public_hermes_preferences() {
+    [ -x "$HERMES_BIN" ] || return 0
+    [ -f "$HERMES_HOME_DIR/config.yaml" ] || return 0
+
+    # Keep public dotfiles from tracking the full Hermes runtime config.
+    # Only enforce stable, non-sensitive preferences here; API keys and
+    # machine-local provider details remain in ~/.hermes/config.yaml or .env.
+    run_quiet run_hermes_cli config set display.show_reasoning true
+    run_quiet run_hermes_cli config set agent.reasoning_effort xhigh
+}
+
 write_launcher() {
     mkdir -p "$HOME/.local/bin"
     cat > "$LAUNCHER" <<EOF
@@ -207,6 +218,7 @@ fi
 add_to_path "$HOME/.local/bin"
 
 if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied; then
+    ensure_public_hermes_preferences
     vecho "Hermes Agent already ensured (state tracked)"
     exit 0
 fi
@@ -218,6 +230,7 @@ fi
 
 write_launcher
 seed_hermes_home
+ensure_public_hermes_preferences
 
 if ! hermes_ready; then
     eecho "Error: Hermes Agent installation did not pass verification."
