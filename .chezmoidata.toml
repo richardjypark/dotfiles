@@ -63,6 +63,13 @@ branch = "main"
 ref = "cca2869d78388e049ff1116e420b7209643a9c15"
 extras = ["messaging", "cli", "pty", "honcho", "mcp", "acp"]
 
+[hermes.preferences]
+show_reasoning = true
+reasoning_effort = "xhigh"
+agent_max_turns = 500
+goals_max_turns = 500
+context_length = 500000
+
 [pinned.starship]
 version = "v1.25.1"
 linux_x86_64_sha256 = "c6ddd3ecb9c0071a2ad38d98cee748160066b7c4f197421268058f4a5d6f8504"

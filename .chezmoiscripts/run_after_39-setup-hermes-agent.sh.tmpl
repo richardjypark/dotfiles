@@ -23,6 +23,13 @@ HERMES_EXTRAS=(
 )
 {{- end }}
 PYTHON_VERSION="{{ .python.version }}"
+{{- with .hermes.preferences }}
+HERMES_SHOW_REASONING="{{ .show_reasoning }}"
+HERMES_REASONING_EFFORT="{{ .reasoning_effort }}"
+HERMES_AGENT_MAX_TURNS="{{ .agent_max_turns }}"
+HERMES_GOALS_MAX_TURNS="{{ .goals_max_turns }}"
+HERMES_CONTEXT_LENGTH="{{ .context_length }}"
+{{- end }}
 
 HERMES_EXTRAS_KEY="$(IFS=,; printf '%s' "${HERMES_EXTRAS[*]}")"
 HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}"
@@ -84,11 +91,15 @@ ensure_public_hermes_preferences() {
     [ -x "$HERMES_BIN" ] || return 0
     [ -f "$HERMES_HOME_DIR/config.yaml" ] || return 0
 
-    # Keep public dotfiles from tracking the full Hermes runtime config.
-    # Only enforce stable, non-sensitive preferences here; API keys and
+    # This run_after script runs on every chezmoi apply. Keep public dotfiles
+    # from tracking the full Hermes runtime config while still converging
+    # stable, non-sensitive preferences from .chezmoidata.toml. API keys and
     # machine-local provider details remain in ~/.hermes/config.yaml or .env.
-    run_quiet run_hermes_cli config set display.show_reasoning true
-    run_quiet run_hermes_cli config set agent.reasoning_effort xhigh
+    run_quiet run_hermes_cli config set display.show_reasoning "$HERMES_SHOW_REASONING"
+    run_quiet run_hermes_cli config set agent.reasoning_effort "$HERMES_REASONING_EFFORT"
+    run_quiet run_hermes_cli config set agent.max_turns "$HERMES_AGENT_MAX_TURNS"
+    run_quiet run_hermes_cli config set goals.max_turns "$HERMES_GOALS_MAX_TURNS"
+    run_quiet run_hermes_cli config set model.context_length "$HERMES_CONTEXT_LENGTH"
 }
 
 write_launcher() {
