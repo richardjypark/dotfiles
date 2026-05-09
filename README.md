@@ -175,7 +175,10 @@ When enabled, chezmoi installs a pinned Hermes Agent checkout under `~/.local/sh
 creates `~/.local/bin/hermes`, and uses a lean locked uv environment for messaging/cron/CLI usage
 without the heavier browser, voice, RL, or development extras. Hermes runtime data lives in
 `~/.hermes/`. API keys and other secret env values are not managed by this repo; run
-`hermes setup` or `hermes gateway setup` locally after install.
+`hermes setup` or `hermes gateway setup` locally after install. For public-repo safety,
+this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`; the setup script
+only enforces the non-sensitive defaults `display.show_reasoning=true` and
+`agent.reasoning_effort=xhigh`.
 
 Removing `~/.config/dotfiles/hermes-agent-gateway.enabled` and re-running `chezmoi apply` disables
 the gateway user service on that machine. Removing the install marker stops future managed setup but
