@@ -56,6 +56,13 @@ macos_arm64_sha256 = "3a185bf8f46a7b7c8b910d111825907b1638d0ae503cb3c333ae205772
 version = "go1.26.2"
 linux_x86_64_sha256 = "990e6b4bbba816dc3ee129eaeaf4b42f17c2800b88a2166c265ac1a200262282"
 
+[pinned.hermes_agent]
+version = "0.13.0"
+repo_url = "https://github.com/NousResearch/hermes-agent.git"
+branch = "main"
+ref = "cca2869d78388e049ff1116e420b7209643a9c15"
+extras = ["messaging", "cli", "pty", "honcho", "mcp", "acp"]
+
 [pinned.starship]
 version = "v1.25.1"
 linux_x86_64_sha256 = "c6ddd3ecb9c0071a2ad38d98cee748160066b7c4f197421268058f4a5d6f8504"

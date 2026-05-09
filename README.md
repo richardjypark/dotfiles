@@ -159,6 +159,28 @@ When enabled, chezmoi ensures a pinned user-local Go toolchain under `~/.local/s
 for a Java runtime for the IBKR Client Portal Gateway. The marker file is machine-local and
 untracked, so other hosts do not install these dependencies by default.
 
+### Hermes Agent local install
+
+Hermes Agent is opt-in per machine for always-on personal hosts/VPSes:
+
+```bash
+mkdir -p ~/.config/dotfiles
+touch ~/.config/dotfiles/hermes-agent.enabled
+# Optional: keep the messaging/cron gateway running under user systemd.
+touch ~/.config/dotfiles/hermes-agent-gateway.enabled
+TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
+```
+
+When enabled, chezmoi installs a pinned Hermes Agent checkout under `~/.local/share/hermes-agent`,
+creates `~/.local/bin/hermes`, and uses a lean locked uv environment for messaging/cron/CLI usage
+without the heavier browser, voice, RL, or development extras. Hermes runtime data lives in
+`~/.hermes/`. API keys and other secret env values are not managed by this repo; run
+`hermes setup` or `hermes gateway setup` locally after install.
+
+Removing `~/.config/dotfiles/hermes-agent-gateway.enabled` and re-running `chezmoi apply` disables
+the gateway user service on that machine. Removing the install marker stops future managed setup but
+leaves the local checkout and `~/.hermes/` data in place for manual review/removal.
+
 ## Pi Maintenance Agent
 
 On macOS and Omarchy hosts, `chezmoi apply` installs the managed local `pi` CLI from a committed lockfile and ensures the `pi-autoresearch` package is present from a pinned git commit for that user profile.
