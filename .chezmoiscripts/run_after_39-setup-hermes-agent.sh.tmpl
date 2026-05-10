@@ -38,9 +38,12 @@ HERMES_TUI_DIFF_REMOVED_BG="{{ .removed_bg }}"
 HERMES_TUI_DIFF_ADDED_FG="{{ .added_fg }}"
 HERMES_TUI_DIFF_REMOVED_FG="{{ .removed_fg }}"
 {{- end }}
+{{- with .hermes.tui_status }}
+HERMES_TUI_STATUS_PATCH_VERSION="{{ .patch_version }}"
+{{- end }}
 
 HERMES_EXTRAS_KEY="$(IFS=,; printf '%s' "${HERMES_EXTRAS[*]}")"
-HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}-tui-diff-${HERMES_TUI_DIFF_PATCH_VERSION}"
+HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}-tui-diff-${HERMES_TUI_DIFF_PATCH_VERSION}-tui-status-${HERMES_TUI_STATUS_PATCH_VERSION}"
 
 has_user_systemd() {
     command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
@@ -96,6 +99,10 @@ HERMES_TUI_DIFF_PATCH_ADDED="    diffAdded: '$HERMES_TUI_DIFF_ADDED_BG',"
 HERMES_TUI_DIFF_PATCH_REMOVED="    diffRemoved: '$HERMES_TUI_DIFF_REMOVED_BG',"
 HERMES_TUI_DIFF_PATCH_ADDED_WORD="    diffAddedWord: '$HERMES_TUI_DIFF_ADDED_FG',"
 HERMES_TUI_DIFF_PATCH_REMOVED_WORD="    diffRemovedWord: '$HERMES_TUI_DIFF_REMOVED_FG',"
+
+HERMES_TUI_STATUS_FILE="ui-tui/src/app/useMainApp.ts"
+HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : \`voice \${voiceEnabled ? 'on' : 'off'}\`"
+HERMES_TUI_STATUS_PATCH_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : voiceEnabled ? 'voice on' : ''"
 
 replace_hermes_tui_diff_color_lines() {
     local mode="$1"
@@ -183,6 +190,69 @@ remove_hermes_tui_diff_color_patch() {
     replace_hermes_tui_diff_color_lines revert
 }
 
+replace_hermes_tui_status_voice_line() {
+    local mode="$1"
+    local status_file="$INSTALL_DIR/$HERMES_TUI_STATUS_FILE"
+    [ -f "$status_file" ] || return 0
+
+    local from_line to_line
+    case "$mode" in
+        apply)
+            from_line="$HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL"
+            to_line="$HERMES_TUI_STATUS_PATCH_VOICE_LABEL"
+            ;;
+        revert)
+            from_line="$HERMES_TUI_STATUS_PATCH_VOICE_LABEL"
+            to_line="$HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    local tmp awk_status
+    tmp="$(mktemp "${status_file}.tmp.XXXXXX")" || return 1
+    if awk -v from_line="$from_line" -v to_line="$to_line" '
+        $0 == from_line { print to_line; changed = 1; next }
+        { print }
+        END { if (changed) exit 42 }
+    ' "$status_file" > "$tmp"; then
+        rm -f "$tmp"
+        return 0
+    else
+        awk_status=$?
+        if [ "$awk_status" -eq 42 ]; then
+            mv "$tmp" "$status_file"
+            return 0
+        fi
+        rm -f "$tmp"
+        return "$awk_status"
+    fi
+}
+
+tui_status_voice_ready() {
+    local status_file="$INSTALL_DIR/$HERMES_TUI_STATUS_FILE"
+    [ -f "$status_file" ] || return 1
+    grep -Fqx "$HERMES_TUI_STATUS_PATCH_VOICE_LABEL" "$status_file" || return 1
+}
+
+ensure_hermes_tui_status_patch() {
+    local status_file="$INSTALL_DIR/$HERMES_TUI_STATUS_FILE"
+    [ -f "$status_file" ] || return 0
+    tui_status_voice_ready && return 0
+
+    replace_hermes_tui_status_voice_line apply
+    if tui_status_voice_ready; then
+        vecho "Hermes TUI status bar patched to hide inactive voice state"
+    else
+        eecho "Warning: Hermes TUI status bar patch could not be applied; upstream UI may have changed."
+    fi
+}
+
+remove_hermes_tui_status_patch() {
+    replace_hermes_tui_status_voice_line revert
+}
+
 disable_gateway_service_if_needed() {
     has_user_systemd || return 0
     if systemctl --user is-enabled --quiet "$SERVICE_UNIT" 2>/dev/null \
@@ -243,6 +313,7 @@ checkout_hermes_ref() {
     mkdir -p "$(dirname "$INSTALL_DIR")"
     if [ -d "$INSTALL_DIR/.git" ]; then
         remove_hermes_tui_diff_color_patch
+        remove_hermes_tui_status_patch
         if [ -n "$(git -C "$INSTALL_DIR" status --porcelain 2>/dev/null || true)" ]; then
             eecho "Error: local changes exist in $INSTALL_DIR; refusing to overwrite them."
             return 1
@@ -341,7 +412,7 @@ fi
 
 add_to_path "$HOME/.local/bin"
 
-if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready; then
+if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_voice_ready; then
     ensure_public_hermes_preferences
     vecho "Hermes Agent already ensured (state tracked)"
     exit 0
@@ -356,6 +427,7 @@ write_launcher
 seed_hermes_home
 ensure_public_hermes_preferences
 ensure_hermes_tui_diff_color_patch
+ensure_hermes_tui_status_patch
 
 if ! hermes_ready; then
     eecho "Error: Hermes Agent installation did not pass verification."
