@@ -180,7 +180,12 @@ this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensit
 Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]`, and the
 always-run Hermes setup script reapplies them with `hermes config set` on each
 `chezmoi apply`: `display.show_reasoning=true`, `agent.reasoning_effort=xhigh`,
-`agent.max_turns=500`, `goals.max_turns=500`, and `model.context_length=500000`.
+`agent.max_turns=500`, `goals.max_turns=500`, `model.context_length=500000`,
+and `tui_by_default=true`. When `tui_by_default` is enabled, the managed
+`~/.local/bin/hermes` launcher sets `HERMES_TUI=1` for interactive terminals
+unless already set, so `hermes` opens the richer TUI status line. That status
+line includes the current model reasoning effort (for example `xhigh`) and the
+launch working directory with git branch.
 
 Removing `~/.config/dotfiles/hermes-agent-gateway.enabled` and re-running `chezmoi apply` disables
 the gateway user service on that machine. Removing the install marker stops future managed setup but

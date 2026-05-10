@@ -69,6 +69,7 @@ reasoning_effort = "xhigh"
 agent_max_turns = 500
 goals_max_turns = 500
 context_length = 500000
+tui_by_default = true
 
 [pinned.starship]
 version = "v1.25.1"
