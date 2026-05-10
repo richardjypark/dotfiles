@@ -185,10 +185,11 @@ and `tui_by_default=true`. When `tui_by_default` is enabled, the managed
 `~/.local/bin/hermes` launcher sets `HERMES_TUI=1` for interactive terminals
 unless already set, so `hermes` opens the richer TUI status line. That status
 line includes the current model reasoning effort (for example `xhigh`) and the
-launch working directory with git branch. The setup script also reapplies a
-small local Hermes TUI theme patch that softens inline diff red/green highlight
-backgrounds; this works around Hermes' default TUI colors rather than Ghostty's
-palette.
+launch working directory with git branch. The setup script also reapplies
+small local Hermes TUI patches that soften inline diff red/green highlight
+backgrounds and hide the inactive `voice off` status-bar segment while still
+showing active voice states like `voice on`, `● REC`, and `◉ STT`; these work
+around Hermes' default TUI colors/status density rather than Ghostty's palette.
 
 Removing `~/.config/dotfiles/hermes-agent-gateway.enabled` and re-running `chezmoi apply` disables
 the gateway user service on that machine. Removing the install marker stops future managed setup but

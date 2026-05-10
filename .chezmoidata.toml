@@ -78,6 +78,9 @@ removed_bg = "rgb(64,45,47)"
 added_fg = "rgb(139,213,120)"
 removed_fg = "rgb(239,132,132)"
 
+[hermes.tui_status]
+patch_version = "hide-voice-off-v1"
+
 [pinned.starship]
 version = "v1.25.1"
 linux_x86_64_sha256 = "c6ddd3ecb9c0071a2ad38d98cee748160066b7c4f197421268058f4a5d6f8504"
