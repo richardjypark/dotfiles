@@ -29,6 +29,7 @@ HERMES_REASONING_EFFORT="{{ .reasoning_effort }}"
 HERMES_AGENT_MAX_TURNS="{{ .agent_max_turns }}"
 HERMES_GOALS_MAX_TURNS="{{ .goals_max_turns }}"
 HERMES_CONTEXT_LENGTH="{{ .context_length }}"
+HERMES_TUI_BY_DEFAULT="{{ .tui_by_default }}"
 {{- end }}
 
 HERMES_EXTRAS_KEY="$(IFS=,; printf '%s' "${HERMES_EXTRAS[*]}")"
@@ -50,7 +51,12 @@ hermes_ready() {
 }
 
 launcher_ready() {
-    [ -x "$LAUNCHER" ] && grep -Fq "exec \"$HERMES_BIN\"" "$LAUNCHER" 2>/dev/null
+    [ -x "$LAUNCHER" ] || return 1
+    grep -Fq "exec \"$HERMES_BIN\"" "$LAUNCHER" 2>/dev/null || return 1
+    if [ "$HERMES_TUI_BY_DEFAULT" = "true" ]; then
+        grep -Fq "HERMES_TUI=1" "$LAUNCHER" 2>/dev/null || return 1
+    fi
+    return 0
 }
 
 config_ready() {
@@ -109,6 +115,9 @@ write_launcher() {
 unset PYTHONPATH
 unset PYTHONHOME
 export HERMES_HOME="$HERMES_HOME_DIR"
+if [ "$HERMES_TUI_BY_DEFAULT" = "true" ] && [ -z "\${HERMES_TUI+x}" ] && [ -t 0 ] && [ -t 1 ]; then
+    export HERMES_TUI=1
+fi
 exec "$HERMES_BIN" "\$@"
 EOF
     chmod 755 "$LAUNCHER"
