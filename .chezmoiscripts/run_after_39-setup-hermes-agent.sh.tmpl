@@ -8,6 +8,7 @@ INSTALL_DIR="$HOME/.local/share/hermes-agent"
 HERMES_HOME_DIR="$HOME/.hermes"
 VENV_DIR="$INSTALL_DIR/.venv"
 HERMES_BIN="$VENV_DIR/bin/hermes"
+TUI_DIR="$INSTALL_DIR/ui-tui"
 LAUNCHER="$HOME/.local/bin/hermes"
 SERVICE_UNIT="hermes-gateway.service"
 
@@ -41,9 +42,10 @@ HERMES_TUI_DIFF_REMOVED_FG="{{ .removed_fg }}"
 {{- with .hermes.tui_status }}
 HERMES_TUI_STATUS_PATCH_VERSION="{{ .patch_version }}"
 {{- end }}
+HERMES_TUI_PREBUILD_VERSION="fast-start-v1"
 
 HERMES_EXTRAS_KEY="$(IFS=,; printf '%s' "${HERMES_EXTRAS[*]}")"
-HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}-tui-diff-${HERMES_TUI_DIFF_PATCH_VERSION}-tui-status-${HERMES_TUI_STATUS_PATCH_VERSION}"
+HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}-tui-diff-${HERMES_TUI_DIFF_PATCH_VERSION}-tui-status-${HERMES_TUI_STATUS_PATCH_VERSION}-tui-prebuild-${HERMES_TUI_PREBUILD_VERSION}"
 
 has_user_systemd() {
     command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
@@ -65,6 +67,7 @@ launcher_ready() {
     grep -Fq "exec \"$HERMES_BIN\"" "$LAUNCHER" 2>/dev/null || return 1
     if [ "$HERMES_TUI_BY_DEFAULT" = "true" ]; then
         grep -Fq "HERMES_TUI=1" "$LAUNCHER" 2>/dev/null || return 1
+        grep -Fq "HERMES_TUI_DIR" "$LAUNCHER" 2>/dev/null || return 1
     fi
     return 0
 }
@@ -253,6 +256,106 @@ remove_hermes_tui_status_patch() {
     replace_hermes_tui_status_voice_line revert
 }
 
+tui_npm_deps_ready() {
+    [ -f "$TUI_DIR/node_modules/@hermes/ink/package.json" ] || return 1
+    [ -f "$TUI_DIR/node_modules/.package-lock.json" ] || return 1
+    if [ -f "$TUI_DIR/package-lock.json" ] && [ "$TUI_DIR/package-lock.json" -nt "$TUI_DIR/node_modules/.package-lock.json" ]; then
+        return 1
+    fi
+    return 0
+}
+
+tui_sources_newer_than() {
+    local output_file="$1"
+    local newer
+    [ -f "$output_file" ] || return 0
+    newer="$(find "$TUI_DIR/src" "$TUI_DIR/packages/hermes-ink/src" \
+        -type f \( -name '*.ts' -o -name '*.tsx' \) \
+        -newer "$output_file" -print -quit 2>/dev/null || true)"
+    [ -n "$newer" ]
+}
+
+tui_build_fresh() {
+    local entry="$TUI_DIR/dist/entry.js"
+    local ink_entry="$TUI_DIR/packages/hermes-ink/dist/entry-exports.js"
+    local meta
+
+    [ -f "$entry" ] || return 1
+    [ -f "$ink_entry" ] || return 1
+
+    tui_sources_newer_than "$entry" && return 1
+    tui_sources_newer_than "$ink_entry" && return 1
+
+    for meta in \
+        "$TUI_DIR/package.json" \
+        "$TUI_DIR/package-lock.json" \
+        "$TUI_DIR/tsconfig.json" \
+        "$TUI_DIR/tsconfig.build.json" \
+        "$TUI_DIR/packages/hermes-ink/package.json"; do
+        [ -f "$meta" ] && [ "$meta" -nt "$entry" ] && return 1
+    done
+
+    return 0
+}
+
+ensure_hermes_tui_ink_staleness_marker() {
+    local ink_dist="$TUI_DIR/packages/hermes-ink/dist"
+    local actual="$ink_dist/entry-exports.js"
+    local expected="$ink_dist/ink-bundle.js"
+
+    [ -f "$actual" ] || return 1
+    if [ -L "$expected" ]; then
+        [ "$(readlink "$expected")" = "entry-exports.js" ] && return 0
+        rm -f "$expected"
+    elif [ -e "$expected" ]; then
+        # Newer Hermes releases may produce the name checked by the launcher directly.
+        return 0
+    fi
+    ln -s "entry-exports.js" "$expected"
+}
+
+tui_prebuild_ready() {
+    [ "$HERMES_TUI_BY_DEFAULT" = "true" ] || return 0
+    [ -d "$TUI_DIR" ] || return 1
+    tui_npm_deps_ready || return 1
+    tui_build_fresh || return 1
+    [ -f "$TUI_DIR/packages/hermes-ink/dist/ink-bundle.js" ] || return 1
+}
+
+ensure_hermes_tui_prebuilt() {
+    [ "$HERMES_TUI_BY_DEFAULT" = "true" ] || return 0
+    [ -d "$TUI_DIR" ] || return 0
+
+    if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+        eecho "Warning: node/npm not available; Hermes TUI will prepare itself on first launch."
+        return 0
+    fi
+
+    if ! tui_npm_deps_ready; then
+        if ! require_trust_for_remote_download "npm packages for Hermes TUI"; then
+            eecho "Warning: skipping Hermes TUI prebuild because npm dependency install is not trusted yet."
+            return 0
+        fi
+        eecho "Installing Hermes TUI node dependencies for fast startup..."
+        (
+            cd "$TUI_DIR"
+            run_quiet npm install --silent --no-fund --no-audit --progress=false
+        )
+    fi
+
+    if ! tui_build_fresh; then
+        eecho "Prebuilding Hermes TUI for fast startup..."
+        (
+            cd "$TUI_DIR"
+            run_quiet npm run build
+        )
+    fi
+
+    if ! ensure_hermes_tui_ink_staleness_marker; then
+        eecho "Warning: Hermes TUI prebuild completed, but the Ink freshness marker could not be prepared."
+    fi
+}
+
 disable_gateway_service_if_needed() {
     has_user_systemd || return 0
     if systemctl --user is-enabled --quiet "$SERVICE_UNIT" 2>/dev/null \
@@ -288,6 +391,7 @@ write_launcher() {
 unset PYTHONPATH
 unset PYTHONHOME
 export HERMES_HOME="$HERMES_HOME_DIR"
+export HERMES_TUI_DIR="\${HERMES_TUI_DIR:-$TUI_DIR}"
 if [ "$HERMES_TUI_BY_DEFAULT" = "true" ] && [ -z "\${HERMES_TUI+x}" ] && [ -t 0 ] && [ -t 1 ]; then
     export HERMES_TUI=1
 fi
@@ -412,7 +516,7 @@ fi
 
 add_to_path "$HOME/.local/bin"
 
-if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_voice_ready; then
+if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_voice_ready && tui_prebuild_ready; then
     ensure_public_hermes_preferences
     vecho "Hermes Agent already ensured (state tracked)"
     exit 0
@@ -428,6 +532,7 @@ seed_hermes_home
 ensure_public_hermes_preferences
 ensure_hermes_tui_diff_color_patch
 ensure_hermes_tui_status_patch
+ensure_hermes_tui_prebuilt
 
 if ! hermes_ready; then
     eecho "Error: Hermes Agent installation did not pass verification."
