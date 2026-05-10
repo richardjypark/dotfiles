@@ -31,9 +31,16 @@ HERMES_GOALS_MAX_TURNS="{{ .goals_max_turns }}"
 HERMES_CONTEXT_LENGTH="{{ .context_length }}"
 HERMES_TUI_BY_DEFAULT="{{ .tui_by_default }}"
 {{- end }}
+{{- with .hermes.tui_diff }}
+HERMES_TUI_DIFF_PATCH_VERSION="{{ .patch_version }}"
+HERMES_TUI_DIFF_ADDED_BG="{{ .added_bg }}"
+HERMES_TUI_DIFF_REMOVED_BG="{{ .removed_bg }}"
+HERMES_TUI_DIFF_ADDED_FG="{{ .added_fg }}"
+HERMES_TUI_DIFF_REMOVED_FG="{{ .removed_fg }}"
+{{- end }}
 
 HERMES_EXTRAS_KEY="$(IFS=,; printf '%s' "${HERMES_EXTRAS[*]}")"
-HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}"
+HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}-tui-diff-${HERMES_TUI_DIFF_PATCH_VERSION}"
 
 has_user_systemd() {
     command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
@@ -78,6 +85,102 @@ gateway_state_satisfied() {
         fi
     fi
     return 0
+}
+
+HERMES_TUI_DIFF_THEME_FILE="ui-tui/src/theme.ts"
+HERMES_TUI_DIFF_UPSTREAM_ADDED="    diffAdded: 'rgb(220,255,220)',"
+HERMES_TUI_DIFF_UPSTREAM_REMOVED="    diffRemoved: 'rgb(255,220,220)',"
+HERMES_TUI_DIFF_UPSTREAM_ADDED_WORD="    diffAddedWord: 'rgb(36,138,61)',"
+HERMES_TUI_DIFF_UPSTREAM_REMOVED_WORD="    diffRemovedWord: 'rgb(207,34,46)',"
+HERMES_TUI_DIFF_PATCH_ADDED="    diffAdded: '$HERMES_TUI_DIFF_ADDED_BG',"
+HERMES_TUI_DIFF_PATCH_REMOVED="    diffRemoved: '$HERMES_TUI_DIFF_REMOVED_BG',"
+HERMES_TUI_DIFF_PATCH_ADDED_WORD="    diffAddedWord: '$HERMES_TUI_DIFF_ADDED_FG',"
+HERMES_TUI_DIFF_PATCH_REMOVED_WORD="    diffRemovedWord: '$HERMES_TUI_DIFF_REMOVED_FG',"
+
+replace_hermes_tui_diff_color_lines() {
+    local mode="$1"
+    local theme_file="$INSTALL_DIR/$HERMES_TUI_DIFF_THEME_FILE"
+    [ -f "$theme_file" ] || return 0
+
+    local from_added from_removed from_added_word from_removed_word
+    local to_added to_removed to_added_word to_removed_word
+    case "$mode" in
+        apply)
+            from_added="$HERMES_TUI_DIFF_UPSTREAM_ADDED"
+            from_removed="$HERMES_TUI_DIFF_UPSTREAM_REMOVED"
+            from_added_word="$HERMES_TUI_DIFF_UPSTREAM_ADDED_WORD"
+            from_removed_word="$HERMES_TUI_DIFF_UPSTREAM_REMOVED_WORD"
+            to_added="$HERMES_TUI_DIFF_PATCH_ADDED"
+            to_removed="$HERMES_TUI_DIFF_PATCH_REMOVED"
+            to_added_word="$HERMES_TUI_DIFF_PATCH_ADDED_WORD"
+            to_removed_word="$HERMES_TUI_DIFF_PATCH_REMOVED_WORD"
+            ;;
+        revert)
+            from_added="$HERMES_TUI_DIFF_PATCH_ADDED"
+            from_removed="$HERMES_TUI_DIFF_PATCH_REMOVED"
+            from_added_word="$HERMES_TUI_DIFF_PATCH_ADDED_WORD"
+            from_removed_word="$HERMES_TUI_DIFF_PATCH_REMOVED_WORD"
+            to_added="$HERMES_TUI_DIFF_UPSTREAM_ADDED"
+            to_removed="$HERMES_TUI_DIFF_UPSTREAM_REMOVED"
+            to_added_word="$HERMES_TUI_DIFF_UPSTREAM_ADDED_WORD"
+            to_removed_word="$HERMES_TUI_DIFF_UPSTREAM_REMOVED_WORD"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    local tmp awk_status
+    tmp="$(mktemp "${theme_file}.tmp.XXXXXX")" || return 1
+    if awk \
+        -v from_added="$from_added" -v to_added="$to_added" \
+        -v from_removed="$from_removed" -v to_removed="$to_removed" \
+        -v from_added_word="$from_added_word" -v to_added_word="$to_added_word" \
+        -v from_removed_word="$from_removed_word" -v to_removed_word="$to_removed_word" '
+        $0 == from_added { print to_added; changed = 1; next }
+        $0 == from_removed { print to_removed; changed = 1; next }
+        $0 == from_added_word { print to_added_word; changed = 1; next }
+        $0 == from_removed_word { print to_removed_word; changed = 1; next }
+        { print }
+        END { if (changed) exit 42 }
+    ' "$theme_file" > "$tmp"; then
+        rm -f "$tmp"
+        return 0
+    else
+        awk_status=$?
+        if [ "$awk_status" -eq 42 ]; then
+            mv "$tmp" "$theme_file"
+            return 0
+        fi
+        rm -f "$tmp"
+        return "$awk_status"
+    fi
+}
+
+tui_diff_colors_ready() {
+    local theme_file="$INSTALL_DIR/$HERMES_TUI_DIFF_THEME_FILE"
+    [ -f "$theme_file" ] || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_PATCH_ADDED" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_PATCH_REMOVED" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_PATCH_ADDED_WORD" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_PATCH_REMOVED_WORD" "$theme_file" || return 1
+}
+
+ensure_hermes_tui_diff_color_patch() {
+    local theme_file="$INSTALL_DIR/$HERMES_TUI_DIFF_THEME_FILE"
+    [ -f "$theme_file" ] || return 0
+    tui_diff_colors_ready && return 0
+
+    replace_hermes_tui_diff_color_lines apply
+    if tui_diff_colors_ready; then
+        vecho "Hermes TUI diff highlight colors patched"
+    else
+        eecho "Warning: Hermes TUI diff color patch could not be applied; upstream theme may have changed."
+    fi
+}
+
+remove_hermes_tui_diff_color_patch() {
+    replace_hermes_tui_diff_color_lines revert
 }
 
 disable_gateway_service_if_needed() {
@@ -139,6 +242,7 @@ checkout_hermes_ref() {
 
     mkdir -p "$(dirname "$INSTALL_DIR")"
     if [ -d "$INSTALL_DIR/.git" ]; then
+        remove_hermes_tui_diff_color_patch
         if [ -n "$(git -C "$INSTALL_DIR" status --porcelain 2>/dev/null || true)" ]; then
             eecho "Error: local changes exist in $INSTALL_DIR; refusing to overwrite them."
             return 1
@@ -237,7 +341,7 @@ fi
 
 add_to_path "$HOME/.local/bin"
 
-if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied; then
+if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready; then
     ensure_public_hermes_preferences
     vecho "Hermes Agent already ensured (state tracked)"
     exit 0
@@ -251,6 +355,7 @@ fi
 write_launcher
 seed_hermes_home
 ensure_public_hermes_preferences
+ensure_hermes_tui_diff_color_patch
 
 if ! hermes_ready; then
     eecho "Error: Hermes Agent installation did not pass verification."
