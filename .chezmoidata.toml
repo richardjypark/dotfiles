@@ -72,11 +72,15 @@ context_length = 500000
 tui_by_default = true
 
 [hermes.tui_diff]
-patch_version = "soft-diff-v1"
-added_bg = "rgb(42,58,45)"
-removed_bg = "rgb(64,45,47)"
-added_fg = "rgb(139,213,120)"
-removed_fg = "rgb(239,132,132)"
+patch_version = "muted-diff-v2"
+added_bg = "rgb(31,37,33)"
+removed_bg = "rgb(40,33,35)"
+added_fg = "rgb(112,143,104)"
+removed_fg = "rgb(166,100,104)"
+light_added_bg = "rgb(232,238,232)"
+light_removed_bg = "rgb(239,232,232)"
+light_added_fg = "rgb(62,95,66)"
+light_removed_fg = "rgb(123,72,76)"
 
 [hermes.tui_status]
 patch_version = "hide-voice-off-v1"

@@ -38,6 +38,10 @@ HERMES_TUI_DIFF_ADDED_BG="{{ .added_bg }}"
 HERMES_TUI_DIFF_REMOVED_BG="{{ .removed_bg }}"
 HERMES_TUI_DIFF_ADDED_FG="{{ .added_fg }}"
 HERMES_TUI_DIFF_REMOVED_FG="{{ .removed_fg }}"
+HERMES_TUI_DIFF_LIGHT_ADDED_BG="{{ .light_added_bg }}"
+HERMES_TUI_DIFF_LIGHT_REMOVED_BG="{{ .light_removed_bg }}"
+HERMES_TUI_DIFF_LIGHT_ADDED_FG="{{ .light_added_fg }}"
+HERMES_TUI_DIFF_LIGHT_REMOVED_FG="{{ .light_removed_fg }}"
 {{- end }}
 {{- with .hermes.tui_status }}
 HERMES_TUI_STATUS_PATCH_VERSION="{{ .patch_version }}"
@@ -94,14 +98,22 @@ gateway_state_satisfied() {
 }
 
 HERMES_TUI_DIFF_THEME_FILE="ui-tui/src/theme.ts"
-HERMES_TUI_DIFF_UPSTREAM_ADDED="    diffAdded: 'rgb(220,255,220)',"
-HERMES_TUI_DIFF_UPSTREAM_REMOVED="    diffRemoved: 'rgb(255,220,220)',"
-HERMES_TUI_DIFF_UPSTREAM_ADDED_WORD="    diffAddedWord: 'rgb(36,138,61)',"
-HERMES_TUI_DIFF_UPSTREAM_REMOVED_WORD="    diffRemovedWord: 'rgb(207,34,46)',"
-HERMES_TUI_DIFF_PATCH_ADDED="    diffAdded: '$HERMES_TUI_DIFF_ADDED_BG',"
-HERMES_TUI_DIFF_PATCH_REMOVED="    diffRemoved: '$HERMES_TUI_DIFF_REMOVED_BG',"
-HERMES_TUI_DIFF_PATCH_ADDED_WORD="    diffAddedWord: '$HERMES_TUI_DIFF_ADDED_FG',"
-HERMES_TUI_DIFF_PATCH_REMOVED_WORD="    diffRemovedWord: '$HERMES_TUI_DIFF_REMOVED_FG',"
+HERMES_TUI_DIFF_DARK_UPSTREAM_ADDED="    diffAdded: 'rgb(220,255,220)',"
+HERMES_TUI_DIFF_DARK_UPSTREAM_REMOVED="    diffRemoved: 'rgb(255,220,220)',"
+HERMES_TUI_DIFF_DARK_UPSTREAM_ADDED_WORD="    diffAddedWord: 'rgb(36,138,61)',"
+HERMES_TUI_DIFF_DARK_UPSTREAM_REMOVED_WORD="    diffRemovedWord: 'rgb(207,34,46)',"
+HERMES_TUI_DIFF_LIGHT_UPSTREAM_ADDED="    diffAdded: 'rgb(200,240,200)',"
+HERMES_TUI_DIFF_LIGHT_UPSTREAM_REMOVED="    diffRemoved: 'rgb(240,200,200)',"
+HERMES_TUI_DIFF_LIGHT_UPSTREAM_ADDED_WORD="    diffAddedWord: 'rgb(27,94,32)',"
+HERMES_TUI_DIFF_LIGHT_UPSTREAM_REMOVED_WORD="    diffRemovedWord: 'rgb(183,28,28)',"
+HERMES_TUI_DIFF_DARK_PATCH_ADDED="    diffAdded: '$HERMES_TUI_DIFF_ADDED_BG',"
+HERMES_TUI_DIFF_DARK_PATCH_REMOVED="    diffRemoved: '$HERMES_TUI_DIFF_REMOVED_BG',"
+HERMES_TUI_DIFF_DARK_PATCH_ADDED_WORD="    diffAddedWord: '$HERMES_TUI_DIFF_ADDED_FG',"
+HERMES_TUI_DIFF_DARK_PATCH_REMOVED_WORD="    diffRemovedWord: '$HERMES_TUI_DIFF_REMOVED_FG',"
+HERMES_TUI_DIFF_LIGHT_PATCH_ADDED="    diffAdded: '$HERMES_TUI_DIFF_LIGHT_ADDED_BG',"
+HERMES_TUI_DIFF_LIGHT_PATCH_REMOVED="    diffRemoved: '$HERMES_TUI_DIFF_LIGHT_REMOVED_BG',"
+HERMES_TUI_DIFF_LIGHT_PATCH_ADDED_WORD="    diffAddedWord: '$HERMES_TUI_DIFF_LIGHT_ADDED_FG',"
+HERMES_TUI_DIFF_LIGHT_PATCH_REMOVED_WORD="    diffRemovedWord: '$HERMES_TUI_DIFF_LIGHT_REMOVED_FG',"
 
 HERMES_TUI_STATUS_FILE="ui-tui/src/app/useMainApp.ts"
 HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : \`voice \${voiceEnabled ? 'on' : 'off'}\`"
@@ -112,45 +124,62 @@ replace_hermes_tui_diff_color_lines() {
     local theme_file="$INSTALL_DIR/$HERMES_TUI_DIFF_THEME_FILE"
     [ -f "$theme_file" ] || return 0
 
-    local from_added from_removed from_added_word from_removed_word
-    local to_added to_removed to_added_word to_removed_word
-    case "$mode" in
-        apply)
-            from_added="$HERMES_TUI_DIFF_UPSTREAM_ADDED"
-            from_removed="$HERMES_TUI_DIFF_UPSTREAM_REMOVED"
-            from_added_word="$HERMES_TUI_DIFF_UPSTREAM_ADDED_WORD"
-            from_removed_word="$HERMES_TUI_DIFF_UPSTREAM_REMOVED_WORD"
-            to_added="$HERMES_TUI_DIFF_PATCH_ADDED"
-            to_removed="$HERMES_TUI_DIFF_PATCH_REMOVED"
-            to_added_word="$HERMES_TUI_DIFF_PATCH_ADDED_WORD"
-            to_removed_word="$HERMES_TUI_DIFF_PATCH_REMOVED_WORD"
-            ;;
-        revert)
-            from_added="$HERMES_TUI_DIFF_PATCH_ADDED"
-            from_removed="$HERMES_TUI_DIFF_PATCH_REMOVED"
-            from_added_word="$HERMES_TUI_DIFF_PATCH_ADDED_WORD"
-            from_removed_word="$HERMES_TUI_DIFF_PATCH_REMOVED_WORD"
-            to_added="$HERMES_TUI_DIFF_UPSTREAM_ADDED"
-            to_removed="$HERMES_TUI_DIFF_UPSTREAM_REMOVED"
-            to_added_word="$HERMES_TUI_DIFF_UPSTREAM_ADDED_WORD"
-            to_removed_word="$HERMES_TUI_DIFF_UPSTREAM_REMOVED_WORD"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-
     local tmp awk_status
     tmp="$(mktemp "${theme_file}.tmp.XXXXXX")" || return 1
     if awk \
-        -v from_added="$from_added" -v to_added="$to_added" \
-        -v from_removed="$from_removed" -v to_removed="$to_removed" \
-        -v from_added_word="$from_added_word" -v to_added_word="$to_added_word" \
-        -v from_removed_word="$from_removed_word" -v to_removed_word="$to_removed_word" '
-        $0 == from_added { print to_added; changed = 1; next }
-        $0 == from_removed { print to_removed; changed = 1; next }
-        $0 == from_added_word { print to_added_word; changed = 1; next }
-        $0 == from_removed_word { print to_removed_word; changed = 1; next }
+        -v mode="$mode" \
+        -v dark_added_patch="$HERMES_TUI_DIFF_DARK_PATCH_ADDED" \
+        -v dark_removed_patch="$HERMES_TUI_DIFF_DARK_PATCH_REMOVED" \
+        -v dark_added_word_patch="$HERMES_TUI_DIFF_DARK_PATCH_ADDED_WORD" \
+        -v dark_removed_word_patch="$HERMES_TUI_DIFF_DARK_PATCH_REMOVED_WORD" \
+        -v light_added_patch="$HERMES_TUI_DIFF_LIGHT_PATCH_ADDED" \
+        -v light_removed_patch="$HERMES_TUI_DIFF_LIGHT_PATCH_REMOVED" \
+        -v light_added_word_patch="$HERMES_TUI_DIFF_LIGHT_PATCH_ADDED_WORD" \
+        -v light_removed_word_patch="$HERMES_TUI_DIFF_LIGHT_PATCH_REMOVED_WORD" \
+        -v dark_added_upstream="$HERMES_TUI_DIFF_DARK_UPSTREAM_ADDED" \
+        -v dark_removed_upstream="$HERMES_TUI_DIFF_DARK_UPSTREAM_REMOVED" \
+        -v dark_added_word_upstream="$HERMES_TUI_DIFF_DARK_UPSTREAM_ADDED_WORD" \
+        -v dark_removed_word_upstream="$HERMES_TUI_DIFF_DARK_UPSTREAM_REMOVED_WORD" \
+        -v light_added_upstream="$HERMES_TUI_DIFF_LIGHT_UPSTREAM_ADDED" \
+        -v light_removed_upstream="$HERMES_TUI_DIFF_LIGHT_UPSTREAM_REMOVED" \
+        -v light_added_word_upstream="$HERMES_TUI_DIFF_LIGHT_UPSTREAM_ADDED_WORD" \
+        -v light_removed_word_upstream="$HERMES_TUI_DIFF_LIGHT_UPSTREAM_REMOVED_WORD" '
+        BEGIN {
+            if (mode == "apply") {
+                wanted["added", 1] = dark_added_patch
+                wanted["removed", 1] = dark_removed_patch
+                wanted["added_word", 1] = dark_added_word_patch
+                wanted["removed_word", 1] = dark_removed_word_patch
+                wanted["added", 2] = light_added_patch
+                wanted["removed", 2] = light_removed_patch
+                wanted["added_word", 2] = light_added_word_patch
+                wanted["removed_word", 2] = light_removed_word_patch
+            } else if (mode == "revert") {
+                wanted["added", 1] = dark_added_upstream
+                wanted["removed", 1] = dark_removed_upstream
+                wanted["added_word", 1] = dark_added_word_upstream
+                wanted["removed_word", 1] = dark_removed_word_upstream
+                wanted["added", 2] = light_added_upstream
+                wanted["removed", 2] = light_removed_upstream
+                wanted["added_word", 2] = light_added_word_upstream
+                wanted["removed_word", 2] = light_removed_word_upstream
+            } else {
+                exit 2
+            }
+        }
+        function emit(kind, ordinal, replacement) {
+            replacement = wanted[kind, ordinal]
+            if (replacement != "") {
+                print replacement
+                changed = 1
+                return 1
+            }
+            return 0
+        }
+        /^    diffAdded: / { added++; if (emit("added", added)) next }
+        /^    diffRemoved: / { removed++; if (emit("removed", removed)) next }
+        /^    diffAddedWord: / { added_word++; if (emit("added_word", added_word)) next }
+        /^    diffRemovedWord: / { removed_word++; if (emit("removed_word", removed_word)) next }
         { print }
         END { if (changed) exit 42 }
     ' "$theme_file" > "$tmp"; then
@@ -170,10 +199,14 @@ replace_hermes_tui_diff_color_lines() {
 tui_diff_colors_ready() {
     local theme_file="$INSTALL_DIR/$HERMES_TUI_DIFF_THEME_FILE"
     [ -f "$theme_file" ] || return 1
-    grep -Fqx "$HERMES_TUI_DIFF_PATCH_ADDED" "$theme_file" || return 1
-    grep -Fqx "$HERMES_TUI_DIFF_PATCH_REMOVED" "$theme_file" || return 1
-    grep -Fqx "$HERMES_TUI_DIFF_PATCH_ADDED_WORD" "$theme_file" || return 1
-    grep -Fqx "$HERMES_TUI_DIFF_PATCH_REMOVED_WORD" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_DARK_PATCH_ADDED" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_DARK_PATCH_REMOVED" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_DARK_PATCH_ADDED_WORD" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_DARK_PATCH_REMOVED_WORD" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_LIGHT_PATCH_ADDED" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_LIGHT_PATCH_REMOVED" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_LIGHT_PATCH_ADDED_WORD" "$theme_file" || return 1
+    grep -Fqx "$HERMES_TUI_DIFF_LIGHT_PATCH_REMOVED_WORD" "$theme_file" || return 1
 }
 
 ensure_hermes_tui_diff_color_patch() {

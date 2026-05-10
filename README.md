@@ -186,10 +186,11 @@ and `tui_by_default=true`. When `tui_by_default` is enabled, the managed
 unless already set, so `hermes` opens the richer TUI status line. That status
 line includes the current model reasoning effort (for example `xhigh`) and the
 launch working directory with git branch. The setup script also reapplies
-small local Hermes TUI patches that soften inline diff red/green highlight
-backgrounds and hide the inactive `voice off` status-bar segment while still
-showing active voice states like `voice on`, `● REC`, and `◉ STT`; these work
-around Hermes' default TUI colors/status density rather than Ghostty's palette.
+small local Hermes TUI patches that mute inline diff red/green highlight
+backgrounds in both dark and light themes and hide the inactive `voice off`
+status-bar segment while still showing active voice states like `voice on`,
+`● REC`, and `◉ STT`; these work around Hermes' default TUI colors/status
+density rather than Ghostty's palette.
 It also prebuilds the TUI bundle during `chezmoi apply` and points the managed
 launcher at that prebuilt bundle so interactive startup does not spend several
 seconds rebuilding the Ink/TUI JavaScript on first launch.
