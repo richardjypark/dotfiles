@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brave Tor Policy Hardening"
+  short_description: "Maintain the non-optional Brave TorDisabled policy."
+  default_prompt: "Use $brave-tor-policy-hardening for any Brave Browser Tor/onion policy work. Preserve com.brave.Browser TorDisabled=true, do not add disable/bypass/opt-out paths, keep MCX plus managed plist enforcement, and validate with bash -n plus chezmoi diff/apply/status."
