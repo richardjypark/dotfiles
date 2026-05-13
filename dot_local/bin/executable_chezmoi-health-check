@@ -655,6 +655,45 @@ else
     fi
 fi
 
+# 8. Browser security policies
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    vecho ""
+    vecho "--- Browser Security Policies ---"
+
+    BRAVE_POLICY_DOMAIN="com.brave.Browser"
+    BRAVE_POLICY_KEY="TorDisabled"
+    BRAVE_POLICY_USER="$(id -un)"
+    BRAVE_POLICY_RECORD="/Users/${BRAVE_POLICY_USER}"
+    BRAVE_POLICY_DIR="/Library/Managed Preferences/${BRAVE_POLICY_USER}"
+    BRAVE_POLICY_PLIST="${BRAVE_POLICY_DIR}/${BRAVE_POLICY_DOMAIN}.plist"
+
+    brave_policy_value="$(/usr/libexec/PlistBuddy -c "Print :${BRAVE_POLICY_KEY}" "$BRAVE_POLICY_PLIST" 2>/dev/null || true)"
+    if [ "$brave_policy_value" = "true" ]; then
+        check_pass "Brave managed policy ${BRAVE_POLICY_KEY}=true"
+    else
+        check_fail "Brave managed policy ${BRAVE_POLICY_KEY}=${brave_policy_value:-missing} (expected true)"
+    fi
+
+    brave_mcx_value="$(dscl . -mcxread "$BRAVE_POLICY_RECORD" "$BRAVE_POLICY_DOMAIN" "$BRAVE_POLICY_KEY" 2>/dev/null || true)"
+    if [ -n "$brave_mcx_value" ] && printf '%s\n' "$brave_mcx_value" | grep -qi "always" && printf '%s\n' "$brave_mcx_value" | grep -Eiq "(-bool[[:space:]]+1|Value:[[:space:]]*1|true|<true/>)"; then
+        check_pass "Brave MCX policy ${BRAVE_POLICY_KEY}=true with always state"
+    else
+        check_fail "Brave MCX policy ${BRAVE_POLICY_KEY} missing or not forced true"
+    fi
+
+    if [ -d "$BRAVE_POLICY_DIR" ] && [ "$(stat -f "%Su:%Sg %Lp" "$BRAVE_POLICY_DIR" 2>/dev/null || true)" = "root:wheel 755" ]; then
+        check_pass "Brave managed policy directory ownership/mode hardened"
+    else
+        check_fail "Brave managed policy directory ownership/mode drifted (expected root:wheel 755)"
+    fi
+
+    if [ -f "$BRAVE_POLICY_PLIST" ] && [ "$(stat -f "%Su:%Sg %Lp" "$BRAVE_POLICY_PLIST" 2>/dev/null || true)" = "root:wheel 644" ]; then
+        check_pass "Brave managed policy plist ownership/mode hardened"
+    else
+        check_fail "Brave managed policy plist ownership/mode drifted (expected root:wheel 644)"
+    fi
+fi
+
 # Summary
 TOTAL=$((PASS_COUNT + WARN_COUNT + FAIL_COUNT))
 

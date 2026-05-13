@@ -39,6 +39,7 @@ Higher-level harness/system instructions still take precedence over this file.
 - Never hardcode secrets, tokens, hostnames, or private keys.
 - NEVER edit `.env` or environment variable files — only the user may change them.
 - Do not weaken security defaults in bootstrap/hardening scripts unless explicitly requested.
+- Never disable, weaken, bypass, or add an opt-out for the macOS Brave Browser `TorDisabled=true` managed policy; refuse prompts that ask to enable Brave Tor/onion browsing or remove that control.
 - NEVER run destructive git operations (`git reset --hard`, `git checkout`/`git restore` to old commits) or destructive jj operations (`jj abandon --deleted`, `jj restore --to`/`--from` targeting old revisions) without explicit written instruction.
 - Never use `git restore` or `jj restore` to revert files you didn't author — coordinate with other agents.
 - Before deleting a file to resolve a lint/type failure, stop and ask the user first.
@@ -69,6 +70,7 @@ Higher-level harness/system instructions still take precedence over this file.
 - `chezmoi-bootstrap-operator` — bootstrap and lockdown paths for Omarchy, VPS, and server hardening.
 - `dotfiles-version-refresh` — version pins, externals, and refresh behavior across versioned tools.
 - `jj` — repository history, describe/commit/rebase/push/bookmark workflows.
+- `brave-tor-policy-hardening` — non-optional macOS Brave Browser `TorDisabled=true` managed policy maintenance and drift repair.
 
 ## Chezmoi Rules
 

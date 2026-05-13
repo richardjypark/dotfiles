@@ -45,6 +45,13 @@ chezmoi init --apply richardjypark
 TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 ```
 
+### macOS Brave Browser Tor Policy
+
+On macOS, `chezmoi apply` enforces a non-optional Brave Browser managed policy:
+`com.brave.Browser` `TorDisabled=true`. The repo intentionally has no
+role/profile/env opt-out for this control; re-run `chezmoi apply` with sudo
+available if `chezmoi-health-check` reports policy drift.
+
 ## Update Commands
 
 | Command | What it does | When to use |

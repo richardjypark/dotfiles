@@ -14,7 +14,8 @@ else
 fi
 
 BRAVE_POLICY_RECORD="/Users/${BRAVE_POLICY_USER}"
-BRAVE_POLICY_PLIST="/Library/Managed Preferences/${BRAVE_POLICY_USER}/${BRAVE_POLICY_DOMAIN}.plist"
+BRAVE_POLICY_DIR="/Library/Managed Preferences/${BRAVE_POLICY_USER}"
+BRAVE_POLICY_PLIST="${BRAVE_POLICY_DIR}/${BRAVE_POLICY_DOMAIN}.plist"
 
 write_brave_tor_policy_plist() {
     cat <<PLIST
@@ -27,6 +28,29 @@ write_brave_tor_policy_plist() {
 </dict>
 </plist>
 PLIST
+}
+
+macos_owner_mode() {
+    [ -e "$1" ] || return 1
+    stat -f "%Su:%Sg %Lp" "$1" 2>/dev/null || return 1
+}
+
+managed_policy_files_hardened() {
+    [ -d "$BRAVE_POLICY_DIR" ] || return 1
+    [ -f "$BRAVE_POLICY_PLIST" ] || return 1
+    [ "$(macos_owner_mode "$BRAVE_POLICY_DIR")" = "root:wheel 755" ] || return 1
+    [ "$(macos_owner_mode "$BRAVE_POLICY_PLIST")" = "root:wheel 644" ] || return 1
+}
+
+harden_managed_policy_files() {
+    run_privileged install -d -m 0755 "$BRAVE_POLICY_DIR"
+    run_privileged chown root:wheel "$BRAVE_POLICY_DIR"
+    run_privileged chmod 0755 "$BRAVE_POLICY_DIR"
+
+    if [ -f "$BRAVE_POLICY_PLIST" ]; then
+        run_privileged chown root:wheel "$BRAVE_POLICY_PLIST"
+        run_privileged chmod 0644 "$BRAVE_POLICY_PLIST"
+    fi
 }
 
 current_policy_value() {
@@ -45,7 +69,7 @@ mcx_policy_applied() {
     value="$(mcx_policy_value)"
     [ -n "$value" ] || return 1
     printf '%s\n' "$value" | grep -qi "always" || return 1
-    printf '%s\n' "$value" | grep -Eiq "(-bool 1|true|<true/>)"
+    printf '%s\n' "$value" | grep -Eiq "(-bool[[:space:]]+1|Value:[[:space:]]*1|true|<true/>)"
 }
 
 persist_mcx_policy() {
@@ -68,7 +92,7 @@ materialize_managed_policy_plist() {
     local tmp_policy
     tmp_policy="$(mktemp)"
 
-    run_privileged install -d -m 0755 "$(dirname "$BRAVE_POLICY_PLIST")"
+    run_privileged install -d -m 0755 "$BRAVE_POLICY_DIR"
 
     if [ ! -f "$BRAVE_POLICY_PLIST" ]; then
         write_brave_tor_policy_plist >"$tmp_policy"
@@ -83,8 +107,7 @@ materialize_managed_policy_plist() {
         fi
     fi
 
-    run_privileged chown root:wheel "$BRAVE_POLICY_PLIST"
-    run_privileged chmod 0644 "$BRAVE_POLICY_PLIST"
+    harden_managed_policy_files
     run_privileged plutil -convert xml1 "$BRAVE_POLICY_PLIST" >/dev/null 2>&1 || true
     rm -f "$tmp_policy"
 }
@@ -104,16 +127,21 @@ if mcx_policy_applied; then
     PERSISTENT_MCX_ALREADY_APPLIED=true
 fi
 
-if [ "$POLICY_CACHE_ALREADY_APPLIED" = "true" ] && [ "$PERSISTENT_MCX_ALREADY_APPLIED" = "true" ]; then
-    vecho "Brave Tor policy already applied"
+POLICY_FILES_ALREADY_HARDENED=false
+if managed_policy_files_hardened; then
+    POLICY_FILES_ALREADY_HARDENED=true
+fi
+
+if [ "$POLICY_CACHE_ALREADY_APPLIED" = "true" ] && [ "$PERSISTENT_MCX_ALREADY_APPLIED" = "true" ] && [ "$POLICY_FILES_ALREADY_HARDENED" = "true" ]; then
+    vecho "Brave Tor policy already applied and file permissions hardened"
     exit 0
 fi
 
 if ! ensure_sudo; then
-    eecho "Warning: Cannot persist Brave Tor policy without sudo access."
+    eecho "Error: Cannot persist Brave Tor policy without sudo access."
     eecho "Run: sudo -v && chezmoi apply --include=scripts --source-path .chezmoiscripts/run_after_41-setup-brave-policy.sh"
     eecho "Expected managed policy path: $BRAVE_POLICY_PLIST"
-    exit 0
+    exit 1
 fi
 
 persist_mcx_policy

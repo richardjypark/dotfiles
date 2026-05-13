@@ -90,6 +90,7 @@ Shared skills currently include:
 - `chezmoi-script-maintainer` — Create and maintain `.chezmoiscripts/*` setup scripts with `references/script-patterns.md`.
 - `chezmoi-bootstrap-operator` — Bootstrap workflow operations across Omarchy and VPS paths with `references/bootstrap-matrix.md`.
 - `dotfiles-version-refresh` — Update pinned tool versions and external dependencies with `references/version-map.md`.
+- `brave-tor-policy-hardening` — Maintain the non-optional macOS Brave Browser `TorDisabled=true` managed policy and drift checks.
 
 Optional tool metadata lives alongside the shared skill when needed. For example, Codex UI metadata remains in `agents/openai.yaml` inside the canonical skill folder rather than in a separate client-specific copy.
 
