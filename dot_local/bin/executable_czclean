@@ -1,0 +1,503 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DRY_RUN=true
+AGGRESSIVE=false
+CLAUDE=false
+CLAUDE_HISTORY=false
+DOCKER_CLEAN=false
+DOCKER_VOLUMES=false
+CHEZMOI_CACHE=false
+STRICT=false
+AGE_DAYS=7
+FAIL_COUNT=0
+SKIP_COUNT=0
+RUN_COUNT=0
+
+usage() {
+    cat <<'USAGE'
+Usage: czclean [OPTIONS]
+
+Safely reclaim local cache/storage bloat from repo-managed tooling.
+Defaults to dry-run mode; pass --yes to execute conservative cleanup.
+
+Options:
+  -n, --dry-run          Preview cleanup actions without deleting anything (default)
+  -y, --yes              Execute cleanup actions
+      --aggressive       Include broader cache cleanup and Homebrew autoremove/prune-all
+      --claude           Remove Claude Code caches and stale native launcher storage
+      --claude-history   Also remove Claude Code project/session history (implies --claude)
+      --docker           Prune Docker stopped containers, unused images, networks, builder cache
+      --docker-volumes   Also prune Docker volumes (requires --docker)
+      --chezmoi-cache    Remove ~/.cache/chezmoi-downloads verified download cache
+      --age-days DAYS    Age threshold for default /tmp/claude-code-* cleanup (default: 7)
+      --strict           Exit non-zero if any cleanup step fails
+  -h, --help             Show this help
+
+Conservative default cleanup with --yes:
+  - brew cleanup (when Homebrew exists)
+  - npm cache verify, pnpm store prune, yarn cache clean (when tools exist)
+  - uv cache prune and pip cache purge (when tools exist)
+  - /tmp/claude-code-* older than 7 days
+
+Never deletes project directories, secrets, SSH/GPG material, browser profiles,
+or Claude project/history data unless --claude-history is explicitly provided.
+USAGE
+}
+
+log() { printf '%s\n' "$*"; }
+warn() { printf 'Warning: %s\n' "$*" >&2; }
+
+is_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -n|--dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        -y|--yes)
+            DRY_RUN=false
+            shift
+            ;;
+        --aggressive)
+            AGGRESSIVE=true
+            shift
+            ;;
+        --claude)
+            CLAUDE=true
+            shift
+            ;;
+        --claude-history)
+            CLAUDE=true
+            CLAUDE_HISTORY=true
+            shift
+            ;;
+        --docker)
+            DOCKER_CLEAN=true
+            shift
+            ;;
+        --docker-volumes)
+            DOCKER_VOLUMES=true
+            shift
+            ;;
+        --chezmoi-cache)
+            CHEZMOI_CACHE=true
+            shift
+            ;;
+        --age-days)
+            if [ "$#" -lt 2 ]; then
+                echo "czclean: --age-days requires a value" >&2
+                exit 2
+            fi
+            AGE_DAYS="$2"
+            shift 2
+            ;;
+        --strict)
+            STRICT=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "czclean: unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+case "$AGE_DAYS" in
+    ''|*[!0-9]*)
+        echo "czclean: --age-days must be a non-negative integer" >&2
+        exit 2
+        ;;
+esac
+
+if [ "$DOCKER_VOLUMES" = "true" ] && [ "$DOCKER_CLEAN" != "true" ]; then
+    echo "czclean: --docker-volumes requires --docker" >&2
+    exit 2
+fi
+
+size_kb_path() {
+    local path="$1"
+    if [ ! -e "$path" ]; then
+        printf '0\n'
+        return 0
+    fi
+    du -sk "$path" 2>/dev/null | awk 'NR==1{print $1+0; exit}'
+}
+
+human_kb() {
+    awk -v kb="${1:-0}" 'BEGIN {
+        split("KB MB GB TB", unit, " ");
+        value = kb + 0;
+        i = 1;
+        while (value >= 1024 && i < 4) { value /= 1024; i++ }
+        if (i == 1) printf "%.0f%s", value, unit[i];
+        else printf "%.1f%s", value, unit[i];
+    }'
+}
+
+print_size_path() {
+    local label="$1"
+    local path="$2"
+    local kb
+    kb="$(size_kb_path "$path")"
+    if [ "$kb" -gt 0 ]; then
+        printf '  %-28s %8s  %s\n' "$label" "$(human_kb "$kb")" "$path"
+    else
+        printf '  %-28s %8s  %s\n' "$label" "-" "$path"
+    fi
+}
+
+find_sum_kb() {
+    local dir="$1"
+    local name_pattern="$2"
+    shift 2
+    if [ ! -d "$dir" ]; then
+        printf '0\n'
+        return 0
+    fi
+    find "$dir" -maxdepth 1 -name "$name_pattern" "$@" -exec du -sk {} + 2>/dev/null \
+        | awk '{sum += $1} END {print sum + 0}'
+}
+
+print_size_find() {
+    local label="$1"
+    local dir="$2"
+    local name_pattern="$3"
+    shift 3
+    local kb
+    kb="$(find_sum_kb "$dir" "$name_pattern" "$@")"
+    if [ "$kb" -gt 0 ]; then
+        printf '  %-28s %8s  %s/%s\n' "$label" "$(human_kb "$kb")" "$dir" "$name_pattern"
+    else
+        printf '  %-28s %8s  %s/%s\n' "$label" "-" "$dir" "$name_pattern"
+    fi
+}
+
+first_line() { awk 'NR==1{print; exit}'; }
+
+npm_cache_dir() {
+    is_cmd npm || return 1
+    npm config get cache 2>/dev/null | first_line
+}
+
+pnpm_store_dir() {
+    is_cmd pnpm || return 1
+    pnpm store path 2>/dev/null | first_line
+}
+
+yarn_cache_dir() {
+    is_cmd yarn || return 1
+    yarn cache dir 2>/dev/null | first_line
+}
+
+uv_cache_dir() {
+    is_cmd uv || return 1
+    uv cache dir 2>/dev/null | first_line
+}
+
+pip_cache_dir() {
+    is_cmd python3 || return 1
+    python3 -m pip cache dir 2>/dev/null | first_line
+}
+
+print_path_if_known() {
+    local label="$1"
+    local path="$2"
+    [ -n "$path" ] || return 0
+    print_size_path "$label" "$path"
+}
+
+print_storage_summary() {
+    local title="$1"
+    local path
+
+    log ""
+    log "==> Storage summary: $title"
+    df -h "$HOME" 2>/dev/null | awk 'NR==1 || NR==2 {print "  " $0}' || true
+    log ""
+    log "Selected cache/session paths:"
+
+    path="$(npm_cache_dir 2>/dev/null || true)"; print_path_if_known "npm cache" "$path"
+    path="$(pnpm_store_dir 2>/dev/null || true)"; print_path_if_known "pnpm store" "$path"
+    path="$(yarn_cache_dir 2>/dev/null || true)"; print_path_if_known "yarn cache" "$path"
+    path="$(uv_cache_dir 2>/dev/null || true)"; print_path_if_known "uv cache" "$path"
+    path="$(pip_cache_dir 2>/dev/null || true)"; print_path_if_known "pip cache" "$path"
+    print_size_path "chezmoi downloads" "$HOME/.cache/chezmoi-downloads"
+    print_size_path "Claude cache" "$HOME/Library/Caches/claude-code"
+    print_size_path "Claude native storage" "$HOME/.local/share/claude"
+    print_size_path "Claude projects" "$HOME/.claude/projects"
+    print_size_find "Claude tmp" "/tmp" "claude-code-*"
+
+    if [ "$DOCKER_CLEAN" = "true" ] && is_cmd docker; then
+        log ""
+        log "Docker disk usage:"
+        docker system df 2>/dev/null | sed 's/^/  /' || warn "Docker daemon unavailable; cannot inspect Docker disk usage"
+    fi
+}
+
+run_step() {
+    local label="$1"
+    shift
+
+    if [ "$DRY_RUN" = "true" ]; then
+        log "[dry-run] $label: $*"
+        return 0
+    fi
+
+    log "[run] $label"
+    if "$@"; then
+        RUN_COUNT=$((RUN_COUNT + 1))
+        return 0
+    fi
+
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    warn "$label failed"
+    return 0
+}
+
+skip_step() {
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+    log "[skip] $1"
+}
+
+safe_rm_path() {
+    local label="$1"
+    local path="$2"
+
+    if [ -z "$path" ] || [ ! -e "$path" ]; then
+        skip_step "$label: not present"
+        return 0
+    fi
+
+    case "$path" in
+        "$HOME/.cache/chezmoi-downloads"|\
+        "$HOME/Library/Caches/claude-code"|\
+        "$HOME/.cache/claude-code"|\
+        "$HOME/.local/share/claude"|\
+        "$HOME/.claude/projects"|\
+        "$HOME/.claude/history.jsonl")
+            ;;
+        *)
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+            warn "refusing to remove non-allowlisted path for $label: $path"
+            return 0
+            ;;
+    esac
+
+    if [ "$DRY_RUN" = "true" ]; then
+        log "[dry-run] remove $label: $path ($(human_kb "$(size_kb_path "$path")"))"
+        return 0
+    fi
+
+    log "[run] remove $label: $path"
+    if rm -rf "$path"; then
+        RUN_COUNT=$((RUN_COUNT + 1))
+    else
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+        warn "failed to remove $path"
+    fi
+}
+
+cleanup_claude_tmp() {
+    local label="$1"
+    local older_than_days="$2"
+    local count kb
+
+    if [ ! -d /tmp ]; then
+        skip_step "$label: /tmp missing"
+        return 0
+    fi
+
+    if [ "$older_than_days" -ge 0 ]; then
+        count="$(find /tmp -maxdepth 1 -name 'claude-code-*' -mtime "+$older_than_days" -print 2>/dev/null | wc -l | tr -d ' ')"
+        kb="$(find_sum_kb /tmp 'claude-code-*' -mtime "+$older_than_days")"
+    else
+        count="$(find /tmp -maxdepth 1 -name 'claude-code-*' -print 2>/dev/null | wc -l | tr -d ' ')"
+        kb="$(find_sum_kb /tmp 'claude-code-*')"
+    fi
+
+    if [ "${count:-0}" -eq 0 ]; then
+        skip_step "$label: no matching /tmp/claude-code-* entries"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = "true" ]; then
+        log "[dry-run] remove $label: $count entries under /tmp/claude-code-* ($(human_kb "$kb"))"
+        if [ "$older_than_days" -ge 0 ]; then
+            find /tmp -maxdepth 1 -name 'claude-code-*' -mtime "+$older_than_days" -print 2>/dev/null | sed 's/^/  /'
+        else
+            find /tmp -maxdepth 1 -name 'claude-code-*' -print 2>/dev/null | sed 's/^/  /'
+        fi
+        return 0
+    fi
+
+    log "[run] remove $label: $count entries under /tmp/claude-code-* ($(human_kb "$kb"))"
+    if [ "$older_than_days" -ge 0 ]; then
+        find /tmp -maxdepth 1 -name 'claude-code-*' -mtime "+$older_than_days" -exec rm -rf {} + 2>/dev/null || {
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+            warn "failed to remove some Claude tmp entries"
+            return 0
+        }
+    else
+        find /tmp -maxdepth 1 -name 'claude-code-*' -exec rm -rf {} + 2>/dev/null || {
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+            warn "failed to remove some Claude tmp entries"
+            return 0
+        }
+    fi
+    RUN_COUNT=$((RUN_COUNT + 1))
+}
+
+real_path() {
+    if is_cmd python3; then
+        python3 - "$1" <<'PY' 2>/dev/null
+import os, sys
+print(os.path.realpath(os.path.expanduser(sys.argv[1])))
+PY
+        return 0
+    fi
+    printf '%s\n' "$1"
+}
+
+cleanup_stale_claude_native_storage() {
+    local storage="$HOME/.local/share/claude"
+    local active=""
+    local active_real=""
+    local storage_real=""
+
+    if [ ! -e "$storage" ]; then
+        skip_step "Claude native storage: not present"
+        return 0
+    fi
+
+    active="$(command -v claude 2>/dev/null || true)"
+    if [ -n "$active" ]; then
+        active_real="$(real_path "$active")"
+    fi
+    storage_real="$(real_path "$storage")"
+
+    case "$active_real" in
+        "$storage_real"/*)
+            skip_step "Claude native storage is active ($active_real); refusing removal"
+            return 0
+            ;;
+    esac
+
+    safe_rm_path "stale Claude native storage" "$storage"
+}
+
+log "czclean: $([ "$DRY_RUN" = "true" ] && printf 'dry-run' || printf 'executing') mode"
+if [ "$DRY_RUN" = "true" ]; then
+    log "Pass --yes to execute the listed cleanup actions."
+fi
+
+print_storage_summary "before"
+
+log ""
+log "==> Cleanup actions"
+
+if is_cmd brew; then
+    if [ "$AGGRESSIVE" = "true" ]; then
+        run_step "Homebrew autoremove" brew autoremove
+        run_step "Homebrew cleanup prune-all" brew cleanup --prune=all
+    else
+        run_step "Homebrew cleanup" brew cleanup
+    fi
+else
+    skip_step "Homebrew not installed"
+fi
+
+if is_cmd npm; then
+    if [ "$AGGRESSIVE" = "true" ]; then
+        run_step "npm cache clean" npm cache clean --force
+    else
+        run_step "npm cache verify" npm cache verify
+    fi
+else
+    skip_step "npm not installed"
+fi
+
+if is_cmd pnpm; then
+    run_step "pnpm store prune" pnpm store prune
+else
+    skip_step "pnpm not installed"
+fi
+
+if is_cmd yarn; then
+    run_step "yarn cache clean" yarn cache clean
+else
+    skip_step "yarn not installed"
+fi
+
+if is_cmd uv; then
+    if [ "$AGGRESSIVE" = "true" ]; then
+        run_step "uv cache clean" uv cache clean
+    else
+        run_step "uv cache prune" uv cache prune
+    fi
+else
+    skip_step "uv not installed"
+fi
+
+if is_cmd python3 && python3 -m pip cache purge --help >/dev/null 2>&1; then
+    run_step "pip cache purge" python3 -m pip cache purge
+else
+    skip_step "pip cache purge unavailable"
+fi
+
+cleanup_claude_tmp "Claude tmp older than ${AGE_DAYS} days" "$AGE_DAYS"
+
+if [ "$CHEZMOI_CACHE" = "true" ]; then
+    safe_rm_path "chezmoi verified download cache" "$HOME/.cache/chezmoi-downloads"
+else
+    skip_step "chezmoi verified download cache retained; pass --chezmoi-cache to remove"
+fi
+
+if [ "$CLAUDE" = "true" ]; then
+    safe_rm_path "Claude Code cache" "$HOME/Library/Caches/claude-code"
+    safe_rm_path "Claude Code XDG cache" "$HOME/.cache/claude-code"
+    cleanup_claude_tmp "all Claude tmp" -1
+    cleanup_stale_claude_native_storage
+fi
+
+if [ "$CLAUDE_HISTORY" = "true" ]; then
+    safe_rm_path "Claude project/session history" "$HOME/.claude/projects"
+    safe_rm_path "Claude history jsonl" "$HOME/.claude/history.jsonl"
+fi
+
+if [ "$DOCKER_CLEAN" = "true" ]; then
+    if ! is_cmd docker; then
+        skip_step "Docker not installed"
+    elif ! docker info >/dev/null 2>&1; then
+        skip_step "Docker daemon unavailable"
+    else
+        run_step "Docker stopped containers prune" docker container prune -f
+        run_step "Docker unused images prune" docker image prune -a -f
+        run_step "Docker networks prune" docker network prune -f
+        run_step "Docker builder cache prune" docker builder prune -f
+        if [ "$DOCKER_VOLUMES" = "true" ]; then
+            run_step "Docker volumes prune" docker volume prune -f
+        else
+            skip_step "Docker volumes retained; pass --docker --docker-volumes to prune"
+        fi
+    fi
+fi
+
+print_storage_summary "after"
+
+log ""
+log "==> czclean summary"
+log "mode: $([ "$DRY_RUN" = "true" ] && printf 'dry-run' || printf 'executed')"
+log "executed steps: $RUN_COUNT"
+log "skipped steps: $SKIP_COUNT"
+log "failed steps: $FAIL_COUNT"
+
+if [ "$FAIL_COUNT" -gt 0 ] && [ "$STRICT" = "true" ]; then
+    exit 1
+fi

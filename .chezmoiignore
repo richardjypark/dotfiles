@@ -1,4 +1,5 @@
 README*
+plans/[0-9]*.md
 # Ignore compiled zsh files
 *.zwc
 .oh-my-zsh/cache/*
