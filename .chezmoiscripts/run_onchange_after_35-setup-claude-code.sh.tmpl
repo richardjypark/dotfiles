@@ -9,11 +9,19 @@ PINNED_CLAUDE_NPM_VERSION="2.1.44"
 {{- end }}
 
 CLAUDE_STATE="claude-code-setup-${PINNED_CLAUDE_NPM_VERSION}"
+CLAUDE_LINK_BIN="$HOME/.local/bin/claude"
+
+claude_installed_version() {
+    if ! is_installed claude; then
+        return 0
+    fi
+    claude --version 2>/dev/null | awk 'NR==1{print $1; exit}'
+}
 
 claude_binary_ready() {
-    local claude_path
-    claude_path="$(command -v claude 2>/dev/null || true)"
-    [ -n "$claude_path" ] && [ -x "$claude_path" ]
+    local installed_version
+    installed_version="$(claude_installed_version)"
+    [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"
 }
 
 if should_skip_state "$CLAUDE_STATE"; then
@@ -29,23 +37,16 @@ add_to_path "$HOME/.local/bin"
 vecho "Setting up Claude Code..."
 
 # Fast exit if claude is already installed and working (but mark state)
-if is_installed claude && claude --version >/dev/null 2>&1; then
-    installed_version="$(claude --version 2>/dev/null | awk 'NR==1{print $1; exit}')"
+installed_version="$(claude_installed_version)"
+if [ -n "$installed_version" ]; then
     if version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
         vecho "Claude Code is already at version $installed_version"
         mark_state "$CLAUDE_STATE"
         exit 0
     fi
     if ! is_force_update; then
-        vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."
-        exit 0
+        vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; checking for an already-installed pinned npm binary before skipping."
     fi
-fi
-
-if is_force_update; then
-    eecho "Updating Claude Code via pinned npm package..."
-else
-    eecho "Installing Claude Code via pinned npm package..."
 fi
 
 NPM_CMD=""
@@ -88,6 +89,10 @@ resolve_npm_cmd() {
 }
 
 if ! resolve_npm_cmd; then
+    if ! is_force_update && [ -n "$installed_version" ]; then
+        vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."
+        exit 0
+    fi
     eecho "Error: npm is required to install Claude Code without remote installer scripts."
     eecho "Install Node.js/npm first, then rerun chezmoi apply."
     exit 1
@@ -99,17 +104,76 @@ if ! "$NPM_CMD" -v >/dev/null 2>&1; then
     exit 1
 fi
 
+resolve_claude_npm_binary() {
+    local npm_prefix candidate
+
+    npm_prefix="$("$NPM_CMD" prefix -g 2>/dev/null || true)"
+    if [ -n "$npm_prefix" ]; then
+        candidate="$npm_prefix/bin/claude"
+        if [ -x "$candidate" ]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    fi
+
+    candidate="$(dirname "$NPM_CMD")/claude"
+    if [ -x "$candidate" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+
+    return 1
+}
+
+link_claude_binary() {
+    local npm_claude_bin
+
+    npm_claude_bin="$(resolve_claude_npm_binary 2>/dev/null || true)"
+    [ -n "$npm_claude_bin" ] || return 1
+
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$npm_claude_bin" "$CLAUDE_LINK_BIN"
+    export PATH="$HOME/.local/bin:$PATH"
+    hash -r 2>/dev/null || true
+}
+
+if ! is_force_update && [ -n "$installed_version" ]; then
+    if link_claude_binary; then
+        installed_version="$(claude_installed_version)"
+        if [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
+            vecho "Claude Code linked to pinned npm binary at version $installed_version"
+            mark_state "$CLAUDE_STATE"
+            exit 0
+        fi
+    fi
+    vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."
+    exit 0
+fi
+
+if [ -n "$installed_version" ]; then
+    eecho "Updating Claude Code via pinned npm package..."
+else
+    eecho "Installing Claude Code via pinned npm package..."
+fi
+
 if ! require_trust_for_remote_installer "npm registry package download"; then
     exit 1
 fi
 
 run_quiet "$NPM_CMD" install -g "@anthropic-ai/claude-code@${PINNED_CLAUDE_NPM_VERSION}"
 
+if ! link_claude_binary; then
+    eecho "Error: Claude Code npm package installed, but no npm-linked claude binary was found."
+    eecho "Leaving state unset so setup can retry after Node.js/npm is fixed."
+    exit 1
+fi
+
 # Verify installation
-if is_installed claude && claude --version >/dev/null 2>&1; then
+installed_version="$(claude_installed_version)"
+if [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
     eecho "Claude Code installed successfully: $(claude --version 2>/dev/null)"
     mark_state "$CLAUDE_STATE"
 else
-    eecho "Error: Claude Code installation failed. Leaving state unset so it can retry."
+    eecho "Error: expected Claude Code $PINNED_CLAUDE_NPM_VERSION but found ${installed_version:-missing}. Leaving state unset so it can retry."
     exit 1
 fi
