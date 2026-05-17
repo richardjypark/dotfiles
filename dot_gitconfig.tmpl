@@ -20,6 +20,17 @@
 [interactive]
 	diffFilter = sh -c 'command -v delta >/dev/null 2>&1 && exec delta --color-only || cat'
 
+# Homebrew/Apple Git may default to git-credential-osxkeychain on macOS.
+# Keep terminal Git auth on SSH keys instead of macOS Keychain popups.
+[credential]
+	helper =
+
+[credential "https://github.com"]
+	helper =
+
+[url "git@github.com:"]
+	insteadOf = https://github.com/
+
 [delta]
 	navigate = true
 	line-numbers = true
