@@ -22,14 +22,22 @@
 
 # Homebrew/Apple Git may default to git-credential-osxkeychain on macOS.
 # Keep terminal Git auth on SSH keys instead of macOS Keychain popups.
+# The blank helper clears lower-priority system helpers; the explicit no-op
+# prevents GitHub HTTPS probes from falling back to Keychain in tools that
+# expect a concrete helper command.
 [credential]
 	helper =
+	helper = !/usr/bin/true
 
 [credential "https://github.com"]
 	helper =
+	helper = !/usr/bin/true
+	interactive = false
 
 [url "git@github.com:"]
 	insteadOf = https://github.com/
+	insteadOf = http://github.com/
+	insteadOf = git://github.com/
 
 [delta]
 	navigate = true
