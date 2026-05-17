@@ -66,8 +66,8 @@ extras = ["messaging", "cli", "pty", "honcho", "mcp", "acp"]
 [hermes.preferences]
 show_reasoning = true
 reasoning_effort = "xhigh"
-agent_max_turns = 500
-goals_max_turns = 500
+agent_max_turns = 1000
+goals_max_turns = 1000
 context_length = 500000
 tui_by_default = true
 
