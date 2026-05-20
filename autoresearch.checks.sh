@@ -66,6 +66,7 @@ bash -n scripts/executable_setup-utm-sandbox-macos.sh
 [ ! -f scripts/executable_utm-sandbox-audit.sh ] || bash -n scripts/executable_utm-sandbox-audit.sh
 [ ! -f scripts/executable_utm-sandbox-linux-guest-setup.sh ] || bash -n scripts/executable_utm-sandbox-linux-guest-setup.sh
 [ ! -f scripts/executable_utm-sandbox-transfer-disk.sh ] || bash -n scripts/executable_utm-sandbox-transfer-disk.sh
+[ ! -f scripts/executable_utm-sandbox-inventory.sh ] || bash -n scripts/executable_utm-sandbox-inventory.sh
 bash -n scripts/lib/load-helpers.sh
 bash -n dot_local/private_lib/chezmoi-helpers.sh
 bash -n dot_local/private_lib/chezmoi-update-helpers.sh

@@ -59,6 +59,8 @@ For a clean Debian/Ubuntu Linux VM template, copy in
 `--inside-unsafe-vm` to install scanning/sanitization tools. For the
 higher-assurance no-internet transfer VM workflow, create a blank intermediate
 image with `~/scripts/utm-sandbox-transfer-disk.sh --volume /Volumes/UnsafeLab`.
+Use `~/scripts/utm-sandbox-inventory.sh --volume /Volumes/UnsafeLab` for a
+read-only stale-file/size inventory before manual cleanup.
 
 ### macOS Brave Browser Tor Policy
 
