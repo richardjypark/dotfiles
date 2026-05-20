@@ -143,7 +143,12 @@ cleanup() { rm -rf "$workdir"; }
 trap cleanup EXIT
 mkdir -p "$workdir/pages"
 pdftoppm -r 200 -png "$input" "$workdir/pages/page"
-img2pdf $(find "$workdir/pages" -name 'page-*.png' | sort -V) -o "$output"
+find "$workdir/pages" -name 'page-*.png' | sort -V >"$workdir/pages.txt"
+if [ ! -s "$workdir/pages.txt" ]; then
+    printf 'No pages were rendered from %s\n' "$input" >&2
+    exit 1
+fi
+xargs -a "$workdir/pages.txt" img2pdf -o "$output"
 EOF
     chmod 700 "$helper"
 }
@@ -162,7 +167,14 @@ if [ "$#" -ne 2 ]; then
     printf 'Usage: unsafe-strip-image input-image output-image\n' >&2
     exit 2
 fi
-magick "$1" -strip "$2"
+if command -v magick >/dev/null 2>&1; then
+    magick "$1" -strip "$2"
+elif command -v convert >/dev/null 2>&1; then
+    convert "$1" -strip "$2"
+else
+    printf 'ImageMagick command not found (expected magick or convert)\n' >&2
+    exit 1
+fi
 EOF
     chmod 700 "$helper"
 }
