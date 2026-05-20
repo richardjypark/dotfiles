@@ -99,9 +99,9 @@ validate_name() {
 }
 
 create_transfer_disk() {
-    require_volume_ready
     validate_size
     validate_name
+    require_volume_ready
 
     out_dir="$VOLUME/Client-App-Tests/Transfer-Disks"
     out_path="$out_dir/$NAME"
