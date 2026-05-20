@@ -194,13 +194,13 @@ def walk(obj: object, path: str = "$") -> None:
             key_lower = key_text.lower()
             child_path = f"{path}.{key_text}"
             if "clipboard" in key_lower and truthy(value):
-                add("clipboard", child_path, value, "clipboard sharing may be enabled")
+                add("clipboard", child_path, value, "clipboard sharing may be enabled; disable clipboard sharing in UTM")
             if ("share" in key_lower or "virtfs" in key_lower or "webdav" in key_lower) and truthy(value):
-                add("sharing", child_path, value, "shared-folder bridge may be enabled")
+                add("sharing", child_path, value, "shared-folder bridge may be enabled; turn it off or limit it to Sanitized-Outbox only during transfer")
             if "usb" in key_lower and truthy(value):
-                add("usb", child_path, value, "USB forwarding or auto-connect may be enabled")
+                add("usb", child_path, value, "USB forwarding or auto-connect may be enabled; disable auto-connect or use prompt-only")
             if "port" in key_lower and "forward" in key_lower and truthy(value):
-                add("port-forward", child_path, value, "guest port forwarding may expose services")
+                add("port-forward", child_path, value, "guest port forwarding may expose services; remove port forwards unless required")
             walk(value, child_path)
     elif isinstance(obj, list):
         for index, value in enumerate(obj):
@@ -208,13 +208,13 @@ def walk(obj: object, path: str = "$") -> None:
     elif isinstance(obj, str):
         lower = obj.lower()
         if "bridged" in lower or lower == "bridge" or "bridge interface" in lower:
-            add("network", path, obj, "bridged networking can expose the guest to the LAN")
+            add("network", path, obj, "bridged networking can expose the guest to the LAN; prefer Shared Network with host isolation, Emulated VLAN, or Host Only")
         if "clipboard" in lower and any(token in lower for token in ("true", "enable", "shared")):
-            add("clipboard", path, obj, "clipboard sharing may be enabled")
+            add("clipboard", path, obj, "clipboard sharing may be enabled; disable clipboard sharing in UTM")
         if "port forward" in lower or "port-forward" in lower or "portforward" in lower:
-            add("port-forward", path, obj, "guest port forwarding may expose services")
+            add("port-forward", path, obj, "guest port forwarding may expose services; remove port forwards unless required")
         if HOST_PATH_RE.search(obj):
-            add("host-path", path, obj, "possible host personal folder or non-UnsafeLab volume reference")
+            add("host-path", path, obj, "possible host personal folder or non-UnsafeLab volume reference; remove Mac personal folder shares")
 
 try:
     with config.open("rb") as fh:
