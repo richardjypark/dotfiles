@@ -50,6 +50,20 @@ require_volume() {
     [ -d "$VOLUME" ] || die "Volume path does not exist: $VOLUME"
 }
 
+warn_if_volume_not_encrypted_apfs() {
+    if ! have diskutil; then
+        warn "diskutil not found; cannot confirm APFS encryption for $VOLUME."
+        return 0
+    fi
+    info="$(diskutil info "$VOLUME" 2>/dev/null || true)"
+    if ! printf '%s\n' "$info" | grep -Eiq 'File System Personality:[[:space:]]*APFS|Type \(Bundle\):[[:space:]]*apfs'; then
+        warn "$VOLUME does not appear to be APFS; confirm you are inventorying the encrypted UnsafeLab volume."
+    fi
+    if ! printf '%s\n' "$info" | grep -Eiq 'Encrypted:[[:space:]]*Yes'; then
+        warn "$VOLUME does not appear encrypted; confirm you are inventorying the encrypted UnsafeLab volume."
+    fi
+}
+
 print_size() {
     path="$1"
     if [ -e "$path" ]; then
@@ -128,6 +142,7 @@ require_macos
 validate_number "--days" "$DAYS"
 validate_number "--max-files" "$MAX_FILES"
 require_volume
+warn_if_volume_not_encrypted_apfs
 have du || die "du is required."
 have find || die "find is required."
 
