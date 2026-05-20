@@ -3,7 +3,8 @@ set -euo pipefail
 
 DEFAULT_VOLUME="/Volumes/UnsafeLab"
 APP_STORE_ID="1538878817"
-APP_STORE_URL="macappstore://apps.apple.com/app/id1538878817"
+APP_STORE_DEEP_LINK="macappstore://itunes.apple.com/app/id${APP_STORE_ID}"
+APP_STORE_WEB_URL="https://apps.apple.com/app/utm-virtual-machines/id${APP_STORE_ID}"
 
 VOLUME="$DEFAULT_VOLUME"
 INSTALL=false
@@ -77,6 +78,14 @@ utm_installed() {
     return 1
 }
 
+open_utm_app_store_page() {
+    log "Opening the UTM Mac App Store page. Complete installation there for automatic updates."
+    if ! run_cmd open "$APP_STORE_DEEP_LINK"; then
+        warn "Could not open the App Store deep link; opening the web listing instead."
+        run_cmd open "$APP_STORE_WEB_URL"
+    fi
+}
+
 install_utm_app_store() {
     if utm_installed; then
         log "UTM already appears to be installed."
@@ -87,11 +96,10 @@ install_utm_app_store() {
         log "Installing UTM from the Mac App Store with mas app id ${APP_STORE_ID}."
         if ! run_cmd mas install "$APP_STORE_ID"; then
             warn "mas install failed; opening the App Store page instead."
-            run_cmd open "$APP_STORE_URL"
+            open_utm_app_store_page
         fi
     else
-        log "Opening the UTM Mac App Store page. Complete installation there for automatic updates."
-        run_cmd open "$APP_STORE_URL"
+        open_utm_app_store_page
     fi
 }
 
@@ -169,7 +177,9 @@ exclude_spotlight() {
     log "Adding Spotlight privacy markers for $VOLUME."
     run_cmd touch "$VOLUME/.metadata_never_index"
     if have mdutil; then
-        if ! run_cmd mdutil -i off "$VOLUME" >/dev/null; then
+        if [ "$DRY_RUN" = true ]; then
+            run_cmd mdutil -i off "$VOLUME"
+        elif ! mdutil -i off "$VOLUME" >/dev/null; then
             warn "mdutil could not disable indexing; add the volume in System Settings -> Spotlight -> Search Privacy."
         fi
     else
