@@ -299,8 +299,8 @@ EOF
 Transfer disk images
 ====================
 
-Intermediate .raw/.img files in this folder are for attaching to dirty and
-offline transfer VMs. Do not mount these disk images on the Mac host.
+Intermediate .raw/.img/.qcow2 files in this folder are for attaching to dirty
+and offline transfer VMs. Do not mount these disk images on the Mac host.
 EOF
     chmod 600 "$VOLUME/Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt"
 }
