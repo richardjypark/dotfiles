@@ -83,7 +83,7 @@ list_stale_files() {
         warn "Missing directory: $dir"
         return 0
     fi
-    find "$dir" -type f -name "$pattern" -mtime +"$DAYS" -print 2>/dev/null \
+    find "$dir" -type f -name "$pattern" ! -name 'README*' -mtime +"$DAYS" -print 2>/dev/null \
         | sort \
         | head -n "$MAX_FILES" \
         | while IFS= read -r path; do
