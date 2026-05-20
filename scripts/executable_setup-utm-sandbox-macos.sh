@@ -12,7 +12,7 @@ INSTALL_METHOD="app-store"
 PREPARE=true
 VERIFY=false
 DRY_RUN=false
-WRITE_VOLUME_README=true
+WRITE_GUIDANCE_FILES=true
 
 usage() {
     cat <<'EOF'
@@ -37,7 +37,8 @@ Options:
   --no-prepare              Skip folder/exclusion setup.
   --verify                  Verify UTM presence and UnsafeLab host settings only.
   --dry-run                 Print commands that would run.
-  --no-readme               Do not write UnsafeLab-README.txt on the volume.
+  --no-guidance-files       Do not write README, marker, checklist, or log template files.
+  --no-readme               Deprecated alias for --no-guidance-files.
   -h, --help                Show this help.
 
 Safety:
@@ -188,7 +189,7 @@ exclude_spotlight() {
 }
 
 write_volume_readme() {
-    [ "$WRITE_VOLUME_README" = true ] || return 0
+    [ "$WRITE_GUIDANCE_FILES" = true ] || return 0
     readme_path="$VOLUME/UnsafeLab-README.txt"
     if [ "$DRY_RUN" = true ]; then
         log "Would write $readme_path"
@@ -219,7 +220,7 @@ EOF
 }
 
 write_log_template() {
-    [ "$WRITE_VOLUME_README" = true ] || return 0
+    [ "$WRITE_GUIDANCE_FILES" = true ] || return 0
     template_path="$VOLUME/Logs/session-template.md"
     if [ "$DRY_RUN" = true ]; then
         log "Would write $template_path"
@@ -246,7 +247,7 @@ EOF
 }
 
 write_folder_markers() {
-    [ "$WRITE_VOLUME_README" = true ] || return 0
+    [ "$WRITE_GUIDANCE_FILES" = true ] || return 0
     if [ "$DRY_RUN" = true ]; then
         log "Would write Raw-Quarantine/Sanitized-Outbox/Transfer-Disks marker files"
         return 0
@@ -282,7 +283,7 @@ EOF
 }
 
 write_vm_isolation_checklist() {
-    [ "$WRITE_VOLUME_README" = true ] || return 0
+    [ "$WRITE_GUIDANCE_FILES" = true ] || return 0
     checklist_path="$VOLUME/VM-Isolation-Checklist.md"
     if [ "$DRY_RUN" = true ]; then
         log "Would write $checklist_path"
@@ -489,8 +490,8 @@ while [ "$#" -gt 0 ]; do
         --dry-run)
             DRY_RUN=true
             ;;
-        --no-readme)
-            WRITE_VOLUME_README=false
+        --no-guidance-files|--no-readme)
+            WRITE_GUIDANCE_FILES=false
             ;;
         -h|--help)
             usage
