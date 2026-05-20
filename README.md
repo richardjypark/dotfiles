@@ -51,6 +51,7 @@ SSD as `/Volumes/UnsafeLab`, run:
 
 ```bash
 ~/scripts/setup-utm-sandbox-macos.sh --install --volume /Volumes/UnsafeLab
+~/scripts/utm-sandbox-audit.sh --volume /Volumes/UnsafeLab
 ```
 
 ### macOS Brave Browser Tor Policy
