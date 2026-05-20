@@ -92,6 +92,27 @@ audit_volume() {
             warn "missing UnsafeLab folder: $path"
         fi
     done
+
+    for file in \
+        UnsafeLab-README.txt \
+        VM-Isolation-Checklist.md \
+        Logs/session-template.md \
+        Raw-Quarantine/README-DO-NOT-OPEN.txt \
+        Sanitized-Outbox/README.txt \
+        Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt; do
+        path="$VOLUME/$file"
+        if [ -f "$path" ]; then
+            ok "guidance file exists: $path"
+            mode="$(stat -f '%Lp' "$path" 2>/dev/null || true)"
+            if [ "$mode" = "600" ]; then
+                ok "guidance file has owner-only permissions (600): $path"
+            else
+                warn "guidance file permissions are ${mode:-unknown}; expected 600: $path"
+            fi
+        else
+            warn "missing UnsafeLab guidance file: $path"
+        fi
+    done
 }
 
 audit_time_machine() {
