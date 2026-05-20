@@ -150,6 +150,7 @@ prepare_folders() {
     folders="VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Logs"
     for folder in $folders; do
         run_cmd mkdir -p "$VOLUME/$folder"
+        run_cmd chmod 700 "$VOLUME/$folder"
     done
 }
 
@@ -193,6 +194,7 @@ Rules:
 - Store UTM VM bundles under: $VOLUME/VMs
 - Keep raw host-visible files under: $VOLUME/Raw-Quarantine
 - Transfer only sanitized files through: $VOLUME/Sanitized-Outbox
+- Keep session notes, source URL records, and SHA-256 hash logs under: $VOLUME/Logs
 - Do not share personal Mac folders, iCloud Drive, password-manager data, or backup disks with dirty VMs.
 - In UTM dirty VMs: clipboard off, shared folders off by default, USB auto-connect off/prompt-only, no Bridged networking unless a client test truly requires it.
 - Prefer Shared Network with Isolate Guest from Host, Emulated VLAN, or Host Only.
@@ -204,12 +206,40 @@ Review the full guide in the dotfiles repo:
 EOF
 }
 
+write_log_template() {
+    [ "$WRITE_VOLUME_README" = true ] || return 0
+    template_path="$VOLUME/Logs/session-template.md"
+    if [ "$DRY_RUN" = true ]; then
+        log "Would write $template_path"
+        return 0
+    fi
+    cat >"$template_path" <<'EOF'
+# UnsafeLab session log
+
+- Date/time:
+- VM name:
+- UTM mode: Disposable / snapshot / persistent
+- Network mode:
+- Source URL:
+- Downloaded file names:
+- SHA-256 hashes:
+- Scanner results:
+- Sanitizer used:
+- Output copied to Sanitized-Outbox:
+- Follow-up / deletion notes:
+
+Do not paste secrets or confidential document contents here. Keep this log on the
+encrypted UnsafeLab volume.
+EOF
+}
+
 prepare_volume() {
     require_volume_ready
     prepare_folders
     exclude_time_machine
     exclude_spotlight
     write_volume_readme
+    write_log_template
     log "Prepared $VOLUME for UTM unsafe-work storage."
     log "Next: create or move UTM VM bundles into $VOLUME/VMs and configure VM isolation in UTM."
 }

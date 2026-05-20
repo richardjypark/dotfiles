@@ -72,8 +72,10 @@ script:
 
 The helper is intentionally non-destructive: it will not format, partition, or
 erase disks. It verifies the mounted volume, creates the `UnsafeLab` folder tree,
-adds a Time Machine exclusion, disables Spotlight indexing where macOS permits,
-places a `.metadata_never_index` marker, and writes a local checklist.
+sets owner-only `700` permissions on those lab folders, adds a Time Machine
+exclusion, disables Spotlight indexing where macOS permits, places a
+`.metadata_never_index` marker, and writes a local checklist plus a session-log
+template under `Logs/`.
 
 Manual verification commands:
 
@@ -151,6 +153,10 @@ Create the dirty VM with UTM and store the `.utm` bundle under:
 ```text
 /Volumes/UnsafeLab/VMs/
 ```
+
+Keep a clean template VM with OS updates and tools installed, then duplicate that
+template for risky work. Prefer Disposable Mode for browsing sessions; otherwise
+revert to a clean snapshot or delete the throwaway duplicate when finished.
 
 Recommended starting point:
 
@@ -266,6 +272,11 @@ cd ~/Downloads/raw
 sha256sum *
 ```
 
+For each risky session, keep notes on the encrypted volume under `Logs/` or in
+the VM until sanitized. Record the source URL, retrieval time, file names,
+SHA-256 hashes, scanner results, and sanitizer used. Do not paste secrets or
+client-confidential content into ordinary host notes.
+
 Install scanning and PDF tools in the VM:
 
 ```bash
@@ -339,12 +350,14 @@ For `.zip`, `.7z`, `.rar`, `.tar`, and similar archives:
 
 1. Dirty VM has internet.
 2. Host shared folders stay off during browsing.
-3. After sanitization, temporarily share only
+3. Record hashes and source URL in the encrypted `Logs/` session note if doing so
+   is appropriate for the matter.
+4. After sanitization, temporarily share only
    `/Volumes/UnsafeLab/Sanitized-Outbox` if needed.
-4. Copy only sanitized files there.
-5. Shut down the VM.
-6. On the Mac, inspect only the sanitized file.
-7. Copy it into normal Documents only after deciding it is worth keeping.
+5. Copy only sanitized files there.
+6. Shut down the VM.
+7. On the Mac, inspect only the sanitized file.
+8. Copy it into normal Documents only after deciding it is worth keeping.
 
 ### Higher-assurance pattern
 
