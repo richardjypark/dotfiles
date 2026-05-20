@@ -244,6 +244,37 @@ encrypted UnsafeLab volume.
 EOF
 }
 
+write_vm_isolation_checklist() {
+    [ "$WRITE_VOLUME_README" = true ] || return 0
+    checklist_path="$VOLUME/VM-Isolation-Checklist.md"
+    if [ "$DRY_RUN" = true ]; then
+        log "Would write $checklist_path"
+        return 0
+    fi
+    cat >"$checklist_path" <<EOF
+# UTM VM isolation checklist
+
+Copy this checklist for each dirty or client-test VM stored under ${VOLUME}/VMs.
+
+- [ ] VM name:
+- [ ] VM bundle is stored under ${VOLUME}/VMs/.
+- [ ] Architecture matches host where practical: ARM64 on Apple Silicon, x86_64 on Intel.
+- [ ] QEMU backend selected when Disposable Mode / Run without saving changes is required.
+- [ ] Network is Shared Network with Isolate Guest from Host, Emulated VLAN, or Host Only.
+- [ ] Bridged networking is off unless a specific client test requires LAN presence.
+- [ ] Port forwarding is not configured.
+- [ ] Clipboard sharing is off.
+- [ ] Shared directory is off, or temporarily limited to ${VOLUME}/Sanitized-Outbox for sanitized files only.
+- [ ] USB auto-connect is off or prompt-only; no personal USB devices are forwarded.
+- [ ] Automatic VM screenshots are disabled if malicious or sensitive content may display.
+- [ ] No iCloud, browser sync, password-manager sync, or personal credentials are configured in the guest.
+- [ ] Browser downloads ask every time and default to a VM-internal raw folder.
+- [ ] Raw files are hashed/scanned inside the VM and sanitized before any host-visible transfer.
+- [ ] Risky session is discarded, reverted to a clean snapshot, or the throwaway VM is deleted afterward.
+EOF
+    chmod 600 "$checklist_path"
+}
+
 prepare_volume() {
     require_volume_ready
     prepare_folders
@@ -251,6 +282,7 @@ prepare_volume() {
     exclude_spotlight
     write_volume_readme
     write_log_template
+    write_vm_isolation_checklist
     log "Prepared $VOLUME for UTM unsafe-work storage."
     log "Next: create or move UTM VM bundles into $VOLUME/VMs and configure VM isolation in UTM."
 }
