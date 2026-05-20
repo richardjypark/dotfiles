@@ -452,6 +452,8 @@ Run the read-only UTM bundle audit after creating or moving VMs into
 ~/scripts/utm-sandbox-audit.sh --volume /Volumes/UnsafeLab
 # Optional CI-style check for a lab you expect to be clean:
 ~/scripts/utm-sandbox-audit.sh --fail-on-warning --volume /Volumes/UnsafeLab
+# If you organize VM bundles in nested folders:
+~/scripts/utm-sandbox-audit.sh --volume /Volumes/UnsafeLab --max-depth 5
 ```
 
 The audit checks the expected lab folders and owner-only `700` permissions, then
