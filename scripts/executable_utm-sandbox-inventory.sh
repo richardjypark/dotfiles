@@ -69,7 +69,10 @@ warn_if_volume_not_encrypted_apfs() {
 
 print_size() {
     path="$1"
-    if [ -e "$path" ]; then
+    if [ -L "$path" ]; then
+        printf 'symlink\t%s\n' "$path"
+        warn "Refusing to size symlinked UnsafeLab path: $path"
+    elif [ -e "$path" ]; then
         du -sh "$path" 2>/dev/null || true
     else
         printf 'missing\t%s\n' "$path"
@@ -82,6 +85,10 @@ list_stale_files() {
     pattern="$3"
     log ""
     log "$title"
+    if [ -L "$dir" ]; then
+        warn "Refusing to inventory symlinked directory: $dir"
+        return 0
+    fi
     if [ ! -d "$dir" ]; then
         warn "Missing directory: $dir"
         return 0
@@ -100,6 +107,10 @@ list_recent_files() {
     dir="$2"
     log ""
     log "$title"
+    if [ -L "$dir" ]; then
+        warn "Refusing to inventory symlinked directory: $dir"
+        return 0
+    fi
     if [ ! -d "$dir" ]; then
         warn "Missing directory: $dir"
         return 0
