@@ -56,7 +56,9 @@ SSD as `/Volumes/UnsafeLab`, run:
 
 For a clean Debian/Ubuntu Linux VM template, copy in
 `~/scripts/utm-sandbox-linux-guest-setup.sh` and run it inside the guest with
-`--inside-unsafe-vm` to install scanning/sanitization tools.
+`--inside-unsafe-vm` to install scanning/sanitization tools. For the
+higher-assurance no-internet transfer VM workflow, create a blank intermediate
+image with `~/scripts/utm-sandbox-transfer-disk.sh --volume /Volumes/UnsafeLab`.
 
 ### macOS Brave Browser Tor Policy
 
