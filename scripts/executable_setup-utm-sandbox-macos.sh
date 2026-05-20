@@ -245,6 +245,42 @@ encrypted UnsafeLab volume.
 EOF
 }
 
+write_folder_markers() {
+    [ "$WRITE_VOLUME_README" = true ] || return 0
+    if [ "$DRY_RUN" = true ]; then
+        log "Would write Raw-Quarantine/Sanitized-Outbox/Transfer-Disks marker files"
+        return 0
+    fi
+    cat >"$VOLUME/Raw-Quarantine/README-DO-NOT-OPEN.txt" <<'EOF'
+Raw quarantine folder
+=====================
+
+Treat every file here as hostile. Do not open, Quick Look, preview, or upload
+these files from the Mac host. Move raw files back into a disposable VM or a
+no-internet transfer VM for scanning/sanitization.
+EOF
+    chmod 600 "$VOLUME/Raw-Quarantine/README-DO-NOT-OPEN.txt"
+
+    cat >"$VOLUME/Sanitized-Outbox/README.txt" <<'EOF'
+Sanitized outbox
+================
+
+Only sanitized outputs belong here. Do not place raw downloads or original client
+archives in this folder. After copying a sanitized file to normal storage, remove
+stale outbox copies you no longer need.
+EOF
+    chmod 600 "$VOLUME/Sanitized-Outbox/README.txt"
+
+    cat >"$VOLUME/Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt" <<'EOF'
+Transfer disk images
+====================
+
+Intermediate .raw/.img files in this folder are for attaching to dirty and
+offline transfer VMs. Do not mount these disk images on the Mac host.
+EOF
+    chmod 600 "$VOLUME/Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt"
+}
+
 write_vm_isolation_checklist() {
     [ "$WRITE_VOLUME_README" = true ] || return 0
     checklist_path="$VOLUME/VM-Isolation-Checklist.md"
@@ -283,6 +319,7 @@ prepare_volume() {
     exclude_spotlight
     write_volume_readme
     write_log_template
+    write_folder_markers
     write_vm_isolation_checklist
     if [ "$DRY_RUN" = true ]; then
         log "Dry-run complete; no changes made. Would prepare $VOLUME for UTM unsafe-work storage."
