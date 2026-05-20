@@ -167,6 +167,10 @@ audit_utm_presence() {
 audit_one_bundle() {
     bundle="$1"
     config="$bundle/config.plist"
+    if [ -L "$config" ]; then
+        warn "config.plist is a symlink; refusing to follow it: $config"
+        return 0
+    fi
     if [ ! -f "$config" ]; then
         warn "missing config.plist in UTM bundle: $bundle"
         return 0
