@@ -45,8 +45,9 @@ The host stays boring and clean.
 
 ### Amber: encrypted external storage
 
-Use a dedicated external SSD, not the Time Machine disk. Format it manually in
-Disk Utility:
+Use a dedicated external SSD, not the Time Machine disk. The helpers warn or
+refuse if the target appears to contain Time Machine backup data such as
+`Backups.backupdb`. Format the dedicated drive manually in Disk Utility:
 
 1. Open **Disk Utility**.
 2. Choose **View -> Show All Devices**.

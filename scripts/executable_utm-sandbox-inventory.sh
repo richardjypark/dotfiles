@@ -48,6 +48,9 @@ validate_number() {
 
 require_volume() {
     [ -d "$VOLUME" ] || die "Volume path does not exist: $VOLUME"
+    if [ -d "$VOLUME/Backups.backupdb" ] || [ -d "$VOLUME/.backupdb" ]; then
+        warn "$VOLUME appears to contain Time Machine backup data; inventory is read-only, but use a dedicated UnsafeLab SSD for unsafe work."
+    fi
 }
 
 warn_if_volume_not_encrypted_apfs() {
