@@ -506,6 +506,24 @@ UTM review for each dirty VM:
 - USB auto-connect off/prompt-only.
 - No iCloud, password-manager sync, browser sync, or personal credentials.
 
+## If raw files accidentally land on the host
+
+If a browser, mail client, or app accidentally saves raw suspicious content to
+normal macOS storage, treat it as a containment mistake:
+
+1. Do not open, Quick Look, preview, upload, or attach the file.
+2. Disconnect from the unsafe site or stop the client app that created it.
+3. Move the file to `/Volumes/UnsafeLab/Raw-Quarantine` only if the encrypted
+   volume is already mounted; otherwise leave it untouched until you can mount
+   the lab volume.
+4. Remove any browser auto-open rule or download setting that caused the mistake.
+5. Assume Time Machine/local snapshots may have retained a copy if the file was
+   saved in a backed-up internal folder. Do not try to rewrite history casually;
+   review Time Machine/snapshot retention and decide whether incident cleanup is
+   needed.
+6. Process the file only inside a dirty or transfer VM, then keep only sanitized
+   outputs.
+
 ## Maintenance and reset cadence
 
 Keep the lab current without turning the dirty VM into a trusted desktop:
