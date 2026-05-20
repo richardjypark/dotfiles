@@ -439,7 +439,9 @@ Only for a client you must use and cannot run in a VM:
 
 ## Verification and review checklist
 
-Run the setup verification helper:
+Run the setup verification helper, which checks UTM presence, UnsafeLab storage,
+Time Machine/Spotlight exclusions, folder permissions, and host FileVault/firewall
+status:
 
 ```bash
 ~/scripts/setup-utm-sandbox-macos.sh --verify --volume /Volumes/UnsafeLab

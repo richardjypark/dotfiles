@@ -346,8 +346,38 @@ verify_spotlight() {
     return 1
 }
 
+verify_filevault() {
+    if ! have fdesetup; then
+        warn "fdesetup not found; cannot verify FileVault status."
+        return 0
+    fi
+    out="$(fdesetup status 2>/dev/null || true)"
+    if printf '%s\n' "$out" | grep -Eiq 'FileVault is On|FileVault is enabled'; then
+        log "OK: FileVault appears enabled."
+    else
+        warn "FileVault does not appear enabled; enable it for host data-at-rest protection."
+    fi
+}
+
+verify_firewall() {
+    firewall_cmd="/usr/libexec/ApplicationFirewall/socketfilterfw"
+    if [ ! -x "$firewall_cmd" ]; then
+        warn "socketfilterfw not found; cannot verify macOS firewall status."
+        return 0
+    fi
+    out="$($firewall_cmd --getglobalstate 2>/dev/null || true)"
+    if printf '%s\n' "$out" | grep -Eiq 'enabled'; then
+        log "OK: macOS application firewall appears enabled."
+    else
+        warn "macOS application firewall does not appear enabled; enable it unless you have a specific reason not to."
+    fi
+}
+
 verify_setup() {
     failures=0
+
+    verify_filevault
+    verify_firewall
 
     if utm_installed; then
         log "OK: UTM appears to be installed."
