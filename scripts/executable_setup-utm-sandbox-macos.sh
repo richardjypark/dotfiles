@@ -354,6 +354,19 @@ check_private_dir() {
     return 1
 }
 
+check_private_file() {
+    label="$1"
+    path="$2"
+    check_path "$label" "$path" || return 1
+    mode="$(stat -f '%Lp' "$path" 2>/dev/null || true)"
+    if [ "$mode" = "600" ]; then
+        log "OK: $label has owner-only permissions (600)."
+        return 0
+    fi
+    warn "$label permissions are ${mode:-unknown}; expected 600."
+    return 1
+}
+
 verify_time_machine() {
     if ! have tmutil; then
         warn "tmutil not found; cannot verify Time Machine exclusion."
@@ -432,6 +445,18 @@ verify_setup() {
 
     for folder in VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Client-App-Tests/Transfer-Disks Logs; do
         if ! check_private_dir "UnsafeLab/$folder" "$VOLUME/$folder"; then
+            failures=$((failures + 1))
+        fi
+    done
+
+    for file in \
+        UnsafeLab-README.txt \
+        VM-Isolation-Checklist.md \
+        Logs/session-template.md \
+        Raw-Quarantine/README-DO-NOT-OPEN.txt \
+        Sanitized-Outbox/README.txt \
+        Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt; do
+        if ! check_private_file "UnsafeLab/$file" "$VOLUME/$file"; then
             failures=$((failures + 1))
         fi
     done
