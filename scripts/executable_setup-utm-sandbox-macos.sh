@@ -281,6 +281,16 @@ stale outbox copies you no longer need.
 EOF
     chmod 600 "$VOLUME/Sanitized-Outbox/README.txt"
 
+    cat >"$VOLUME/Client-App-Tests/README.txt" <<'EOF'
+Client app tests
+================
+
+Use this area for notes, logs, screenshots, and sanitized outputs from dedicated
+client-test VMs. Do not install unknown required clients on the Mac host just
+because a website asks for them.
+EOF
+    chmod 600 "$VOLUME/Client-App-Tests/README.txt"
+
     cat >"$VOLUME/Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt" <<'EOF'
 Transfer disk images
 ====================
@@ -466,6 +476,7 @@ verify_setup() {
         Logs/session-template.md \
         Raw-Quarantine/README-DO-NOT-OPEN.txt \
         Sanitized-Outbox/README.txt \
+        Client-App-Tests/README.txt \
         Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt; do
         if ! check_private_file "UnsafeLab/$file" "$VOLUME/$file"; then
             failures=$((failures + 1))

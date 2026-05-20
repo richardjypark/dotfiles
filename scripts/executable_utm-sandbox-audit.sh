@@ -103,6 +103,7 @@ audit_volume() {
         Logs/session-template.md \
         Raw-Quarantine/README-DO-NOT-OPEN.txt \
         Sanitized-Outbox/README.txt \
+        Client-App-Tests/README.txt \
         Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt; do
         path="$VOLUME/$file"
         if [ -f "$path" ]; then
