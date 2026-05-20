@@ -121,10 +121,12 @@ audit_time_machine() {
         return 0
     fi
     out="$(tmutil isexcluded "$VOLUME" 2>/dev/null || true)"
-    if printf '%s\n' "$out" | grep -Eiq '\[Excluded\]|is excluded'; then
-        ok "Time Machine reports $VOLUME is excluded."
+    raw_out="$(tmutil isexcluded "$VOLUME/Raw-Quarantine" 2>/dev/null || true)"
+    if printf '%s\n' "$out" | grep -Eiq '\[Excluded\]|is excluded' \
+        && printf '%s\n' "$raw_out" | grep -Eiq '\[Excluded\]|is excluded'; then
+        ok "Time Machine reports $VOLUME and Raw-Quarantine are excluded."
     else
-        warn "Time Machine exclusion not confirmed for $VOLUME."
+        warn "Time Machine exclusion not confirmed for both $VOLUME and Raw-Quarantine."
     fi
 }
 

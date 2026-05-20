@@ -89,7 +89,8 @@ ls -la /Volumes/UnsafeLab
 
 Also verify in System Settings:
 
-- **General -> Time Machine -> Options** excludes `/Volumes/UnsafeLab`.
+- **General -> Time Machine -> Options** excludes `/Volumes/UnsafeLab` and, for
+  defense in depth, `/Volumes/UnsafeLab/Raw-Quarantine`.
 - **Spotlight -> Search Privacy** excludes `/Volumes/UnsafeLab` or at least
   `/Volumes/UnsafeLab/Raw-Quarantine`.
 
