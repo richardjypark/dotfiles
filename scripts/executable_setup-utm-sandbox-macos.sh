@@ -175,8 +175,9 @@ exclude_time_machine() {
 }
 
 exclude_spotlight() {
-    log "Adding Spotlight privacy markers for $VOLUME."
+    log "Adding Spotlight privacy markers for $VOLUME and Raw-Quarantine."
     run_cmd touch "$VOLUME/.metadata_never_index"
+    run_cmd touch "$VOLUME/Raw-Quarantine/.metadata_never_index"
     if have mdutil; then
         if [ "$DRY_RUN" = true ]; then
             run_cmd mdutil -i off "$VOLUME"
@@ -382,8 +383,8 @@ verify_time_machine() {
 }
 
 verify_spotlight() {
-    if [ -e "$VOLUME/.metadata_never_index" ]; then
-        log "OK: Spotlight marker exists at $VOLUME/.metadata_never_index."
+    if [ -e "$VOLUME/.metadata_never_index" ] && [ -e "$VOLUME/Raw-Quarantine/.metadata_never_index" ]; then
+        log "OK: Spotlight markers exist at $VOLUME and Raw-Quarantine."
         return 0
     fi
     if have mdutil; then

@@ -73,8 +73,9 @@ bash ~/.local/share/chezmoi/scripts/executable_setup-utm-sandbox-macos.sh --inst
 The helper is intentionally non-destructive: it will not format, partition, or
 erase disks. It verifies the mounted volume, creates the `UnsafeLab` folder tree,
 sets owner-only `700` permissions on those lab folders, adds a Time Machine
-exclusion, disables Spotlight indexing where macOS permits, places a
-`.metadata_never_index` marker, and writes a local checklist plus a session-log
+exclusion, disables Spotlight indexing where macOS permits, places
+`.metadata_never_index` markers on both the volume and `Raw-Quarantine`, and
+writes a local checklist plus a session-log
 template under `Logs/`, marker files in quarantine/outbox/transfer folders, and
 a reusable `VM-Isolation-Checklist.md` for manual UTM setting review.
 
