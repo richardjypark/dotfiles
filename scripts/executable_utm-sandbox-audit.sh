@@ -84,7 +84,9 @@ audit_volume() {
 
     for folder in VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Client-App-Tests/Transfer-Disks Logs; do
         path="$VOLUME/$folder"
-        if [ -d "$path" ]; then
+        if [ -L "$path" ]; then
+            warn "folder is a symlink; expected a real directory on the encrypted UnsafeLab volume: $path"
+        elif [ -d "$path" ]; then
             ok "folder exists: $path"
             mode="$(stat -f '%Lp' "$path" 2>/dev/null || true)"
             if [ "$mode" = "700" ]; then
@@ -106,7 +108,9 @@ audit_volume() {
         Client-App-Tests/README.txt \
         Client-App-Tests/Transfer-Disks/README-DO-NOT-MOUNT-ON-HOST.txt; do
         path="$VOLUME/$file"
-        if [ -f "$path" ]; then
+        if [ -L "$path" ]; then
+            warn "guidance file is a symlink; expected a real file on the encrypted UnsafeLab volume: $path"
+        elif [ -f "$path" ]; then
             ok "guidance file exists: $path"
             mode="$(stat -f '%Lp' "$path" 2>/dev/null || true)"
             if [ "$mode" = "600" ]; then
