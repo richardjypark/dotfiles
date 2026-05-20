@@ -179,6 +179,24 @@ EOF
     chmod 700 "$helper"
 }
 
+verify_guest_tools() {
+    [ "$DRY_RUN" = true ] && return 0
+    missing=""
+    for tool in clamscan pdftoppm img2pdf ocrmypdf qpdf file exiftool; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            missing="$missing $tool"
+        fi
+    done
+    if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then
+        missing="$missing magick-or-convert"
+    fi
+    if [ -n "$missing" ]; then
+        warn "Some expected guest tools are still missing:$missing"
+    else
+        log "Verified expected guest triage/sanitization commands are available."
+    fi
+}
+
 write_guest_notes() {
     notes="$HOME/work/README-unsafe-triage.md"
     if [ "$DRY_RUN" = true ]; then
@@ -213,6 +231,7 @@ create_workspace
 install_packages
 write_pdf_helper
 write_image_helper
+verify_guest_tools
 write_guest_notes
 
 cat <<'EOF'
