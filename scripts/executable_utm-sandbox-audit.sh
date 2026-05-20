@@ -169,10 +169,17 @@ def short(value: object) -> str:
 def truthy(value: object) -> bool:
     if value is True:
         return True
-    if isinstance(value, (int, float)) and value != 0:
+    if value is False or value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"", "0", "false", "no", "disabled", "off", "none", "null"}:
+            return False
         return True
-    if isinstance(value, str) and value.strip().lower() in {"1", "true", "yes", "enabled", "on"}:
-        return True
+    if isinstance(value, (dict, list, tuple, set)):
+        return bool(value)
     return False
 
 
