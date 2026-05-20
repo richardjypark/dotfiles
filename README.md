@@ -54,6 +54,10 @@ SSD as `/Volumes/UnsafeLab`, run:
 ~/scripts/utm-sandbox-audit.sh --volume /Volumes/UnsafeLab
 ```
 
+For a clean Debian/Ubuntu Linux VM template, copy in
+`~/scripts/utm-sandbox-linux-guest-setup.sh` and run it inside the guest with
+`--inside-unsafe-vm` to install scanning/sanitization tools.
+
 ### macOS Brave Browser Tor Policy
 
 On macOS, `chezmoi apply` enforces a non-optional Brave Browser managed policy:
