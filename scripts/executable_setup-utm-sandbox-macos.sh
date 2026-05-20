@@ -210,6 +210,7 @@ Rules:
 - In UTM dirty VMs: clipboard off, shared folders off by default, USB auto-connect off/prompt-only, no Bridged networking unless a client test truly requires it.
 - Prefer Shared Network with Isolate Guest from Host, Emulated VLAN, or Host Only.
 - Start risky browsing VMs with Disposable Mode / Run without saving changes when possible.
+- Periodically run utm-sandbox-audit.sh and utm-sandbox-inventory.sh from the host for read-only drift and stale-file review.
 - Eject this volume when unsafe work is finished.
 
 Review the full guide in the dotfiles repo:
