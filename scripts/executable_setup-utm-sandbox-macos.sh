@@ -106,7 +106,9 @@ install_utm_app_store() {
 
 install_utm_brew() {
     have brew || die "Homebrew is required for --install-method brew. Install Homebrew first or use app-store."
-    if brew list --cask utm >/dev/null 2>&1; then
+    if utm_installed; then
+        log "UTM already appears to be installed; skipping Homebrew cask install."
+    elif brew list --cask utm >/dev/null 2>&1; then
         log "UTM Homebrew cask is already installed."
     else
         log "Installing UTM with Homebrew cask."
