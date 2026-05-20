@@ -231,6 +231,8 @@ macOS. In the guest:
 - Deny Full Disk Access, Accessibility, Input Monitoring, Screen Recording,
   Contacts, and similar privacy permissions unless the app cannot function
   without them.
+- Disable AirDrop, Handoff, file sharing, screen sharing, remote login, and other
+  macOS Sharing services in the guest unless the test explicitly requires them.
 
 If a Mac client requires kernel/system extensions, device drivers, MDM
 enrollment, unusual entitlements, or hardware access that does not work in a VM,
