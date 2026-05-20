@@ -152,8 +152,9 @@ bundle = Path(sys.argv[2])
 findings: list[tuple[str, str, str, str]] = []
 
 HOST_PATH_RE = re.compile(
-    r"/(Users|Volumes)/(?!UnsafeLab(?:/|$))|"
-    r"\b(Desktop|Documents|Downloads|Library/Mobile Documents|Time Machine|\.ssh|1Password)\b",
+    r"/Users/[^'\"<>]*/(Desktop|Documents|Downloads|Library/Mobile Documents|\.ssh)(?:/|$)|"
+    r"/Volumes/(?!UnsafeLab(?:/|$))[^'\"<>]*(?:Time Machine|Backup|Mobile Documents|$)|"
+    r"\b(1Password|password[- ]?manager)\b",
     re.IGNORECASE,
 )
 
