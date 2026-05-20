@@ -77,8 +77,9 @@ sets owner-only `700` permissions on those lab folders, adds a Time Machine
 exclusion, disables Spotlight indexing where macOS permits, places
 `.metadata_never_index` markers on both the volume and `Raw-Quarantine`, and
 writes a local checklist plus a session-log
-template under `Logs/`, marker files in quarantine/outbox/transfer folders, and
-a reusable `VM-Isolation-Checklist.md` for manual UTM setting review.
+template under `Logs/`, marker files in quarantine/outbox/transfer folders, a
+reusable `VM-Isolation-Checklist.md`, and a `Transfer-VM-Checklist.md` for the
+no-internet transfer workflow.
 
 Manual verification commands:
 
@@ -412,10 +413,11 @@ encrypted external SSD without formatting, mounting, or attaching it on the Mac:
 
 The helper writes a new sparse `.raw` image under
 `/Volumes/UnsafeLab/Client-App-Tests/Transfer-Disks/` and refuses to overwrite
-existing files. Attach the image to the dirty VM while powered off, format it
-inside the guest only after confirming the device name, copy candidate files to
-it, shut down, then attach it to the no-internet transfer VM. Do **not** mount
-that raw disk image on the Mac host and do **not** use it as a shared folder.
+existing files. Review `Transfer-VM-Checklist.md`, attach the image to the dirty
+VM while powered off, format it inside the guest only after confirming the device
+name, copy candidate files to it, shut down, then attach it to the no-internet
+transfer VM. Do **not** mount that raw disk image on the Mac host and do **not**
+use it as a shared folder.
 
 ## Sites that require desktop clients
 

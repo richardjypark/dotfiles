@@ -336,6 +336,32 @@ EOF
     chmod 600 "$checklist_path"
 }
 
+write_transfer_vm_checklist() {
+    [ "$WRITE_GUIDANCE_FILES" = true ] || return 0
+    checklist_path="$VOLUME/Client-App-Tests/Transfer-VM-Checklist.md"
+    if [ "$DRY_RUN" = true ]; then
+        log "Would write $checklist_path"
+        return 0
+    fi
+    cat >"$checklist_path" <<EOF
+# No-internet transfer VM checklist
+
+Use this checklist when moving candidate files from a dirty VM through an
+offline transfer/sanitization VM before anything reaches Sanitized-Outbox.
+
+- [ ] Transfer VM network is disconnected, Host Only with no internet route, or otherwise offline.
+- [ ] Dirty VM is shut down before the transfer disk image is detached.
+- [ ] Transfer disk image is attached only to the transfer VM after dirty VM shutdown.
+- [ ] Transfer disk is mounted read-only when practical.
+- [ ] Transfer VM has no clipboard sharing and no personal host folders.
+- [ ] Shared folder, if enabled at all, is limited to ${VOLUME}/Sanitized-Outbox.
+- [ ] Only sanitized PDFs/images/text outputs are copied to Sanitized-Outbox.
+- [ ] Original archives, Office documents, executables, and raw PDFs remain off the Mac host.
+- [ ] Transfer disk image is removed from UTM after the matter is closed.
+EOF
+    chmod 600 "$checklist_path"
+}
+
 prepare_volume() {
     require_volume_ready
     prepare_folders
@@ -345,6 +371,7 @@ prepare_volume() {
     write_log_template
     write_folder_markers
     write_vm_isolation_checklist
+    write_transfer_vm_checklist
     if [ "$DRY_RUN" = true ]; then
         log "Dry-run complete; no changes made. Would prepare $VOLUME for UTM unsafe-work storage."
     else
@@ -485,6 +512,7 @@ verify_setup() {
     for file in \
         UnsafeLab-README.txt \
         VM-Isolation-Checklist.md \
+        Client-App-Tests/Transfer-VM-Checklist.md \
         Logs/session-template.md \
         Raw-Quarantine/README-DO-NOT-OPEN.txt \
         Sanitized-Outbox/README.txt \

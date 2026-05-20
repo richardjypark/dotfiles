@@ -102,6 +102,7 @@ audit_volume() {
     for file in \
         UnsafeLab-README.txt \
         VM-Isolation-Checklist.md \
+        Client-App-Tests/Transfer-VM-Checklist.md \
         Logs/session-template.md \
         Raw-Quarantine/README-DO-NOT-OPEN.txt \
         Sanitized-Outbox/README.txt \
