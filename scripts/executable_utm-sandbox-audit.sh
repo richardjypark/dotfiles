@@ -4,6 +4,7 @@ set -euo pipefail
 DEFAULT_VOLUME="/Volumes/UnsafeLab"
 VOLUME="$DEFAULT_VOLUME"
 VMS_DIR=""
+MAX_DEPTH=3
 FAIL_ON_WARNING=false
 
 usage() {
@@ -15,6 +16,7 @@ Best-effort, read-only audit for the macOS UTM UnsafeLab workflow.
 Options:
   --volume PATH        Mounted UnsafeLab volume. Default: /Volumes/UnsafeLab.
   --vms-dir PATH       Directory containing .utm bundles. Default: <volume>/VMs.
+  --max-depth N        Search depth for nested .utm bundles under --vms-dir. Default: 3.
   --fail-on-warning    Exit non-zero when risky settings or missing controls are found.
   -h, --help           Show this help.
 
@@ -249,7 +251,7 @@ audit_bundles() {
 
     tmp_list="$(mktemp "${TMPDIR:-/tmp}/utm-bundles.XXXXXX")"
     trap 'rm -f "$tmp_list"' EXIT
-    find "$VMS_DIR" -maxdepth 1 -type d -name '*.utm' -print0 >"$tmp_list"
+    find "$VMS_DIR" -maxdepth "$MAX_DEPTH" -type d -name '*.utm' -print0 >"$tmp_list"
     if [ ! -s "$tmp_list" ]; then
         warn "No .utm bundles found in $VMS_DIR. Create/move VMs there before relying on this audit."
         return 0
@@ -270,6 +272,14 @@ while [ "$#" -gt 0 ]; do
         --vms-dir)
             [ "$#" -ge 2 ] || die "--vms-dir requires a path."
             VMS_DIR="${2%/}"
+            shift
+            ;;
+        --max-depth)
+            [ "$#" -ge 2 ] || die "--max-depth requires a number."
+            MAX_DEPTH="$2"
+            case "$MAX_DEPTH" in
+                ""|*[!0-9]*) die "--max-depth must be a non-negative integer." ;;
+            esac
             shift
             ;;
         --fail-on-warning)
