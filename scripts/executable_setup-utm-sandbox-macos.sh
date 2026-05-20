@@ -168,9 +168,12 @@ exclude_time_machine() {
         warn "tmutil not found; add $VOLUME to Time Machine exclusions manually."
         return 0
     fi
-    log "Adding Time Machine exclusion for $VOLUME."
+    log "Adding Time Machine exclusions for $VOLUME and Raw-Quarantine."
     if ! run_cmd tmutil addexclusion -p "$VOLUME"; then
-        warn "tmutil addexclusion failed; add the volume in System Settings -> General -> Time Machine -> Options."
+        warn "tmutil addexclusion failed for $VOLUME; add the volume in System Settings -> General -> Time Machine -> Options."
+    fi
+    if ! run_cmd tmutil addexclusion -p "$VOLUME/Raw-Quarantine"; then
+        warn "tmutil addexclusion failed for Raw-Quarantine; add it in System Settings -> General -> Time Machine -> Options."
     fi
 }
 
@@ -374,11 +377,13 @@ verify_time_machine() {
         return 1
     fi
     out="$(tmutil isexcluded "$VOLUME" 2>/dev/null || true)"
-    if printf '%s\n' "$out" | grep -Eiq '\[Excluded\]|is excluded'; then
-        log "OK: Time Machine reports $VOLUME is excluded."
+    raw_out="$(tmutil isexcluded "$VOLUME/Raw-Quarantine" 2>/dev/null || true)"
+    if printf '%s\n' "$out" | grep -Eiq '\[Excluded\]|is excluded' \
+        && printf '%s\n' "$raw_out" | grep -Eiq '\[Excluded\]|is excluded'; then
+        log "OK: Time Machine reports $VOLUME and Raw-Quarantine are excluded."
         return 0
     fi
-    warn "Time Machine exclusion not confirmed for $VOLUME."
+    warn "Time Machine exclusion not confirmed for both $VOLUME and Raw-Quarantine."
     return 1
 }
 
