@@ -105,7 +105,10 @@ create_transfer_disk() {
 
     out_dir="$VOLUME/Client-App-Tests/Transfer-Disks"
     out_path="$out_dir/$NAME"
-    if [ -e "$out_path" ]; then
+    if [ -L "$out_dir" ]; then
+        die "Refusing to use symlinked transfer disk directory: $out_dir"
+    fi
+    if [ -e "$out_path" ] || [ -L "$out_path" ]; then
         die "Refusing to overwrite existing file: $out_path"
     fi
     have mkfile || die "mkfile is required on macOS to create the sparse raw image."
