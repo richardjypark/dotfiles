@@ -74,11 +74,15 @@ require_volume_ready() {
 validate_size() {
     case "$SIZE" in
         *[!0-9mMgG]*|""|*[mMgG][mMgG]*)
-            die "Invalid --size '$SIZE'. Use values like 512m, 2g, or 10g."
+            die "Invalid --size '$SIZE'. Use positive values like 512m, 2g, or 10g."
             ;;
         *[mMgG]) ;;
         *) die "Invalid --size '$SIZE'. Include m or g suffix, for example 2g." ;;
     esac
+    size_number="${SIZE%[mMgG]}"
+    if [ "$size_number" -le 0 ]; then
+        die "Invalid --size '$SIZE'. Size must be greater than zero."
+    fi
 }
 
 validate_name() {
