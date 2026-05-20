@@ -63,11 +63,11 @@ After the volume is mounted, prepare folders and host exclusions with the helper
 script:
 
 ```bash
-# From the chezmoi source checkout before apply:
-~/.local/share/chezmoi/scripts/setup-utm-sandbox-macos.sh --install --volume /Volumes/UnsafeLab
-
-# Or, after chezmoi apply renders scripts into ~/scripts:
+# After chezmoi apply renders scripts into ~/scripts:
 ~/scripts/setup-utm-sandbox-macos.sh --install --volume /Volumes/UnsafeLab
+
+# From the chezmoi source checkout before apply, use bash explicitly:
+bash ~/.local/share/chezmoi/scripts/executable_setup-utm-sandbox-macos.sh --install --volume /Volumes/UnsafeLab
 ```
 
 The helper is intentionally non-destructive: it will not format, partition, or
