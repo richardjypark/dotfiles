@@ -76,11 +76,18 @@ audit_volume() {
         warn "diskutil not found; cannot verify APFS encryption."
     fi
 
-    for folder in VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Logs; do
-        if [ -d "$VOLUME/$folder" ]; then
-            ok "folder exists: $VOLUME/$folder"
+    for folder in VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Client-App-Tests/Transfer-Disks Logs; do
+        path="$VOLUME/$folder"
+        if [ -d "$path" ]; then
+            ok "folder exists: $path"
+            mode="$(stat -f '%Lp' "$path" 2>/dev/null || true)"
+            if [ "$mode" = "700" ]; then
+                ok "folder has owner-only permissions (700): $path"
+            else
+                warn "folder permissions are ${mode:-unknown}; expected 700: $path"
+            fi
         else
-            warn "missing UnsafeLab folder: $VOLUME/$folder"
+            warn "missing UnsafeLab folder: $path"
         fi
     done
 }
