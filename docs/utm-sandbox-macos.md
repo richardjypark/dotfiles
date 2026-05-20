@@ -308,6 +308,16 @@ installs the package set above with `apt-get`, and writes small local VM helpers
 for PDF flattening and image metadata stripping. It does not configure UTM host
 sharing, clipboard, networking, USB, or any Mac host setting.
 
+For non-Debian Linux guests, install equivalent packages manually inside the VM
+only; do not run distro package commands on a trusted real Linux host. Fedora
+package names are typically `clamav`, `clamav-update`, `poppler-utils`,
+`img2pdf`, `ocrmypdf`, `ImageMagick`, `qpdf`, `p7zip`, `unzip`, `file`, and
+ExifTool packages. Arch/Omarchy guest equivalents are typically `clamav`,
+`poppler`, `img2pdf`, `ocrmypdf`, `imagemagick`, `qpdf`, `p7zip`, `unzip`,
+`file`, and `perl-image-exiftool`. The repo helper intentionally stays
+Debian/Ubuntu-only to avoid looking like a safe installer for trusted Linux
+hosts.
+
 Do not open raw PDFs on the host in Preview, Quick Look, Acrobat, or a browser
 tab. View raw PDFs only inside the VM. If you install Acrobat Reader inside a VM,
 disable Acrobat JavaScript in preferences.
