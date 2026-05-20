@@ -413,7 +413,8 @@ encrypted external SSD without formatting, mounting, or attaching it on the Mac:
 
 The helper writes a new sparse `.raw` image under
 `/Volumes/UnsafeLab/Client-App-Tests/Transfer-Disks/` and refuses to overwrite
-existing files. Review `Transfer-VM-Checklist.md`, attach the image to the dirty
+existing files. The inventory helper also reports stale `.raw`, `.img`, and `.qcow2` transfer
+images in that folder. Review `Transfer-VM-Checklist.md`, attach the image to the dirty
 VM while powered off, format it inside the guest only after confirming the device
 name, copy candidate files to it, shut down, then attach it to the no-internet
 transfer VM. Do **not** mount that raw disk image on the Mac host and do **not**
