@@ -75,7 +75,8 @@ erase disks. It verifies the mounted volume, creates the `UnsafeLab` folder tree
 sets owner-only `700` permissions on those lab folders, adds a Time Machine
 exclusion, disables Spotlight indexing where macOS permits, places a
 `.metadata_never_index` marker, and writes a local checklist plus a session-log
-template under `Logs/`.
+template under `Logs/`, and a reusable `VM-Isolation-Checklist.md` for manual
+UTM setting review.
 
 Manual verification commands:
 
@@ -468,6 +469,8 @@ Host review:
 - Time Machine excludes `/Volumes/UnsafeLab`.
 - Spotlight indexing is disabled or Search Privacy excludes the volume.
 - UTM VM bundles live under `/Volumes/UnsafeLab/VMs/`.
+- `VM-Isolation-Checklist.md` has been copied or reviewed for every dirty/client
+  VM.
 - Raw files are not in normal host folders.
 
 UTM review for each dirty VM:
