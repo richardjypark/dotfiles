@@ -54,6 +54,11 @@ volume_info() {
 }
 
 require_volume_ready() {
+    if [ "$DRY_RUN" = true ] && [ ! -d "$VOLUME" ]; then
+        log "Would require mounted APFS (Encrypted) volume at $VOLUME."
+        return 0
+    fi
+
     [ -d "$VOLUME" ] || die "Volume path does not exist: $VOLUME"
     have diskutil || die "diskutil is required to verify the mounted volume."
     info="$(volume_info)"
