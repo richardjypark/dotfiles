@@ -163,8 +163,12 @@ require_volume_ready() {
 prepare_folders() {
     folders="VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Client-App-Tests/Transfer-Disks Logs"
     for folder in $folders; do
-        run_cmd mkdir -p "$VOLUME/$folder"
-        run_cmd chmod 700 "$VOLUME/$folder"
+        path="$VOLUME/$folder"
+        if [ -L "$path" ]; then
+            die "Refusing to prepare symlinked lab folder: $path"
+        fi
+        run_cmd mkdir -p "$path"
+        run_cmd chmod 700 "$path"
     done
 }
 
@@ -363,6 +367,10 @@ check_path() {
 check_private_dir() {
     label="$1"
     path="$2"
+    if [ -L "$path" ]; then
+        warn "$label is a symlink; expected a real directory on the encrypted UnsafeLab volume."
+        return 1
+    fi
     check_path "$label" "$path" || return 1
     mode="$(stat -f '%Lp' "$path" 2>/dev/null || true)"
     if [ "$mode" = "700" ]; then
@@ -376,6 +384,10 @@ check_private_dir() {
 check_private_file() {
     label="$1"
     path="$2"
+    if [ -L "$path" ]; then
+        warn "$label is a symlink; expected a real file on the encrypted UnsafeLab volume."
+        return 1
+    fi
     check_path "$label" "$path" || return 1
     mode="$(stat -f '%Lp' "$path" 2>/dev/null || true)"
     if [ "$mode" = "600" ]; then
