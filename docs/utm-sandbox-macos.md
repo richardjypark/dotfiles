@@ -486,6 +486,27 @@ UTM review for each dirty VM:
 - USB auto-connect off/prompt-only.
 - No iCloud, password-manager sync, browser sync, or personal credentials.
 
+## Maintenance and reset cadence
+
+Keep the lab current without turning the dirty VM into a trusted desktop:
+
+- Update UTM on the host through the Mac App Store or Homebrew before important
+  unsafe-work sessions.
+- Update the clean Linux template VM while it has no raw client files, then shut
+  it down and duplicate it for risky browsing.
+- Refresh browser and guest OS updates in the clean template; do not sign into
+  sync accounts to do so.
+- Run `freshclam` in the guest before scanning when network access is available.
+- Prefer Disposable Mode / Run without saving changes for browsing sessions; if a
+  persistent test VM is required, revert to a clean snapshot or delete the
+  throwaway duplicate afterward.
+- Periodically run `~/scripts/utm-sandbox-audit.sh --volume /Volumes/UnsafeLab`
+  and review `VM-Isolation-Checklist.md` for each VM.
+- Remove stale files from `Raw-Quarantine`, old transfer disk images, and client
+  test folders after the matter is closed; keep only sanitized outputs you still
+  need.
+- Eject `/Volumes/UnsafeLab` when the lab is idle.
+
 ## Residual risks
 
 This setup reduces risk; it does not make unsafe content safe.
