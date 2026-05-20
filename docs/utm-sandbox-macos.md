@@ -208,6 +208,9 @@ For Windows 11 test VMs:
 - Enable TPM 2.0.
 - Enable Secure Boot / preload secure boot keys.
 - Keep Microsoft Defender active.
+- Set the Windows network profile to **Public**.
+- Disable Network Discovery and File and Printer Sharing unless a specific test
+  requires them.
 - Use 4+ cores and 8+ GB RAM if the host has enough memory.
 - Do not sign into a real Microsoft account unless absolutely required.
 - Do not sync OneDrive.
