@@ -78,6 +78,10 @@ audit_volume() {
         warn "diskutil not found; cannot verify APFS encryption."
     fi
 
+    if [ -d "$VOLUME/Backups.backupdb" ] || [ -d "$VOLUME/.backupdb" ]; then
+        warn "$VOLUME appears to contain Time Machine backup data; use a dedicated UnsafeLab SSD, not a backup disk."
+    fi
+
     for folder in VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Client-App-Tests/Transfer-Disks Logs; do
         path="$VOLUME/$folder"
         if [ -d "$path" ]; then

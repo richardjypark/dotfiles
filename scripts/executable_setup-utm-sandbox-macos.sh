@@ -153,6 +153,9 @@ require_volume_ready() {
     if ! printf '%s\n' "$info" | grep -Eiq 'Encrypted:[[:space:]]*Yes'; then
         die "$VOLUME does not appear to be encrypted. Reformat manually in Disk Utility as APFS (Encrypted)."
     fi
+    if [ -d "$VOLUME/Backups.backupdb" ] || [ -d "$VOLUME/.backupdb" ]; then
+        die "$VOLUME appears to contain Time Machine backup data. Use a dedicated UnsafeLab SSD, not a backup disk."
+    fi
 }
 
 prepare_folders() {
