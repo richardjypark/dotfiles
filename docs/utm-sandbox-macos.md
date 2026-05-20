@@ -405,11 +405,27 @@ Only for a client you must use and cannot run in a VM:
 
 ## Verification and review checklist
 
-Run the helper audit:
+Run the setup verification helper:
 
 ```bash
 ~/scripts/setup-utm-sandbox-macos.sh --verify --volume /Volumes/UnsafeLab
 ```
+
+Run the read-only UTM bundle audit after creating or moving VMs into
+`/Volumes/UnsafeLab/VMs/`:
+
+```bash
+~/scripts/utm-sandbox-audit.sh --volume /Volumes/UnsafeLab
+# Optional CI-style check for a lab you expect to be clean:
+~/scripts/utm-sandbox-audit.sh --fail-on-warning --volume /Volumes/UnsafeLab
+```
+
+The audit parses each `.utm/config.plist` with Python `plistlib` and reports
+best-effort warnings for bridged networking, clipboard sharing, shared-folder
+bridges, host personal folder paths, USB forwarding, and port forwarding. It is
+read-only and intentionally does not modify UTM bundles. Treat a clean audit as a
+prompt for manual review, not as proof of containment; UTM GUI settings remain
+the source of truth.
 
 Host review:
 

@@ -62,6 +62,8 @@ chezmoi cat "$HOME/.local/bin/chezmoi-health-check" | bash -n
 bash -n bootstrap-vps.sh
 bash -n scripts/bootstrap-omarchy.sh
 bash -n scripts/server-lockdown-tailscale.sh
+bash -n scripts/executable_setup-utm-sandbox-macos.sh
+[ ! -f scripts/executable_utm-sandbox-audit.sh ] || bash -n scripts/executable_utm-sandbox-audit.sh
 bash -n scripts/lib/load-helpers.sh
 bash -n dot_local/private_lib/chezmoi-helpers.sh
 bash -n dot_local/private_lib/chezmoi-update-helpers.sh
