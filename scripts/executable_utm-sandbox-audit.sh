@@ -129,8 +129,8 @@ audit_time_machine() {
 }
 
 audit_spotlight() {
-    if [ -e "$VOLUME/.metadata_never_index" ]; then
-        ok "Spotlight marker exists: $VOLUME/.metadata_never_index"
+    if [ -e "$VOLUME/.metadata_never_index" ] && [ -e "$VOLUME/Raw-Quarantine/.metadata_never_index" ]; then
+        ok "Spotlight markers exist on the volume and Raw-Quarantine."
         return 0
     fi
     if have mdutil; then
