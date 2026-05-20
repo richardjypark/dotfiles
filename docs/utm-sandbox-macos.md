@@ -380,13 +380,28 @@ For `.zip`, `.7z`, `.rar`, `.tar`, and similar archives:
 ### Higher-assurance pattern
 
 1. Dirty VM has internet and no host shared folder.
-2. Dirty VM writes output to a small virtual disk image.
+2. Dirty VM writes output to a small intermediate virtual disk image.
 3. Shut down dirty VM.
 4. Attach that disk image to a no-internet transfer/sanitization VM.
-5. Transfer only sanitized outputs from the transfer VM to `Sanitized-Outbox`.
+5. Sanitize documents in the transfer VM.
+6. Transfer only sanitized outputs from the transfer VM to `Sanitized-Outbox`.
 
 The second pattern prevents a compromised browsing VM from directly writing into
 a host-visible folder.
+
+The repo includes a host helper to create the blank intermediate image on the
+encrypted external SSD without formatting, mounting, or attaching it on the Mac:
+
+```bash
+~/scripts/utm-sandbox-transfer-disk.sh --volume /Volumes/UnsafeLab --size 2g
+```
+
+The helper writes a new sparse `.raw` image under
+`/Volumes/UnsafeLab/Client-App-Tests/Transfer-Disks/` and refuses to overwrite
+existing files. Attach the image to the dirty VM while powered off, format it
+inside the guest only after confirming the device name, copy candidate files to
+it, shut down, then attach it to the no-internet transfer VM. Do **not** mount
+that raw disk image on the Mac host and do **not** use it as a shared folder.
 
 ## Sites that require desktop clients
 

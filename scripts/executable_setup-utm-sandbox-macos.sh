@@ -155,7 +155,7 @@ require_volume_ready() {
 }
 
 prepare_folders() {
-    folders="VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Logs"
+    folders="VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Client-App-Tests/Transfer-Disks Logs"
     for folder in $folders; do
         run_cmd mkdir -p "$VOLUME/$folder"
         run_cmd chmod 700 "$VOLUME/$folder"
@@ -205,6 +205,7 @@ Rules:
 - Keep raw host-visible files under: $VOLUME/Raw-Quarantine
 - Transfer only sanitized files through: $VOLUME/Sanitized-Outbox
 - Keep session notes, source URL records, and SHA-256 hash logs under: $VOLUME/Logs
+- Keep higher-assurance intermediate transfer disk images under: $VOLUME/Client-App-Tests/Transfer-Disks
 - Do not share personal Mac folders, iCloud Drive, password-manager data, or backup disks with dirty VMs.
 - In UTM dirty VMs: clipboard off, shared folders off by default, USB auto-connect off/prompt-only, no Bridged networking unless a client test truly requires it.
 - Prefer Shared Network with Isolate Guest from Host, Emulated VLAN, or Host Only.
@@ -311,7 +312,7 @@ verify_setup() {
         failures=$((failures + 1))
     fi
 
-    for folder in VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Logs; do
+    for folder in VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Client-App-Tests/Transfer-Disks Logs; do
         if ! check_path "UnsafeLab/$folder" "$VOLUME/$folder"; then
             failures=$((failures + 1))
         fi
