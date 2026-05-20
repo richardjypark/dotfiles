@@ -502,6 +502,13 @@ Keep the lab current without turning the dirty VM into a trusted desktop:
   throwaway duplicate afterward.
 - Periodically run `~/scripts/utm-sandbox-audit.sh --volume /Volumes/UnsafeLab`
   and review `VM-Isolation-Checklist.md` for each VM.
+- Use the read-only inventory helper to find stale unsafe material without
+  opening it on the host:
+
+  ```bash
+  ~/scripts/utm-sandbox-inventory.sh --volume /Volumes/UnsafeLab --days 30
+  ```
+
 - Remove stale files from `Raw-Quarantine`, old transfer disk images, and client
   test folders after the matter is closed; keep only sanitized outputs you still
   need.
