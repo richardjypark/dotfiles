@@ -277,14 +277,32 @@ the VM until sanitized. Record the source URL, retrieval time, file names,
 SHA-256 hashes, scanner results, and sanitizer used. Do not paste secrets or
 client-confidential content into ordinary host notes.
 
-Install scanning and PDF tools in the VM:
+Install scanning and PDF tools in the VM. The repo includes a Linux guest helper
+for a clean Debian/Ubuntu VM template:
+
+Copy `~/scripts/utm-sandbox-linux-guest-setup.sh` into the clean VM template
+before unsafe browsing, or fetch the tracked script from the public repo inside
+the VM and review it first. Then run:
+
+```bash
+# In the Linux VM template, not on the Mac host:
+bash utm-sandbox-linux-guest-setup.sh --inside-unsafe-vm
+```
+
+If you prefer to run the commands manually:
 
 ```bash
 sudo apt update
-sudo apt install clamav poppler-utils img2pdf ocrmypdf imagemagick
+sudo apt install clamav clamav-freshclam poppler-utils img2pdf ocrmypdf imagemagick qpdf p7zip-full unzip file libimage-exiftool-perl
 sudo freshclam
 clamscan -r --infected ~/Downloads/raw
 ```
+
+The guest helper requires the explicit `--inside-unsafe-vm` acknowledgement,
+refuses macOS, creates `~/Downloads/raw`, `~/work/sanitized`, and `~/work/logs`,
+installs the package set above with `apt-get`, and writes small local VM helpers
+for PDF flattening and image metadata stripping. It does not configure UTM host
+sharing, clipboard, networking, USB, or any Mac host setting.
 
 Do not open raw PDFs on the host in Preview, Quick Look, Acrobat, or a browser
 tab. View raw PDFs only inside the VM. If you install Acrobat Reader inside a VM,
