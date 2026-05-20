@@ -130,8 +130,8 @@ Simple helper usage:
 ```
 
 If `mas` is installed and you are signed into the App Store, the helper attempts
-`mas install 1538878817`. Otherwise it opens the UTM App Store page so you can
-install it manually.
+`mas install 1538878817`. Otherwise it opens the UTM App Store deep link and can
+fall back to the UTM web listing so you can install it manually.
 
 ## VM choice
 
