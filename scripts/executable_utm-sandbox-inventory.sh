@@ -156,8 +156,9 @@ for dir in VMs Raw-Quarantine Sanitized-Outbox Client-App-Tests Client-App-Tests
 done
 
 list_stale_files "Stale raw quarantine files" "$VOLUME/Raw-Quarantine" '*'
-list_stale_files "Stale transfer disk images" "$VOLUME/Client-App-Tests/Transfer-Disks" '*.raw'
+list_stale_files "Stale transfer raw disk images" "$VOLUME/Client-App-Tests/Transfer-Disks" '*.raw'
 list_stale_files "Stale transfer image files" "$VOLUME/Client-App-Tests/Transfer-Disks" '*.img'
+list_stale_files "Stale transfer qcow2 images" "$VOLUME/Client-App-Tests/Transfer-Disks" '*.qcow2'
 list_recent_files "Sanitized outbox sample (review before copying to normal storage)" "$VOLUME/Sanitized-Outbox"
 
 cat <<'EOF'
