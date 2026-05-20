@@ -111,7 +111,11 @@ create_transfer_disk() {
     run_cmd mkfile -n "$SIZE" "$out_path"
     run_cmd chmod 600 "$out_path"
 
-    log "Created blank sparse transfer disk image: $out_path"
+    if [ "$DRY_RUN" = true ]; then
+        log "Dry-run complete; no changes made. Would create blank sparse transfer disk image: $out_path"
+    else
+        log "Created blank sparse transfer disk image: $out_path"
+    fi
     cat <<EOF
 
 Higher-assurance transfer workflow:

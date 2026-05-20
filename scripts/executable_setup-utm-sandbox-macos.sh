@@ -283,7 +283,11 @@ prepare_volume() {
     write_volume_readme
     write_log_template
     write_vm_isolation_checklist
-    log "Prepared $VOLUME for UTM unsafe-work storage."
+    if [ "$DRY_RUN" = true ]; then
+        log "Dry-run complete; no changes made. Would prepare $VOLUME for UTM unsafe-work storage."
+    else
+        log "Prepared $VOLUME for UTM unsafe-work storage."
+    fi
     log "Next: create or move UTM VM bundles into $VOLUME/VMs and configure VM isolation in UTM."
 }
 
