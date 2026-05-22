@@ -2,17 +2,22 @@
 set -euo pipefail
 
 DEFAULT_VOLUME="/Volumes/UnsafeLab"
-APP_STORE_ID="1538878817"
-APP_STORE_DEEP_LINK="macappstore://itunes.apple.com/app/id${APP_STORE_ID}"
-APP_STORE_WEB_URL="https://apps.apple.com/app/utm-virtual-machines/id${APP_STORE_ID}"
+DEFAULT_UTM_INSTALL_DIR="/Applications"
+UTM_BUNDLE_ID="com.utmapp.UTM"
+UTM_OFFICIAL_DOWNLOAD_URL="https://mac.getutm.app/"
+UTM_GITHUB_RELEASES_URL="https://github.com/utmapp/UTM/releases/latest"
+UTM_GITHUB_DMG_URL="https://github.com/utmapp/UTM/releases/latest/download/UTM.dmg"
 
 VOLUME="$DEFAULT_VOLUME"
 INSTALL=false
-INSTALL_METHOD="app-store"
+INSTALL_METHOD="github"
+INSTALL_DIR="${UTM_INSTALL_DIR:-}"
 PREPARE=true
 VERIFY=false
 DRY_RUN=false
 WRITE_GUIDANCE_FILES=true
+CLEANUP_UTM_TMPDIR=""
+CLEANUP_UTM_MOUNT_DIR=""
 
 usage() {
     cat <<'EOF'
@@ -23,6 +28,12 @@ Prepare a secure-by-default UTM unsafe-work workspace on macOS.
 Recommended first run, after manually formatting and mounting an encrypted SSD:
   setup-utm-sandbox-macos.sh --install --volume /Volumes/UnsafeLab
 
+Install UTM only, before the UnsafeLab volume is available:
+  setup-utm-sandbox-macos.sh --install --no-prepare
+
+Open the official UTM download page without downloading the DMG:
+  setup-utm-sandbox-macos.sh --install --install-method web --volume /Volumes/UnsafeLab
+
 Homebrew/free-build install path:
   setup-utm-sandbox-macos.sh --install --install-method brew --volume /Volumes/UnsafeLab
 
@@ -31,7 +42,8 @@ Audit without changing anything:
 
 Options:
   --install                 Install or open UTM using --install-method.
-  --install-method METHOD   app-store (default), brew, or none.
+  --install-method METHOD   github (default), web, brew, or none.
+  --install-dir PATH        Directory for GitHub DMG installs. Default: /Applications when writable, otherwise ~/Applications.
   --volume PATH             Mounted unsafe lab volume. Default: /Volumes/UnsafeLab.
   --prepare                 Prepare the mounted volume. This is the default action.
   --no-prepare              Skip folder/exclusion setup.
@@ -63,49 +75,189 @@ run_cmd() {
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+cleanup_utm_download() {
+    if [ -n "${CLEANUP_UTM_MOUNT_DIR:-}" ] && [ -d "$CLEANUP_UTM_MOUNT_DIR" ] && have hdiutil; then
+        hdiutil detach "$CLEANUP_UTM_MOUNT_DIR" >/dev/null 2>&1 || hdiutil detach -force "$CLEANUP_UTM_MOUNT_DIR" >/dev/null 2>&1 || true
+    fi
+    if [ -n "${CLEANUP_UTM_TMPDIR:-}" ] && [ -d "$CLEANUP_UTM_TMPDIR" ]; then
+        rm -rf "$CLEANUP_UTM_TMPDIR"
+    fi
+}
+trap cleanup_utm_download EXIT
+
 require_macos() {
     if [ "$(uname -s)" != "Darwin" ]; then
         die "This helper is macOS-only."
     fi
 }
 
-utm_installed() {
-    if [ -d "/Applications/UTM.app" ]; then
-        return 0
+find_existing_utm_app() {
+    for app_path in "/Applications/UTM.app" "$HOME/Applications/UTM.app"; do
+        if [ -d "$app_path" ]; then
+            printf '%s\n' "$app_path"
+            return 0
+        fi
+    done
+
+    if have mdfind; then
+        found_path="$(mdfind 'kMDItemCFBundleIdentifier == "com.utmapp.UTM"' 2>/dev/null | head -n 1 || true)"
+        if [ -n "$found_path" ] && [ -d "$found_path" ]; then
+            printf '%s\n' "$found_path"
+            return 0
+        fi
     fi
-    if have mdfind && mdfind 'kMDItemCFBundleIdentifier == "com.utmapp.UTM"' 2>/dev/null | grep -q .; then
-        return 0
-    fi
+
     return 1
 }
 
-open_utm_app_store_page() {
-    log "Opening the UTM Mac App Store page. Complete installation there for automatic updates."
-    if ! run_cmd open "$APP_STORE_DEEP_LINK"; then
-        warn "Could not open the App Store deep link; opening the web listing instead."
-        run_cmd open "$APP_STORE_WEB_URL"
+utm_installed() {
+    find_existing_utm_app >/dev/null
+}
+
+open_utm_official_download_page() {
+    log "Opening the free official UTM download page. Choose the GitHub download from that page."
+    if ! run_cmd open "$UTM_OFFICIAL_DOWNLOAD_URL"; then
+        warn "Could not open the official UTM website; opening GitHub releases instead."
+        open_utm_github_releases_page
     fi
 }
 
-install_utm_app_store() {
-    if utm_installed; then
-        log "UTM already appears to be installed."
+open_utm_github_releases_page() {
+    log "Opening the free UTM GitHub releases page. Download the latest UTM.dmg release asset."
+    run_cmd open "$UTM_GITHUB_RELEASES_URL"
+}
+
+resolve_utm_install_dir() {
+    if [ -n "$INSTALL_DIR" ]; then
+        install_dir="${INSTALL_DIR%/}"
+        [ -n "$install_dir" ] || install_dir="/"
+        printf '%s\n' "$install_dir"
         return 0
     fi
 
-    if have mas && mas account >/dev/null 2>&1; then
-        log "Installing UTM from the Mac App Store with mas app id ${APP_STORE_ID}."
-        if ! run_cmd mas install "$APP_STORE_ID"; then
-            warn "mas install failed; opening the App Store page instead."
-            open_utm_app_store_page
-        fi
+    if [ "$DRY_RUN" = true ] || [ -w "$DEFAULT_UTM_INSTALL_DIR" ]; then
+        printf '%s\n' "$DEFAULT_UTM_INSTALL_DIR"
     else
-        open_utm_app_store_page
+        printf '%s\n' "$HOME/Applications"
     fi
 }
 
+utm_install_target_app() {
+    install_dir="$(resolve_utm_install_dir)"
+    if [ "$install_dir" = "/" ]; then
+        printf '/UTM.app\n'
+    else
+        printf '%s/UTM.app\n' "$install_dir"
+    fi
+}
+
+verify_utm_app_bundle() {
+    app_path="$1"
+    [ -d "$app_path" ] || die "UTM.app was not found at $app_path."
+
+    info_plist="$app_path/Contents/Info.plist"
+    [ -f "$info_plist" ] || die "UTM.app is missing Contents/Info.plist at $app_path."
+
+    if [ -x /usr/libexec/PlistBuddy ]; then
+        bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info_plist" 2>/dev/null || true)"
+        [ "$bundle_id" = "$UTM_BUNDLE_ID" ] || die "Unexpected app bundle id ${bundle_id:-missing}; expected $UTM_BUNDLE_ID."
+    else
+        warn "PlistBuddy not found; skipping bundle identifier verification."
+    fi
+
+    if have codesign; then
+        codesign --verify --deep --strict "$app_path" >/dev/null 2>&1 || die "codesign verification failed for $app_path."
+    else
+        warn "codesign not found; skipping code signature verification."
+    fi
+
+    if have spctl; then
+        spctl --assess --type execute "$app_path" >/dev/null 2>&1 || die "Gatekeeper assessment failed for $app_path."
+    else
+        warn "spctl not found; skipping Gatekeeper assessment."
+    fi
+}
+
+find_utm_app_on_mount() {
+    mount_dir="$1"
+    find "$mount_dir" -maxdepth 3 -type d -name 'UTM.app' -print -quit
+}
+
+download_utm_dmg() {
+    dmg_path="$1"
+    have curl || die "curl is required to download UTM from GitHub."
+    log "Downloading the latest free UTM DMG from the official GitHub release."
+    run_cmd curl --fail --location --show-error --proto '=https' --tlsv1.2 --output "$dmg_path" "$UTM_GITHUB_DMG_URL"
+}
+
+copy_utm_app() {
+    source_app="$1"
+    target_app="$2"
+    target_parent="$(dirname "$target_app")"
+
+    have ditto || die "ditto is required to install UTM.app from the mounted DMG."
+    if [ -L "$target_app" ]; then
+        die "Refusing to overwrite symlinked UTM install target: $target_app"
+    fi
+    if [ -e "$target_app" ]; then
+        die "Refusing to overwrite existing path: $target_app"
+    fi
+
+    run_cmd mkdir -p "$target_parent"
+    log "Copying UTM.app to $target_app."
+    run_cmd ditto "$source_app" "$target_app"
+}
+
+install_utm_web() {
+    if existing_app="$(find_existing_utm_app)"; then
+        log "UTM already appears to be installed at $existing_app."
+        return 0
+    fi
+    open_utm_official_download_page
+}
+
+install_utm_github() {
+    if existing_app="$(find_existing_utm_app)"; then
+        log "UTM already appears to be installed at $existing_app."
+        return 0
+    fi
+
+    target_app="$(utm_install_target_app)"
+    if [ "$DRY_RUN" = true ]; then
+        log "Would download the latest UTM DMG from $UTM_GITHUB_DMG_URL."
+        run_cmd curl --fail --location --show-error --proto '=https' --tlsv1.2 --output "${TMPDIR:-/tmp}/UTM.dmg" "$UTM_GITHUB_DMG_URL"
+        run_cmd hdiutil attach -nobrowse -readonly -mountpoint "${TMPDIR:-/tmp}/utm-install-mount" "${TMPDIR:-/tmp}/UTM.dmg"
+        run_cmd mkdir -p "$(dirname "$target_app")"
+        run_cmd ditto "${TMPDIR:-/tmp}/utm-install-mount/UTM.app" "$target_app"
+        return 0
+    fi
+
+    have hdiutil || die "hdiutil is required to mount the UTM DMG."
+
+    CLEANUP_UTM_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/utm-install.XXXXXX")" || die "Could not create a temporary directory for UTM download."
+    CLEANUP_UTM_MOUNT_DIR="$CLEANUP_UTM_TMPDIR/mount"
+    mkdir -p "$CLEANUP_UTM_MOUNT_DIR"
+    dmg_path="$CLEANUP_UTM_TMPDIR/UTM.dmg"
+
+    download_utm_dmg "$dmg_path"
+    log "Mounting UTM DMG read-only."
+    hdiutil attach -nobrowse -readonly -mountpoint "$CLEANUP_UTM_MOUNT_DIR" "$dmg_path" >/dev/null
+
+    source_app="$(find_utm_app_on_mount "$CLEANUP_UTM_MOUNT_DIR")"
+    [ -n "$source_app" ] || die "UTM.app was not found inside the downloaded DMG."
+
+    verify_utm_app_bundle "$source_app"
+    copy_utm_app "$source_app" "$target_app"
+    verify_utm_app_bundle "$target_app"
+
+    log "UTM installed from the official GitHub release to $target_app."
+    cleanup_utm_download
+    CLEANUP_UTM_TMPDIR=""
+    CLEANUP_UTM_MOUNT_DIR=""
+}
+
 install_utm_brew() {
-    have brew || die "Homebrew is required for --install-method brew. Install Homebrew first or use app-store."
+    have brew || die "Homebrew is required for --install-method brew. Install Homebrew first or use github/web."
     if utm_installed; then
         log "UTM already appears to be installed; skipping Homebrew cask install."
     elif brew list --cask utm >/dev/null 2>&1; then
@@ -118,8 +270,11 @@ install_utm_brew() {
 
 install_utm() {
     case "$INSTALL_METHOD" in
-        app-store)
-            install_utm_app_store
+        github|direct)
+            install_utm_github
+            ;;
+        web|official|official-site)
+            install_utm_web
             ;;
         brew)
             install_utm_brew
@@ -128,7 +283,7 @@ install_utm() {
             log "Skipping UTM install because --install-method none was selected."
             ;;
         *)
-            die "Unknown --install-method: $INSTALL_METHOD"
+            die "Unknown --install-method: $INSTALL_METHOD (expected github, web, brew, or none)"
             ;;
     esac
 }
@@ -555,8 +710,13 @@ while [ "$#" -gt 0 ]; do
             INSTALL=true
             ;;
         --install-method)
-            [ "$#" -ge 2 ] || die "--install-method requires app-store, brew, or none."
+            [ "$#" -ge 2 ] || die "--install-method requires github, web, brew, or none."
             INSTALL_METHOD="$2"
+            shift
+            ;;
+        --install-dir)
+            [ "$#" -ge 2 ] || die "--install-dir requires a path."
+            INSTALL_DIR="$2"
             shift
             ;;
         --volume)

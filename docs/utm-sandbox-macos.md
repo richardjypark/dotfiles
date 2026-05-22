@@ -117,26 +117,35 @@ only VM allowed to access `Sanitized-Outbox`.
 
 ## Install UTM
 
-Recommended default: install UTM from the **Mac App Store** if you value automatic
-updates. The free Homebrew cask/GitHub build is useful when you want a fully CLI
-install path.
+Recommended default: let the helper download the latest free UTM `.dmg` from the
+**official UTM GitHub release**, verify the `com.utmapp.UTM` bundle plus
+codesign/Gatekeeper assessment, then copy `UTM.app` into `/Applications` (or
+`~/Applications` when `/Applications` is not writable). The Homebrew cask remains
+useful when you prefer Homebrew-managed GUI apps.
 
 Simple helper usage:
 
 ```bash
-# Recommended: open/install the App Store build and prepare the mounted volume.
+# Recommended: download/install the free official GitHub build and prepare the mounted volume.
 ~/scripts/setup-utm-sandbox-macos.sh --install --volume /Volumes/UnsafeLab
 
-# CLI/free fallback: install the Homebrew cask instead.
+# If the UnsafeLab volume is not mounted yet, install UTM only.
+~/scripts/setup-utm-sandbox-macos.sh --install --no-prepare
+
+# Manual browser fallback: open the official UTM download page instead.
+~/scripts/setup-utm-sandbox-macos.sh --install --install-method web --volume /Volumes/UnsafeLab
+
+# Homebrew-managed fallback: install the Homebrew cask instead.
 ~/scripts/setup-utm-sandbox-macos.sh --install --install-method brew --volume /Volumes/UnsafeLab
 
 # Later audit without changing anything.
 ~/scripts/setup-utm-sandbox-macos.sh --verify --volume /Volumes/UnsafeLab
 ```
 
-If `mas` is installed and you are signed into the App Store, the helper attempts
-`mas install 1538878817`. Otherwise it opens the UTM App Store deep link and can
-fall back to the UTM web listing so you can install it manually.
+The helper downloads from
+`https://github.com/utmapp/UTM/releases/latest/download/UTM.dmg` by default and
+intentionally avoids the paid Mac App Store listing. Use
+`--install-dir ~/Applications` for an explicit per-user install target.
 
 ## VM choice
 
@@ -533,8 +542,8 @@ normal macOS storage, treat it as a containment mistake:
 
 Keep the lab current without turning the dirty VM into a trusted desktop:
 
-- Update UTM on the host through the Mac App Store or Homebrew before important
-  unsafe-work sessions.
+- Update UTM on the host through the official download/GitHub release or
+  Homebrew before important unsafe-work sessions.
 - Update the clean Linux template VM while it has no raw client files, then shut
   it down and duplicate it for risky browsing.
 - Refresh browser and guest OS updates in the clean template; do not sign into
