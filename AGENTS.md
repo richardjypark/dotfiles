@@ -70,6 +70,7 @@ Higher-level harness/system instructions still take precedence over this file.
 - `chezmoi-bootstrap-operator` — bootstrap and lockdown paths for Omarchy, VPS, and server hardening.
 - `dotfiles-version-refresh` — version pins, externals, and refresh behavior across versioned tools.
 - `jj` — repository history, describe/commit/rebase/push/bookmark workflows.
+- `karpathy-guidelines` — coding/review/refactor guidance for surfacing assumptions, keeping changes simple and surgical, and setting verifiable success criteria.
 - `brave-tor-policy-hardening` — non-optional macOS Brave Browser `TorDisabled=true` managed policy maintenance and drift repair.
 
 ## Chezmoi Rules

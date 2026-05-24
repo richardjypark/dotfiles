@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpathy Guidelines"
+  short_description: "Avoid common LLM coding mistakes with simple, surgical, verified changes."
+  default_prompt: "Use $karpathy-guidelines when writing, reviewing, or refactoring code. Surface assumptions instead of guessing, choose the simplest sufficient implementation, keep edits surgical, and define verifiable success criteria before looping."

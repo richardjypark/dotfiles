@@ -52,7 +52,7 @@ Command definitions live under:
 
 ## Agent Skills In This Repo
 
-Skills are shared across both Claude Code and Codex CLI so that either tool follows the same repo conventions. Codex is the canonical planning path, but the skill folders themselves should follow a tool-agnostic structure:
+Skills are shared from one repo-managed tree so Pi, Hermes Agent, Codex CLI, Claude Code, and other Agent Skills-compatible clients can follow the same conventions. Codex is the canonical planning path, but the skill folders themselves should follow a tool-agnostic structure:
 
 ```text
 my-skill/
@@ -78,9 +78,11 @@ The canonical source tree lives in `private_dot_agents/private_skills/` and rend
 
 Installed client paths are routed to the shared tree:
 
-- `~/.codex/skills` → symlink to `~/.agents/skills`
-- `~/.claude/skills` → symlink to `~/.agents/skills`
-- `~/.codex/AGENTS.md` → rendered include of the repo-root `AGENTS.md` so Codex starts from the same control-plane rules
+- Pi discovers `~/.agents/skills` directly.
+- `~/.codex/skills` → symlink to `~/.agents/skills`.
+- `~/.claude/skills` → symlink to `~/.agents/skills`.
+- Hermes Agent opt-in installs keep `~/.agents/skills` in `skills.external_dirs`, preserving local `~/.hermes/skills` precedence.
+- `~/.codex/AGENTS.md` → rendered include of the repo-root `AGENTS.md` so Codex starts from the same control-plane rules.
 
 This repo also tracks a project-local Claude policy file at `.claude/settings.local.json`. Treat it as repo policy, not as a personal escape hatch, keep its permissions narrow and domain-scoped, reserve tracked entries for core workflow primitives, and let one-off convenience/bootstrap commands rely on explicit approval instead of tracked pre-approval.
 
@@ -92,6 +94,7 @@ Shared skills currently include:
 - `chezmoi-bootstrap-operator` — Bootstrap workflow operations across Omarchy and VPS paths with `references/bootstrap-matrix.md`.
 - `dotfiles-version-refresh` — Update pinned tool versions and external dependencies with `references/version-map.md`.
 - `brave-tor-policy-hardening` — Maintain the non-optional macOS Brave Browser `TorDisabled=true` managed policy and drift checks.
+- `karpathy-guidelines` — Behavioral coding guidelines for surfacing assumptions, avoiding overcomplication, keeping edits surgical, and defining verifiable success criteria.
 
 Optional tool metadata lives alongside the shared skill when needed. For example, Codex UI metadata remains in `agents/openai.yaml` inside the canonical skill folder rather than in a separate client-specific copy.
 

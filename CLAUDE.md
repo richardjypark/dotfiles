@@ -73,6 +73,7 @@ Invoke these skills for domain-specific tasks instead of working from memory:
 | `/chezmoi-script-maintainer` | Adding/modifying `.chezmoiscripts/` setup scripts |
 | `/chezmoi-bootstrap-operator` | Running or updating bootstrap (Omarchy, VPS, lockdown) |
 | `/dotfiles-version-refresh` | Bumping pinned versions across data/external/script files |
+| `/karpathy-guidelines` | Writing, reviewing, or refactoring code with explicit assumptions, simple/surgical changes, and verifiable success criteria |
 
 ## See Also
 
