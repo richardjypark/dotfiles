@@ -45,25 +45,6 @@ chezmoi init --apply richardjypark
 TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 ```
 
-Optional unsafe-browsing lab: see `docs/utm-sandbox-macos.md` for the UTM
-sandbox design. The helper installs the free official GitHub UTM build; use
-`--install --no-prepare` if you want to install UTM before the lab SSD is ready.
-After manually formatting and mounting an APFS Encrypted external SSD as
-`/Volumes/UnsafeLab`, run:
-
-```bash
-~/scripts/setup-utm-sandbox-macos.sh --install --volume /Volumes/UnsafeLab
-~/scripts/utm-sandbox-audit.sh --volume /Volumes/UnsafeLab
-```
-
-For a clean Debian/Ubuntu Linux VM template, copy in
-`~/scripts/utm-sandbox-linux-guest-setup.sh` and run it inside the guest with
-`--inside-unsafe-vm` to install scanning/sanitization tools. For the
-higher-assurance no-internet transfer VM workflow, create a blank intermediate
-image with `~/scripts/utm-sandbox-transfer-disk.sh --volume /Volumes/UnsafeLab`.
-Use `~/scripts/utm-sandbox-inventory.sh --volume /Volumes/UnsafeLab` for a
-read-only stale-file/size inventory before manual cleanup.
-
 ### macOS Brave Browser Tor Policy
 
 On macOS, `chezmoi apply` enforces a non-optional Brave Browser managed policy:
