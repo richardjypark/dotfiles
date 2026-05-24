@@ -141,7 +141,7 @@ install_via_release_binary() {
             expected_sha="$PINNED_BUN_MACOS_ARM64_SHA"
             ;;
         *)
-            eecho "Unsupported platform for Bun installation: ${os}-${arch}"
+            eecho "Unsupported platform for Bun installation: ${PLATFORM}"
             return 1
             ;;
     esac

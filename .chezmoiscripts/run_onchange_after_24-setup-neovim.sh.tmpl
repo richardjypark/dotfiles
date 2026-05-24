@@ -135,7 +135,7 @@ install_via_release_binary() {
             expected_sha="$PINNED_NVIM_MACOS_ARM64_SHA"
             ;;
         *)
-            eecho "Unsupported release-binary target: ${os}-${arch}"
+            eecho "Unsupported release-binary target: ${platform}"
             return 1
             ;;
     esac

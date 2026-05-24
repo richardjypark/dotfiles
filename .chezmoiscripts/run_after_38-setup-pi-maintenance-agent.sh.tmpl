@@ -115,6 +115,7 @@ clear_pi_agent_state
 
 add_to_path "$HOME/.local/bin"
 
+# shellcheck disable=SC2034 # resolve_npm_cmd sets NPM_CMD for sourced npm helpers.
 NPM_CMD=""
 INSTALLED_PI_VERSION="$(installed_pi_version)"
 NEEDS_PI_AGENT_INSTALL=0

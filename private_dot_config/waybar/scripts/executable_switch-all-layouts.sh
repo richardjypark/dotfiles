@@ -3,7 +3,7 @@
 
 DEVICES="$(hyprctl devices)"
 
-read -r CURRENT_INDEX TARGET_INDEX <<EOF
+read -r _CURRENT_INDEX TARGET_INDEX <<EOF
 $(printf '%s\n' "$DEVICES" | awk '
   BEGIN { in_keyboard = 0; is_main = "no"; idx = ""; max_idx = 0 }
   /^[[:space:]]*Keyboard at / {
