@@ -189,7 +189,10 @@ Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]`, and
 always-run Hermes setup script reapplies them with `hermes config set` on each
 `chezmoi apply`: `display.show_reasoning=true`, `agent.reasoning_effort=xhigh`,
 `agent.max_turns=1000`, `goals.max_turns=1000`, `model.context_length=500000`,
-and `tui_by_default=true`. Hermes 0.13.0 treats goal budgets as positive integer
+and `tui_by_default=true`. The setup also keeps `~/.agents/skills` in Hermes'
+`skills.external_dirs`, so shared repo-managed skills such as
+`karpathy-guidelines` are available while local `~/.hermes/skills` copies still
+take precedence. Hermes 0.13.0 treats goal budgets as positive integer
 caps rather than supporting an unlimited sentinel, so the repo uses a high finite
 budget for long `/goal` runs while retaining a runaway-loop guardrail. When
 `tui_by_default` is enabled, the managed

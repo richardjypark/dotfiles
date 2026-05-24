@@ -6,6 +6,7 @@ MARKER_FILE="$HOME/.config/dotfiles/hermes-agent.enabled"
 GATEWAY_MARKER_FILE="$HOME/.config/dotfiles/hermes-agent-gateway.enabled"
 INSTALL_DIR="$HOME/.local/share/hermes-agent"
 HERMES_HOME_DIR="$HOME/.hermes"
+SHARED_SKILLS_DIR="$HOME/.agents/skills"
 VENV_DIR="$INSTALL_DIR/.venv"
 HERMES_BIN="$VENV_DIR/bin/hermes"
 TUI_DIR="$INSTALL_DIR/ui-tui"
@@ -417,6 +418,91 @@ ensure_public_hermes_preferences() {
     run_quiet run_hermes_cli config set model.context_length "$HERMES_CONTEXT_LENGTH"
 }
 
+ensure_hermes_shared_skills_external_dir() {
+    [ -d "$SHARED_SKILLS_DIR" ] || return 0
+    [ -x "$VENV_DIR/bin/python" ] || return 0
+    [ -f "$HERMES_HOME_DIR/config.yaml" ] || return 0
+
+    (
+        export HERMES_CONFIG_PATH="$HERMES_HOME_DIR/config.yaml"
+        export HERMES_SHARED_SKILLS_ENTRY="~/.agents/skills"
+        run_quiet "$VENV_DIR/bin/python" <<'PY'
+import os
+import tempfile
+from pathlib import Path
+
+import yaml
+
+config_path = Path(os.environ["HERMES_CONFIG_PATH"])
+shared_entry = os.environ["HERMES_SHARED_SKILLS_ENTRY"]
+shared_path = Path(os.path.expanduser(os.path.expandvars(shared_entry))).resolve()
+
+try:
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+except FileNotFoundError:
+    config = {}
+
+if not isinstance(config, dict):
+    raise SystemExit(0)
+
+skills = config.setdefault("skills", {})
+if not isinstance(skills, dict):
+    raise SystemExit(0)
+
+raw_dirs = skills.get("external_dirs")
+changed = False
+
+
+def same_path(value):
+    try:
+        candidate = Path(os.path.expanduser(os.path.expandvars(str(value)))).resolve()
+    except (OSError, RuntimeError):
+        return False
+    return candidate == shared_path
+
+
+if raw_dirs in (None, ""):
+    skills["external_dirs"] = [shared_entry]
+    changed = True
+elif isinstance(raw_dirs, str):
+    if not same_path(raw_dirs):
+        skills["external_dirs"] = [raw_dirs, shared_entry]
+        changed = True
+elif isinstance(raw_dirs, list):
+    if not any(same_path(entry) for entry in raw_dirs):
+        raw_dirs.append(shared_entry)
+        changed = True
+
+if not changed:
+    raise SystemExit(0)
+
+config_path.parent.mkdir(parents=True, exist_ok=True)
+try:
+    mode = config_path.stat().st_mode & 0o777
+except FileNotFoundError:
+    mode = 0o600
+
+fd, tmp_name = tempfile.mkstemp(
+    dir=str(config_path.parent),
+    prefix=f".{config_path.name}.",
+    suffix=".tmp",
+)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+        yaml.safe_dump(config, tmp, sort_keys=False, default_flow_style=False)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+    os.chmod(tmp_name, mode)
+    os.replace(tmp_name, config_path)
+finally:
+    try:
+        os.unlink(tmp_name)
+    except FileNotFoundError:
+        pass
+PY
+    )
+}
+
 write_launcher() {
     mkdir -p "$HOME/.local/bin"
     cat > "$LAUNCHER" <<EOF
@@ -551,6 +637,7 @@ add_to_path "$HOME/.local/bin"
 
 if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_voice_ready && tui_prebuild_ready; then
     ensure_public_hermes_preferences
+    ensure_hermes_shared_skills_external_dir
     vecho "Hermes Agent already ensured (state tracked)"
     exit 0
 fi
@@ -563,6 +650,7 @@ fi
 write_launcher
 seed_hermes_home
 ensure_public_hermes_preferences
+ensure_hermes_shared_skills_external_dir
 ensure_hermes_tui_diff_color_patch
 ensure_hermes_tui_status_patch
 ensure_hermes_tui_prebuilt
