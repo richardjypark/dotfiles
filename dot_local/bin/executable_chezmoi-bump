@@ -2041,7 +2041,7 @@ pi_regenerate_lockfile() {
 
     if [ -n "$before_cutoff" ]; then
         if ! (
-            cd "$project_dir"
+            cd "$project_dir" || exit 1
             NPM_CONFIG_REGISTRY="$registry" \
             NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
                 npm install --package-lock-only --ignore-scripts --no-fund --no-audit --omit=dev --before "$before_cutoff" >/dev/null
@@ -2053,7 +2053,7 @@ pi_regenerate_lockfile() {
     fi
 
     if ! (
-        cd "$project_dir"
+        cd "$project_dir" || exit 1
         NPM_CONFIG_REGISTRY="$registry" \
         NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
             npm install --package-lock-only --ignore-scripts --no-fund --no-audit --omit=dev >/dev/null
@@ -2113,6 +2113,7 @@ EOF
         return 1
     fi
 
+    # shellcheck disable=SC2034 # resolve_npm_cmd sets NPM_CMD for sourced npm helpers.
     NPM_CMD=""
     if ! resolve_npm_cmd; then
         tx_fail "npm is required to validate $(display_repo_path "$lockfile")"

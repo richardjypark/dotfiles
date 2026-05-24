@@ -106,7 +106,7 @@ run_chezmoi_bump() {
   fi
 
   (
-    cd "$REPO_DIR"
+    cd "$REPO_DIR" || exit 1
     chezmoi-bump "${bump_args[@]}"
   )
 }
@@ -227,7 +227,7 @@ run_pi_prompt() {
   done < <(build_pi_args)
 
   (
-    cd "$REPO_DIR"
+    cd "$REPO_DIR" || exit 1
     "$PI_BIN" "${prompt_args[@]}" --tools "$tools" @"$prompt_file"
   )
 }
@@ -284,7 +284,7 @@ main() {
 
   printf '==> [%s] running czuf\n' "$(date --iso-8601=seconds)"
   (
-    cd "$REPO_DIR"
+    cd "$REPO_DIR" || exit 1
     run_chezmoi_apply_allowing_deferred_npm_setup "initial sync" czuf
   )
 
@@ -292,7 +292,7 @@ main() {
 
   printf '==> [%s] re-applying bumped state\n' "$(date --iso-8601=seconds)"
   (
-    cd "$REPO_DIR"
+    cd "$REPO_DIR" || exit 1
     run_chezmoi_apply_allowing_deferred_npm_setup "post-bump apply" \
       env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
         chezmoi apply --refresh-externals --force

@@ -40,7 +40,8 @@ if [ -f "$HOME/.nvm/nvm.sh" ]; then
     if command -v nvm >/dev/null 2>&1; then
         NVM_DEFAULT_NODE="$(nvm which default 2>/dev/null || true)"
         if [ -n "$NVM_DEFAULT_NODE" ] && [ -x "$NVM_DEFAULT_NODE" ]; then
-            export PATH="$(dirname "$NVM_DEFAULT_NODE"):$PATH"
+            NVM_DEFAULT_NODE_DIR="$(dirname "$NVM_DEFAULT_NODE")"
+            export PATH="$NVM_DEFAULT_NODE_DIR:$PATH"
             hash -r 2>/dev/null || true
         fi
     fi

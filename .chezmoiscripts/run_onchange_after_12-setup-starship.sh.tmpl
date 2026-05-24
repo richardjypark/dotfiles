@@ -113,7 +113,7 @@ install_via_release_binary() {
             expected_sha="$PINNED_STARSHIP_MACOS_ARM64_SHA"
             ;;
         *)
-            eecho "Unsupported platform for Starship installation: ${os}-${arch}"
+            eecho "Unsupported platform for Starship installation: ${platform}"
             return 1
             ;;
     esac

@@ -372,7 +372,7 @@ ensure_hermes_tui_prebuilt() {
         fi
         eecho "Installing Hermes TUI node dependencies for fast startup..."
         (
-            cd "$TUI_DIR"
+            cd "$TUI_DIR" || exit 1
             run_quiet npm install --silent --no-fund --no-audit --progress=false
         )
     fi
@@ -380,7 +380,7 @@ ensure_hermes_tui_prebuilt() {
     if ! tui_build_fresh; then
         eecho "Prebuilding Hermes TUI for fast startup..."
         (
-            cd "$TUI_DIR"
+            cd "$TUI_DIR" || exit 1
             run_quiet npm run build
         )
     fi
@@ -425,6 +425,7 @@ ensure_hermes_shared_skills_external_dir() {
 
     (
         export HERMES_CONFIG_PATH="$HERMES_HOME_DIR/config.yaml"
+        # shellcheck disable=SC2088 # Preserve a portable tilde entry in Hermes config.
         export HERMES_SHARED_SKILLS_ENTRY="~/.agents/skills"
         run_quiet "$VENV_DIR/bin/python" <<'PY'
 import os
@@ -571,7 +572,7 @@ sync_hermes_environment() {
 
     eecho "Installing Hermes Agent lean VPS profile (${HERMES_EXTRAS_KEY})..."
     (
-        cd "$INSTALL_DIR"
+        cd "$INSTALL_DIR" || exit 1
         export UV_PROJECT_ENVIRONMENT="$VENV_DIR"
         export UV_LINK_MODE="copy"
         run_quiet uv "${sync_args[@]}"

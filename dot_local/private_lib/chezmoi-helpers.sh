@@ -244,7 +244,10 @@ download_and_verify() {
 
     tmp_file="${destination}.tmp.$$"
     rm -f "$tmp_file"
-    download_file "$url" "$tmp_file"
+    if ! download_file "$url" "$tmp_file"; then
+        rm -f "$tmp_file"
+        return 1
+    fi
 
     if ! verify_sha256 "$tmp_file" "$expected_sha"; then
         eecho "Error: checksum verification failed for $url"
@@ -554,14 +557,14 @@ run_managed_npm_ci() {
 
     if [ "$VERBOSE" = "true" ]; then
         (
-            cd "$project_dir"
+            cd "$project_dir" || exit 1
             NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
             NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
                 "$NPM_CMD" ci --ignore-scripts --no-fund --no-audit --omit=dev
         )
     else
         (
-            cd "$project_dir"
+            cd "$project_dir" || exit 1
             NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
             NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
                 "$NPM_CMD" ci --ignore-scripts --no-fund --no-audit --omit=dev >/dev/null 2>&1

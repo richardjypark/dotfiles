@@ -2,6 +2,7 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
+# shellcheck disable=SC2034 # sourced helper logging reads VERBOSE.
 VERBOSE=true
 
 # Colors (if terminal supports them)
@@ -217,8 +218,10 @@ vecho ""
 vecho "--- Chezmoi Helper Commands ---"
 
 if [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
+    # shellcheck disable=SC2088 # display label, not a path to expand
     check_pass "~/.local/bin present in PATH"
 else
+    # shellcheck disable=SC2088 # display label, not a path to expand
     check_warn "~/.local/bin missing from PATH (managed cz* commands may be unavailable in this shell)"
 fi
 
@@ -453,6 +456,7 @@ else
 fi
 
 if [ -d "$HOME/.codex" ] || is_installed codex; then
+    # shellcheck disable=SC2088 # display label, not a path to expand
     check_symlink_target "$HOME/.codex/skills" "$SHARED_SKILLS_DIR" "~/.codex/skills"
 
     CODEX_AGENTS_FILE="$HOME/.codex/AGENTS.md"
@@ -476,6 +480,7 @@ if [ -d "$HOME/.codex" ] || is_installed codex; then
 fi
 
 if [ -d "$HOME/.claude" ] || is_installed claude; then
+    # shellcheck disable=SC2088 # display label, not a path to expand
     check_symlink_target "$HOME/.claude/skills" "$SHARED_SKILLS_DIR" "~/.claude/skills"
 
     CLAUDE_SETTINGS_FILE="$HOME/.claude/settings.json"

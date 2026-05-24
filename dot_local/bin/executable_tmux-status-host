@@ -4,7 +4,6 @@ set -eu
 
 pane_tty="${1:-}"
 local_host="${2:-local}"
-client_tty="${3:-}"
 pane_command="${4:-}"
 alias_file="${TMUX_HOST_ALIAS_FILE:-${HOME}/.config/tmux/host-aliases.conf}"
 
