@@ -59,5 +59,6 @@ For behavior checks, run only the relevant command path from `references/bootstr
 
 - Keep scripts idempotent and non-interactive by default.
 - Gate remote installers behind `TRUST_ON_FIRST_USE_INSTALLERS=1`.
+- When diagnosing Omarchy `czl`/pacman failures, check for `/var/lib/pacman/db.lck` and active package-manager processes before retrying. Treat a root-owned stale lock as machine state: report exact evidence and remediation, but do not auto-remove it from managed scripts unless the user explicitly accepts that policy.
 - Avoid committing private bootstrap values; keep them in local env files.
 - For server changes, preserve phased hardening: verify access first, then tighten SSH/firewall rules.

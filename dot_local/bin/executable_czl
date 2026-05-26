@@ -19,6 +19,30 @@ fi
 
 set_default_chezmoi_profile
 
+pacman_lock="/var/lib/pacman/db.lck"
+if [ -e "$pacman_lock" ]; then
+    active_pkg_processes=""
+    if command -v pgrep >/dev/null 2>&1; then
+        active_pkg_processes="$(pgrep -a -f '(^|/)(pacman|yay|paru|pamac|packagekitd|PackageKit|paccache)( |$)' || true)"
+    fi
+
+    echo "czl: pacman database lock exists: $pacman_lock" >&2
+    if [ -n "$active_pkg_processes" ]; then
+        echo "czl: active package-manager process detected; wait for it to finish before retrying:" >&2
+        printf '%s\n' "$active_pkg_processes" >&2
+        exit 1
+    fi
+
+    if command -v stat >/dev/null 2>&1; then
+        stat "$pacman_lock" >&2 || true
+    fi
+    echo "czl: no active package-manager process was detected, so this lock is probably stale." >&2
+    echo "czl: conservative default: not removing root-owned pacman state automatically." >&2
+    echo "czl: after verifying no package manager is running, remove it with:" >&2
+    echo "  sudo rm -f $pacman_lock" >&2
+    exit 1
+fi
+
 echo "==> [0/4] Refreshing sudo credentials..."
 sudo -v
 
