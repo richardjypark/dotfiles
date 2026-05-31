@@ -101,6 +101,11 @@ if [ "$OS_FAMILY" = "macos" ]; then
                 brew "$BREW_ACTION" --cask tailscale >/dev/null 2>&1
             fi
         fi
+        # Homebrew casks can lag Tailscale's upstream stable release, and this
+        # repo does not manage a pinned macOS Tailscale app artifact. Treat the
+        # cask like other package-manager installs: warn, mark a lag state, and
+        # retry exact-version tracking on a later apply once Homebrew catches up.
+        ALLOW_VERSION_LAG="true"
     else
         eecho "Warning: Homebrew not available. Please install Tailscale from https://tailscale.com/download/mac"
         exit 0

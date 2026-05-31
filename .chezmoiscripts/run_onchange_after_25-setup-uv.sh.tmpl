@@ -3,7 +3,10 @@ set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
 UV_DIR="$HOME/.local/bin"
-add_to_path "$UV_DIR"
+# Prefer the repo-managed uv in ~/.local/bin while this script validates and
+# installs the pinned version. add_to_path only appends missing paths, but uv may
+# already exist later in PATH after Homebrew in non-interactive update wrappers.
+export PATH="$UV_DIR${PATH:+:$PATH}"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
 # Use chezmoi template syntax to read Python version
@@ -120,9 +123,10 @@ install_uv_from_pinned_release() {
     # Replace any Homebrew symlink so the pinned binary lives in ~/.local/bin.
     rm -f "$UV_DIR/uv"
     install -m 755 "$uv_binary" "$UV_DIR/uv"
+    hash -r 2>/dev/null || true
 
-    if is_installed uv || [ -x "$UV_DIR/uv" ]; then
-        vecho "uv installed successfully: $(uv --version 2>/dev/null || $UV_DIR/uv --version)"
+    if [ -x "$UV_DIR/uv" ]; then
+        vecho "uv installed successfully: $("$UV_DIR/uv" --version 2>/dev/null || echo installed)"
         return 0
     fi
 
