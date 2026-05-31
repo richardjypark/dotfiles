@@ -33,6 +33,39 @@ path_append() {
     esac
 }
 
+# Move a path to the front, removing any existing copy first.
+# Use for managed tool shims that must outrank package-manager binaries.
+path_force_prepend() {
+    [ -n "$1" ] || return 0
+
+    _path_target="$1"
+    _old_path="${PATH:-}"
+    _new_path="$_path_target"
+
+    while [ -n "$_old_path" ]; do
+        case "$_old_path" in
+            *:*)
+                _path_entry="${_old_path%%:*}"
+                _old_path="${_old_path#*:}"
+                ;;
+            *)
+                _path_entry="$_old_path"
+                _old_path=""
+                ;;
+        esac
+
+        [ -n "$_path_entry" ] || continue
+        [ "$_path_entry" = "$_path_target" ] && continue
+        case ":$_new_path:" in
+            *":$_path_entry:"*) ;;
+            *) _new_path="$_new_path:$_path_entry" ;;
+        esac
+    done
+
+    export PATH="$_new_path"
+    unset _path_target _old_path _new_path _path_entry
+}
+
 # Drop inherited duplicate PATH entries once for faster command lookup.
 # Empty entries are omitted to avoid implicitly searching the current directory.
 path_dedup() {
@@ -71,7 +104,7 @@ path_dedup() {
 path_dedup
 
 # Base directories (highest priority first)
-# Note: ~/.local/bin is already in PATH from ~/.zshenv (for all shells)
+# ~/.local/bin is seeded by ~/.zshenv and reasserted below after all PATH edits.
 path_prepend "$HOME/bin"
 path_prepend "/usr/local/bin"
 
@@ -116,5 +149,9 @@ case "${OSTYPE:-$(uname -s)}" in
         ;;
 esac
 
+# macOS path_helper and package-manager initialization can reorder PATH after
+# ~/.zshenv. Reassert managed user-local tools so pinned/fallback binaries win.
+path_force_prepend "$HOME/.local/bin"
+
 # Clean up helper functions
-unset -f path_prepend path_append path_dedup
+unset -f path_prepend path_append path_force_prepend path_dedup

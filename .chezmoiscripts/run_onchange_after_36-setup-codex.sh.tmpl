@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
+CODEX_BIN_DIR="$HOME/.local/bin"
+# Prefer the repo-managed Codex fallback in ~/.local/bin during validation.
+# Non-interactive update wrappers can inherit Homebrew before ~/.local/bin.
+export PATH="$CODEX_BIN_DIR${PATH:+:$PATH}"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
 {{- with .pinned.codex }}
@@ -40,8 +44,6 @@ if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
     vecho "Skipping Codex setup on server role"
     exit 0
 fi
-
-add_to_path "$HOME/.local/bin"
 
 # Fast exit if codex is already installed and working when not forcing updates
 if is_installed codex && codex --version >/dev/null 2>&1; then
@@ -154,18 +156,32 @@ install_via_release_binary() {
         return 1
     fi
 
-    install -m 755 "$extracted_binary" "$HOME/.local/bin/codex"
+    mkdir -p "$CODEX_BIN_DIR"
+    install -m 755 "$extracted_binary" "$CODEX_BIN_DIR/codex"
+    hash -r 2>/dev/null || true
     return 0
 }
 
+CODEX_INSTALL_METHOD=""
 if install_via_homebrew; then
-    vecho "Codex installation method: homebrew"
+    INSTALLED_CODEX_VERSION="$(current_codex_version)"
+    if [ -n "$INSTALLED_CODEX_VERSION" ] && version_ge "$INSTALLED_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
+        CODEX_INSTALL_METHOD="homebrew"
+    else
+        eecho "Homebrew Codex version (${INSTALLED_CODEX_VERSION:-unknown}) is below pinned target $PINNED_CODEX_CLEAN; falling back to pinned release binary."
+        if install_via_release_binary; then
+            CODEX_INSTALL_METHOD="release binary"
+        fi
+    fi
 elif install_via_release_binary; then
-    vecho "Codex installation method: release binary"
-else
+    CODEX_INSTALL_METHOD="release binary"
+fi
+
+if [ -z "$CODEX_INSTALL_METHOD" ]; then
     eecho "Error: Could not install Codex CLI via official methods."
     exit 1
 fi
+vecho "Codex installation method: $CODEX_INSTALL_METHOD"
 
 # Verify installation
 INSTALLED_CODEX_VERSION="$(current_codex_version)"
