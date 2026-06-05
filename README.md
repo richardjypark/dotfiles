@@ -192,18 +192,18 @@ always-run Hermes setup script reapplies them with `hermes config set` on each
 and `tui_by_default=true`. The setup also keeps `~/.agents/skills` in Hermes'
 `skills.external_dirs`, so shared repo-managed skills such as
 `karpathy-guidelines` are available while local `~/.hermes/skills` copies still
-take precedence. Hermes 0.13.0 treats goal budgets as positive integer
+take precedence. Hermes 0.15.2 treats goal budgets as positive integer
 caps rather than supporting an unlimited sentinel, so the repo uses a high finite
 budget for long `/goal` runs while retaining a runaway-loop guardrail. When
 `tui_by_default` is enabled, the managed
 `~/.local/bin/hermes` launcher sets `HERMES_TUI=1` for interactive terminals
 unless already set, so `hermes` opens the richer TUI status line. That status
 line includes the current model reasoning effort (for example `xhigh`) and the
-launch working directory with git branch. The setup script also reapplies
-small local Hermes TUI patches that mute inline diff red/green highlight
+launch working directory with git branch or nearest jj bookmark. The setup script
+also reapplies small local Hermes TUI patches that mute inline diff red/green highlight
 backgrounds in both dark and light themes and hide the inactive `voice off`
-status-bar segment while still showing active voice states like `voice on`,
-`● REC`, and `◉ STT`; these work around Hermes' default TUI colors/status
+status-bar segment while still showing active voice/TTS states like `voice on`,
+`voice on [tts]`, `● REC`, and `◉ STT`; these work around Hermes' default TUI colors/status
 density rather than Ghostty's palette.
 It also prebuilds the TUI bundle during `chezmoi apply` and points the managed
 launcher at that prebuilt bundle so interactive startup does not spend several

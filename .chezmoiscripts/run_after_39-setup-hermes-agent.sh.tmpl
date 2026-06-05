@@ -47,10 +47,13 @@ HERMES_TUI_DIFF_LIGHT_REMOVED_FG="{{ .light_removed_fg }}"
 {{- with .hermes.tui_status }}
 HERMES_TUI_STATUS_PATCH_VERSION="{{ .patch_version }}"
 {{- end }}
+{{- with .hermes.tui_git_branch }}
+HERMES_TUI_GIT_BRANCH_PATCH_VERSION="{{ .patch_version }}"
+{{- end }}
 HERMES_TUI_PREBUILD_VERSION="fast-start-v1"
 
 HERMES_EXTRAS_KEY="$(IFS=,; printf '%s' "${HERMES_EXTRAS[*]}")"
-HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}-tui-diff-${HERMES_TUI_DIFF_PATCH_VERSION}-tui-status-${HERMES_TUI_STATUS_PATCH_VERSION}-tui-prebuild-${HERMES_TUI_PREBUILD_VERSION}"
+HERMES_STATE="hermes-agent-${HERMES_REF}-${PYTHON_VERSION}-${HERMES_EXTRAS_KEY}-tui-diff-${HERMES_TUI_DIFF_PATCH_VERSION}-tui-status-${HERMES_TUI_STATUS_PATCH_VERSION}-tui-git-branch-${HERMES_TUI_GIT_BRANCH_PATCH_VERSION}-tui-prebuild-${HERMES_TUI_PREBUILD_VERSION}"
 
 has_user_systemd() {
     command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
@@ -117,8 +120,11 @@ HERMES_TUI_DIFF_LIGHT_PATCH_ADDED_WORD="    diffAddedWord: '$HERMES_TUI_DIFF_LIG
 HERMES_TUI_DIFF_LIGHT_PATCH_REMOVED_WORD="    diffRemovedWord: '$HERMES_TUI_DIFF_LIGHT_REMOVED_FG',"
 
 HERMES_TUI_STATUS_FILE="ui-tui/src/app/useMainApp.ts"
-HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : \`voice \${voiceEnabled ? 'on' : 'off'}\`"
-HERMES_TUI_STATUS_PATCH_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : voiceEnabled ? 'voice on' : ''"
+HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : \`voice \${voiceEnabled ? 'on' : 'off'}\${voiceTts ? ' [tts]' : ''}\`"
+HERMES_TUI_STATUS_LEGACY_PATCH_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : voiceEnabled ? 'voice on' : ''"
+HERMES_TUI_STATUS_PATCH_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : voiceEnabled ? ('voice on' + (voiceTts ? ' [tts]' : '')) : ''"
+
+HERMES_TUI_GIT_BRANCH_FILE="ui-tui/src/hooks/useGitBranch.ts"
 
 replace_hermes_tui_diff_color_lines() {
     local mode="$1"
@@ -227,20 +233,35 @@ remove_hermes_tui_diff_color_patch() {
     replace_hermes_tui_diff_color_lines revert
 }
 
+hermes_tui_status_head_voice_label() {
+    local line
+    line="$(git -C "$INSTALL_DIR" show "HEAD:$HERMES_TUI_STATUS_FILE" 2>/dev/null \
+        | grep -F "      voiceLabel:" \
+        | head -n 1 || true)"
+    if [ -n "$line" ]; then
+        printf '%s\n' "$line"
+    else
+        printf '%s\n' "$HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL"
+    fi
+}
+
 replace_hermes_tui_status_voice_line() {
     local mode="$1"
     local status_file="$INSTALL_DIR/$HERMES_TUI_STATUS_FILE"
     [ -f "$status_file" ] || return 0
 
-    local from_line to_line
+    local from_line alternate_from_line to_line
+    alternate_from_line=""
     case "$mode" in
         apply)
             from_line="$HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL"
+            alternate_from_line="$HERMES_TUI_STATUS_LEGACY_PATCH_VOICE_LABEL"
             to_line="$HERMES_TUI_STATUS_PATCH_VOICE_LABEL"
             ;;
         revert)
             from_line="$HERMES_TUI_STATUS_PATCH_VOICE_LABEL"
-            to_line="$HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL"
+            alternate_from_line="$HERMES_TUI_STATUS_LEGACY_PATCH_VOICE_LABEL"
+            to_line="$(hermes_tui_status_head_voice_label)"
             ;;
         *)
             return 1
@@ -249,8 +270,8 @@ replace_hermes_tui_status_voice_line() {
 
     local tmp awk_status
     tmp="$(mktemp "${status_file}.tmp.XXXXXX")" || return 1
-    if awk -v from_line="$from_line" -v to_line="$to_line" '
-        $0 == from_line { print to_line; changed = 1; next }
+    if awk -v from_line="$from_line" -v alternate_from_line="$alternate_from_line" -v to_line="$to_line" '
+        $0 == from_line || (alternate_from_line != "" && $0 == alternate_from_line) { print to_line; changed = 1; next }
         { print }
         END { if (changed) exit 42 }
     ' "$status_file" > "$tmp"; then
@@ -288,6 +309,191 @@ ensure_hermes_tui_status_patch() {
 
 remove_hermes_tui_status_patch() {
     replace_hermes_tui_status_voice_line revert
+}
+
+emit_hermes_tui_git_branch_upstream_block() {
+    cat <<'EOF'
+const resolveBranch = async (cwd: string): Promise<null | string> => {
+  try {
+    const { stdout } = await pexec('git', ['-C', cwd, 'rev-parse', '--abbrev-ref', 'HEAD'], { timeout: TIMEOUT_MS })
+    const b = stdout.trim()
+
+    return !b || b === 'HEAD' ? null : b
+  } catch {
+    return null
+  }
+}
+EOF
+}
+
+emit_hermes_tui_git_branch_patch_block() {
+    cat <<'EOF'
+const firstLine = (value: string) => value.split(/\r?\n/, 1)[0]?.trim() ?? ''
+
+const resolveGitBranch = async (cwd: string): Promise<null | string> => {
+  try {
+    const { stdout } = await pexec('git', ['-C', cwd, 'branch', '--show-current'], { timeout: TIMEOUT_MS })
+    const b = firstLine(stdout)
+
+    if (b) {
+      return b
+    }
+  } catch {}
+
+  try {
+    const { stdout } = await pexec('git', ['-C', cwd, 'rev-parse', '--abbrev-ref', 'HEAD'], { timeout: TIMEOUT_MS })
+    const b = firstLine(stdout)
+
+    if (b && b !== 'HEAD') {
+      return b
+    }
+  } catch {}
+
+  return null
+}
+
+const resolveJjBookmark = async (cwd: string): Promise<null | string> => {
+  try {
+    const { stdout } = await pexec(
+      'jj',
+      ['log', '-r', 'latest(bookmarks() & ancestors(@))', '--no-graph', '--template', 'bookmarks.join(" ")'],
+      { cwd, timeout: TIMEOUT_MS }
+    )
+    const b = firstLine(stdout).split(/\s+/).filter(Boolean)[0] ?? ''
+
+    return b || null
+  } catch {
+    return null
+  }
+}
+
+const resolveBranch = async (cwd: string): Promise<null | string> =>
+  (await resolveGitBranch(cwd)) ?? (await resolveJjBookmark(cwd))
+EOF
+}
+
+replace_hermes_tui_git_branch_patch() {
+    local mode="$1"
+    local branch_file="$INSTALL_DIR/$HERMES_TUI_GIT_BRANCH_FILE"
+    [ -f "$branch_file" ] || return 0
+
+    local upstream_start_line patch_start_prefix patch_end_line block_file tmp awk_status
+    upstream_start_line="const resolveBranch = async (cwd: string): Promise<null | string> => {"
+    patch_start_prefix="const firstLine = (value: string) => value.split("
+    patch_end_line="  (await resolveGitBranch(cwd)) ?? (await resolveJjBookmark(cwd))"
+
+    block_file="$(mktemp "${branch_file}.block.XXXXXX")" || return 1
+    case "$mode" in
+        apply)
+            emit_hermes_tui_git_branch_patch_block > "$block_file"
+            ;;
+        revert)
+            emit_hermes_tui_git_branch_upstream_block > "$block_file"
+            ;;
+        *)
+            rm -f "$block_file"
+            return 1
+            ;;
+    esac
+
+    tmp="$(mktemp "${branch_file}.tmp.XXXXXX")" || {
+        rm -f "$block_file"
+        return 1
+    }
+    if awk \
+        -v mode="$mode" \
+        -v block_file="$block_file" \
+        -v upstream_start_line="$upstream_start_line" \
+        -v patch_start_prefix="$patch_start_prefix" \
+        -v patch_end_line="$patch_end_line" '
+        function print_block( line) {
+            while ((getline line < block_file) > 0) print line
+            close(block_file)
+        }
+        function flush_original( i) {
+            for (i = 1; i <= buf_count; i++) print buf[i]
+            buf_count = 0
+        }
+        function count_delta(line, open_count, close_count) {
+            open_count = gsub(/\{/, "{", line)
+            close_count = gsub(/\}/, "}", line)
+            return open_count - close_count
+        }
+        mode == "apply" && candidate == "" && $0 == upstream_start_line {
+            candidate = "apply"
+            depth = count_delta($0)
+            buf[++buf_count] = $0
+            next
+        }
+        mode == "revert" && candidate == "" && index($0, patch_start_prefix) == 1 {
+            candidate = "revert"
+            buf[++buf_count] = $0
+            next
+        }
+        candidate == "apply" {
+            buf[++buf_count] = $0
+            depth += count_delta($0)
+            if (depth <= 0) {
+                print_block()
+                changed = 1
+                candidate = ""
+                buf_count = 0
+            }
+            next
+        }
+        candidate == "revert" {
+            buf[++buf_count] = $0
+            if ($0 == patch_end_line) {
+                print_block()
+                changed = 1
+                candidate = ""
+                buf_count = 0
+            }
+            next
+        }
+        { print }
+        END {
+            if (candidate != "") flush_original()
+            if (changed) exit 42
+        }
+    ' "$branch_file" > "$tmp"; then
+        rm -f "$tmp" "$block_file"
+        return 0
+    else
+        awk_status=$?
+        rm -f "$block_file"
+        if [ "$awk_status" -eq 42 ]; then
+            mv "$tmp" "$branch_file"
+            return 0
+        fi
+        rm -f "$tmp"
+        return "$awk_status"
+    fi
+}
+
+tui_git_branch_ready() {
+    local branch_file="$INSTALL_DIR/$HERMES_TUI_GIT_BRANCH_FILE"
+    [ -f "$branch_file" ] || return 1
+    grep -Fqx "const resolveJjBookmark = async (cwd: string): Promise<null | string> => {" "$branch_file" || return 1
+    grep -Fqx "      { cwd, timeout: TIMEOUT_MS }" "$branch_file" || return 1
+    grep -Fqx "  (await resolveGitBranch(cwd)) ?? (await resolveJjBookmark(cwd))" "$branch_file" || return 1
+}
+
+ensure_hermes_tui_git_branch_patch() {
+    local branch_file="$INSTALL_DIR/$HERMES_TUI_GIT_BRANCH_FILE"
+    [ -f "$branch_file" ] || return 0
+    tui_git_branch_ready && return 0
+
+    replace_hermes_tui_git_branch_patch apply
+    if tui_git_branch_ready; then
+        vecho "Hermes TUI git branch status patched for jj bookmark fallback"
+    else
+        eecho "Warning: Hermes TUI git branch patch could not be applied; upstream UI may have changed."
+    fi
+}
+
+remove_hermes_tui_git_branch_patch() {
+    replace_hermes_tui_git_branch_patch revert
 }
 
 tui_npm_deps_ready() {
@@ -538,6 +744,7 @@ checkout_hermes_ref() {
     if [ -d "$INSTALL_DIR/.git" ]; then
         remove_hermes_tui_diff_color_patch
         remove_hermes_tui_status_patch
+        remove_hermes_tui_git_branch_patch
         if [ -n "$(git -C "$INSTALL_DIR" status --porcelain 2>/dev/null || true)" ]; then
             eecho "Error: local changes exist in $INSTALL_DIR; refusing to overwrite them."
             return 1
@@ -619,7 +826,9 @@ ensure_gateway_service() {
     fi
 
     eecho "Ensuring Hermes gateway user service is enabled for this always-on host..."
-    run_quiet run_hermes_cli gateway install
+    # Hermes 0.15 prompts before starting/enabling the service; keep chezmoi
+    # non-interactive and let the explicit systemctl call below enforce state.
+    printf 'n\nn\n' | run_quiet run_hermes_cli gateway install
     systemctl --user daemon-reload
     if [ "$VERBOSE" = "true" ]; then
         systemctl --user enable --now "$SERVICE_UNIT"
@@ -636,7 +845,7 @@ fi
 
 add_to_path "$HOME/.local/bin"
 
-if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_voice_ready && tui_prebuild_ready; then
+if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_voice_ready && tui_git_branch_ready && tui_prebuild_ready; then
     ensure_public_hermes_preferences
     ensure_hermes_shared_skills_external_dir
     vecho "Hermes Agent already ensured (state tracked)"
@@ -654,6 +863,7 @@ ensure_public_hermes_preferences
 ensure_hermes_shared_skills_external_dir
 ensure_hermes_tui_diff_color_patch
 ensure_hermes_tui_status_patch
+ensure_hermes_tui_git_branch_patch
 ensure_hermes_tui_prebuilt
 
 if ! hermes_ready; then
