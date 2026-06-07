@@ -192,7 +192,7 @@ always-run Hermes setup script reapplies them with `hermes config set` on each
 and `tui_by_default=true`. The setup also keeps `~/.agents/skills` in Hermes'
 `skills.external_dirs`, so shared repo-managed skills such as
 `karpathy-guidelines` are available while local `~/.hermes/skills` copies still
-take precedence. Hermes 0.15.2 treats goal budgets as positive integer
+take precedence. Hermes 0.16.0 treats goal budgets as positive integer
 caps rather than supporting an unlimited sentinel, so the repo uses a high finite
 budget for long `/goal` runs while retaining a runaway-loop guardrail. When
 `tui_by_default` is enabled, the managed

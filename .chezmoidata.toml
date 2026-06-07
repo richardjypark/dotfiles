@@ -57,10 +57,10 @@ version = "go1.26.2"
 linux_x86_64_sha256 = "990e6b4bbba816dc3ee129eaeaf4b42f17c2800b88a2166c265ac1a200262282"
 
 [pinned.hermes_agent]
-version = "0.15.2"
+version = "0.16.0"
 repo_url = "https://github.com/NousResearch/hermes-agent.git"
 branch = "main"
-ref = "77a1650c78a4cb1813d8a81fa1da40a15b6a3ec5"
+ref = "2912d943705058cc55f7f5fc102c99dbb1efcc27"
 extras = ["messaging", "cli", "pty", "honcho", "mcp", "acp"]
 
 [hermes.preferences]

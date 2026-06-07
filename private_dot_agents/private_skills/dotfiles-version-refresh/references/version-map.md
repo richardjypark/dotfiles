@@ -9,6 +9,7 @@ Use this map to propagate version bumps safely.
   - `nvm.nodeVersion`
   - `python.version`
   - `npm.packages` (if package set changes with version policy)
+  - `[pinned.hermes_agent]` `version`, `ref`, `repo_url`, `branch`, and `extras`
 - `.chezmoiversion.toml`
   - `versions.fzf`
   - `versions.go`
@@ -28,6 +29,8 @@ Use this map to propagate version bumps safely.
   - Keep Python setup aligned with `.chezmoidata.toml`.
 - `.chezmoiscripts/run_onchange_after_29-setup-ibkr-data-deps.sh.tmpl`
   - Keep managed Go setup aligned with `.chezmoidata.toml` `[pinned.go]`.
+- `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl`
+  - Keep managed Hermes checkout, uv extras, local TUI patch sentinels, TUI prebuild, gateway service behavior, and public preference convergence aligned with `.chezmoidata.toml` `[pinned.hermes_agent]` and `[hermes.*]` data.
 
 ## Documentation Touchpoints
 
@@ -40,3 +43,4 @@ Use this map to propagate version bumps safely.
 2. Rendered templates parse as valid shell/TOML.
 3. `chezmoi apply --dry-run --refresh-externals` completes without template or fetch-configuration errors.
 4. `chezmoi diff` shows only expected pin and documentation updates.
+5. Hermes Agent bumps verify the resolved upstream commit, `pyproject.toml`/`hermes_cli.__version__`, local TUI patch sentinel lines, `hermes --version`, and gateway service restart when enabled.

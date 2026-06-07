@@ -9,7 +9,7 @@ description: "Update pinned tool versions and external dependency references for
 
 Use this skill when:
 
-- bumping Node, NVM, Python, FZF, plugin, or archive revisions
+- bumping Node, NVM, Python, FZF, Hermes Agent, plugin, or archive revisions
 - changing `.chezmoidata.toml`, `.chezmoiversion.toml`, or `.chezmoiexternal.toml.tmpl`
 - adjusting setup logic because a pinned version or refresh policy changed
 
@@ -31,6 +31,10 @@ Use this skill when:
 4. Preserve repo policy:
    - favor pinned, deterministic versions
    - keep `refreshPeriod` expectations aligned with current policy
+5. For Hermes Agent, keep "latest" deterministic:
+   - update `.chezmoidata.toml` `[pinned.hermes_agent]` to the resolved version and exact commit ref
+   - if the user is responding to Hermes' own "Update available" banner, pin the current upstream `main` commit rather than leaving the checkout on an older release/tag commit, then verify `hermes --version` reports `Up to date`
+   - restart `hermes-gateway.service` when the gateway marker is enabled so the always-on process uses the new checkout
 
 ## References
 
@@ -51,7 +55,8 @@ chezmoi execute-template < .chezmoiexternal.toml.tmpl >/tmp/chezmoiexternal.rend
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl | bash -n
 chezmoi apply --dry-run --refresh-externals
 ```
 
-Run `chezmoi diff` before finishing to confirm only intended pin updates.
+Run `chezmoi diff` before finishing to confirm only intended pin updates. For Hermes Agent bumps on an enabled host, also run `TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply`, `hermes --version`, and `chezmoi status --exclude scripts`.
