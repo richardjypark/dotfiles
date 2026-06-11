@@ -1,9 +1,9 @@
 [versions]
 fzf = "0.73.1"
-neovim = "v0.12.2"
+neovim = "v0.12.3"
 jj = "v0.42.0"
 codex = "rust-v0.139.0"
-uv = "0.11.20"
+uv = "0.11.21"
 go = "go1.26.2"
 starship = "v1.25.1"
 bun = "bun-v1.3.14"
