@@ -33,7 +33,8 @@ Use this skill when:
    - keep `refreshPeriod` expectations aligned with current policy
 5. For Hermes Agent, keep "latest" deterministic:
    - update `.chezmoidata.toml` `[pinned.hermes_agent]` to the resolved version and exact commit ref
-   - if the user is responding to Hermes' own "Update available" banner, pin the current upstream `main` commit rather than leaving the checkout on an older release/tag commit, then verify `hermes --version` reports `Up to date`
+   - if the user is responding to Hermes' own "Update available" banner, run `hermes update`, pin the resulting upstream `main` commit, then verify `hermes --version` reports `Up to date`
+   - after `hermes update` or targeted apply, inspect `git -C ~/.local/share/hermes-agent status --short`; the expected dirty files are only the repo-managed local TUI patch files, so clean incidental generated lockfile churn such as root `package-lock.json` before finishing
    - restart `hermes-gateway.service` when the gateway marker is enabled so the always-on process uses the new checkout
 
 ## References
