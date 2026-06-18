@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+if command -v dotfiles-secret-scan >/dev/null 2>&1; then
+  exec dotfiles-secret-scan --staged --source "$repo_root"
+fi
+
+if [ -x "$repo_root/dot_local/bin/executable_dotfiles-secret-scan" ]; then
+  exec "$repo_root/dot_local/bin/executable_dotfiles-secret-scan" --staged --source "$repo_root"
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+  exec gitleaks git --staged "$repo_root" --redact=100 --no-banner --log-level warn
+fi
+
+echo "ERROR: secret scan could not run; install gitleaks or run chezmoi apply so dotfiles-secret-scan is available." >&2
+exit 1
