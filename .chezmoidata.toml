@@ -60,7 +60,7 @@ linux_x86_64_sha256 = "990e6b4bbba816dc3ee129eaeaf4b42f17c2800b88a2166c265ac1a20
 version = "0.16.0"
 repo_url = "https://github.com/NousResearch/hermes-agent.git"
 branch = "main"
-ref = "2912d943705058cc55f7f5fc102c99dbb1efcc27"
+ref = "9ba4615db2be22d307f4d29501cde6da7c9a3d83"
 extras = ["messaging", "cli", "pty", "honcho", "mcp", "acp"]
 
 [hermes.preferences]
