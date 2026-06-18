@@ -23,6 +23,35 @@ TAILSCALE_AUTH_KEY=tskey-auth-xxxxx
 GITHUB_TOKEN=ghp_xxxxx
 ```
 
+## Automated Secret Scanning
+
+This repo carries two layers of gitleaks-based prevention:
+
+1. **CI trigger:** `.github/workflows/secret-scan.yml` scans the full Git
+   history and checked-out worktree on pull requests, pushes to `master`/`main`,
+   a weekly schedule, and manual dispatch. Scanner output is fully redacted.
+2. **Local helper:** `dotfiles-secret-scan` runs the same redacted checks from a
+   clone. Before `chezmoi apply` has rendered the helper, run the source script
+   directly:
+
+   ```bash
+   # Full history + current worktree
+   dot_local/bin/executable_dotfiles-secret-scan --all
+
+   # Staged-only mode for a Git pre-commit hook
+   dot_local/bin/executable_dotfiles-secret-scan --staged
+   ```
+
+Enable the repo-local Git hook in a clone with:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook is a defense-in-depth guard for Git commits. JJ commits do not run Git
+pre-commit hooks, so run `dotfiles-secret-scan --all` before publishing JJ-backed
+changes and rely on the CI trigger as the final gate.
+
 ## Optional: GPG Encryption with Chezmoi
 
 For secrets that need to travel with the repo (API keys referenced in templates, etc.), chezmoi supports GPG-encrypted files.

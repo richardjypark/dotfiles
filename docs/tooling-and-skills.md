@@ -31,6 +31,7 @@ Claude support remains compatible, but shared planning conventions should point 
 - `czvc`: managed `~/.local/bin/czvc` command that checks pinned versions and exits non-zero when API/network errors make the check incomplete.
 - `czb`: managed `~/.local/bin/czb` command that bumps pinned versions with preflight/apply/verify transaction checks and rollback on failure. `chezmoi-bump pi` resolves to the newest `@mariozechner/pi-coding-agent` version that already satisfies `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`.
 - `chezmoi-health-check`: managed `~/.local/bin/chezmoi-health-check` command that audits key tools, config files, bootstrap security defaults, and agent configuration safety/routing checks.
+- `dotfiles-secret-scan`: managed `~/.local/bin/dotfiles-secret-scan` command that runs redacted gitleaks scans over full Git history, the current worktree, or staged Git changes for hook usage. It installs the pinned gitleaks version into the user cache when gitleaks is missing and Go is available.
 - `chezmoi-rerun-script`: managed `~/.local/bin/chezmoi-rerun-script` command that clears remembered `run_onchange_*` state for a given source script so the next apply reruns it.
 - `pi-agent-run`: managed `~/.local/bin/pi-agent-run` command that executes a Pi markdown agent file non-interactively with its declared model and tools. Use `--model MODEL` or `PI_AGENT_RUN_MODEL=MODEL` to override the declared model; use `default`/`settings` to fall back to Pi's configured default model. Use it when another CLI can run shell commands but does not support Pi's native subagent extension model.
 - `jj-fast-agent`: managed `~/.local/bin/jj-fast-agent` wrapper around the shared `~/.pi/agent/agents/jj.md` agent. It defaults to `openai-codex/gpt-5.3-codex-spark:minimal`, but can be run with `--model MODEL` or overridden with `JJ_FAST_AGENT_MODEL`, `PI_JJ_AGENT_MODEL`, or `JJ_AGENT_MODEL`; use `--model default` to use Pi's configured default model. This is the tool-agnostic fallback path for the `jj` skill outside Pi.
@@ -95,6 +96,7 @@ Shared skills currently include:
 - `dotfiles-version-refresh` — Update pinned tool versions and external dependencies with `references/version-map.md`.
 - `brave-tor-policy-hardening` — Maintain the non-optional macOS Brave Browser `TorDisabled=true` managed policy and drift checks.
 - `karpathy-guidelines` — Behavioral coding guidelines for surfacing assumptions, avoiding overcomplication, keeping edits surgical, and defining verifiable success criteria.
+- `secret-leak-audit` — Redacted secret/PAT/private-key and PII audit workflow for this repo, including the managed `dotfiles-secret-scan` helper, GitHub secret-scanning checks, and incident response steps.
 
 Optional tool metadata lives alongside the shared skill when needed. For example, Codex UI metadata remains in `agents/openai.yaml` inside the canonical skill folder rather than in a separate client-specific copy.
 

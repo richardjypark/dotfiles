@@ -1,5 +1,11 @@
 README*
 plans/[0-9]*.md
+
+# Repo-only CI/hooks/secret-scan guardrails; keep out of rendered home targets.
+.github/
+.githooks/
+.gitleaksignore
+
 # Ignore compiled zsh files
 *.zwc
 .oh-my-zsh/cache/*

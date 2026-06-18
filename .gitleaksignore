@@ -1,0 +1,2 @@
+# Keep this file empty until a reviewed, non-secret false positive must be suppressed.
+# Never add a real secret finding here; rotate/revoke and remove the secret instead.
