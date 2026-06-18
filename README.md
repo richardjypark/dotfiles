@@ -188,8 +188,11 @@ this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensit
 Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]`, and the
 always-run Hermes setup script reapplies them with `hermes config set` on each
 `chezmoi apply`: `display.show_reasoning=true`, `agent.reasoning_effort=xhigh`,
-`agent.max_turns=1000`, `goals.max_turns=1000`, `model.context_length=500000`,
-and `tui_by_default=true`. The setup also keeps `~/.agents/skills` in Hermes'
+`agent.service_tier=fast`, `agent.max_turns=1000`, `goals.max_turns=1000`,
+`model.context_length=500000`, and `tui_by_default=true`. On OpenAI flagship models
+this enables Priority Processing; on eligible native Anthropic models it maps to
+Fast Mode. Unsupported models ignore the fast-path override. The setup also keeps
+`~/.agents/skills` in Hermes'
 `skills.external_dirs`, so shared repo-managed skills such as
 `karpathy-guidelines` are available while local `~/.hermes/skills` copies still
 take precedence. Hermes 0.16.0 treats goal budgets as positive integer
