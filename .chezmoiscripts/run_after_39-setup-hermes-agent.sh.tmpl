@@ -28,6 +28,7 @@ PYTHON_VERSION="{{ .python.version }}"
 {{- with .hermes.preferences }}
 HERMES_SHOW_REASONING="{{ .show_reasoning }}"
 HERMES_REASONING_EFFORT="{{ .reasoning_effort }}"
+HERMES_SERVICE_TIER="{{ .service_tier }}"
 HERMES_AGENT_MAX_TURNS="{{ .agent_max_turns }}"
 HERMES_GOALS_MAX_TURNS="{{ .goals_max_turns }}"
 HERMES_CONTEXT_LENGTH="{{ .context_length }}"
@@ -619,6 +620,7 @@ ensure_public_hermes_preferences() {
     # machine-local provider details remain in ~/.hermes/config.yaml or .env.
     run_quiet run_hermes_cli config set display.show_reasoning "$HERMES_SHOW_REASONING"
     run_quiet run_hermes_cli config set agent.reasoning_effort "$HERMES_REASONING_EFFORT"
+    run_quiet run_hermes_cli config set agent.service_tier "$HERMES_SERVICE_TIER"
     run_quiet run_hermes_cli config set agent.max_turns "$HERMES_AGENT_MAX_TURNS"
     run_quiet run_hermes_cli config set goals.max_turns "$HERMES_GOALS_MAX_TURNS"
     run_quiet run_hermes_cli config set model.context_length "$HERMES_CONTEXT_LENGTH"
