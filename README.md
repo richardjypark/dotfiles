@@ -186,14 +186,20 @@ without the heavier browser, voice, RL, or development extras. Hermes runtime da
 `~/.hermes/`. API keys and other secret env values are not managed by this repo; run
 `hermes setup` or `hermes gateway setup` locally after install. For public-repo safety,
 this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensitive
-Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]`, and the
-always-run Hermes setup script reapplies them with `hermes config set` on each
+Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]` and
+`[hermes.delegation]`, and the always-run Hermes setup script reapplies them
+with `hermes config set` on each
 `chezmoi apply`: `display.show_reasoning=true`, `agent.reasoning_effort=xhigh`,
 `agent.service_tier=fast`, `agent.max_turns=1000`, `goals.max_turns=1000`,
-`model.context_length=500000`, and `tui_by_default=true`. On OpenAI flagship models
-this enables Priority Processing; on eligible native Anthropic models it maps to
-Fast Mode. Unsupported models ignore the fast-path override. The setup also keeps
-`~/.agents/skills` in Hermes'
+`model.context_length=500000`, and `tui_by_default=true`. Delegated subtasks use
+`delegation.provider=openai-codex`, `delegation.model=gpt-5.3-codex-spark`, and
+`delegation.reasoning_effort=minimal`, so quick reviewers, repo inspectors, and
+other spawned subagents do not inherit the heavier default chat model. Existing
+Hermes sessions keep their startup delegation config; start a new CLI session or
+restart the gateway to pick up delegation changes. On OpenAI
+flagship models this enables Priority Processing; on eligible native Anthropic
+models it maps to Fast Mode. Unsupported models ignore the fast-path override.
+The setup also keeps `~/.agents/skills` in Hermes'
 `skills.external_dirs`, so shared repo-managed skills such as
 `karpathy-guidelines` are available while local `~/.hermes/skills` copies still
 take precedence. Hermes 0.16.0 treats goal budgets as positive integer
