@@ -34,6 +34,11 @@ HERMES_GOALS_MAX_TURNS="{{ .goals_max_turns }}"
 HERMES_CONTEXT_LENGTH="{{ .context_length }}"
 HERMES_TUI_BY_DEFAULT="{{ .tui_by_default }}"
 {{- end }}
+{{- with .hermes.delegation }}
+HERMES_DELEGATION_PROVIDER="{{ .provider }}"
+HERMES_DELEGATION_MODEL="{{ .model }}"
+HERMES_DELEGATION_REASONING_EFFORT="{{ .reasoning_effort }}"
+{{- end }}
 {{- with .hermes.tui_diff }}
 HERMES_TUI_DIFF_PATCH_VERSION="{{ .patch_version }}"
 HERMES_TUI_DIFF_ADDED_BG="{{ .added_bg }}"
@@ -624,6 +629,9 @@ ensure_public_hermes_preferences() {
     run_quiet run_hermes_cli config set agent.max_turns "$HERMES_AGENT_MAX_TURNS"
     run_quiet run_hermes_cli config set goals.max_turns "$HERMES_GOALS_MAX_TURNS"
     run_quiet run_hermes_cli config set model.context_length "$HERMES_CONTEXT_LENGTH"
+    run_quiet run_hermes_cli config set delegation.provider "$HERMES_DELEGATION_PROVIDER"
+    run_quiet run_hermes_cli config set delegation.model "$HERMES_DELEGATION_MODEL"
+    run_quiet run_hermes_cli config set delegation.reasoning_effort "$HERMES_DELEGATION_REASONING_EFFORT"
 }
 
 ensure_hermes_shared_skills_external_dir() {

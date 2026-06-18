@@ -39,11 +39,11 @@ macos_x86_64_sha256 = "ec04669e9b8decb4b0d63dc050a4275d2b5422efea502a0c208ebd4e5
 macos_arm64_sha256 = "98764966f22b599dc0b19bb9bd00d21df86156aeca5827f8274900356768db08"
 
 [pinned.codex]
-version = "rust-v0.140.0"
-linux_x86_64_sha256 = "48e591964d4bbaab7c0433daed41c65ea8f152fc0f1dd2334a42e3dd322a4906"
-linux_arm64_sha256 = "ec6c804d415e42dd28cc6f8c6cb5238b00c9af4bfb58b63be55e26ec4ee576c0"
-macos_x86_64_sha256 = "2bd0edf75fd1451425736bae41470c3b800fe8eb372c194a668434f9526df9f0"
-macos_arm64_sha256 = "c81eaf1b4c9aee0e81e2b39dec1742a57b61be6c109f8811e7fcd41f55c2233d"
+version = "rust-v0.141.0"
+linux_x86_64_sha256 = "f1e2bf9fa0ba6eb82119d621b6b71bc38edd33c06dc2867b31a027052358957d"
+linux_arm64_sha256 = "8c9f31811d659fcc17c5f1a21bc0971984469c9e3a63c2b39b61cc7694f3a101"
+macos_x86_64_sha256 = "7b7398b93dd16a3123c87286e312a7942be3c13f9619fc587dfc05563fcbc888"
+macos_arm64_sha256 = "abdead5feebc259decaaec33465423bbb7904b3049fa28e92209cb924693c0f4"
 
 [pinned.uv]
 version = "0.11.21"
@@ -71,6 +71,11 @@ agent_max_turns = 1000
 goals_max_turns = 1000
 context_length = 500000
 tui_by_default = true
+
+[hermes.delegation]
+provider = "openai-codex"
+model = "gpt-5.3-codex-spark"
+reasoning_effort = "minimal"
 
 [hermes.tui_diff]
 patch_version = "muted-diff-v2"
