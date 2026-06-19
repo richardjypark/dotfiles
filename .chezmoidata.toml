@@ -75,7 +75,7 @@ tui_by_default = true
 [hermes.delegation]
 provider = "openai-codex"
 model = "gpt-5.3-codex-spark"
-reasoning_effort = "minimal"
+reasoning_effort = "high"
 
 [hermes.tui_diff]
 patch_version = "muted-diff-v2"

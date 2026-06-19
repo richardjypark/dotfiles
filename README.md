@@ -193,7 +193,7 @@ with `hermes config set` on each
 `agent.service_tier=fast`, `agent.max_turns=1000`, `goals.max_turns=1000`,
 `model.context_length=500000`, and `tui_by_default=true`. Delegated subtasks use
 `delegation.provider=openai-codex`, `delegation.model=gpt-5.3-codex-spark`, and
-`delegation.reasoning_effort=minimal`, so quick reviewers, repo inspectors, and
+`delegation.reasoning_effort=high`, so quick reviewers, repo inspectors, and
 other spawned subagents do not inherit the heavier default chat model. Existing
 Hermes sessions keep their startup delegation config; start a new CLI session or
 restart the gateway to pick up delegation changes. On OpenAI
