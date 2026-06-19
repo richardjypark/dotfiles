@@ -358,11 +358,51 @@ const resolveGitBranch = async (cwd: string): Promise<null | string> => {
   return null
 }
 
+const resolveJjWorkspace = async (cwd: string): Promise<null | string> => {
+  try {
+    const { stdout: rootStdout } = await pexec('jj', ['--ignore-working-copy', 'workspace', 'root'], {
+      cwd,
+      timeout: TIMEOUT_MS
+    })
+    const root = firstLine(rootStdout)
+
+    if (!root) {
+      return null
+    }
+
+    const { stdout: listStdout } = await pexec(
+      'jj',
+      ['--ignore-working-copy', 'workspace', 'list', '--template', 'name ++ "\\t" ++ root ++ "\\n"'],
+      { cwd, timeout: TIMEOUT_MS }
+    )
+
+    for (const line of listStdout.split(/\r?\n/)) {
+      const [name, workspaceRoot] = line.split('\t')
+
+      if (name && workspaceRoot === root) {
+        return name.trim() || null
+      }
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 const resolveJjBookmark = async (cwd: string): Promise<null | string> => {
   try {
     const { stdout } = await pexec(
       'jj',
-      ['log', '-r', 'latest(bookmarks() & ancestors(@))', '--no-graph', '--template', 'bookmarks.join(" ")'],
+      [
+        '--ignore-working-copy',
+        'log',
+        '-r',
+        'latest(bookmarks() & ancestors(@))',
+        '--no-graph',
+        '--template',
+        'bookmarks.join(" ")'
+      ],
       { cwd, timeout: TIMEOUT_MS }
     )
     const b = firstLine(stdout).split(/\s+/).filter(Boolean)[0] ?? ''
@@ -373,8 +413,18 @@ const resolveJjBookmark = async (cwd: string): Promise<null | string> => {
   }
 }
 
+const resolveJjStatus = async (cwd: string): Promise<null | string> => {
+  const [workspace, bookmark] = await Promise.all([resolveJjWorkspace(cwd), resolveJjBookmark(cwd)])
+
+  if (workspace && bookmark) {
+    return `${workspace}:${bookmark}`
+  }
+
+  return workspace ?? bookmark
+}
+
 const resolveBranch = async (cwd: string): Promise<null | string> =>
-  (await resolveGitBranch(cwd)) ?? (await resolveJjBookmark(cwd))
+  (await resolveJjStatus(cwd)) ?? (await resolveGitBranch(cwd))
 EOF
 }
 
@@ -383,10 +433,11 @@ replace_hermes_tui_git_branch_patch() {
     local branch_file="$INSTALL_DIR/$HERMES_TUI_GIT_BRANCH_FILE"
     [ -f "$branch_file" ] || return 0
 
-    local upstream_start_line patch_start_prefix patch_end_line block_file tmp awk_status
+    local upstream_start_line patch_start_prefix patch_end_line legacy_patch_end_line block_file tmp awk_status
     upstream_start_line="const resolveBranch = async (cwd: string): Promise<null | string> => {"
     patch_start_prefix="const firstLine = (value: string) => value.split("
-    patch_end_line="  (await resolveGitBranch(cwd)) ?? (await resolveJjBookmark(cwd))"
+    patch_end_line="  (await resolveJjStatus(cwd)) ?? (await resolveGitBranch(cwd))"
+    legacy_patch_end_line="  (await resolveGitBranch(cwd)) ?? (await resolveJjBookmark(cwd))"
 
     block_file="$(mktemp "${branch_file}.block.XXXXXX")" || return 1
     case "$mode" in
@@ -411,7 +462,8 @@ replace_hermes_tui_git_branch_patch() {
         -v block_file="$block_file" \
         -v upstream_start_line="$upstream_start_line" \
         -v patch_start_prefix="$patch_start_prefix" \
-        -v patch_end_line="$patch_end_line" '
+        -v patch_end_line="$patch_end_line" \
+        -v legacy_patch_end_line="$legacy_patch_end_line" '
         function print_block( line) {
             while ((getline line < block_file) > 0) print line
             close(block_file)
@@ -449,7 +501,7 @@ replace_hermes_tui_git_branch_patch() {
         }
         candidate == "revert" {
             buf[++buf_count] = $0
-            if ($0 == patch_end_line) {
+            if ($0 == patch_end_line || $0 == legacy_patch_end_line) {
                 print_block()
                 changed = 1
                 candidate = ""
@@ -480,9 +532,10 @@ replace_hermes_tui_git_branch_patch() {
 tui_git_branch_ready() {
     local branch_file="$INSTALL_DIR/$HERMES_TUI_GIT_BRANCH_FILE"
     [ -f "$branch_file" ] || return 1
-    grep -Fqx "const resolveJjBookmark = async (cwd: string): Promise<null | string> => {" "$branch_file" || return 1
-    grep -Fqx "      { cwd, timeout: TIMEOUT_MS }" "$branch_file" || return 1
-    grep -Fqx "  (await resolveGitBranch(cwd)) ?? (await resolveJjBookmark(cwd))" "$branch_file" || return 1
+    grep -Fqx "const resolveJjWorkspace = async (cwd: string): Promise<null | string> => {" "$branch_file" || return 1
+    grep -Fq "name ++ \"\\\\t\" ++ root ++ \"\\\\n\"" "$branch_file" || return 1
+    grep -Fq "latest(bookmarks() & ancestors(@))" "$branch_file" || return 1
+    grep -Fqx "  (await resolveJjStatus(cwd)) ?? (await resolveGitBranch(cwd))" "$branch_file" || return 1
 }
 
 ensure_hermes_tui_git_branch_patch() {
@@ -490,9 +543,10 @@ ensure_hermes_tui_git_branch_patch() {
     [ -f "$branch_file" ] || return 0
     tui_git_branch_ready && return 0
 
+    replace_hermes_tui_git_branch_patch revert
     replace_hermes_tui_git_branch_patch apply
     if tui_git_branch_ready; then
-        vecho "Hermes TUI git branch status patched for jj bookmark fallback"
+        vecho "Hermes TUI git branch status patched for jj workspace/bookmark fallback"
     else
         eecho "Warning: Hermes TUI git branch patch could not be applied; upstream UI may have changed."
     fi

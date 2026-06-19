@@ -92,7 +92,7 @@ light_removed_fg = "rgb(123,72,76)"
 patch_version = "hide-voice-off-v2"
 
 [hermes.tui_git_branch]
-patch_version = "jj-bookmark-fallback-v1"
+patch_version = "jj-workspace-bookmark-v1"
 
 [pinned.starship]
 version = "v1.25.1"
