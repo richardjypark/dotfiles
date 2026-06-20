@@ -1,7 +1,7 @@
 ---
 name: deli-auto-research
 description: Hermes-native protocol for unattended, long-horizon research and engineering. Uses durable Kanban task graphs, fresh cron supervisors, bounded goal loops, delegated leaf agents, independent verification, stall-aware pivots, and layered watchdogs.
-version: 2.2.1
+version: 2.2.2
 platforms: [linux, macos]
 metadata:
   hermes:
@@ -136,6 +136,17 @@ Use named Hermes profiles and keep their permissions narrow.
 | Verifier | Reproduce checks, challenge claims, score evidence, write eval records | Repairing the worker's result while pretending it passed |
 | Synthesizer | Promote only verifier-approved outputs into canonical state | Accepting unsupported claims or changing task policy |
 | Watchdog | Read liveness/diagnostics and alert; OS layer may restart the gateway | Reading research content, editing findings, or inventing a new direction |
+
+### Model Routing Defaults
+
+Use the cheapest model that can reliably satisfy the role, and record project-specific overrides in `state/task_spec.md` or the card metadata.
+
+| Role | Model |
+|---|---|
+| Orchestrator, direction selection, final synthesis | `gpt-5.5` with medium/high reasoning |
+| Difficult research or coding worker | `gpt-5.5` or `gpt-5.4` |
+| Most parallel workers | `gpt-5.4-mini` with medium reasoning |
+| Heartbeat and file-status checks | Deterministic code; optionally `gpt-5.4-nano` |
 
 For best enforcement, give the orchestrator profile the `kanban` control surface and little or no implementation tooling. Give workers only the tools required by their task. Keep `delegation.max_spawn_depth` at `1` unless nested orchestration is explicitly required.
 
