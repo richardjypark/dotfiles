@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deli AutoResearch"
+  short_description: "Run long-horizon research with Hermes Kanban, supervisors, verifiers, pivots, and watchdogs."
+  default_prompt: "Use $deli-auto-research for unattended, long-horizon research or engineering projects. Set up durable Hermes Kanban state, bounded worker cards, independent verification, stall-aware pivots, and layered watchdog/recovery paths; do not use it for short one-turn tasks."

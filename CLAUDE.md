@@ -31,7 +31,7 @@ Managed helper commands: `czu` (fetch + rebase + apply), `czuf` (+ externals + f
 
 1. Run `jj status` before editing.
 2. Read `README.md` first; add `ARCHITECTURE.md` when the task is cross-cutting or changes behavior.
-3. Load the relevant shared skill before domain work (`/chezmoi-repo-maintainer`, `/chezmoi-script-maintainer`, `/chezmoi-bootstrap-operator`, `/dotfiles-version-refresh`, `/jj`).
+3. Load the relevant shared skill before domain work (`/chezmoi-repo-maintainer`, `/chezmoi-script-maintainer`, `/chezmoi-bootstrap-operator`, `/dotfiles-version-refresh`, `/jj`, `/deli-auto-research`).
 4. Prefer source files in this repo over rendered files in `~/`.
 5. For substantial or high-impact work, follow `plans/README.md` before implementing.
 
@@ -74,6 +74,7 @@ Invoke these skills for domain-specific tasks instead of working from memory:
 | `/chezmoi-bootstrap-operator` | Running or updating bootstrap (Omarchy, VPS, lockdown) |
 | `/dotfiles-version-refresh` | Bumping pinned versions across data/external/script files |
 | `/karpathy-guidelines` | Writing, reviewing, or refactoring code with explicit assumptions, simple/surgical changes, and verifiable success criteria |
+| `/deli-auto-research` | Unattended, long-horizon research/engineering projects that need Hermes Kanban task graphs, bounded worker cards, independent verification, stall-aware pivots, and watchdog/recovery layers |
 
 ## See Also
 
