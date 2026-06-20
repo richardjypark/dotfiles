@@ -12,7 +12,7 @@ Prioritize idempotent behavior, secure defaults, and minimal-risk edits.
 
 1. Read `README.md` for bootstrap, role/profile, and workflow context.
 2. Read `ARCHITECTURE.md` when the task spans a subsystem, changes behavior, or needs repo-wide context.
-3. Load the relevant skill before domain work (`chezmoi-repo-maintainer`, `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`).
+3. Load the relevant skill before domain work (`chezmoi-repo-maintainer`, `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`, `deli-auto-research`).
 4. Read `plans/README.md` when the change is multi-step, high-risk, or likely to span multiple iterations. Treat dated plan files there as local scratch notes, not committed source.
 
 ## First Pass
@@ -72,6 +72,7 @@ Higher-level harness/system instructions still take precedence over this file.
 - `jj` — repository history, describe/commit/rebase/push/bookmark workflows.
 - `karpathy-guidelines` — coding/review/refactor guidance for surfacing assumptions, keeping changes simple and surgical, and setting verifiable success criteria.
 - `brave-tor-policy-hardening` — non-optional macOS Brave Browser `TorDisabled=true` managed policy maintenance and drift repair.
+- `deli-auto-research` — unattended, long-horizon research/engineering orchestration with Hermes Kanban, bounded worker cards, independent verification, stall-aware pivots, and watchdogs.
 
 ## Chezmoi Rules
 
