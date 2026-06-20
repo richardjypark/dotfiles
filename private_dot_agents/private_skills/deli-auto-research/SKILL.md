@@ -1,7 +1,7 @@
 ---
 name: deli-auto-research
 description: Hermes-native protocol for unattended, long-horizon research and engineering. Uses durable Kanban task graphs, fresh cron supervisors, bounded goal loops, delegated leaf agents, independent verification, stall-aware pivots, and layered watchdogs.
-version: 2.2.0
+version: 2.2.1
 platforms: [linux, macos]
 metadata:
   hermes:
@@ -42,6 +42,8 @@ Deli AutoResearch is a protocol for autonomous projects that run for hours, days
 This is a protocol skill. It ships no required executable code. During setup, Hermes may generate local helper scripts under `~/.hermes/scripts/` — a deterministic watchdog and, for indefinite projects, a supervisor pre-check — when deterministic health checks are useful.
 
 Detailed matrices live in `references/` and load on demand (see Reference Material at the end). Keep this core file as the operating contract; pull a reference file in with `skill_view("deli-auto-research", "<path>")` when its phase begins.
+
+The examples below use the configured defaults from `deli_autoresearch.*`. During bootstrap, resolve those values once, record them in `state/task_spec.md`, and use the resolved values instead of hard-coded literals when a project overrides the defaults.
 
 ## 1. When to Use
 
@@ -170,6 +172,7 @@ Use one preserved absolute project directory. For research tasks, assign cards a
 - The supervisor is the only process that replaces `progress.json` or appends directions and generation transitions. These are derived program metrics and caches; Kanban remains authoritative for task lifecycle state.
 - The supervisor pre-check (when attached) owns only the `last_supervisor_check_at` field and may atomically update it on every tick, including suppressed ticks.
 - Replace JSON atomically: write a temporary file, validate it, then rename it.
+- Serialize all writes to shared project state (`progress.json`, central JSONL files, and shared logs) with a project-local lock such as `state/.deli-state.lock` via `flock`. A later supervisor run that cannot acquire the lock must no-op or reschedule instead of interleaving graph creation.
 - Use UTC RFC 3339 timestamps.
 
 ### `progress.json` Minimum Schema
@@ -263,7 +266,7 @@ Create the directory tree, write `task_spec.md`, initialize `progress.json`, and
 
 ### Step 4 — Seed a Durable Graph
 
-For a standard topology, use the swarm helper after configuring a suitable board default workspace:
+For a standard topology, use the swarm helper after configuring a suitable board default workspace. Cap the worker list at the resolved `deli_autoresearch.max_parallel` and at the number of real available worker profiles; if a graph would exceed capacity, queue fewer directions rather than oversubscribing profiles:
 
 ```bash
 hermes kanban swarm "<project goal and acceptance criteria>" \
@@ -271,6 +274,8 @@ hermes kanban swarm "<project goal and acceptance criteria>" \
   --verifier <verifier-profile> \
   --synthesizer <synthesizer-profile>
 ```
+
+When the helper in the installed Hermes version cannot expose deterministic idempotency keys for every generated worker, verifier, and synthesizer card, prefer explicit card creation for unattended projects.
 
 For per-card policies, create an explicit graph. Each worker card should normally include:
 
@@ -280,13 +285,13 @@ hermes kanban create "G1-D1: <verifiable direction>" \
   --assignee <real-profile> \
   --workspace dir:/absolute/project/path \
   --goal \
-  --goal-max-turns 15 \
-  --max-runtime 30m \
+  --goal-max-turns <resolved-goal-max-turns> \
+  --max-runtime <resolved-task-max-runtime> \
   --max-retries 2 \
-  --idempotency-key "<project>:g1:d1"
+  --idempotency-key "<project-id>:g1:worker:g1-d1"
 ```
 
-Create the verifier with every worker task as a parent. Create the synthesizer with the verifier as its parent. Parent gating, not polling prose, controls the fan-in.
+Create the verifier with every worker task as a parent. Create the synthesizer with the verifier as its parent. Parent gating, not polling prose, controls the fan-in. Use the canonical idempotency shape `<project-id>:g<generation>:<role>:<direction-id>` for workers, verifier cards, synthesizer cards, repair cards, and successors.
 
 ### Step 5 — Register the Fresh-Session Supervisor
 
@@ -296,9 +301,9 @@ Create the recurring supervisor from the orchestrator profile. The prompt must b
 cronjob(
   action="create",
   name="deli-supervisor-<project>",
-  schedule="every 2h",
+  schedule="<resolved-supervisor-schedule>",
   workdir="/absolute/project/path",
-  skill="deli-auto-research",
+  skills=["deli-auto-research"],
   enabled_toolsets=["terminal", "file", "kanban", "code_execution"],
   deliver="local",
   prompt="Act only as the Deli supervisor for this project. First atomically update the `last_supervisor_at` field in `state/progress.json` and append a supervisor log. Read task_spec.md, progress.json, directions.jsonl, evals.jsonl, and the Kanban board. Do not perform research. Reconcile task states, calculate verified metric deltas, detect stalls, create the next idempotent task graph or a structural pivot when required, and leave a durable log. Do not ask questions. Block and report only when the specification requires human authority."
@@ -312,6 +317,8 @@ For indefinite projects, gate the model wake with a deterministic pre-check atta
 - always atomically stamp `state/progress.json.last_supervisor_check_at` and append a cheap liveness log line, **even on suppressed ticks**;
 - emit `{"wakeAgent": false}` when `progress.json.status` is `complete` or `paused`, or when no domain state changed since the previous tick;
 - otherwise emit `{"wakeAgent": true}` so the supervisor session runs.
+
+Define "domain state changed" deterministically, for example by persisting and comparing a compact tuple of board status counts, active/blocked task IDs, latest eval/finding/generation-log mtimes or hashes, and the current `progress.json.generation`/`next_action`. Do not include `last_supervisor_check_at` itself in the comparator or every tick will wake the model.
 
 This keeps a `$0` liveness signal flowing to the watchdog while still suppressing unnecessary model calls. Never let the pre-check suppress a wake without first updating `last_supervisor_check_at`; otherwise the watchdog in Step 6 will false-alarm on a healthy, idle project.
 
@@ -389,7 +396,7 @@ process(action="log", session_id="<returned-id>")
 process(action="wait", session_id="<returned-id>")
 ```
 
-Retain the process session ID in the run notes. Heartbeat while waiting. Do not mark the card complete until results are materialized and validated. For jobs longer than the card runtime, use an external scheduler and a separate durable monitor card rather than abandoning an untracked process.
+Retain the process session ID in the run notes. Heartbeat while waiting, at least every 30–45 minutes and before any configured stale-worker threshold. Bound waits by the card's remaining runtime budget; if the budget is exhausted, stop the process with `process(action="kill")`, record the exit or kill reason, and block or complete according to the card criteria. Do not mark the card complete until results are materialized and validated. For jobs longer than the card runtime, use an external scheduler and a separate durable monitor card rather than abandoning an untracked process.
 
 ### 9.4 Produce Evidence
 
@@ -488,7 +495,7 @@ A generation closes only when its verifier and synthesizer have completed. Then:
 
 1. compute the verified metric delta;
 2. update `progress.json` atomically;
-3. update the direction record status;
+3. reconcile `active_task_ids` and `blocked_task_ids` from the board, then update the direction record status;
 4. append a generation transition;
 5. decide complete, continue, repair, or pivot — apply the stall and forced-pivot policy in `references/loops-stalls-and-pivots.md`.
 
