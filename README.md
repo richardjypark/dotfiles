@@ -210,7 +210,8 @@ budget for long `/goal` runs while retaining a runaway-loop guardrail. When
 unless already set, so `hermes` opens the richer TUI status line. That status
 line includes the current model reasoning effort (for example `xhigh`) and the
 launch working directory with git branch or the current jj workspace plus nearest
-jj bookmark. The setup script
+jj bookmark, using a wider right-side budget so roomy terminals show enough of
+deep paths to disambiguate similar checkouts. The setup script
 also reapplies small local Hermes TUI patches that mute inline diff red/green highlight
 backgrounds in both dark and light themes and hide the inactive `voice off`
 status-bar segment while still showing active voice/TTS states like `voice on`,

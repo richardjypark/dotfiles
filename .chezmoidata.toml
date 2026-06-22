@@ -39,18 +39,18 @@ macos_x86_64_sha256 = "ec04669e9b8decb4b0d63dc050a4275d2b5422efea502a0c208ebd4e5
 macos_arm64_sha256 = "98764966f22b599dc0b19bb9bd00d21df86156aeca5827f8274900356768db08"
 
 [pinned.codex]
-version = "rust-v0.141.0"
-linux_x86_64_sha256 = "f1e2bf9fa0ba6eb82119d621b6b71bc38edd33c06dc2867b31a027052358957d"
-linux_arm64_sha256 = "8c9f31811d659fcc17c5f1a21bc0971984469c9e3a63c2b39b61cc7694f3a101"
-macos_x86_64_sha256 = "7b7398b93dd16a3123c87286e312a7942be3c13f9619fc587dfc05563fcbc888"
-macos_arm64_sha256 = "abdead5feebc259decaaec33465423bbb7904b3049fa28e92209cb924693c0f4"
+version = "rust-v0.142.2"
+linux_x86_64_sha256 = "12c9005c8778e9f7623b17b77f3cbf56e8059809ac68027b3560c1a8139aa4e2"
+linux_arm64_sha256 = "a889372f39fb3dec6e39f223339685a011d39bb5c49a81470d429b876dc86493"
+macos_x86_64_sha256 = "294e810e754a5c687b09e76bf386238c9ef9fcb5852354bec063e7fa7d40d5a5"
+macos_arm64_sha256 = "264c15a63146176db0314c54728437c97b1121bb2617c426c06925d62b4454b3"
 
 [pinned.uv]
-version = "0.11.23"
-linux_x86_64_sha256 = "e12c4cda2fe8c305510a78380a88f2c32a27e90cdcd123cefd2873388f0ebb5f"
-linux_arm64_sha256 = "1873a77350f6621279ae1a0d2227f2bd8b67131598f14a7eb0ba2215d3da2c98"
-macos_x86_64_sha256 = "7a88155033cc469bba5bd5a24212e355eb92e3e2a276320b669ec576296c1e25"
-macos_arm64_sha256 = "71ef9de85db820749b3b12b7585624ee279e9c5afcbc6f8236bc3d628c4305b0"
+version = "0.11.24"
+linux_x86_64_sha256 = "5ce1ad074a78f96c5c8122088bb85a12eb282195bc1453151a48762e4fc31fed"
+linux_arm64_sha256 = "e22c66d36a0098b17cff80a8647e0b8c58202af899d4e9eb820fc7ad126435a1"
+macos_x86_64_sha256 = "8e026ec796a2760c33c832298b0910bf07fb369d00cc075761c321923ac37522"
+macos_arm64_sha256 = "7578c6087c5cd76981732b1f5d126248101faebdf81016ba780a65ce03653cdf"
 
 [pinned.go]
 version = "go1.26.2"
@@ -89,7 +89,7 @@ light_added_fg = "rgb(62,95,66)"
 light_removed_fg = "rgb(123,72,76)"
 
 [hermes.tui_status]
-patch_version = "hide-voice-off-v2"
+patch_version = "hide-voice-off-v3-wide-cwd-v1"
 
 [hermes.tui_git_branch]
 patch_version = "jj-workspace-bookmark-v1"

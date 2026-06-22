@@ -129,6 +129,17 @@ HERMES_TUI_STATUS_FILE="ui-tui/src/app/useMainApp.ts"
 HERMES_TUI_STATUS_UPSTREAM_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : \`voice \${voiceEnabled ? 'on' : 'off'}\${voiceTts ? ' [tts]' : ''}\`"
 HERMES_TUI_STATUS_LEGACY_PATCH_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : voiceEnabled ? 'voice on' : ''"
 HERMES_TUI_STATUS_PATCH_VOICE_LABEL="      voiceLabel: voiceRecording ? '● REC' : voiceProcessing ? '◉ STT' : voiceEnabled ? ('voice on' + (voiceTts ? ' [tts]' : '')) : ''"
+HERMES_TUI_STATUS_CHROME_FILE="ui-tui/src/components/appChrome.tsx"
+HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_1="      // Cap the status-bar cwd/branch label tighter than the shared default so"
+HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_2="      // it doesn't dominate the bar; the status rule reserves the left-side"
+HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_3="      // essentials and truncates this further on narrow terminals."
+HERMES_TUI_STATUS_PATCH_CWD_COMMENT_1="      // Let the cwd/branch label use a wider budget; the status rule still"
+HERMES_TUI_STATUS_PATCH_CWD_COMMENT_2="      // caps it to available right-side space, and the final Text truncates"
+HERMES_TUI_STATUS_PATCH_CWD_COMMENT_3="      // from the start so branch/repo context stays visible."
+HERMES_TUI_STATUS_UPSTREAM_CWD_LABEL="      cwdLabel: fmtCwdBranch(cwd, gitBranch, 28),"
+HERMES_TUI_STATUS_PATCH_CWD_LABEL="      cwdLabel: fmtCwdBranch(cwd, gitBranch, 56),"
+HERMES_TUI_STATUS_UPSTREAM_CWD_WRAP='            <Text color={t.color.label} wrap="truncate-end">'
+HERMES_TUI_STATUS_PATCH_CWD_WRAP='            <Text color={t.color.label} wrap="truncate-start">'
 
 HERMES_TUI_GIT_BRANCH_FILE="ui-tui/src/hooks/useGitBranch.ts"
 
@@ -294,26 +305,94 @@ replace_hermes_tui_status_voice_line() {
     fi
 }
 
+replace_hermes_tui_exact_line() {
+    local file="$1"
+    local from_line="$2"
+    local to_line="$3"
+    [ -f "$file" ] || return 0
+
+    local tmp awk_status
+    tmp="$(mktemp "${file}.tmp.XXXXXX")" || return 1
+    if awk -v from_line="$from_line" -v to_line="$to_line" '
+        $0 == from_line { print to_line; changed = 1; next }
+        { print }
+        END { if (changed) exit 42 }
+    ' "$file" > "$tmp"; then
+        rm -f "$tmp"
+        return 0
+    else
+        awk_status=$?
+        if [ "$awk_status" -eq 42 ]; then
+            mv "$tmp" "$file"
+            return 0
+        fi
+        rm -f "$tmp"
+        return "$awk_status"
+    fi
+}
+
+replace_hermes_tui_status_cwd_lines() {
+    local mode="$1"
+    local app_file="$INSTALL_DIR/$HERMES_TUI_STATUS_FILE"
+    local chrome_file="$INSTALL_DIR/$HERMES_TUI_STATUS_CHROME_FILE"
+
+    case "$mode" in
+        apply)
+            replace_hermes_tui_exact_line "$app_file" "$HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_1" "$HERMES_TUI_STATUS_PATCH_CWD_COMMENT_1"
+            replace_hermes_tui_exact_line "$app_file" "$HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_2" "$HERMES_TUI_STATUS_PATCH_CWD_COMMENT_2"
+            replace_hermes_tui_exact_line "$app_file" "$HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_3" "$HERMES_TUI_STATUS_PATCH_CWD_COMMENT_3"
+            replace_hermes_tui_exact_line "$app_file" "$HERMES_TUI_STATUS_UPSTREAM_CWD_LABEL" "$HERMES_TUI_STATUS_PATCH_CWD_LABEL"
+            replace_hermes_tui_exact_line "$chrome_file" "$HERMES_TUI_STATUS_UPSTREAM_CWD_WRAP" "$HERMES_TUI_STATUS_PATCH_CWD_WRAP"
+            ;;
+        revert)
+            replace_hermes_tui_exact_line "$app_file" "$HERMES_TUI_STATUS_PATCH_CWD_COMMENT_1" "$HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_1"
+            replace_hermes_tui_exact_line "$app_file" "$HERMES_TUI_STATUS_PATCH_CWD_COMMENT_2" "$HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_2"
+            replace_hermes_tui_exact_line "$app_file" "$HERMES_TUI_STATUS_PATCH_CWD_COMMENT_3" "$HERMES_TUI_STATUS_UPSTREAM_CWD_COMMENT_3"
+            replace_hermes_tui_exact_line "$app_file" "$HERMES_TUI_STATUS_PATCH_CWD_LABEL" "$HERMES_TUI_STATUS_UPSTREAM_CWD_LABEL"
+            replace_hermes_tui_exact_line "$chrome_file" "$HERMES_TUI_STATUS_PATCH_CWD_WRAP" "$HERMES_TUI_STATUS_UPSTREAM_CWD_WRAP"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 tui_status_voice_ready() {
     local status_file="$INSTALL_DIR/$HERMES_TUI_STATUS_FILE"
     [ -f "$status_file" ] || return 1
     grep -Fqx "$HERMES_TUI_STATUS_PATCH_VOICE_LABEL" "$status_file" || return 1
 }
 
+tui_status_cwd_ready() {
+    local app_file="$INSTALL_DIR/$HERMES_TUI_STATUS_FILE"
+    local chrome_file="$INSTALL_DIR/$HERMES_TUI_STATUS_CHROME_FILE"
+    [ -f "$app_file" ] || return 1
+    [ -f "$chrome_file" ] || return 1
+    grep -Fqx "$HERMES_TUI_STATUS_PATCH_CWD_LABEL" "$app_file" || return 1
+    grep -Fqx "$HERMES_TUI_STATUS_PATCH_CWD_WRAP" "$chrome_file" || return 1
+}
+
+tui_status_ready() {
+    tui_status_voice_ready || return 1
+    tui_status_cwd_ready || return 1
+}
+
 ensure_hermes_tui_status_patch() {
     local status_file="$INSTALL_DIR/$HERMES_TUI_STATUS_FILE"
     [ -f "$status_file" ] || return 0
-    tui_status_voice_ready && return 0
+    tui_status_ready && return 0
 
     replace_hermes_tui_status_voice_line apply
-    if tui_status_voice_ready; then
-        vecho "Hermes TUI status bar patched to hide inactive voice state"
+    replace_hermes_tui_status_cwd_lines apply
+    if tui_status_ready; then
+        vecho "Hermes TUI status bar patched for voice density and wider cwd paths"
     else
         eecho "Warning: Hermes TUI status bar patch could not be applied; upstream UI may have changed."
     fi
 }
 
 remove_hermes_tui_status_patch() {
+    replace_hermes_tui_status_cwd_lines revert
     replace_hermes_tui_status_voice_line revert
 }
 
@@ -909,7 +988,7 @@ fi
 
 add_to_path "$HOME/.local/bin"
 
-if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_voice_ready && tui_git_branch_ready && tui_prebuild_ready; then
+if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_ready && tui_git_branch_ready && tui_prebuild_ready; then
     ensure_public_hermes_preferences
     ensure_hermes_shared_skills_external_dir
     vecho "Hermes Agent already ensured (state tracked)"
