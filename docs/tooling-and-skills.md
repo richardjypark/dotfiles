@@ -97,6 +97,7 @@ Shared skills currently include:
 - `brave-tor-policy-hardening` — Maintain the non-optional macOS Brave Browser `TorDisabled=true` managed policy and drift checks.
 - `karpathy-guidelines` — Behavioral coding guidelines for surfacing assumptions, avoiding overcomplication, keeping edits surgical, and defining verifiable success criteria.
 - `secret-leak-audit` — Redacted secret/PAT/private-key and PII audit workflow for this repo, including the managed `dotfiles-secret-scan` helper, GitHub secret-scanning checks, and incident response steps.
+- `grill-me` — Relentless one-question-at-a-time plan/design stress testing with recommended answers for each decision point.
 - `deli-auto-research` — Hermes-native protocol for unattended, long-horizon research or engineering projects using durable Kanban state, bounded worker cards, independent verification, stall-aware pivots, and watchdog/recovery layers.
 
 Optional tool metadata lives alongside the shared skill when needed. For example, Codex UI metadata remains in `agents/openai.yaml` inside the canonical skill folder rather than in a separate client-specific copy.
