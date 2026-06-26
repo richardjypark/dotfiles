@@ -74,6 +74,7 @@ Invoke these skills for domain-specific tasks instead of working from memory:
 | `/chezmoi-bootstrap-operator` | Running or updating bootstrap (Omarchy, VPS, lockdown) |
 | `/dotfiles-version-refresh` | Bumping pinned versions across data/external/script files |
 | `/karpathy-guidelines` | Writing, reviewing, or refactoring code with explicit assumptions, simple/surgical changes, and verifiable success criteria |
+| `/grill-me` | Stress-testing a plan or design before building, one question at a time, with a recommended answer for each question |
 | `/deli-auto-research` | Unattended, long-horizon research/engineering projects that need Hermes Kanban task graphs, bounded worker cards, independent verification, stall-aware pivots, and watchdog/recovery layers |
 
 ## See Also
