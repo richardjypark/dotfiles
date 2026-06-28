@@ -95,11 +95,11 @@ patch_version = "hide-voice-off-v3-wide-cwd-v1"
 patch_version = "jj-workspace-bookmark-v1"
 
 [pinned.starship]
-version = "v1.25.1"
-linux_x86_64_sha256 = "c6ddd3ecb9c0071a2ad38d98cee748160066b7c4f197421268058f4a5d6f8504"
-linux_arm64_sha256 = "01517aab398959ea9ea73bdb4f032ea4dbb51dff5c8e5eb05b4a1b9b7ab872b8"
-macos_x86_64_sha256 = "f86fbe7a3b9f262bcf34ca61e9e996243da511c5500dcd81a1e4daa542869276"
-macos_arm64_sha256 = "1062a2363489b9335529b83204472f02633c08fc3609f1b325be5eba36feb631"
+version = "v1.26.0"
+linux_x86_64_sha256 = "b7c232b0e8249d8e55a40beb79c5c43a7d370f3f9408bd215deb0170daeaadf3"
+linux_arm64_sha256 = "dc30189378d2f2e287384e8a692d3f95ad1df64cf0e8c36aa9201516028aed6b"
+macos_x86_64_sha256 = "5548f406a4b6f5695903bdea83f77ce47ec12c8c0e62dabd33122d8f133e4207"
+macos_arm64_sha256 = "c40b27b11f580411e068f2fa6c1be7830a387c0bc47a94d1d37f32b054c5361d"
 
 [pinned.bun]
 version = "bun-v1.3.14"
