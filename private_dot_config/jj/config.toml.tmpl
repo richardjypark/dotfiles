@@ -23,8 +23,9 @@ push-all-bookmarks = false
 auto-track-bookmarks = "glob:*"
 
 [revset-aliases]
-# Useful revset shortcuts
-"trunk()" = "latest(present(main@origin) | present(master@origin))"
+# Useful revset shortcuts.
+# Do not override trunk() globally; jj covers common trunk names, and
+# jj-sync-trunk writes repo-local overrides when a repo needs one.
 "mine" = "author(exact:'rich')"
 "wip" = "description(glob:'wip*')"
 "stacked" = "trunk()..@"
@@ -48,6 +49,7 @@ desc = ["describe"]
 push = ["git", "push"]
 fetch = ["git", "fetch", "--quiet"]
 sync = ["git", "fetch", "--all-remotes"]
+trunk-sync = ["util", "exec", "--", "jj-sync-trunk"]
 
 [snapshot]
 auto-update-stale = true

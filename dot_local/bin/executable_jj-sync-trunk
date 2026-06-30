@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat >&2 <<'EOF'
+Usage: jj-sync-trunk [--remote REMOTE] [--branch BRANCH] [--check] [--dry-run] [--no-fetch]
+
+Detect the current repository's remote default branch and make jj trunk()
+resolve to that remote bookmark via repo-local jj config when needed.
+
+Defaults:
+  --remote origin              Remote whose HEAD/default branch is authoritative.
+  --branch BRANCH             Explicit branch override; otherwise detect remote HEAD.
+  --check                     Do not write config; exit 0 when trunk() matches, 1 when not.
+  --dry-run                   Print the repo-local config action without applying it.
+  --no-fetch                  Do not run jj git fetch before checking the remote bookmark.
+
+Environment overrides:
+  JJ_REMOTE=REMOTE
+  JJ_TRUNK_BRANCH=BRANCH
+EOF
+}
+
+remote="${JJ_REMOTE:-origin}"
+branch="${JJ_TRUNK_BRANCH:-}"
+check_only=0
+dry_run=0
+fetch_remote=1
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --remote|-r)
+            if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "jj-sync-trunk: --remote requires a value" >&2
+                usage
+                exit 2
+            fi
+            remote="$2"
+            shift 2
+            ;;
+        --remote=*)
+            remote="${1#--remote=}"
+            if [ -z "$remote" ]; then
+                echo "jj-sync-trunk: --remote requires a value" >&2
+                usage
+                exit 2
+            fi
+            shift
+            ;;
+        --branch|-b)
+            if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
+                echo "jj-sync-trunk: --branch requires a value" >&2
+                usage
+                exit 2
+            fi
+            branch="$2"
+            shift 2
+            ;;
+        --branch=*)
+            branch="${1#--branch=}"
+            if [ -z "$branch" ]; then
+                echo "jj-sync-trunk: --branch requires a value" >&2
+                usage
+                exit 2
+            fi
+            shift
+            ;;
+        --check)
+            check_only=1
+            shift
+            ;;
+        --dry-run|-n)
+            dry_run=1
+            shift
+            ;;
+        --no-fetch)
+            fetch_remote=0
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "jj-sync-trunk: unknown argument: $1" >&2
+            usage
+            exit 2
+            ;;
+    esac
+done
+
+if [ "$#" -gt 0 ]; then
+    echo "jj-sync-trunk: unexpected positional arguments: $*" >&2
+    usage
+    exit 2
+fi
+
+repo_root="$(jj --ignore-working-copy root 2>/dev/null)" || {
+    echo "jj-sync-trunk: not inside a jj repository" >&2
+    exit 1
+}
+
+if ! git -C "$repo_root" remote get-url "$remote" >/dev/null 2>&1; then
+    echo "jj-sync-trunk: remote not found in $repo_root: $remote" >&2
+    exit 1
+fi
+
+detect_remote_head_branch() {
+    local repo="$1"
+    local selected_remote="$2"
+    local detected=""
+    local remote_head_ref=""
+
+    # Prefer the authoritative remote HEAD. This is network-backed but avoids
+    # relying on stale local origin/HEAD state.
+    detected="$(git -C "$repo" ls-remote --symref "$selected_remote" HEAD 2>/dev/null \
+        | awk '/^ref:/ { sub("refs/heads/", "", $2); print $2; exit }')"
+    if [ -n "$detected" ]; then
+        printf '%s\n' "$detected"
+        return 0
+    fi
+
+    # Fallback to cached refs/remotes/<remote>/HEAD if the network is unavailable.
+    remote_head_ref="$(git -C "$repo" symbolic-ref -q --short "refs/remotes/${selected_remote}/HEAD" 2>/dev/null || true)"
+    if [ -n "$remote_head_ref" ] && [ "$remote_head_ref" != "$selected_remote" ]; then
+        printf '%s\n' "${remote_head_ref#"${selected_remote}"/}"
+        return 0
+    fi
+
+    # Last fallback: Git's cached remote metadata.
+    git -C "$repo" remote show -n "$selected_remote" 2>/dev/null \
+        | awk -F': ' '/HEAD branch/ && $2 != "(unknown)" && $2 != "(not queried)" { print $2; exit }'
+}
+
+is_builtin_trunk_candidate() {
+    case "$1:$2" in
+        origin:main|origin:master|origin:trunk|upstream:main|upstream:master|upstream:trunk)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+quote_config_string() {
+    local value="$1"
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    printf '"%s"' "$value"
+}
+
+if [ -z "$branch" ]; then
+    branch="$(detect_remote_head_branch "$repo_root" "$remote")"
+fi
+
+if [ -z "$branch" ]; then
+    echo "jj-sync-trunk: could not infer ${remote}'s default branch for $repo_root" >&2
+    echo "Set it explicitly with: jj-sync-trunk --branch <branch>" >&2
+    exit 1
+fi
+
+if ! git -C "$repo_root" check-ref-format --branch "$branch" >/dev/null 2>&1; then
+    echo "jj-sync-trunk: invalid branch name inferred for ${remote}: $branch" >&2
+    echo "Set it explicitly with: jj-sync-trunk --branch <branch>" >&2
+    exit 1
+fi
+
+source_label="${branch}@${remote}"
+source_revset="remote_bookmarks(exact:$(quote_config_string "$branch"), exact:$(quote_config_string "$remote"))"
+source_commit=""
+trunk_commit=""
+repo_trunk_value=""
+needs_repo_override=0
+
+if [ "$fetch_remote" -eq 1 ]; then
+    jj --ignore-working-copy --quiet -R "$repo_root" git fetch --remote "$remote"
+fi
+
+if ! source_commit="$(jj --ignore-working-copy -R "$repo_root" log -r "$source_revset" --no-graph --template 'commit_id' 2>/dev/null)"; then
+    echo "jj-sync-trunk: remote bookmark is not available to jj: $source_label" >&2
+    echo "Try: jj git fetch --remote $remote" >&2
+    exit 1
+fi
+
+trunk_commit="$(jj --ignore-working-copy -R "$repo_root" log -r 'trunk()' --no-graph --template 'commit_id' 2>/dev/null || true)"
+repo_config_path="$(jj --ignore-working-copy -R "$repo_root" config path --repo 2>/dev/null || true)"
+config_value="$(quote_config_string "$source_revset")"
+label_config_value="$(quote_config_string "$source_label")"
+
+if ! is_builtin_trunk_candidate "$remote" "$branch"; then
+    repo_trunk_value="$(jj --ignore-working-copy -R "$repo_root" config list --repo 'revset-aliases."trunk()"' --template 'value ++ "\n"' 2>/dev/null || true)"
+    if [ "$repo_trunk_value" != "$config_value" ] && [ "$repo_trunk_value" != "$label_config_value" ]; then
+        needs_repo_override=1
+    fi
+fi
+
+if [ "$trunk_commit" = "$source_commit" ] && [ "$needs_repo_override" -eq 0 ]; then
+    echo "jj-sync-trunk: trunk() already matches $source_label in $repo_root"
+    exit 0
+fi
+
+if [ "$check_only" -eq 1 ]; then
+    echo "jj-sync-trunk: trunk() does not durably match $source_label in $repo_root" >&2
+    echo "Current trunk commit: ${trunk_commit:-unresolved}" >&2
+    echo "Expected commit:      $source_commit" >&2
+    if [ "$needs_repo_override" -eq 1 ]; then
+        echo "Reason: $source_label is not covered by jj's built-in common trunk candidates without a repo-local override." >&2
+    fi
+    echo "Would set repo config: revset-aliases.\"trunk()\" = $config_value" >&2
+    [ -n "$repo_config_path" ] && echo "Repo config: $repo_config_path" >&2
+    exit 1
+fi
+
+if [ "$dry_run" -eq 1 ]; then
+    echo "jj-sync-trunk: would set repo-local trunk() to $source_label"
+    echo "Revset: $source_revset"
+    [ -n "$repo_config_path" ] && echo "Repo config: $repo_config_path"
+    exit 0
+fi
+
+jj --ignore-working-copy -R "$repo_root" config set --repo 'revset-aliases."trunk()"' "$config_value"
+
+verified_commit="$(jj --ignore-working-copy -R "$repo_root" log -r 'trunk()' --no-graph --template 'commit_id')"
+if [ "$verified_commit" != "$source_commit" ]; then
+    echo "jj-sync-trunk: wrote repo config but trunk() still does not resolve to $source_label" >&2
+    exit 1
+fi
+
+echo "jj-sync-trunk: set repo-local trunk() to $source_label"
+[ -n "$repo_config_path" ] && echo "Repo config: $repo_config_path"

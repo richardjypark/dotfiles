@@ -9,6 +9,8 @@ description: "Use Jujutsu (jj) for Git-backed version control workflows: inspect
 
 Use this skill when the task is primarily about repository history or publishing state, not about editing the repo's runtime files.
 
+For requests to make local jj reflect a remote source-of-truth branch, repair a bad divergent/conflicted local graph by discarding local-only history, or fix incorrect per-repo `trunk()` behavior, also load the `jj-remote-truth-reset` skill.
+
 Do not route back through the jj subagent or `jj-fast-agent` when the task is to inspect or edit the jj skill, the jj Pi agent, the JJFast command, or their wrapper scripts. Treat that as repo-maintenance work and inspect locally.
 
 ## Read first

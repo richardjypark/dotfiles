@@ -116,7 +116,7 @@ Publish checklist:
 | `@-` | Parent of working copy |
 | `@--` | Grandparent |
 | `root()` | Root commit |
-| `trunk()` | Main branch (`main` or `master`) |
+| `trunk()` | Jj's trunk revset, from built-in common remote names or repo-local config |
 | `bookmarks()` | All bookmarks |
 
 ### Repo Custom Revset Aliases
@@ -125,10 +125,11 @@ Defined in `private_dot_config/jj/config.toml.tmpl`:
 
 | Alias | Definition | Use |
 | --- | --- | --- |
-| `trunk()` | `latest(present(main@origin) \| present(master@origin))` | Canonical upstream tip |
 | `mine` | `author(exact:'rich')` | All my changes |
 | `wip` | `description(glob:'wip*')` | Work-in-progress changes |
 | `stacked` | `trunk()..@` | Changes between trunk and working copy |
+
+The shared chezmoi jj config deliberately does not override `trunk()` globally. Jj's built-in alias covers common `main`/`master`/`trunk` remote bookmarks, and some clones already have repo-local defaults. When a repo's remote default differs, run `jj trunk-sync` / `jj-sync-trunk` to write a repo-local override.
 
 ## Config Aliases
 
@@ -153,6 +154,7 @@ Defined in `private_dot_config/jj/config.toml.tmpl`:
 | `push` | `git push` | Push to remote |
 | `fetch` | `git fetch --quiet` | Fetch from remote without rewrite noise |
 | `sync` | `git fetch --all-remotes` | Fetch all remotes |
+| `trunk-sync` | `util exec -- jj-sync-trunk` | Detect the remote default branch and set a repo-local `trunk()` override only when needed |
 
 ## Repo Shell Aliases And Interactive Helpers
 
