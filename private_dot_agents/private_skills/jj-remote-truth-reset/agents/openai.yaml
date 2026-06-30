@@ -1,0 +1,4 @@
+interface:
+  display_name: "JJ Remote Truth Reset"
+  short_description: "Reset bad local jj history to a repo-specific remote default branch and repair trunk() without global branch hardcoding."
+  default_prompt: "Use $jj-remote-truth-reset when the user wants local jj to reflect a remote source-of-truth branch, local history is badly divergent/conflicted, or trunk() points at the wrong branch. Prefer jj-sync-trunk / jj trunk-sync for scalable remote-default detection, do not assume main/master/dev, require confirmation before discarding local-only work, prefer jj undo for immediate recovery, and use repo-local trunk() overrides rather than global chezmoi config changes."

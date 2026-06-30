@@ -35,6 +35,7 @@ Claude support remains compatible, but shared planning conventions should point 
 - `chezmoi-rerun-script`: managed `~/.local/bin/chezmoi-rerun-script` command that clears remembered `run_onchange_*` state for a given source script so the next apply reruns it.
 - `pi-agent-run`: managed `~/.local/bin/pi-agent-run` command that executes a Pi markdown agent file non-interactively with its declared model and tools. Use `--model MODEL` or `PI_AGENT_RUN_MODEL=MODEL` to override the declared model; use `default`/`settings` to fall back to Pi's configured default model. Use it when another CLI can run shell commands but does not support Pi's native subagent extension model.
 - `jj-fast-agent`: managed `~/.local/bin/jj-fast-agent` wrapper around the shared `~/.pi/agent/agents/jj.md` agent. It defaults to `openai-codex/gpt-5.3-codex-spark:minimal`, but can be run with `--model MODEL` or overridden with `JJ_FAST_AGENT_MODEL`, `PI_JJ_AGENT_MODEL`, or `JJ_AGENT_MODEL`; use `--model default` to use Pi's configured default model. This is the tool-agnostic fallback path for the `jj` skill outside Pi.
+- `jj-sync-trunk`: managed `~/.local/bin/jj-sync-trunk` helper, also exposed as `jj trunk-sync`, that detects the current repo's remote default branch and writes a repo-local `trunk()` override when jj's built-in/common trunk resolution is missing or not durable. This keeps dev/main/master projects scalable without hardcoding a global branch in chezmoi jj config.
 - `dot_pi/agent/extensions/jj-fast-command.ts` overrides `/skill:jj` (and adds `/jj`) inside Pi so explicit jj requests go straight to the fast helper instead of paying an extra routing LLM turn. The slash commands accept `/jj --model MODEL <task>` and `/skill:jj --model MODEL <task>` for subscription/model compatibility.
 - Nested Pi helpers still need outbound provider network access from the invoking shell. Fully sandboxed Codex runs can block that path; if so, use a Codex shell mode that permits network access or run the helper directly outside the sandbox.
 - `czu`/`czuf` rebase to `[git].defaultBranch` from `.chezmoidata.toml` (with remote-head fallback) to avoid hardcoding branch names.
@@ -91,6 +92,7 @@ Shared skills currently include:
 
 - `chezmoi-repo-maintainer` — Cross-cutting repo maintenance for docs, templates, shell/tmux behavior, agent instructions, and multi-subsystem changes.
 - `jj` — Jujutsu version control workflows, bookmark-safe publishing, recovery, and repo interactive helpers with detailed reference material in `references/jj-reference.md`.
+- `jj-remote-truth-reset` — Reset bad local jj history to a repo-specific remote source-of-truth branch, detect default branches without hardcoding `main`/`master`/`dev`, and repair `trunk()` with repo-local overrides.
 - `chezmoi-script-maintainer` — Create and maintain `.chezmoiscripts/*` setup scripts with `references/script-patterns.md`.
 - `chezmoi-bootstrap-operator` — Bootstrap workflow operations across Omarchy and VPS paths with `references/bootstrap-matrix.md`.
 - `dotfiles-version-refresh` — Update pinned tool versions and external dependencies with `references/version-map.md`.
