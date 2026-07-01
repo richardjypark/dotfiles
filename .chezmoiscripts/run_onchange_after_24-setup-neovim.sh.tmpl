@@ -2,9 +2,8 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-# REQUIRED_NVIM_VERSION is the steady-state compatibility floor we enforce after install.
-# PINNED_NVIM_VERSION is the preferred install source when package managers lag; newer local versions remain acceptable.
-REQUIRED_NVIM_VERSION="${REQUIRED_NVIM_VERSION:-0.11.2}"
+# REQUIRED_NVIM_VERSION is the steady-state target we enforce after install.
+# It defaults to the repo pin so czuf/czm converge this machine to managed pins.
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
 {{- with .pinned.neovim }}
@@ -14,6 +13,8 @@ PINNED_NVIM_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
 PINNED_NVIM_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 PINNED_NVIM_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
+PINNED_NVIM_CLEAN="$(normalize_version_token "$PINNED_NVIM_VERSION")"
+REQUIRED_NVIM_VERSION="${REQUIRED_NVIM_VERSION:-$PINNED_NVIM_CLEAN}"
 
 get_nvim_version() {
     if ! is_installed nvim; then
@@ -98,13 +99,21 @@ install_via_package_manager() {
 }
 
 install_via_homebrew() {
+    local action="install"
+
     if ! is_installed brew; then
         return 1
     fi
 
-    eecho "Installing Neovim via Homebrew..."
-    run_quiet brew install neovim
-    return 0
+    if brew list --formula neovim >/dev/null 2>&1; then
+        action="upgrade"
+    fi
+
+    eecho "Running brew $action for Neovim..."
+    if run_quiet brew "$action" neovim; then
+        return 0
+    fi
+    return 1
 }
 
 install_via_release_binary() {
@@ -169,7 +178,7 @@ if install_via_package_manager; then
         vecho "Neovim installation method: package manager"
     else
         eecho "Package manager Neovim version is below ${REQUIRED_NVIM_VERSION}; trying newer install method..."
-        if install_via_homebrew; then
+        if install_via_homebrew && nvim_meets_requirement; then
             vecho "Neovim installation method: homebrew"
         elif install_via_release_binary; then
             vecho "Neovim installation method: release binary"
@@ -179,7 +188,7 @@ if install_via_package_manager; then
             exit 1
         fi
     fi
-elif install_via_homebrew; then
+elif install_via_homebrew && nvim_meets_requirement; then
     vecho "Neovim installation method: homebrew"
 elif install_via_release_binary; then
     vecho "Neovim installation method: release binary"

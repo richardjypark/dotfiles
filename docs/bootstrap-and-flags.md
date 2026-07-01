@@ -67,7 +67,7 @@ Use role/profile conditions in templates/scripts before adding hostname-specific
 
 - `czu`/`czuf` choose the rebase target from `.chezmoidata.toml` `[git].defaultBranch`, then fallback to the Git remote default branch, then `master`
 - on Omarchy hosts, if `CHEZMOI_PROFILE` is unset, wrappers default it to `omarchy`
-- `czuf` adds `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and runs `chezmoi apply --refresh-externals --force`
+- `czuf` adds `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and runs `chezmoi apply --refresh-externals --force`; it does not run broad package-manager upgrades or bump source pins
 - `czl` is the Omarchy/Arch daily maintenance wrapper: it runs `czuf`, upgrades official Arch packages with `sudo pacman -Syu --noconfirm`, runs `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` so the machine matches the bumped pins. Pi updates are handled by the repo’s managed pinned install during apply instead of a floating global npm update.
-- `czm` is the macOS daily maintenance wrapper: it runs `czuf` with `CHEZMOI_MACOS_MAINTENANCE_MODE=1` so apply-time scripts can defer Homebrew-owned upgrades to the dedicated `brew` phase, then runs Homebrew upgrades, `chezmoi-bump --all`, and a final forced `chezmoi apply` only when the bump changed tracked pin files
+- `czm` is the macOS daily maintenance wrapper: it refreshes sudo credentials for cask package installers, runs `czuf` with `CHEZMOI_MACOS_MAINTENANCE_MODE=1` so apply-time scripts can defer Homebrew-owned upgrades to the dedicated `brew` phase, then runs Homebrew upgrades including greedy cask upgrades, `chezmoi-bump --all`, and a final forced `chezmoi apply` only when the bump changed tracked pin/lockfile source files
 - `chezmoi-bump pi` resolves to the newest `@mariozechner/pi-coding-agent` version that already satisfies `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`

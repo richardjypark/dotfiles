@@ -25,6 +25,17 @@ current_tailscale_version() {
     normalize_version_token "$line"
 }
 
+tailscale_brew_cask_token() {
+    if ! is_installed brew; then
+        return 1
+    fi
+    if brew info --cask tailscale-app >/dev/null 2>&1; then
+        printf '%s\n' "tailscale-app"
+        return 0
+    fi
+    printf '%s\n' "tailscale"
+}
+
 if should_skip_state "$TAILSCALE_STATE"; then
     if tailscale_binary_ready; then
         vecho "Tailscale setup already completed (state tracked)"
@@ -57,9 +68,12 @@ if is_installed tailscale; then
         mark_state "$TAILSCALE_STATE"
         exit 0
     fi
-    if is_macos_maintenance_mode && is_installed brew && brew list --cask tailscale >/dev/null 2>&1; then
-        eecho "Deferring Tailscale Homebrew upgrade to dedicated brew phase..."
-        exit 0
+    if is_macos_maintenance_mode && is_installed brew; then
+        TAILSCALE_BREW_CASK="$(tailscale_brew_cask_token || true)"
+        if [ -n "$TAILSCALE_BREW_CASK" ] && brew list --cask "$TAILSCALE_BREW_CASK" >/dev/null 2>&1; then
+            eecho "Deferring Tailscale Homebrew upgrade to dedicated brew phase..."
+            exit 0
+        fi
     fi
     if [ -n "$CURRENT_TAILSCALE_VERSION" ]; then
         eecho "Updating Tailscale from $CURRENT_TAILSCALE_VERSION to pinned $PINNED_TAILSCALE_VERSION..."
@@ -80,9 +94,10 @@ ALLOW_VERSION_LAG="false"
 if [ "$OS_FAMILY" = "macos" ]; then
     # macOS: Use Homebrew
     if is_installed brew; then
+        TAILSCALE_BREW_CASK="$(tailscale_brew_cask_token)"
         BREW_ACTION="install"
-        if brew list --cask tailscale >/dev/null 2>&1; then
-            if ! brew outdated --cask tailscale 2>/dev/null | grep -q tailscale; then
+        if brew list --cask "$TAILSCALE_BREW_CASK" >/dev/null 2>&1; then
+            if ! brew outdated --cask --greedy "$TAILSCALE_BREW_CASK" 2>/dev/null | grep -Eq '^(tailscale|tailscale-app)($|[[:space:]])'; then
                 eecho "Tailscale already at latest Homebrew version"
                 BREW_ACTION=""
             else
@@ -90,16 +105,24 @@ if [ "$OS_FAMILY" = "macos" ]; then
             fi
         fi
         if [ -n "$BREW_ACTION" ]; then
-            eecho "Running brew $BREW_ACTION for Tailscale..."
+            eecho "Running brew $BREW_ACTION for Tailscale ($TAILSCALE_BREW_CASK)..."
         fi
+        BREW_TAILSCALE_OK="true"
         if [ "$VERBOSE" = "true" ]; then
-            if [ -n "$BREW_ACTION" ]; then
-                brew "$BREW_ACTION" --cask tailscale
+            if [ "$BREW_ACTION" = "upgrade" ]; then
+                brew upgrade --cask --greedy "$TAILSCALE_BREW_CASK" || BREW_TAILSCALE_OK="false"
+            elif [ "$BREW_ACTION" = "install" ]; then
+                brew install --cask "$TAILSCALE_BREW_CASK" || BREW_TAILSCALE_OK="false"
             fi
         else
-            if [ -n "$BREW_ACTION" ]; then
-                brew "$BREW_ACTION" --cask tailscale >/dev/null 2>&1
+            if [ "$BREW_ACTION" = "upgrade" ]; then
+                brew upgrade --cask --greedy "$TAILSCALE_BREW_CASK" >/dev/null 2>&1 || BREW_TAILSCALE_OK="false"
+            elif [ "$BREW_ACTION" = "install" ]; then
+                brew install --cask "$TAILSCALE_BREW_CASK" >/dev/null 2>&1 || BREW_TAILSCALE_OK="false"
             fi
+        fi
+        if [ "$BREW_TAILSCALE_OK" != "true" ]; then
+            eecho "Warning: Homebrew Tailscale $BREW_ACTION failed; continuing with installed version if available."
         fi
         # Homebrew casks can lag Tailscale's upstream stable release, and this
         # repo does not manage a pinned macOS Tailscale app artifact. Treat the

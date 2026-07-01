@@ -2,13 +2,13 @@
 fzf = "0.73.1"
 neovim = "v0.12.3"
 jj = "v0.42.0"
-codex = "rust-v0.142.3"
-uv = "0.11.25"
+codex = "rust-v0.142.5"
+uv = "0.11.26"
 go = "go1.26.2"
 starship = "v1.26.0"
 bun = "bun-v1.3.14"
-tailscale = "1.98.3"
-claude_code_npm = "2.1.183"
+tailscale = "1.98.8"
+claude_code_npm = "2.1.197"
 
 [update_schedule]
 check_interval = "168h" # Weekly
