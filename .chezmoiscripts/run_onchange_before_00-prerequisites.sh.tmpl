@@ -31,6 +31,23 @@ PINNED_CHEZMOI_LINUX_ARM64_SHA="{{ .linux_arm64_sha256 }}"
 PINNED_CHEZMOI_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 PINNED_CHEZMOI_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
+PINNED_CHEZMOI_CLEAN="$(normalize_version_token "$PINNED_CHEZMOI_VERSION")"
+
+current_chezmoi_version() {
+    local output line
+    output="$(chezmoi --version 2>/dev/null || true)"
+    line="$(printf '%s\n' "$output" | awk 'NR==1{value=$3; gsub(/,$/, "", value); print value; exit}')"
+    normalize_version_token "$line"
+}
+
+chezmoi_meets_pinned_version() {
+    local version
+    if ! is_installed chezmoi; then
+        return 1
+    fi
+    version="$(current_chezmoi_version || true)"
+    [ -n "$version" ] && version_ge "$version" "$PINNED_CHEZMOI_CLEAN"
+}
 
 # Determine sudo availability lazily so warm applies avoid probing it unless needed.
 CAN_SUDO=""
@@ -110,7 +127,7 @@ install_optional_interactive_tools() {
 
 # State tracking with inline fallback validation
 if should_skip_state "prerequisites-setup"; then
-    if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi \
+    if is_installed zsh && is_installed git && is_installed curl && chezmoi_meets_pinned_version \
         && (is_installed bat || is_installed batcat); then
         install_optional_interactive_tools
         vecho "All essential prerequisites are already installed"
@@ -121,7 +138,7 @@ fi
 vecho "Checking prerequisites..."
 
 # Fast exit if all essential tools are already available
-if is_installed zsh && is_installed git && is_installed curl && is_installed chezmoi \
+if is_installed zsh && is_installed git && is_installed curl && chezmoi_meets_pinned_version \
     && (is_installed bat || is_installed batcat); then
     install_optional_interactive_tools
     vecho "All essential prerequisites are already installed"
@@ -219,7 +236,11 @@ fi
 
 install_chezmoi_via_package_manager() {
     if command -v brew >/dev/null 2>&1; then
-        brew install --quiet chezmoi
+        if brew list --formula chezmoi >/dev/null 2>&1; then
+            brew upgrade --quiet chezmoi || brew upgrade chezmoi
+        else
+            brew install --quiet chezmoi || brew install chezmoi
+        fi
         return 0
     fi
 
@@ -316,21 +337,26 @@ install_chezmoi_via_pinned_release() {
     return 0
 }
 
-# Install chezmoi only if not present
-if ! is_installed chezmoi; then
-    eecho "Installing chezmoi..."
-    if install_chezmoi_via_package_manager; then
+# Install or update chezmoi when the active binary is below the repo pin.
+if ! chezmoi_meets_pinned_version; then
+    if is_installed chezmoi; then
+        eecho "Updating chezmoi from $(current_chezmoi_version || echo unknown) to pinned ${PINNED_CHEZMOI_CLEAN} or newer..."
+    else
+        eecho "Installing chezmoi..."
+    fi
+
+    if install_chezmoi_via_package_manager && chezmoi_meets_pinned_version; then
         vecho "Installed chezmoi via package manager"
-    elif install_chezmoi_via_pinned_release; then
+    elif install_chezmoi_via_pinned_release && chezmoi_meets_pinned_version; then
         vecho "Installed chezmoi via pinned release artifact"
     else
-        eecho "Error: Failed to install chezmoi."
+        eecho "Error: Failed to install chezmoi ${PINNED_CHEZMOI_CLEAN} or newer."
         eecho "Install manually from https://www.chezmoi.io/install/ and re-run chezmoi apply."
         exit 1
     fi
     export PATH="$HOME/.local/bin:$PATH"
 else
-    vecho "chezmoi is already installed"
+    vecho "chezmoi is already at or above pinned version"
 fi
 
 mark_state "prerequisites-setup"
