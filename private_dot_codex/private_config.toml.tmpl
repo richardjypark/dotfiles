@@ -1,12 +1,9 @@
-# Keep reasoning and context xhigh here because this repo relies on large local docs
-# and shared skills more than on prompt brevity alone; use the fast service tier
-# by default so gpt-5.5 stays responsive without lowering reasoning effort.
-# Prefer improving repo instructions and skills before changing these knobs.
-model = "gpt-5.5"
-model_reasoning_effort = "xhigh"
+# Use Sol for complex repo work and high reasoning for multi-step tasks with
+# tradeoffs. Leave context and compaction limits unset so Codex follows the
+# selected model's current catalog metadata instead of stale local overrides.
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
 service_tier = "fast"
-model_context_window = 500000
-model_auto_compact_token_limit = 400000
 personality = "pragmatic"
 
 # Trust this repo's source directory so Codex can use the repo-local AGENTS,

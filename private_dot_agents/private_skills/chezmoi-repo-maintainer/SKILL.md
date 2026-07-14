@@ -32,6 +32,7 @@ Use this skill when:
    - version pins / externals
    - jj history operations
 6. Keep shared Codex/Claude safety and validation rules aligned unless a tool-specific difference is intentional, but treat the Codex planning workflow as canonical when shared docs need a single source of truth.
+7. For Codex model-default changes, check the current official model guidance and inspect `codex debug models` for the exact slug, supported reasoning levels, speed tiers, and catalog context window. Prefer leaving `model_context_window` and `model_auto_compact_token_limit` unset so Codex follows current catalog metadata unless a documented provider mismatch requires an override.
 
 ## References
 
@@ -55,3 +56,5 @@ chezmoi status
 ```
 
 Then run the subsystem-specific checks called out by `~/.local/share/chezmoi/ARCHITECTURE.md` for any shell, tmux, script, or bootstrap paths you touched.
+
+For Codex model changes, also parse the rendered TOML, run `codex doctor` to confirm the config loads, and use a minimal `codex exec` smoke test when authentication and network access are available. Treat unrelated doctor findings as separate follow-up work rather than broadening the model change.
