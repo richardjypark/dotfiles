@@ -75,6 +75,22 @@ available if `chezmoi-health-check` reports policy drift.
 Aliases in `~/.config/shell/alias.sh` are convenience shortcuts only.
 Repo-managed `jj fetch` is intentionally quiet (`jj git fetch --quiet`); run raw `jj git fetch` when you want rebase/abandon diagnostics.
 
+### Sync a jj Repo to Its Remote Default Branch
+
+Use this branch-agnostic one-liner to fetch `origin`, detect its current default
+branch (`master`, `main`, `dev`, or another name), and start a clean working-copy
+commit from the updated remote trunk:
+
+```bash
+jj trunk-sync --remote origin && jj new 'trunk()'
+```
+
+`jj trunk-sync` updates the repo-local `trunk()` definition when needed. `jj new`
+then leaves any previous local changes safely in their existing jj changes instead
+of replaying or discarding them. To intentionally preserve and replay the current
+local stack on the updated trunk, use `jj rebase -b @ -d 'trunk()'` instead; that
+operation can produce conflicts.
+
 Shell preview behavior:
 - `fzf` and `jj-fzf` previews prefer `bat` and auto-fallback to `batcat` on Debian/Ubuntu-style installs.
 - If neither command is available, previews degrade to plain output until `bat` is installed.
