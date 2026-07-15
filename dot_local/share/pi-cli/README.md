@@ -23,7 +23,9 @@ The resulting binary is linked to:
 ## Local Pi Agent Settings Override
 
 This repo tracks a default `~/.pi/agent/settings.json` with
-`defaultModel = "gpt-5.5"` and `defaultThinkingLevel = "xhigh"`.
+`defaultModel = "gpt-5.6-sol-fast-ultra"` and `defaultThinkingLevel = "xhigh"`.
+The tracked `~/.pi/agent/models.json` adds this OpenAI Codex model ID until it
+is available in Pi's built-in model catalog.
 
 To override Pi settings just for this machine (without committing anything), create:
 
