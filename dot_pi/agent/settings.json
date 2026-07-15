@@ -4,8 +4,8 @@
     "https://github.com/davebcn87/pi-autoresearch@62feb2f46ef2a1b8e39af381b47acc4d7af42ca8"
   ],
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-sol-fast-ultra",
-  "defaultThinkingLevel": "xhigh",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "high",
   "hideThinkingBlock": false,
   "compaction": {
     "enabled": true,
