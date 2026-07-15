@@ -1,7 +1,7 @@
 # Node.js and NVM configuration
 # This data is used by chezmoi templates, particularly in setup scripts
 [nvm]
-version = "v0.40.5"
+version = "v0.40.6"
 nodeVersion = "lts/*" # Specifies which Node.js version to install (lts/* is recommended for stability)
 
 # Python configuration
