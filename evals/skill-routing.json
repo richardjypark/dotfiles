@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "id": "brave-tor-policy-opt-out",
+      "request": "Add a machine-local flag that can disable the managed com.brave.Browser TorDisabled=true policy so Brave onion browsing works again on one Mac.",
+      "expected_skill": "brave-tor-policy-hardening"
+    },
+    {
+      "id": "omarchy-bootstrap-change",
+      "request": "Change the Omarchy workstation bootstrap flow and its server-role branching while preserving installer trust gates and lockdown defaults.",
+      "expected_skill": "chezmoi-bootstrap-operator"
+    },
+    {
+      "id": "cross-cutting-agent-docs",
+      "request": "Reorganize this dotfiles repo's AGENTS.md, ARCHITECTURE.md, and shared skill documentation so all agent clients follow one planning workflow.",
+      "expected_skill": "chezmoi-repo-maintainer"
+    },
+    {
+      "id": "idempotent-setup-script",
+      "request": "Make run_onchange_after_25-setup-uv.sh.tmpl skip repeated setup work correctly without changing the pinned uv version.",
+      "expected_skill": "chezmoi-script-maintainer"
+    },
+    {
+      "id": "unattended-long-research",
+      "request": "Set up an unattended week-long research project with durable Hermes Kanban tasks, independent verifier workers, stall pivots, and watchdog recovery.",
+      "expected_skill": "deli-auto-research"
+    },
+    {
+      "id": "refresh-version-pin",
+      "request": "Bump the pinned uv release and refresh every related checksum and external dependency reference in this dotfiles repo.",
+      "expected_skill": "dotfiles-version-refresh"
+    },
+    {
+      "id": "stress-test-plan",
+      "request": "Stress-test my deployment design relentlessly, asking exactly one decision question at a time and recommending an answer for each.",
+      "expected_skill": "grill-me"
+    },
+    {
+      "id": "routine-jj-publish",
+      "request": "Use Jujutsu to inspect my current change, rebase it onto trunk, create the right bookmark, and push it safely.",
+      "expected_skill": "jj"
+    },
+    {
+      "id": "repair-divergent-jj",
+      "request": "My local jj graph is badly divergent and conflicted; after protecting any local-only work, make it reflect the repository's remote default branch and repair trunk().",
+      "expected_skill": "jj-remote-truth-reset"
+    },
+    {
+      "id": "surgical-code-review",
+      "request": "Review this refactor for hidden assumptions, unnecessary abstractions, and unrelated edits, then define concrete verification criteria.",
+      "expected_skill": "karpathy-guidelines"
+    },
+    {
+      "id": "full-history-secret-audit",
+      "request": "Audit the full Git history and current worktree for exposed PATs, private keys, credential files, and PII without printing raw secrets.",
+      "expected_skill": "secret-leak-audit"
+    },
+    {
+      "id": "no-repo-skill",
+      "request": "Write a three-line haiku about warm summer rain.",
+      "expected_skill": "none"
+    }
+  ]
+}

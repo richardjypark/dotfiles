@@ -104,6 +104,33 @@ Shared skills currently include:
 
 Optional tool metadata lives alongside the shared skill when needed. For example, Codex UI metadata remains in `agents/openai.yaml` inside the canonical skill folder rather than in a separate client-specific copy.
 
+### Skill Routing Eval
+
+The smallest shared skill eval checks discovery routing from each skill's live
+`name` and `description`. It has one positive case per repo-managed skill plus
+one unrelated `none` control. Validate the catalog and fixture without a model
+call, then run the live single-call batch:
+
+```bash
+python3 scripts/eval-skill-routing.py --dry-run
+python3 scripts/eval-skill-routing.py
+```
+
+The live summary reports exact-match accuracy, single-call batch wall-clock
+seconds, prompt bytes, case count, Hermes version, and whether model/provider
+overrides were used. Compare another configured route explicitly when needed:
+
+```bash
+python3 scripts/eval-skill-routing.py \
+  --provider openai-codex --model gpt-5.6-sol
+```
+
+Treat one run as a point estimate, not a latency distribution. When adding a
+skill, add exactly one representative case to `evals/skill-routing.json`; keep
+the one `none` control. Passing this eval shows that the model selected the
+expected skill from frontmatter metadata. It does not prove that the full
+`SKILL.md` body is factually correct or that an agent follows every instruction.
+
 ### Shared Sources Of Truth
 
 Skills should have one source of truth: the shared `private_dot_agents/private_skills/` tree. Client-specific paths should be routing only, not separate copies of skill content.
