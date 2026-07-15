@@ -299,4 +299,5 @@ See `docs/architecture-and-performance.md` for implementation details.
 - `docs/bootstrap-and-flags.md`
 - `docs/architecture-and-performance.md`
 - `docs/tooling-and-skills.md`
+- `docs/skill-routing-eval.md` — repo-only guide to the skill-selection smoke eval; excluded from chezmoi rendering.
 - `docs/secrets-management.md`

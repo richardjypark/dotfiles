@@ -7,6 +7,7 @@ plans/[0-9]*.md
 .gitleaksignore
 
 # Repo-only skill eval harness and tests; do not render them into $HOME.
+docs/skill-routing-eval.md
 evals/
 tests/
 scripts/eval-skill-routing.py
