@@ -60,9 +60,9 @@ bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh
 bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh
 chezmoi cat "$HOME/.local/bin/chezmoi-health-check" | bash -n
 bash -n bootstrap-vps.sh
+[ ! -f scripts/executable_setup-utm-sandbox-macos.sh ] || bash -n scripts/executable_setup-utm-sandbox-macos.sh
 bash -n scripts/bootstrap-omarchy.sh
 bash -n scripts/server-lockdown-tailscale.sh
-bash -n scripts/executable_setup-utm-sandbox-macos.sh
 [ ! -f scripts/executable_utm-sandbox-audit.sh ] || bash -n scripts/executable_utm-sandbox-audit.sh
 [ ! -f scripts/executable_utm-sandbox-linux-guest-setup.sh ] || bash -n scripts/executable_utm-sandbox-linux-guest-setup.sh
 [ ! -f scripts/executable_utm-sandbox-transfer-disk.sh ] || bash -n scripts/executable_utm-sandbox-transfer-disk.sh

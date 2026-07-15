@@ -30,6 +30,26 @@ MANIFEST_OUT=""
 MANIFEST_MULTI=false
 DEPS_TO_BUMP=()
 
+# Global --all transaction state (outer atomicity)
+BUMP_ALL_LOCK_DIR=""
+BUMP_ALL_LOCK_ACQUIRED=false
+BUMP_ALL_ACTIVE=false
+BUMP_ALL_ROLLBACK_IN_PROGRESS=false
+BUMP_ALL_COMMAND_LINE=""
+BUMP_ALL_OUTER_SNAPSHOT_FILES=()
+BUMP_ALL_OUTER_SNAPSHOT_PATHS=()
+
+BUMP_ALL_REQUIRED_TARGET_FILES=(
+    ".chezmoidata.toml"
+    ".chezmoiversion.toml"
+    ".chezmoiexternal.toml.tmpl"
+    "dot_local/share/pi-cli/package.json"
+    "dot_local/share/pi-maintenance-agent/package.json"
+    "dot_local/share/pi-cli/package-lock.json"
+    "dot_local/share/pi-maintenance-agent/package-lock.json"
+    "dot_pi/agent/settings.json"
+)
+
 # --- Transaction exit codes ---
 EXIT_CONTRACT_BUILD_FAILED=10
 EXIT_APPLY_FAILED=11
@@ -1289,6 +1309,235 @@ tx_cleanup_snapshots() {
     TX_SNAPSHOT_PATHS=()
 }
 
+# --- Global atomicity state for --all ------------------------------------------------
+
+bump_all_lock_path() {
+    local state_root="${XDG_STATE_HOME:-$HOME/.local/state}"
+    printf '%s/chezmoi-maintenance/chezmoi-bump' "$state_root"
+}
+
+bump_all_required_target_paths() {
+    local rel
+    for rel in "${BUMP_ALL_REQUIRED_TARGET_FILES[@]}"; do
+        printf '%s/%s\n' "$CHEZMOI_DIR" "$rel"
+    done
+}
+
+bump_all_acquire_lock() {
+    BUMP_ALL_LOCK_DIR="$(bump_all_lock_path)"
+    BUMP_ALL_LOCK_ACQUIRED=false
+
+    local lock_parent
+    lock_parent="${BUMP_ALL_LOCK_DIR%/chezmoi-bump}"
+
+    if ! (umask 077; mkdir -p "$lock_parent") 2>/dev/null; then
+        echo "${RED}Failed to prepare lock parent directory${RESET}" >&2
+        return 1
+    fi
+
+    # Portable atomic lock acquisition using mkdir (mkdir is atomic on POSIX filesystems).
+    if ! (umask 077; mkdir "$BUMP_ALL_LOCK_DIR") 2>/dev/null; then
+        echo "${RED}Another bump process is already active; Refusing to run --all concurrently.${RESET}" >&2
+        echo "Lock: ${BUMP_ALL_LOCK_DIR}" >&2
+        if [ -r "${BUMP_ALL_LOCK_DIR}/meta" ]; then
+            echo "Recorded lock owner:" >&2
+            while IFS= read -r line; do
+                printf '  %s\n' "$line" >&2
+            done < "${BUMP_ALL_LOCK_DIR}/meta"
+        fi
+        echo "Inspect the lock and remove it only after confirming its owner has exited." >&2
+        return 1
+    fi
+
+    BUMP_ALL_LOCK_ACQUIRED=true
+
+    local meta_file timestamp host command_line
+    meta_file="${BUMP_ALL_LOCK_DIR}/meta"
+    timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    host="$(hostname 2>/dev/null || true)"
+    command_line="${BUMP_ALL_COMMAND_LINE:-${0} ${*:-[no args]}}"
+
+    if ! {
+        printf 'pid=%s\n' "$$"
+        if [ -n "$host" ]; then
+            printf 'host=%s\n' "$host"
+        fi
+        printf 'command=%s\n' "$command_line"
+        printf 'start_ts=%s\n' "$timestamp"
+    } > "$meta_file"; then
+        echo "${RED}Failed to write bump lock metadata${RESET}" >&2
+        bump_all_release_lock
+        return 1
+    fi
+
+    return 0
+}
+
+bump_all_release_lock() {
+    if [ "$BUMP_ALL_LOCK_ACQUIRED" = "true" ] && [ -n "$BUMP_ALL_LOCK_DIR" ]; then
+        rm -f "${BUMP_ALL_LOCK_DIR}/meta" 2>/dev/null || true
+        if ! rmdir "$BUMP_ALL_LOCK_DIR" 2>/dev/null; then
+            echo "${YELLOW}Warning: could not remove owned bump lock: ${BUMP_ALL_LOCK_DIR}${RESET}" >&2
+        fi
+    fi
+
+    BUMP_ALL_LOCK_ACQUIRED=false
+    BUMP_ALL_LOCK_DIR=""
+}
+
+bump_all_snapshot_file() {
+    local file="$1" snapshot
+    snapshot="$(mktemp "${TMPDIR:-/tmp}/chezmoi-bump.all.XXXXXX")" || {
+        echo "${RED}Failed to create outer snapshot for $(display_repo_path "$file")${RESET}" >&2
+        return 1
+    }
+
+    if ! cp "$file" "$snapshot"; then
+        rm -f "$snapshot" 2>/dev/null || true
+        echo "${RED}Failed to snapshot $(display_repo_path "$file")${RESET}" >&2
+        return 1
+    fi
+
+    BUMP_ALL_OUTER_SNAPSHOT_FILES+=("$file")
+    BUMP_ALL_OUTER_SNAPSHOT_PATHS+=("$snapshot")
+}
+
+bump_all_snapshot_required_targets() {
+    local file
+    BUMP_ALL_OUTER_SNAPSHOT_FILES=()
+    BUMP_ALL_OUTER_SNAPSHOT_PATHS=()
+
+    while IFS= read -r file; do
+        [ -n "$file" ] || continue
+
+        if [ ! -e "$file" ]; then
+            continue
+        fi
+
+        if ! bump_all_snapshot_file "$file"; then
+            return 1
+        fi
+    done < <(bump_all_required_target_paths)
+}
+
+bump_all_restore_required_targets() {
+    local i file snapshot count had_error=false
+    count="${#BUMP_ALL_OUTER_SNAPSHOT_FILES[@]}"
+
+    for (( i=count-1; i>=0; i-- )); do
+        file="${BUMP_ALL_OUTER_SNAPSHOT_FILES[$i]}"
+        snapshot="${BUMP_ALL_OUTER_SNAPSHOT_PATHS[$i]}"
+
+        if [ ! -f "$snapshot" ]; then
+            echo "${RED}Missing outer snapshot for $(display_repo_path "$file")${RESET}" >&2
+            had_error=true
+            continue
+        fi
+
+        if ! cp "$snapshot" "$file"; then
+            echo "${RED}Failed to restore $(display_repo_path "$file")${RESET}" >&2
+            had_error=true
+        fi
+    done
+
+    [ "$had_error" = "true" ] && return 1
+    return 0
+}
+
+bump_all_cleanup_snapshots() {
+    local snap
+    for snap in "${BUMP_ALL_OUTER_SNAPSHOT_PATHS[@]-}"; do
+        rm -f "$snap" 2>/dev/null || true
+    done
+    BUMP_ALL_OUTER_SNAPSHOT_FILES=()
+    BUMP_ALL_OUTER_SNAPSHOT_PATHS=()
+}
+
+bump_all_abort_outer_tx() {
+    local original_rc="$1"
+    local rollback_rc=0
+
+    if [ "$BUMP_ALL_ACTIVE" = "false" ]; then
+        return "$original_rc"
+    fi
+
+    if [ "$BUMP_ALL_ROLLBACK_IN_PROGRESS" = "true" ]; then
+        return "$original_rc"
+    fi
+
+    BUMP_ALL_ROLLBACK_IN_PROGRESS=true
+    if [ "${#BUMP_ALL_OUTER_SNAPSHOT_FILES[@]}" -gt 0 ]; then
+        echo "  Rolling back all dependency changes"
+        bump_all_restore_required_targets || rollback_rc=$?
+    fi
+
+    BUMP_ALL_ACTIVE=false
+    bump_all_clear_traps
+    bump_all_cleanup_snapshots
+    bump_all_release_lock
+    BUMP_ALL_ROLLBACK_IN_PROGRESS=false
+
+    if [ "$rollback_rc" -ne 0 ]; then
+        echo "${RED}Outer rollback was incomplete; inspect the source tree before continuing.${RESET}" >&2
+        return "$EXIT_ROLLBACK_FAILED"
+    fi
+
+    return "$original_rc"
+}
+
+bump_all_signal_trap() {
+    local signal_rc="$1"
+    local final_rc="$signal_rc"
+
+    bump_all_abort_outer_tx "$signal_rc" || final_rc=$?
+    exit "$final_rc"
+}
+
+bump_all_exit_trap() {
+    local exit_rc="$1"
+    local final_rc="$exit_rc"
+
+    bump_all_abort_outer_tx "$exit_rc" || final_rc=$?
+    exit "$final_rc"
+}
+
+bump_all_set_traps() {
+    trap 'bump_all_exit_trap $?' EXIT
+    trap 'bump_all_signal_trap 129' HUP
+    trap 'bump_all_signal_trap 130' INT
+    trap 'bump_all_signal_trap 143' TERM
+}
+
+bump_all_clear_traps() {
+    trap - EXIT HUP INT TERM
+}
+
+bump_all_begin_outer_tx() {
+    if ! bump_all_acquire_lock; then
+        return 1
+    fi
+
+    BUMP_ALL_ACTIVE=true
+    BUMP_ALL_ROLLBACK_IN_PROGRESS=false
+    bump_all_set_traps
+
+    if [ "$DRY_RUN" != "true" ]; then
+        if ! bump_all_snapshot_required_targets; then
+            bump_all_end_outer_tx
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+bump_all_end_outer_tx() {
+    BUMP_ALL_ACTIVE=false
+    bump_all_clear_traps
+    bump_all_cleanup_snapshots
+    bump_all_release_lock
+}
+
 tx_snapshot_file() {
     local file="$1"
     local i
@@ -2376,6 +2625,73 @@ EOF
 }
 
 # ============================================================================
+# Bump all dependencies in a single outer transaction
+# ============================================================================
+
+run_all_dependency_transactions() {
+    local -a deps=("$@")
+    local dep dep_rc
+    local bumped=0
+    local skipped=0
+    local failed=0
+    local overall_rc=0
+
+    BUMP_ALL_COMMAND_LINE="${0} --all ${*}"
+
+    if [ ${#deps[@]} -eq 0 ]; then
+        echo "${GREEN}All dependencies are up to date.${RESET}"
+        return 0
+    fi
+
+    if ! bump_all_begin_outer_tx; then
+        return 1
+    fi
+
+    for dep in "${deps[@]}"; do
+        dep_rc=0
+        bump_dep "$dep" || dep_rc=$?
+
+        case "$dep_rc" in
+            0) bumped=$((bumped + 1)) ;;
+            2) skipped=$((skipped + 1)) ;;
+            *)
+                failed=$((failed + 1))
+                if [ "$overall_rc" -eq 0 ]; then
+                    overall_rc="$dep_rc"
+                fi
+                break
+                ;;
+        esac
+
+        echo ""
+    done
+
+    if [ "$failed" -gt 0 ]; then
+        local final_rc="$overall_rc"
+        bump_all_abort_outer_tx "$overall_rc" || final_rc=$?
+        return "$final_rc"
+    fi
+
+    bump_all_end_outer_tx
+
+    echo "─────────────────────────────────"
+    if [ "$DRY_RUN" = "true" ]; then
+        echo "${YELLOW}Dry run complete.${RESET} Planned: ${bumped}  Skipped: ${skipped}  Failed: ${failed}"
+        echo "No files were modified."
+    else
+        echo "Bumped: ${GREEN}${bumped}${RESET}  Skipped: ${skipped}  Failed: ${RED}${failed}${RESET}"
+        if [ "$bumped" -gt 0 ]; then
+            echo ""
+            echo "Next steps:"
+            echo "  chezmoi diff                     # Review changes"
+            echo "  chezmoi apply --refresh-externals # Apply updated config"
+        fi
+    fi
+
+    return 0
+}
+
+# ============================================================================
 # Bump a single dependency
 # ============================================================================
 
@@ -2600,6 +2916,11 @@ EOF
         MANIFEST_MULTI=true
     else
         MANIFEST_MULTI=false
+    fi
+
+    if [ "$BUMP_ALL" = "true" ]; then
+        run_all_dependency_transactions "${deps_list[@]}"
+        return $?
     fi
 
     for dep in "${deps_list[@]}"; do
