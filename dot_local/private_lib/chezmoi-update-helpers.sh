@@ -2,8 +2,117 @@
 # chezmoi-update-helpers.sh — shared functions for czu/czuf/czl/czm
 # Sourced by ~/.local/bin/czu, ~/.local/bin/czuf, ~/.local/bin/czl, and ~/.local/bin/czm
 
+# Internal cache: never trust an inherited value that has not passed validation.
+CHEZMOI_SOURCE_DIR_RESOLVED=""
+CHEZMOI_SOURCE_DIR_RESOLVED_VALID=false
+
+chezmoi_update_error() {
+    printf 'chezmoi-update: %s\n' "$*" >&2
+}
+
+canonicalize_source_dir() {
+    local path="$1"
+
+    case "$path" in
+        /*) ;;
+        *)
+            chezmoi_update_error "source path must be absolute: $path"
+            return 1
+            ;;
+    esac
+
+    if [ ! -d "$path" ]; then
+        chezmoi_update_error "source directory does not exist: $path"
+        return 1
+    fi
+
+    (cd "$path" 2>/dev/null && pwd -P)
+}
+
+resolve_chezmoi_source_dir() {
+    local source_override legacy_override candidate canonical jj_root
+
+    if [ "${CHEZMOI_SOURCE_DIR_RESOLVED_VALID:-false}" = "true" ] && [ -n "${CHEZMOI_SOURCE_DIR_RESOLVED:-}" ]; then
+        export CHEZMOI_SOURCE_DIR="$CHEZMOI_SOURCE_DIR_RESOLVED"
+        export CHEZMOI_DIR="$CHEZMOI_SOURCE_DIR_RESOLVED"
+        return 0
+    fi
+
+    source_override="${CHEZMOI_SOURCE_DIR:-}"
+    legacy_override="${CHEZMOI_DIR:-}"
+
+    if [ -n "$source_override" ] && [ -n "$legacy_override" ]; then
+        local source_canonical legacy_canonical
+        source_canonical="$(canonicalize_source_dir "$source_override")" || return 1
+        legacy_canonical="$(canonicalize_source_dir "$legacy_override")" || return 1
+        if [ "$source_canonical" != "$legacy_canonical" ]; then
+            chezmoi_update_error "CHEZMOI_SOURCE_DIR and CHEZMOI_DIR conflict: $source_canonical != $legacy_canonical"
+            return 1
+        fi
+        candidate="$source_canonical"
+    elif [ -n "$source_override" ]; then
+        candidate="$source_override"
+    elif [ -n "$legacy_override" ]; then
+        candidate="$legacy_override"
+    else
+        if ! command -v chezmoi >/dev/null 2>&1; then
+            chezmoi_update_error "chezmoi is required to resolve the source path"
+            return 1
+        fi
+        if ! candidate="$(chezmoi source-path 2>/dev/null)" || [ -z "$candidate" ]; then
+            chezmoi_update_error "chezmoi source-path failed; set CHEZMOI_SOURCE_DIR explicitly"
+            return 1
+        fi
+    fi
+
+    canonical="$(canonicalize_source_dir "$candidate")" || return 1
+    if [ ! -f "$canonical/.chezmoidata.toml" ]; then
+        chezmoi_update_error "source directory is missing .chezmoidata.toml: $canonical"
+        return 1
+    fi
+
+    if ! command -v jj >/dev/null 2>&1; then
+        chezmoi_update_error "jj is required to update the chezmoi source repository"
+        return 1
+    fi
+    if ! jj_root="$(jj --ignore-working-copy -R "$canonical" root 2>/dev/null)"; then
+        chezmoi_update_error "source directory is not a jj repository: $canonical"
+        return 1
+    fi
+    jj_root="$(canonicalize_source_dir "$jj_root")" || return 1
+    if [ "$jj_root" != "$canonical" ]; then
+        chezmoi_update_error "source directory is not the jj workspace root: $canonical (root: $jj_root)"
+        return 1
+    fi
+
+    CHEZMOI_SOURCE_DIR_RESOLVED="$canonical"
+    CHEZMOI_SOURCE_DIR_RESOLVED_VALID=true
+    export CHEZMOI_SOURCE_DIR="$canonical"
+    export CHEZMOI_DIR="$canonical"
+}
+
 chezmoi_source_dir() {
-    printf '%s\n' "$HOME/.local/share/chezmoi"
+    resolve_chezmoi_source_dir || return $?
+    printf '%s\n' "$CHEZMOI_SOURCE_DIR_RESOLVED"
+}
+
+run_chezmoi_with_source() {
+    local arg
+
+    for arg in "$@"; do
+        if [ "$arg" = "--" ]; then
+            break
+        fi
+        case "$arg" in
+            --source|--source=*|-S|-S?*)
+                chezmoi_update_error "pass the source through CHEZMOI_SOURCE_DIR instead of a second --source/-S argument"
+                return 2
+                ;;
+        esac
+    done
+
+    resolve_chezmoi_source_dir || return $?
+    command chezmoi --source "$CHEZMOI_SOURCE_DIR_RESOLVED" "$@"
 }
 
 is_omarchy_host() {
@@ -18,44 +127,26 @@ set_default_chezmoi_profile() {
     fi
 }
 
-chezmoi_default_branch() {
-    local repo data_file branch
-    repo="$(chezmoi_source_dir)"
-    data_file="$repo/.chezmoidata.toml"
-    branch=""
-
-    if [ -f "$data_file" ]; then
-        branch="$(
-            awk '
-                /^\[git\]$/ { in_git=1; next }
-                /^\[/ && $0 !~ /^\[git\]$/ { in_git=0 }
-                in_git && $1 == "defaultBranch" {
-                    gsub(/"/, "", $3)
-                    print $3
-                    exit
-                }
-            ' "$data_file"
-        )"
-    fi
-
-    if [ -z "$branch" ]; then
-        branch="$(git -C "$repo" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)"
-    fi
-
-    printf '%s\n' "${branch:-master}"
-}
-
 chezmoi_prepare_jj_update() {
-    local repo branch
-    repo="$(chezmoi_source_dir)"
-    branch="$(chezmoi_default_branch)"
+    local repo remote
+
+    resolve_chezmoi_source_dir || return $?
+    repo="$CHEZMOI_SOURCE_DIR_RESOLVED"
+    remote="${CHEZMOI_JJ_REMOTE:-${JJ_REMOTE:-origin}}"
+
+    if ! command -v jj-sync-trunk >/dev/null 2>&1; then
+        chezmoi_update_error "jj-sync-trunk is required but was not found in PATH"
+        return 1
+    fi
+
     if [ "${VERBOSE:-false}" = "true" ]; then
-        jj -R "$repo" git fetch
-        jj -R "$repo" rebase -d "$branch"
+        (cd "$repo" && jj-sync-trunk --remote "$remote") || return $?
+        (cd "$repo" && jj -R "$repo" rebase -d 'trunk()') || return $?
         return
     fi
-    jj --quiet -R "$repo" git fetch
-    jj --quiet -R "$repo" rebase -d "$branch"
+
+    (cd "$repo" && jj-sync-trunk --remote "$remote" >/dev/null) || return $?
+    (cd "$repo" && jj --quiet -R "$repo" rebase -d 'trunk()') || return $?
 }
 
 sanitize_terminal_noise() {
