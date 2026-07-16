@@ -22,14 +22,14 @@ Claude support remains compatible, but shared planning conventions should point 
 
 ## Local Update Commands
 
-- `czu`: jj-based dotfiles update and apply.
-- `czuf`: forced jj-based update with externals/tool refresh; it does not run broad package-manager upgrades or bump source pins.
-- `czl`: Omarchy/Arch maintenance wrapper that runs `czuf`, upgrades official Arch packages, bumps pinned stable versions, and re-applies the bumped state. Pi updates are handled by the repo’s managed pinned install during apply instead of a floating global npm update.
+- `czu`: resolves a validated selected source, repairs/fetches repo-local `trunk()` via `jj-sync-trunk`, rebases the current change, and applies that same source.
+- `czuf`: forced selected-source update with externals/tool refresh; it does not run broad package-manager upgrades or bump source pins.
+- `czl`: Omarchy/Arch maintenance wrapper with compatible no-argument full maintenance plus `--system-only`, `--plan`, and `--verbose`. Full mode requires a clean current JJ change, atomically bumps pins, and always runs the Arch convergence apply.
 - On macOS, uv setup is Homebrew-first during apply/refresh; pinned GitHub artifact install remains fallback when Homebrew is unavailable.
-- `czm`: macOS maintenance wrapper that refreshes sudo credentials for cask package installers, runs `czuf` in a Homebrew-maintenance mode, performs the dedicated Homebrew upgrade/cleanup phase including greedy cask upgrades, bumps pinned versions, and re-applies only when the bump changed tracked pin/lockfile source files.
+- `czm`: macOS maintenance wrapper with compatible no-argument full maintenance plus `--system-only`, `--plan`, and `--verbose`. Full mode requires a clean current JJ change, preserves greedy-cask upgrades, atomically bumps pins, uses JJ diff output for conditional final apply, and treats final Homebrew cleanup as warning-only housekeeping.
 - `czclean`: managed `~/.local/bin/czclean` manual storage cleanup helper. It defaults to dry-run, runs conservative package-manager/temp cleanup with `--yes`, and keeps Claude history, Docker cleanup, Docker volumes, chezmoi download cache deletion, and aggressive pruning behind explicit flags.
 - `czvc`: managed `~/.local/bin/czvc` command that checks pinned versions and exits non-zero when API/network errors make the check incomplete.
-- `czb`: managed `~/.local/bin/czb` command that bumps pinned versions with preflight/apply/verify transaction checks and rollback on failure. `chezmoi-bump pi` resolves to the newest `@mariozechner/pi-coding-agent` version that already satisfies `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`.
+- `czb`: managed `~/.local/bin/czb` command that bumps pinned versions with preflight/apply/verify transaction checks and rollback on failure. Multi-dependency `--all` runs add a private portable lock plus invocation-level rollback across generic and Pi targets. `chezmoi-bump pi` resolves to the newest `@mariozechner/pi-coding-agent` version that already satisfies `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`.
 - `chezmoi-health-check`: managed `~/.local/bin/chezmoi-health-check` command that audits key tools, config files, bootstrap security defaults, and agent configuration safety/routing checks.
 - `dotfiles-secret-scan`: managed `~/.local/bin/dotfiles-secret-scan` command that runs redacted gitleaks scans over full Git history, the current worktree, or staged Git changes for hook usage. It installs the pinned gitleaks version into the user cache when gitleaks is missing and Go is available.
 - `chezmoi-rerun-script`: managed `~/.local/bin/chezmoi-rerun-script` command that clears remembered `run_onchange_*` state for a given source script so the next apply reruns it.
@@ -38,7 +38,7 @@ Claude support remains compatible, but shared planning conventions should point 
 - `jj-sync-trunk`: managed `~/.local/bin/jj-sync-trunk` helper, also exposed as `jj trunk-sync`, that detects the current repo's remote default branch and writes a repo-local `trunk()` override when jj's built-in/common trunk resolution is missing or not durable. This keeps dev/main/master projects scalable without hardcoding a global branch in chezmoi jj config.
 - `dot_pi/agent/extensions/jj-fast-command.ts` overrides `/skill:jj` (and adds `/jj`) inside Pi so explicit jj requests go straight to the fast helper instead of paying an extra routing LLM turn. The slash commands accept `/jj --model MODEL <task>` and `/skill:jj --model MODEL <task>` for subscription/model compatibility.
 - Nested Pi helpers still need outbound provider network access from the invoking shell. Fully sandboxed Codex runs can block that path; if so, use a Codex shell mode that permits network access or run the helper directly outside the sandbox.
-- `czu`/`czuf` rebase to `[git].defaultBranch` from `.chezmoidata.toml` (with remote-head fallback) to avoid hardcoding branch names.
+- `czu`/`czuf` delegate authoritative remote-head detection and durable `trunk()` repair to `jj-sync-trunk`, then rebase onto `trunk()`; they no longer parse `[git].defaultBranch` or assume `master`.
 - Shell previews (`fzf`/`jj-fzf`) resolve `DOTFILES_BAT_CMD` to `bat` first, then `batcat` for Debian/Ubuntu compatibility.
 - `private_dot_config/shell/bat.sh` sets conservative defaults when bat is available (`BAT_PAGER=less -RFK`, `BAT_STYLE=numbers,changes`).
 - `private_dot_config/shell/alias.sh` resolves `DOTFILES_EZA_CMD` to `eza` first, then `exa`, and remaps `ls`/`ll`/`la`/`lt` in interactive shells.

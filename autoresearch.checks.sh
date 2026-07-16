@@ -70,6 +70,9 @@ bash -n scripts/server-lockdown-tailscale.sh
 bash -n scripts/lib/load-helpers.sh
 bash -n dot_local/private_lib/chezmoi-helpers.sh
 bash -n dot_local/private_lib/chezmoi-update-helpers.sh
+bash -n tests/test-cz-maintenance.sh
+bash -n tests/test-chezmoi-update-helpers.sh
+bash -n tests/test-cz-wrappers.sh
 bash -n .chezmoiscripts/run_onchange_after_10-setup-homebrew.sh
 bash -n .chezmoiscripts/run_onchange_before_01-setup-omz.sh
 bash -n .chezmoiscripts/run_onchange_after_28-setup-ansible.sh
@@ -102,6 +105,13 @@ chezmoi execute-template < .chezmoiscripts/run_after_38-setup-pi-maintenance-age
 ) &
 template_extra_checks_pid=$!
 
+(
+bash tests/test-cz-maintenance.sh
+bash tests/test-chezmoi-update-helpers.sh
+bash tests/test-cz-wrappers.sh
+) &
+maintenance_behavior_checks_pid=$!
+
 check_tmpdir="$(mktemp -d)"
 cleanup() {
   rm -rf "$check_tmpdir"
@@ -130,5 +140,6 @@ wait "$render_checks_pid"
 wait "$source_checks_pid"
 wait "$template_core_checks_pid"
 wait "$template_extra_checks_pid"
+wait "$maintenance_behavior_checks_pid"
 wait "$stateful_checks_pid"
 
