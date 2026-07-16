@@ -5,6 +5,6 @@ set -euo pipefail
 set_default_chezmoi_profile
 chezmoi_prepare_jj_update
 
-run_with_optional_output_sanitizer \
-    env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
-    chezmoi apply --refresh-externals --force "$@"
+TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
+    run_with_optional_output_sanitizer \
+    run_chezmoi_with_source apply --refresh-externals --force "$@"

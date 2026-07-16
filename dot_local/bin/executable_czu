@@ -5,4 +5,4 @@ set -euo pipefail
 set_default_chezmoi_profile
 chezmoi_prepare_jj_update
 
-run_with_optional_output_sanitizer chezmoi apply "$@"
+run_with_optional_output_sanitizer run_chezmoi_with_source apply "$@"
