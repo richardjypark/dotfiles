@@ -65,4 +65,12 @@ jobs:
           bash -n scripts/lib/load-helpers.sh
           bash -n dot_local/private_lib/chezmoi-helpers.sh
           bash -n dot_local/private_lib/chezmoi-update-helpers.sh
+
+      - name: Validate maintenance behavior
+        run: |
+          bash -n tests/test-cz-maintenance.sh
+          bash -n tests/test-chezmoi-update-helpers.sh
+          bash -n tests/test-cz-wrappers.sh
           bash tests/test-cz-maintenance.sh
+          bash tests/test-chezmoi-update-helpers.sh
+          bash tests/test-cz-wrappers.sh

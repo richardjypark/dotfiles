@@ -57,13 +57,13 @@ available if `chezmoi-health-check` reports policy drift.
 | Command | What it does | When to use |
 | --- | --- | --- |
 | `chezmoi update` | Pulls latest dotfiles from upstream and applies them. | Standard sync from repo changes. |
-| `czu` | Managed wrapper command in `~/.local/bin/czu`: runs `jj fetch` + `jj rebase -d <default-branch>` (from `.chezmoidata.toml` `[git].defaultBranch`, with remote-head fallback), defaults `CHEZMOI_PROFILE=omarchy` on Omarchy hosts when unset, then runs `chezmoi apply`. | Daily update when you want the jj-based workflow. |
-| `czuf` | Managed wrapper command in `~/.local/bin/czuf`: same as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 chezmoi apply --refresh-externals --force`. It refreshes/apply-time managed state, but does not run broad package-manager upgrades or bump source pins. | Full refresh when pinned tools/externals changed or state needs rebuilding (macOS uses Homebrew-first `uv`, with pinned artifact fallback). On macOS, use `czm` for one-command app + pin maintenance. |
-| `czl` | Managed wrapper command in `~/.local/bin/czl`: fail-fast Omarchy/Arch workflow that refreshes sudo credentials, runs `czuf`, upgrades official Arch packages with `pacman -Syu`, runs `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` so the machine converges to the newly bumped stable pins. Pi updates are handled by the repo’s managed pinned install during apply instead of a floating global npm update. | Single-command daily maintenance on Omarchy/Arch Linux. |
-| `czm` | Managed wrapper command in `~/.local/bin/czm`: fail-fast macOS workflow that refreshes sudo credentials for cask package installers, runs `czuf` in a Homebrew-maintenance mode, then `brew update` + `brew upgrade` + `brew upgrade --cask --greedy` + `brew cleanup`, then `chezmoi-bump --all`, then re-runs `chezmoi apply --refresh-externals --force` only when bumped pins/lockfiles changed tracked source files. | Single-command daily maintenance on macOS. |
+| `czu` | Resolves one validated source workspace, repairs/fetches `trunk()` through `jj-sync-trunk`, rebases the current change onto `trunk()`, then applies that same selected source. Omarchy hosts default `CHEZMOI_PROFILE=omarchy` when unset. | Daily update when you want the jj-based workflow. Set `CHEZMOI_SOURCE_DIR=/absolute/workspace` to select a non-default source workspace. |
+| `czuf` | Same selected-source/trunk flow as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and `chezmoi apply --refresh-externals --force`. It does not run broad package-manager upgrades or bump source pins. | Full refresh when pinned tools/externals changed or state needs rebuilding. On macOS, use `czm` for one-command app + pin maintenance. |
+| `czl [--system-only \| --bump-pins] [--plan] [--verbose]` | Omarchy/Arch maintenance. No arguments preserve the full workflow: clean-source gate, `czuf`, `pacman -Syu`, atomic `chezmoi-bump --all`, and final forced selected-source apply. `--system-only` skips source-pin mutation but keeps the Arch convergence apply. | Daily Arch maintenance. Use `--plan` for a non-installing preview or `--system-only` when the current JJ change is intentionally dirty. |
+| `czm [--system-only \| --bump-pins] [--plan] [--verbose]` | macOS maintenance. No arguments preserve the full Homebrew + atomic pin-bump workflow. The final selected-source apply runs only when the clean-source bump leaves a JJ diff; Homebrew cleanup runs last and is warning-only. `--system-only` skips source-pin mutation and the final pin apply. | Daily macOS maintenance. Use `--plan` for a non-installing preview or `--system-only` when the current JJ change is intentionally dirty. |
 | `czclean` | Managed wrapper command in `~/.local/bin/czclean`: manual storage cleanup helper. Defaults to dry-run; run `czclean --yes` for conservative cache cleanup, add `--claude`, `--claude-history`, `--docker`, `--docker-volumes`, `--chezmoi-cache`, or `--aggressive` only when you intentionally want those extra cleanup scopes. | Reclaim package-manager, temporary, and opt-in tool cache bloat safely. |
 | `czvc` | Managed wrapper command in `~/.local/bin/czvc`: runs `chezmoi-check-versions` and exits non-zero when API/network errors make results incomplete. | Check pinned versions against upstream releases. |
-| `czb` | Managed wrapper command in `~/.local/bin/czb`: runs `chezmoi-bump` with fail-closed transaction checks (preflight -> apply -> verify -> rollback on failure). `chezmoi-bump pi` resolves to the newest `@mariozechner/pi-coding-agent` version that already satisfies `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`. | Bump pinned dependency versions safely. |
+| `czb` | Runs `chezmoi-bump` with fail-closed transaction checks. `chezmoi-bump --all` snapshots all managed pin/lock targets, serializes source mutation with a portable private lock, and restores the invocation-start state if any later dependency or catchable signal fails. | Bump pinned dependency versions safely. Pi resolves to the newest release satisfying `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`. |
 | `chezmoi-health-check` | Managed helper in `~/.local/bin/chezmoi-health-check`: audits key tool installs, config files, bootstrap security defaults, and agent configuration safety/routing checks. | Run after bootstrap/apply or when debugging local drift. |
 | `dotfiles-secret-scan` | Managed helper in `~/.local/bin/dotfiles-secret-scan`: runs redacted gitleaks scans over full Git history, the current worktree, or staged Git changes. It installs the pinned gitleaks version into the user cache when needed and Go is available. | Check for leaked secrets, personal access tokens, private keys, and credential-like values before publishing dotfiles changes. |
 | `chezmoi-rerun-script <source-script-path>` | Managed helper in `~/.local/bin/chezmoi-rerun-script`: clears chezmoi's remembered `run_onchange_*` state for the given source script so the next `chezmoi apply` reruns it. | Recover from manual deletions or force a one-off rerun of a bootstrap/setup script after local drift. |
@@ -74,6 +74,13 @@ available if `chezmoi-health-check` reports policy drift.
 `cz*` commands are installed in `~/.local/bin` and do not rely on shell aliases.
 Aliases in `~/.config/shell/alias.sh` are convenience shortcuts only.
 Repo-managed `jj fetch` is intentionally quiet (`jj git fetch --quiet`); run raw `jj git fetch` when you want rebase/abandon diagnostics.
+
+Maintenance mode contract:
+- No-argument `czl`/`czm` remains full maintenance for compatibility; `--bump-pins` makes that intent explicit.
+- Full pin-bump mode requires a clean current JJ working-copy change before sudo, package upgrades, or source mutation. `--system-only` permits a dirty current change because it does not run `chezmoi-bump`.
+- `--plan` performs no fetch/rebase/config write, package installation, tracked-source mutation, or home-directory apply. It may perform network reads and cache writes while checking remote trunk, package updates, and upstream pin versions.
+- `--verbose` exports `VERBOSE=true` and prints command/synchronization details. Unknown or conflicting mode flags exit with status 2.
+- `CHEZMOI_SOURCE_DIR` (or the backward-compatible `CHEZMOI_DIR`) must name an absolute validated JJ workspace root. If unset, wrappers use `chezmoi source-path`; they no longer silently fall back to a conventional directory.
 
 ### Sync a jj Repo to Its Remote Default Branch
 
@@ -102,7 +109,8 @@ Shell preview behavior:
 `chezmoi-bump` safety/debug flags:
 - `--manifest-out <path>` writes the computed transaction manifest (multi-dep runs emit one file per dep).
 - `--no-strict` relaxes post-apply verification (strict is default).
-- `--no-rollback` keeps mutated files on failure for debugging (rollback is default).
+- `--no-rollback` keeps single-dependency mutations on failure for debugging. `--all` remains invocation-atomic and restores all managed source targets even when this per-dependency debug flag is set.
+- The `--all` source lock lives under `${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi-maintenance/chezmoi-bump`; ambiguous stale locks are reported with owner metadata and are never auto-removed.
 
 ## Role + Profile Matrix
 
