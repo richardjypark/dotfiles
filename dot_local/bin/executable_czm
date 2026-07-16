@@ -2,6 +2,26 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-update-helpers.sh"
 
+usage() {
+    cat <<'EOF'
+Usage: czm [--system-only | --bump-pins] [--plan] [--verbose]
+
+Run macOS Homebrew maintenance and converge the chezmoi-managed tools.
+No arguments preserves full maintenance, including stable-pin bumps.
+
+  --system-only  Update Homebrew without changing or re-applying source pins.
+  --bump-pins    Explicitly request full maintenance (the current default).
+  --plan         Report planned work without installing, applying, fetching, or rebasing.
+  --verbose      Show synchronization and command details.
+EOF
+}
+
+parse_cz_maintenance_args czm "$@" || exit $?
+if [ "$CZ_MAINTENANCE_HELP" = "true" ]; then
+    usage
+    exit 0
+fi
+
 if [[ "${OSTYPE:-}" != darwin* ]]; then
     echo "czm: macOS only (requires Homebrew)." >&2
     exit 1
@@ -12,63 +32,75 @@ if ! command -v brew >/dev/null 2>&1; then
     exit 1
 fi
 
+set_default_chezmoi_profile
+resolve_chezmoi_source_dir
+
+if [ "$CZ_MAINTENANCE_PLAN" = "true" ]; then
+    echo "==> [plan] Inspecting trunk synchronization without fetch/rebase..."
+    chezmoi_plan_jj_update
+
+    echo "==> [plan] Rendering chezmoi diff without applying..."
+    run_with_optional_output_sanitizer run_chezmoi_with_source diff
+
+    echo "==> [plan] Checking outdated Homebrew formulae and casks without auto-update..."
+    HOMEBREW_NO_AUTO_UPDATE=1 maintenance_run brew outdated --formula
+    HOMEBREW_NO_AUTO_UPDATE=1 maintenance_run brew outdated --cask
+
+    if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
+        echo "==> [plan] Checking stable-pin updates without mutating source..."
+        maintenance_run chezmoi-bump --dry-run --all --force
+    fi
+
+    echo "==> czm plan complete (network reads and cache writes may have occurred)."
+    exit 0
+fi
+
+if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
+    require_clean_chezmoi_source_for_bump czm
+fi
+
 if command -v sudo >/dev/null 2>&1; then
     if [ -t 0 ]; then
-        echo "==> [0/4] Refreshing sudo credentials for cask package installers..."
-        sudo -v
+        echo "==> Refreshing sudo credentials for cask package installers..."
+        maintenance_run sudo -v
     else
         echo "czm: warning: no TTY available to refresh sudo; cask package installers may fail if sudo is required." >&2
     fi
 fi
 
-fingerprint_target_files() {
-    local file
-    for file in "$@"; do
-        if [ -f "$file" ]; then
-            shasum -a 256 "$file"
-        else
-            printf 'missing  %s\n' "$file"
-        fi
-    done
-}
+echo "==> Synchronizing and applying current chezmoi source..."
+CHEZMOI_MACOS_MAINTENANCE_MODE=1 maintenance_run czuf
 
-SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
-if [ -z "$SOURCE_DIR" ]; then
-    SOURCE_DIR="$HOME/.local/share/chezmoi"
+echo "==> Updating Homebrew formulae and casks..."
+maintenance_run brew update
+maintenance_run brew upgrade
+maintenance_run brew upgrade --cask --greedy
+
+if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
+    echo "==> Updating stable source pins atomically..."
+    maintenance_run chezmoi-bump --all --force
+
+    source_change_status=0
+    if chezmoi_source_has_changes; then
+        echo "==> Re-applying changed stable pins..."
+        TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 BREW_CLEANUP=false \
+            run_with_optional_output_sanitizer \
+            run_chezmoi_with_source apply --refresh-externals --force
+    else
+        source_change_status=$?
+        if [ "$source_change_status" -gt 1 ]; then
+            echo "czm: failed to inspect source changes after pin bump." >&2
+            exit "$source_change_status"
+        fi
+        echo "==> No pin changes detected; skipping final chezmoi apply."
+    fi
+else
+    echo "==> System-only mode: skipping stable-pin update and final apply."
 fi
 
-BUMPED_SOURCE_FILES=(
-    "$SOURCE_DIR/.chezmoidata.toml"
-    "$SOURCE_DIR/.chezmoiversion.toml"
-    "$SOURCE_DIR/.chezmoiexternal.toml.tmpl"
-    "$SOURCE_DIR/dot_local/share/pi-cli/package.json"
-    "$SOURCE_DIR/dot_local/share/pi-cli/package-lock.json"
-    "$SOURCE_DIR/dot_local/share/pi-maintenance-agent/package.json"
-    "$SOURCE_DIR/dot_local/share/pi-maintenance-agent/package-lock.json"
-    "$SOURCE_DIR/dot_pi/agent/settings.json"
-)
-
-echo "==> [1/4] Running czuf..."
-CHEZMOI_MACOS_MAINTENANCE_MODE=1 command czuf
-
-echo "==> [2/4] Updating Homebrew formulae and casks..."
-brew update
-brew upgrade
-brew upgrade --cask --greedy
-brew cleanup
-
-echo "==> [3/4] Running chezmoi-bump --all..."
-BEFORE_FINGERPRINT="$(fingerprint_target_files "${BUMPED_SOURCE_FILES[@]}")"
-command chezmoi-bump --all --force
-AFTER_FINGERPRINT="$(fingerprint_target_files "${BUMPED_SOURCE_FILES[@]}")"
-
-if [ "$BEFORE_FINGERPRINT" != "$AFTER_FINGERPRINT" ]; then
-    echo "==> [4/4] Re-applying bumped pins..."
-    run_with_optional_output_sanitizer \
-        env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 BREW_CLEANUP=false \
-        chezmoi apply --refresh-externals --force
-else
-    echo "==> [4/4] No pin changes detected; skipping final chezmoi apply."
+echo "==> Running Homebrew cleanup..."
+if ! maintenance_run brew cleanup; then
+    echo "czm: warning: brew cleanup failed; package upgrades and convergence completed." >&2
 fi
 
 echo "==> czm complete."

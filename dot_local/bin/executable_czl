@@ -2,6 +2,26 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-update-helpers.sh"
 
+usage() {
+    cat <<'EOF'
+Usage: czl [--system-only | --bump-pins] [--plan] [--verbose]
+
+Run Arch/Omarchy system maintenance and converge the chezmoi-managed tools.
+No arguments preserves full maintenance, including stable-pin bumps.
+
+  --system-only  Update the system and apply existing pins without changing source pins.
+  --bump-pins    Explicitly request full maintenance (the current default).
+  --plan         Report planned work without installing, applying, fetching, or rebasing.
+  --verbose      Show synchronization and command details.
+EOF
+}
+
+parse_cz_maintenance_args czl "$@" || exit $?
+if [ "$CZ_MAINTENANCE_HELP" = "true" ]; then
+    usage
+    exit 0
+fi
+
 if [[ "${OSTYPE:-}" == darwin* ]]; then
     echo "czl: Omarchy/Arch Linux only (requires pacman)." >&2
     exit 1
@@ -12,14 +32,50 @@ if ! command -v pacman >/dev/null 2>&1; then
     exit 1
 fi
 
+set_default_chezmoi_profile
+resolve_chezmoi_source_dir
+
+if [ "$CZ_MAINTENANCE_PLAN" = "true" ]; then
+    echo "==> [plan] Inspecting trunk synchronization without fetch/rebase..."
+    chezmoi_plan_jj_update
+
+    echo "==> [plan] Rendering chezmoi diff without applying..."
+    run_with_optional_output_sanitizer run_chezmoi_with_source diff
+
+    echo "==> [plan] Checking available Arch updates without installing..."
+    if command -v checkupdates >/dev/null 2>&1; then
+        check_rc=0
+        maintenance_run checkupdates || check_rc=$?
+        if [ "$check_rc" -ne 0 ] && [ "$check_rc" -ne 2 ]; then
+            exit "$check_rc"
+        fi
+    else
+        check_rc=0
+        maintenance_run pacman -Qu || check_rc=$?
+        if [ "$check_rc" -ne 0 ] && [ "$check_rc" -ne 1 ]; then
+            exit "$check_rc"
+        fi
+    fi
+
+    if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
+        echo "==> [plan] Checking stable-pin updates without mutating source..."
+        maintenance_run chezmoi-bump --dry-run --all --force
+    fi
+
+    echo "==> czl plan complete (network reads and cache writes may have occurred)."
+    exit 0
+fi
+
+if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
+    require_clean_chezmoi_source_for_bump czl
+fi
+
 if ! command -v sudo >/dev/null 2>&1; then
     echo "czl: sudo is required but was not found in PATH." >&2
     exit 1
 fi
 
-set_default_chezmoi_profile
-
-pacman_lock="/var/lib/pacman/db.lck"
+pacman_lock="${CZL_PACMAN_LOCK:-/var/lib/pacman/db.lck}"
 if [ -e "$pacman_lock" ]; then
     active_pkg_processes=""
     if command -v pgrep >/dev/null 2>&1; then
@@ -43,21 +99,25 @@ if [ -e "$pacman_lock" ]; then
     exit 1
 fi
 
-echo "==> [0/4] Refreshing sudo credentials..."
-sudo -v
+echo "==> Refreshing sudo credentials..."
+maintenance_run sudo -v
 
-echo "==> [1/4] Running czuf..."
-command czuf
+echo "==> Synchronizing and applying current chezmoi source..."
+maintenance_run czuf
 
-echo "==> [2/4] Updating Arch packages..."
-sudo pacman -Syu --noconfirm
+echo "==> Updating Arch packages..."
+maintenance_run sudo pacman -Syu --noconfirm
 
-echo "==> [3/4] Running chezmoi-bump --all..."
-command chezmoi-bump --all --force
+if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
+    echo "==> Updating stable source pins atomically..."
+    maintenance_run chezmoi-bump --all --force
+else
+    echo "==> System-only mode: skipping stable-pin updates."
+fi
 
-echo "==> [4/4] Re-applying bumped stable pins..."
-run_with_optional_output_sanitizer \
-    env TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
-    chezmoi apply --refresh-externals --force
+echo "==> Re-applying stable pins for Arch convergence..."
+TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 \
+    run_with_optional_output_sanitizer \
+    run_chezmoi_with_source apply --refresh-externals --force
 
 echo "==> czl complete."
