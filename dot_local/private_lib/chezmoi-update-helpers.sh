@@ -127,6 +127,97 @@ set_default_chezmoi_profile() {
     fi
 }
 
+parse_cz_maintenance_args() {
+    local command_name="$1"
+    shift
+
+    CZ_MAINTENANCE_SYSTEM_ONLY=false
+    CZ_MAINTENANCE_BUMP_EXPLICIT=false
+    CZ_MAINTENANCE_PLAN=false
+    CZ_MAINTENANCE_HELP=false
+    VERBOSE="${VERBOSE:-false}"
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --system-only) CZ_MAINTENANCE_SYSTEM_ONLY=true ;;
+            --bump-pins) CZ_MAINTENANCE_BUMP_EXPLICIT=true ;;
+            --plan) CZ_MAINTENANCE_PLAN=true ;;
+            --verbose|-v) VERBOSE=true ;;
+            --help|-h) CZ_MAINTENANCE_HELP=true ;;
+            *)
+                printf '%s: unknown argument: %s\n' "$command_name" "$1" >&2
+                return 2
+                ;;
+        esac
+        shift
+    done
+
+    if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "true" ] && [ "$CZ_MAINTENANCE_BUMP_EXPLICIT" = "true" ]; then
+        printf '%s: --system-only conflicts with --bump-pins\n' "$command_name" >&2
+        return 2
+    fi
+
+    export VERBOSE
+}
+
+maintenance_run() {
+    if [ "${VERBOSE:-false}" = "true" ]; then
+        printf '+ '
+        printf '%q ' "$@"
+        printf '\n'
+    fi
+    "$@"
+}
+
+chezmoi_jj_diff_summary() {
+    resolve_chezmoi_source_dir || return $?
+    jj -R "$CHEZMOI_SOURCE_DIR_RESOLVED" diff -r @ --summary
+}
+
+require_clean_chezmoi_source_for_bump() {
+    local command_name="$1"
+    local summary
+
+    if ! summary="$(chezmoi_jj_diff_summary)"; then
+        chezmoi_update_error "failed to inspect the current jj working-copy change"
+        return 1
+    fi
+
+    if [ -n "$summary" ]; then
+        printf '%s: pin-bump mode requires a clean current jj change.\n' "$command_name" >&2
+        printf '%s: commit/split the source changes, or rerun with --system-only.\n' "$command_name" >&2
+        printf '%s\n' "$summary" >&2
+        return 1
+    fi
+}
+
+chezmoi_source_has_changes() {
+    local summary
+
+    summary="$(chezmoi_jj_diff_summary)" || return 2
+    [ -n "$summary" ]
+}
+
+chezmoi_plan_jj_update() {
+    local repo remote
+
+    resolve_chezmoi_source_dir || return $?
+    repo="$CHEZMOI_SOURCE_DIR_RESOLVED"
+    remote="${CHEZMOI_JJ_REMOTE:-${JJ_REMOTE:-origin}}"
+
+    if ! command -v jj-sync-trunk >/dev/null 2>&1; then
+        chezmoi_update_error "jj-sync-trunk is required but was not found in PATH"
+        return 1
+    fi
+
+    if [ "${VERBOSE:-false}" = "true" ]; then
+        (cd "$repo" && maintenance_run jj-sync-trunk --dry-run --no-fetch --remote "$remote") || return $?
+        return 0
+    fi
+
+    (cd "$repo" && jj-sync-trunk --dry-run --no-fetch --remote "$remote" >/dev/null) || return $?
+}
+
 chezmoi_prepare_jj_update() {
     local repo remote
 
