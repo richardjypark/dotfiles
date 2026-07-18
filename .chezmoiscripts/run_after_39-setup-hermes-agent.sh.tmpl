@@ -26,6 +26,9 @@ HERMES_EXTRAS=(
 {{- end }}
 PYTHON_VERSION="{{ .python.version }}"
 {{- with .hermes.preferences }}
+HERMES_MODEL_PROVIDER="{{ .model_provider }}"
+HERMES_MODEL="{{ .model }}"
+HERMES_MODEL_BASE_URL="{{ .model_base_url }}"
 HERMES_SHOW_REASONING="{{ .show_reasoning }}"
 HERMES_REASONING_EFFORT="{{ .reasoning_effort }}"
 HERMES_SERVICE_TIER="{{ .service_tier }}"
@@ -755,7 +758,12 @@ ensure_public_hermes_preferences() {
     # This run_after script runs on every chezmoi apply. Keep public dotfiles
     # from tracking the full Hermes runtime config while still converging
     # stable, non-sensitive preferences from .chezmoidata.toml. API keys and
-    # machine-local provider details remain in ~/.hermes/config.yaml or .env.
+    # machine-local credentials remain in ~/.hermes/config.yaml or .env.
+    run_quiet run_hermes_cli config set model.provider "$HERMES_MODEL_PROVIDER"
+    run_quiet run_hermes_cli config set model.default "$HERMES_MODEL"
+    run_quiet run_hermes_cli config set model.base_url "$HERMES_MODEL_BASE_URL"
+    run_quiet run_hermes_cli config set model.api_key ""
+    run_quiet run_hermes_cli config set model.api_mode ""
     run_quiet run_hermes_cli config set display.show_reasoning "$HERMES_SHOW_REASONING"
     run_quiet run_hermes_cli config set agent.reasoning_effort "$HERMES_REASONING_EFFORT"
     run_quiet run_hermes_cli config set agent.service_tier "$HERMES_SERVICE_TIER"

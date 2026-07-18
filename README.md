@@ -214,16 +214,20 @@ this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensit
 Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]` and
 `[hermes.delegation]`, and the always-run Hermes setup script reapplies them
 with `hermes config set` on each
-`chezmoi apply`: `display.show_reasoning=true`, `agent.reasoning_effort=xhigh`,
-`agent.service_tier=fast`, `agent.max_turns=1000`, `goals.max_turns=1000`,
-`model.context_length=500000`, and `tui_by_default=true`. Delegated subtasks use
+`chezmoi apply`: `model.provider=openai-codex`, `model.default=gpt-5.6-luna`,
+`model.base_url=https://chatgpt.com/backend-api/codex`,
+`display.show_reasoning=true`, `agent.reasoning_effort=medium`,
+`agent.service_tier=""` (normal speed), `agent.max_turns=1000`,
+`goals.max_turns=1000`, `model.context_length=500000`, and
+`tui_by_default=true`. Delegated subtasks use
 `delegation.provider=openai-codex`, `delegation.model=gpt-5.3-codex-spark`, and
 `delegation.reasoning_effort=high`, so quick reviewers, repo inspectors, and
-other spawned subagents do not inherit the heavier default chat model. Existing
+other spawned subagents retain their dedicated fast route instead of inheriting
+the main-agent default. Existing
 Hermes sessions keep their startup delegation config; start a new CLI session or
-restart the gateway to pick up delegation changes. On OpenAI
-flagship models this enables Priority Processing; on eligible native Anthropic
-models it maps to Fast Mode. Unsupported models ignore the fast-path override.
+restart the gateway to pick up delegation changes. The empty main-agent
+service tier explicitly keeps normal processing rather than OpenAI Priority
+Processing or Anthropic Fast Mode.
 The setup also keeps `~/.agents/skills` in Hermes'
 `skills.external_dirs`, so shared repo-managed skills such as
 `karpathy-guidelines` and `deli-auto-research` are available while local
@@ -233,7 +237,7 @@ budget for long `/goal` runs while retaining a runaway-loop guardrail. When
 `tui_by_default` is enabled, the managed
 `~/.local/bin/hermes` launcher sets `HERMES_TUI=1` for interactive terminals
 unless already set, so `hermes` opens the richer TUI status line. That status
-line includes the current model reasoning effort (for example `xhigh`) and the
+line includes the current model reasoning effort (for example `medium`) and the
 launch working directory with git branch or the current jj workspace plus nearest
 jj bookmark, using a wider right-side budget so roomy terminals show enough of
 deep paths to disambiguate similar checkouts. The setup script
