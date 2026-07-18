@@ -75,4 +75,4 @@ Use role/profile conditions in templates/scripts before adding hostname-specific
 - full pin-bump mode rejects a dirty current JJ change before sudo, package-manager, or source mutation. System-only and plan modes permit dirty source.
 - plan mode performs no fetch/rebase/config write, package installation, tracked-source mutation, or destination apply. It may perform network reads/cache writes while running `jj-sync-trunk --dry-run --no-fetch`, `chezmoi diff`, read-only package checks, and `chezmoi-bump --dry-run --all --force`.
 - `chezmoi-bump --all` owns an invocation-level transaction across generic and Pi source targets. A later dependency failure or catchable signal restores every snapshot and releases the private `${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi-maintenance/chezmoi-bump` lock. Ambiguous stale locks are reported, not auto-removed.
-- `chezmoi-bump pi` resolves to the newest `@mariozechner/pi-coding-agent` version that already satisfies `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`
+- `chezmoi-bump pi` resolves to the newest `@earendil-works/pi-coding-agent` version that already satisfies `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`

@@ -11,7 +11,8 @@ The apply-time setup script installs this project with:
 - reinstall-on-state/lockfile drift, even when the top-level `pi` version is unchanged
 - optional `CHEZMOI_NPM_REGISTRY` support for an internal npm proxy
 - a default 3-day npm publish-age delay via `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`, enforced across every versioned package in the committed lockfile
-- `chezmoi-bump pi` resolves the newest `@mariozechner/pi-coding-agent` version that already satisfies that publish-age delay and regenerates both committed Pi lockfiles
+- `chezmoi-bump pi` resolves the newest `@earendil-works/pi-coding-agent` version that already satisfies that publish-age delay and regenerates both committed Pi lockfiles
+- Pi 0.80.8 and newer refresh configured provider catalogs automatically; `pi update --models` forces a catalog-only refresh without bypassing the managed CLI pin
 - a pinned `pi-autoresearch` git source instead of mutable repo HEAD
 
 The resulting binary is linked to:
@@ -23,9 +24,10 @@ The resulting binary is linked to:
 ## Local Pi Agent Settings Override
 
 This repo tracks a default `~/.pi/agent/settings.json` with
-`defaultModel = "gpt-5.6-luna"` and `defaultThinkingLevel = "medium"`.
-The tracked `~/.pi/agent/models.json` adds this OpenAI Codex model ID until it
-is available in Pi's built-in model catalog.
+`defaultModel = "gpt-5.6-sol"` and `defaultThinkingLevel = "xhigh"` (Pi's
+maximum reasoning level). The tracked `~/.pi/agent/models.json` intentionally
+has no model overrides, so Pi's built-in and refreshed provider catalogs remain
+authoritative.
 
 To override Pi settings just for this machine (without committing anything), create:
 

@@ -82,7 +82,7 @@ ALL_DEPS=(
     "tailscale|tailscale/tailscale|raw|pkgs_tailscale|2"
     "chezmoi|twpayne/chezmoi|raw|checksums_txt|4"
     "claude|npm:@anthropic-ai/claude-code|raw|none|0"
-    "pi|npm:@mariozechner/pi-coding-agent|raw|none|0"
+    "pi|npm:@earendil-works/pi-coding-agent|raw|none|0"
     "nvm|nvm-sh/nvm|v|none|0"
     "fzf|junegunn/fzf|raw|none|0"
     "zsh-syntax-highlighting|zsh-users/zsh-syntax-highlighting|raw|none|0"
@@ -576,8 +576,8 @@ get_current_pi_version() {
     local settings_file="$CHEZMOI_DIR/dot_pi/agent/settings.json"
     local cli_version agent_version settings_version
 
-    cli_version="$(sed -n 's/.*"@mariozechner\/pi-coding-agent":[[:space:]]*"\([^"]*\)".*/\1/p' "$cli_file" | head -1)"
-    agent_version="$(sed -n 's/.*"@mariozechner\/pi-coding-agent":[[:space:]]*"\([^"]*\)".*/\1/p' "$agent_file" | head -1)"
+    cli_version="$(sed -n 's/.*"@earendil-works\/pi-coding-agent":[[:space:]]*"\([^"]*\)".*/\1/p' "$cli_file" | head -1)"
+    agent_version="$(sed -n 's/.*"@earendil-works\/pi-coding-agent":[[:space:]]*"\([^"]*\)".*/\1/p' "$agent_file" | head -1)"
     settings_version="$(sed -n 's/.*"lastChangelogVersion":[[:space:]]*"\([^"]*\)".*/\1/p' "$settings_file" | head -1)"
 
     if [ -z "$cli_version" ] || [ -z "$agent_version" ] || [ -z "$settings_version" ]; then
@@ -2255,8 +2255,8 @@ pi_write_version_literals() {
     while IFS= read -r file; do
         if ! replace_literal_once \
             "$file" \
-            "\"@mariozechner/pi-coding-agent\": \"${current}\"" \
-            "\"@mariozechner/pi-coding-agent\": \"${latest}\""
+            "\"@earendil-works/pi-coding-agent\": \"${current}\"" \
+            "\"@earendil-works/pi-coding-agent\": \"${latest}\""
         then
             tx_fail "Failed to update $(display_repo_path "$file")"
             return 1
@@ -2337,8 +2337,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as fh:
 
 packages = data.get('packages') or {}
 root = packages.get('') or {}
-installed = packages.get('node_modules/@mariozechner/pi-coding-agent') or {}
-root_version = (root.get('dependencies') or {}).get('@mariozechner/pi-coding-agent', '')
+installed = packages.get('node_modules/@earendil-works/pi-coding-agent') or {}
+root_version = (root.get('dependencies') or {}).get('@earendil-works/pi-coding-agent', '')
 installed_version = installed.get('version', '')
 print(f'{root_version}|{installed_version}')
 PY
@@ -2385,7 +2385,7 @@ print_pi_bump_plan() {
     settings_file="$(pi_settings_file)"
 
     while IFS= read -r file; do
-        echo "    $(display_repo_path "$file") @mariozechner/pi-coding-agent: ${current} → ${latest}"
+        echo "    $(display_repo_path "$file") @earendil-works/pi-coding-agent: ${current} → ${latest}"
     done <<EOF
 $(pi_package_json_files)
 EOF
@@ -2437,7 +2437,7 @@ write_pi_manifest_json() {
       "type": "literal",
       "file": "$(json_escape "$cli_pkg")",
       "section": "",
-      "key": "@mariozechner/pi-coding-agent",
+      "key": "@earendil-works/pi-coding-agent",
       "old": "$(json_escape "$current")",
       "new": "$(json_escape "$latest")",
       "description": "$(json_escape "$(display_repo_path "$cli_pkg") dependency")",
@@ -2447,7 +2447,7 @@ write_pi_manifest_json() {
       "type": "literal",
       "file": "$(json_escape "$agent_pkg")",
       "section": "",
-      "key": "@mariozechner/pi-coding-agent",
+      "key": "@earendil-works/pi-coding-agent",
       "old": "$(json_escape "$current")",
       "new": "$(json_escape "$latest")",
       "description": "$(json_escape "$(display_repo_path "$agent_pkg") dependency")",
