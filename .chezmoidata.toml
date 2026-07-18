@@ -64,9 +64,12 @@ ref = "9ba4615db2be22d307f4d29501cde6da7c9a3d83"
 extras = ["messaging", "cli", "pty", "honcho", "mcp", "acp"]
 
 [hermes.preferences]
+model_provider = "openai-codex"
+model = "gpt-5.6-luna"
+model_base_url = "https://chatgpt.com/backend-api/codex"
 show_reasoning = true
-reasoning_effort = "xhigh"
-service_tier = "fast"
+reasoning_effort = "medium"
+service_tier = ""
 agent_max_turns = 1000
 goals_max_turns = 1000
 context_length = 500000
