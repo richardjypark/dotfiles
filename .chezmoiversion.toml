@@ -1,8 +1,8 @@
 [versions]
-fzf = "0.74.0"
+fzf = "0.74.1"
 neovim = "v0.12.4"
 jj = "v0.43.0"
-codex = "rust-v0.144.5"
+codex = "rust-v0.144.6"
 uv = "0.11.29"
 go = "go1.26.2"
 starship = "v1.26.0"
