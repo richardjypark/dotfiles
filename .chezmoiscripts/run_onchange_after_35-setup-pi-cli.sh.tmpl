@@ -2,7 +2,7 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-cli/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
+EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-cli/package.json") | fromJson).dependencies) "@earendil-works/pi-coding-agent" }}"
 PI_CLI_LOCKFILE_HASH="{{ include "dot_local/share/pi-cli/package-lock.json" | sha256sum }}"
 PI_CLI_PROJECT_DIR="$HOME/.local/share/pi-cli"
 PI_CLI_PACKAGE_JSON="$PI_CLI_PROJECT_DIR/package.json"
@@ -31,10 +31,6 @@ current_pi_cmd() {
     if [ -n "$pi_path" ] && [ -x "$pi_path" ]; then
         printf '%s\n' "$pi_path"
     fi
-}
-
-pi_binary_ready() {
-    [ -n "$(current_pi_cmd)" ]
 }
 
 list_pi_autoresearch_sources() {
@@ -145,11 +141,11 @@ if should_skip_state "$PI_AUTORESEARCH_STATE"; then
 fi
 
 if [ "$PI_CLI_STATE_CURRENT" -eq 1 ] && [ "$PI_AUTORESEARCH_STATE_CURRENT" -eq 1 ]; then
-    if managed_pi_binary_ready && pi_binary_ready && pi_autoresearch_installed; then
+    if managed_pi_binary_ready && [ "$PI_LINK_BIN" -ef "$PI_MANAGED_BIN" ] && pi_autoresearch_installed; then
         vecho "Pi CLI and pinned pi packages already completed (state tracked)"
         exit 0
     fi
-    vecho "Pi CLI state exists but managed binary or pinned package is missing; re-running setup."
+    vecho "Pi CLI state exists but the managed link, binary, or pinned package is missing; re-running setup."
 fi
 
 if [ ! -f "$PI_CLI_PACKAGE_JSON" ] || [ ! -f "$PI_CLI_LOCKFILE" ]; then

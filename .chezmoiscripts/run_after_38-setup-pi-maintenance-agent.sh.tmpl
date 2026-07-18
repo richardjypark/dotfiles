@@ -3,7 +3,7 @@ set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
 MARKER_FILE="$HOME/.config/dotfiles/pi-maintenance-agent.enabled"
-EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@mariozechner/pi-coding-agent" }}"
+EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@earendil-works/pi-coding-agent" }}"
 PI_AGENT_LOCKFILE_HASH="{{ include "dot_local/share/pi-maintenance-agent/package-lock.json" | sha256sum }}"
 PI_AGENT_STATE="pi-maintenance-agent-${EXPECTED_PI_VERSION}-${PI_AGENT_LOCKFILE_HASH}"
 

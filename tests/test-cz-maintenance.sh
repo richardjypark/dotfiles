@@ -184,7 +184,7 @@ case "$url" in
         response="{\"tag_name\":\"${MOCK_TAILSCALE_LATEST}\"}" ;;
     *"/repos/twpayne/chezmoi/releases/latest")
         response="{\"tag_name\":\"${MOCK_CHEZMOI_LATEST}\"}" ;;
-    *"/registry.npmjs.org/%40mariozechner%2Fpi-coding-agent")
+    *"/registry.npmjs.org/%40earendil-works%2Fpi-coding-agent")
         response="{\"dist-tags\":{\"latest\":\"${MOCK_PI_LATEST}\"},\"time\":{\"1.0.0\":\"2024-01-01T00:00:00.000Z\",\"${MOCK_PI_LATEST}\":\"2024-01-01T00:00:00.000Z\"}}" ;;
     *"/registry.npmjs.org/%40anthropic-ai%2Fclaude-code")
         response="{\"dist-tags\":{\"latest\":\"${MOCK_CLAUDE_LATEST}\"}}" ;;
@@ -225,7 +225,7 @@ if [ ! -f "$PWD/package.json" ]; then
     exit 0
 fi
 
-current_version="$(sed -n 's/.*"@mariozechner\/pi-coding-agent"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PWD/package.json" | head -1)"
+current_version="$(sed -n 's/.*"@earendil-works\/pi-coding-agent"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PWD/package.json" | head -1)"
 if [ -z "$current_version" ]; then
     current_version="1.0.0"
 fi
@@ -237,8 +237,8 @@ fi
 cat > package-lock.json <<PKGLOCK_EOF
 {
   "packages": {
-    "": { "dependencies": { "@mariozechner/pi-coding-agent": "${current_version}" } },
-    "node_modules/@mariozechner/pi-coding-agent": { "version": "${current_version}" }
+    "": { "dependencies": { "@earendil-works/pi-coding-agent": "${current_version}" } },
+    "node_modules/@earendil-works/pi-coding-agent": { "version": "${current_version}" }
   }
 }
 PKGLOCK_EOF
@@ -326,7 +326,7 @@ EOF
 {
   "name": "pi-cli",
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "1.0.0"
+    "@earendil-works/pi-coding-agent": "1.0.0"
   }
 }
 EOF
@@ -335,7 +335,7 @@ EOF
 {
   "name": "pi-maintenance-agent",
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "1.0.0"
+    "@earendil-works/pi-coding-agent": "1.0.0"
   }
 }
 EOF
@@ -343,8 +343,8 @@ EOF
     cat >"${chezmoi_dir}/dot_local/share/pi-cli/package-lock.json" <<'EOF'
 {
   "packages": {
-    "": { "dependencies": { "@mariozechner/pi-coding-agent": "1.0.0" } },
-    "node_modules/@mariozechner/pi-coding-agent": { "version": "1.0.0" }
+    "": { "dependencies": { "@earendil-works/pi-coding-agent": "1.0.0" } },
+    "node_modules/@earendil-works/pi-coding-agent": { "version": "1.0.0" }
   }
 }
 EOF
@@ -505,7 +505,7 @@ test_atomic_rollback_on_inner_failure() {
     assert_path_absent "${fixture_dir}/.local/state/chezmoi-maintenance/chezmoi-bump" "Outer lock removed on failure"
     assert_toml_section_value "${fixture_dir}/.local/share/chezmoi/.chezmoidata.toml" "pinned.neovim" "version" "1.0.0" "Neovim pin restored after failure"
     assert_toml_section_value "${fixture_dir}/.local/share/chezmoi/.chezmoiversion.toml" "versions" "neovim" "1.0.0" "Neovim version manifest restored after failure"
-    assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@mariozechner/pi-coding-agent": "1.0.0"' "Pi package version restored after failure"
+    assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@earendil-works/pi-coding-agent": "1.0.0"' "Pi package version restored after failure"
     assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_pi/agent/settings.json" '"lastChangelogVersion": "1.0.0"' "Pi settings restored after failure"
 
     rm -rf "$fixture_dir"
@@ -532,7 +532,7 @@ test_atomic_success_multiple_targets() {
     assert_eq "$status" "0" "--all should succeed when all updated dependencies apply"
     assert_toml_section_value "${fixture_dir}/.local/share/chezmoi/.chezmoidata.toml" "pinned.neovim" "version" "v2.0.0" "Neovim pin updated"
     assert_toml_section_value "${fixture_dir}/.local/share/chezmoi/.chezmoiversion.toml" "versions" "neovim" "v2.0.0" "Neovim version manifest updated"
-    assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@mariozechner/pi-coding-agent": "2.0.0"' "Pi package updated"
+    assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@earendil-works/pi-coding-agent": "2.0.0"' "Pi package updated"
     assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_pi/agent/settings.json" '"lastChangelogVersion": "2.0.0"' "Pi settings updated"
 
     rm -rf "$fixture_dir"
@@ -609,7 +609,7 @@ test_signal_rolls_back() {
     fi
     assert_file_contains "$log" "Rolling back all dependency changes" "Signal rollback should be logged"
     assert_toml_section_value "${fixture_dir}/.local/share/chezmoi/.chezmoidata.toml" "pinned.neovim" "version" "1.0.0" "Neovim pin restored after signal"
-    assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@mariozechner/pi-coding-agent": "1.0.0"' "Pi package restored after signal"
+    assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@earendil-works/pi-coding-agent": "1.0.0"' "Pi package restored after signal"
     assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_pi/agent/settings.json" '"lastChangelogVersion": "1.0.0"' "Pi settings restored after signal"
     assert_path_absent "${fixture_dir}/.local/state/chezmoi-maintenance/chezmoi-bump" "Lock removed after signal"
 
@@ -648,7 +648,7 @@ test_no_rollback_flag_keeps_outer_atomicity() {
     fi
     assert_file_contains "$log" "Rolling back all dependency changes" "Outer rollback remains enabled with --no-rollback"
     assert_toml_section_value "${fixture_dir}/.local/share/chezmoi/.chezmoidata.toml" "pinned.neovim" "version" "1.0.0" "Outer rollback restores Neovim with --no-rollback"
-    assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@mariozechner/pi-coding-agent": "1.0.0"' "Outer rollback restores Pi with --no-rollback"
+    assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@earendil-works/pi-coding-agent": "1.0.0"' "Outer rollback restores Pi with --no-rollback"
     assert_path_absent "${fixture_dir}/.local/state/chezmoi-maintenance/chezmoi-bump" "Outer lock removed with --no-rollback"
 
     rm -rf "$fixture_dir"
