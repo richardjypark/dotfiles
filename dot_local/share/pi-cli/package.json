@@ -4,6 +4,6 @@
   "version": "0.1.0",
   "description": "Machine-local managed pi CLI install built from a committed lockfile",
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.80.7"
+    "@earendil-works/pi-coding-agent": "0.80.10"
   }
 }
