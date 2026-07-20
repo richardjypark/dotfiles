@@ -178,7 +178,11 @@ repo_trunk_value=""
 needs_repo_override=0
 
 if [ "$fetch_remote" -eq 1 ]; then
-    jj --ignore-working-copy --quiet -R "$repo_root" git fetch --remote "$remote"
+    if ! jj --ignore-working-copy --quiet -R "$repo_root" git fetch --remote "$remote"; then
+        echo "jj-sync-trunk: failed to fetch remote: $remote" >&2
+        echo "Check Git credentials and repository access, then run: jj git fetch --remote $remote" >&2
+        exit 1
+    fi
 fi
 
 if ! source_commit="$(jj --ignore-working-copy -R "$repo_root" log -r "$source_revset" --no-graph --template 'commit_id' 2>/dev/null)"; then
