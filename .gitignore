@@ -26,3 +26,7 @@ plans/[0-9]*.md
 *.pfx
 *credentials*.json
 *secrets*.json
+
+# Generated OpenRouter Agent dependencies and build output.
+/dot_local/share/openrouter-agent/node_modules/
+/dot_local/share/openrouter-agent/dist/

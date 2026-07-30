@@ -1,6 +1,13 @@
 README*
 plans/[0-9]*.md
 
+# Machine-local environment files are never chezmoi targets, even if they exist in the source tree.
+.env
+.env.*
+**/.env
+**/.env.*
+**/*.env
+
 # Repo-only CI/hooks/secret-scan guardrails; keep out of rendered home targets.
 .github/
 .githooks/
@@ -103,4 +110,14 @@ logs/*
 .config/systemd/user/pi-maintenance-agent.service
 .config/systemd/user/pi-maintenance-agent.timer
 .local/share/pi-maintenance-agent
+{{ end }}
+
+# OpenRouter Agent is an explicit paid-credit fallback, opt-in per machine.
+# Generated dependencies/builds and repository tests are never chezmoi-managed.
+.local/share/openrouter-agent/node_modules
+.local/share/openrouter-agent/dist
+.local/share/openrouter-agent/test
+{{ $openrouter_agent_enabled := stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "openrouter-agent.enabled") }}
+{{ if not $openrouter_agent_enabled }}
+.local/share/openrouter-agent
 {{ end }}
