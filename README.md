@@ -254,6 +254,69 @@ Removing `~/.config/dotfiles/hermes-agent-gateway.enabled` and re-running `chezm
 the gateway user service on that machine. Removing the install marker stops future managed setup but
 leaves the local checkout and `~/.hermes/` data in place for manual review/removal.
 
+### Optional OpenRouter paid-credit reserve agent
+
+`openrouter-agent` is a separate, manually invoked TypeScript TUI for times when the normal Codex
+allowance is unavailable. It does **not** change Hermes' default `openai-codex` route, add an
+automatic provider fallback, or spend OpenRouter credits in the background. Installation is
+disabled by default and is opt-in per machine:
+
+```bash
+install -d -m 700 ~/.config/dotfiles
+install -m 600 /dev/null ~/.config/dotfiles/openrouter-agent.enabled
+TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
+```
+
+The setup uses the committed npm lockfile, enforces the repository's npm publish-age policy,
+disables dependency lifecycle scripts, builds under `~/.local/share/openrouter-agent/`, and creates
+`~/.local/bin/openrouter-agent`. The real credential is machine-local and must never be added to
+chezmoi. Either export `OPENROUTER_API_KEY` only for the process that launches the command, or create
+the private runtime file without putting the value in shell history:
+
+```bash
+install -d -m 700 ~/.hermes
+install -m 600 /dev/null ~/.hermes/.env
+$EDITOR ~/.hermes/.env
+# Add this inside the editor: OPENROUTER_API_KEY=<your dedicated key>
+chmod 600 ~/.hermes/.env
+
+openrouter-agent --doctor  # local validation only; no OpenRouter request
+openrouter-agent --demo    # offline UI demo; no key or network request
+openrouter-agent           # explicit paid-credit session
+```
+
+Both `~/.config/dotfiles/` and `~/.hermes/` must be current-user-owned real directories that are not
+writable by group or others. The marker and credential must be current-user-owned regular files,
+not symlinks; the credential must be exactly mode `0600`.
+
+Use a dedicated OpenRouter key with an expiry and conservative account spending limit. The managed
+defaults stop one agent turn when it reaches 24 steps or USD 0.25 in reported cost, do not
+automatically retry ambiguous paid failures, request `data_collection=deny`, require routed
+providers to support request parameters, and use `openai/gpt-5.6-luna` over the Responses API.
+When Luna is unavailable or undesirable, explicitly select the checked-in Kimi K3 profile for one
+process; it uses Chat Completions and permits endpoint fallback only among providers serving that
+same model:
+
+```bash
+OPENROUTER_AGENT_MODEL=moonshotai/kimi-k3 openrouter-agent
+```
+
+Only models in the managed `modelProfiles` map are accepted, and transport cannot be overridden by
+the environment. `OPENROUTER_AGENT_MAX_STEPS`, `OPENROUTER_AGENT_MAX_OUTPUT_TOKENS`, and
+`OPENROUTER_AGENT_MAX_COST_USD` may lower their checked-in ceilings for a process but cannot raise
+them. The output-token ceiling applies to each Kimi Chat request; the cost limit prevents an
+additional tool-driven request after reported cumulative cost reaches the limit, but no client-side
+limit can guarantee the cost of an already-submitted request. Tool calls that write/edit files or
+run shell commands pause for a real yes/no approval. File tools stay inside the directory where the
+command was launched and refuse common credential paths. Interactive use also refuses `$HOME`
+itself as a workspace; start the command inside a specific project directory. Sessions are private
+files under `${XDG_STATE_HOME:-~/.local/state}/openrouter-agent/sessions/`, outside this repository.
+
+To disable the command, remove `~/.config/dotfiles/openrouter-agent.enabled` and run `chezmoi apply`.
+To prevent all future OpenRouter use, also remove only the `OPENROUTER_API_KEY` entry from the
+machine-local environment/file and revoke the dedicated key in OpenRouter. Do not delete
+`~/.hermes/.env` wholesale if it contains unrelated local credentials.
+
 ## Pi Maintenance Agent
 
 On macOS and Omarchy hosts, `chezmoi apply` installs the managed local `pi` CLI from a committed lockfile and ensures the `pi-autoresearch` package is present from a pinned git commit for that user profile.

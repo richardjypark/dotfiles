@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+MARKER_FILE="$HOME/.config/dotfiles/openrouter-agent.enabled"
+MARKER_DIR="$(dirname "$MARKER_FILE")"
+APP_DIR="$HOME/.local/share/openrouter-agent"
+APP_CLI="$APP_DIR/dist/src/cli.js"
+LINK_BIN="$HOME/.local/bin/openrouter-agent"
+INSTALL_STAMP="$APP_DIR/.npm-install-lock-hash"
+INSTALL_LOCK="$APP_DIR/.install.lock"
+EXPECTED_LOCK_HASH="{{ include "dot_local/share/openrouter-agent/package-lock.json" | sha256sum }}"
+EXPECTED_SOURCE_HASH="{{ list (include "dot_local/share/openrouter-agent/package.json") (include "dot_local/share/openrouter-agent/tsconfig.json") (include "dot_local/share/openrouter-agent/agent.config.json") (include "dot_local/share/openrouter-agent/src/agent.ts") (include "dot_local/share/openrouter-agent/src/banner.ts") (include "dot_local/share/openrouter-agent/src/chat-agent.ts") (include "dot_local/share/openrouter-agent/src/cli.ts") (include "dot_local/share/openrouter-agent/src/commands.ts") (include "dot_local/share/openrouter-agent/src/config.ts") (include "dot_local/share/openrouter-agent/src/input.ts") (include "dot_local/share/openrouter-agent/src/loader.ts") (include "dot_local/share/openrouter-agent/src/renderer.ts") (include "dot_local/share/openrouter-agent/src/security.ts") (include "dot_local/share/openrouter-agent/src/session.ts") (include "dot_local/share/openrouter-agent/src/workspace.ts") (include "dot_local/share/openrouter-agent/src/tools/file-edit.ts") (include "dot_local/share/openrouter-agent/src/tools/file-read.ts") (include "dot_local/share/openrouter-agent/src/tools/file-write.ts") (include "dot_local/share/openrouter-agent/src/tools/glob.ts") (include "dot_local/share/openrouter-agent/src/tools/grep.ts") (include "dot_local/share/openrouter-agent/src/tools/index.ts") (include "dot_local/share/openrouter-agent/src/tools/list-dir.ts") (include "dot_local/share/openrouter-agent/src/tools/shell.ts") | join "\n--managed-source-boundary--\n" | sha256sum }}"
+EXPECTED_BUILD_HASH="${EXPECTED_LOCK_HASH}-${EXPECTED_SOURCE_HASH}"
+MARKER_RENDERED_ENABLED="{{ if stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "openrouter-agent.enabled") }}1{{ else }}0{{ end }}"
+
+remove_managed_install() {
+    local target=""
+    if [ -L "$LINK_BIN" ]; then
+        target="$(readlink "$LINK_BIN" 2>/dev/null || true)"
+        if [ "$target" = "$APP_CLI" ]; then
+            rm -f "$LINK_BIN"
+        fi
+    fi
+    rm -rf "$APP_DIR"
+}
+
+path_mode() {
+    local path="$1"
+    if stat -c '%a' "$path" >/dev/null 2>&1; then
+        stat -c '%a' "$path"
+    else
+        stat -f '%Lp' "$path"
+    fi
+}
+
+path_owner() {
+    local path="$1"
+    if stat -c '%u' "$path" >/dev/null 2>&1; then
+        stat -c '%u' "$path"
+    else
+        stat -f '%u' "$path"
+    fi
+}
+
+validate_marker() {
+    local mode mode_decimal
+    if [ -L "$MARKER_DIR" ] || [ ! -d "$MARKER_DIR" ]; then
+        eecho "Error: $MARKER_DIR must be a directory, not a symlink."
+        return 1
+    fi
+    if [ "$(path_owner "$MARKER_DIR")" != "$(id -u)" ]; then
+        eecho "Error: $MARKER_DIR must be owned by the current user."
+        return 1
+    fi
+    mode="$(path_mode "$MARKER_DIR")"
+    mode_decimal=$((8#$mode))
+    if (( (mode_decimal & 8#022) != 0 )); then
+        eecho "Error: $MARKER_DIR must not be writable by group or others."
+        return 1
+    fi
+    if [ -L "$MARKER_FILE" ] || [ ! -f "$MARKER_FILE" ]; then
+        eecho "Error: $MARKER_FILE must be a regular file, not a symlink."
+        return 1
+    fi
+    if [ "$(path_owner "$MARKER_FILE")" != "$(id -u)" ]; then
+        eecho "Error: $MARKER_FILE must be owned by the current user."
+        return 1
+    fi
+    mode="$(path_mode "$MARKER_FILE")"
+    mode_decimal=$((8#$mode))
+    if (( (mode_decimal & 8#022) != 0 )); then
+        eecho "Error: $MARKER_FILE must not be writable by group or others."
+        return 1
+    fi
+}
+
+acquire_install_lock() {
+    local owner_pid=""
+    if mkdir "$INSTALL_LOCK" 2>/dev/null; then
+        printf '%s\n' "$$" > "$INSTALL_LOCK/pid"
+        return 0
+    fi
+    owner_pid="$(cat "$INSTALL_LOCK/pid" 2>/dev/null || true)"
+    if [ -n "$owner_pid" ] && kill -0 "$owner_pid" 2>/dev/null; then
+        eecho "Error: another OpenRouter Agent installation is running (PID $owner_pid)."
+        return 1
+    fi
+    rm -rf "$INSTALL_LOCK"
+    mkdir "$INSTALL_LOCK"
+    printf '%s\n' "$$" > "$INSTALL_LOCK/pid"
+}
+
+release_install_lock() {
+    rm -rf "$INSTALL_LOCK"
+}
+
+if [ ! -e "$MARKER_FILE" ] && [ ! -L "$MARKER_FILE" ]; then
+    remove_managed_install
+    vecho "OpenRouter Agent is disabled on this host"
+    exit 0
+fi
+
+validate_marker
+
+if [ "$MARKER_RENDERED_ENABLED" != "1" ]; then
+    eecho "Error: OpenRouter Agent marker appeared after chezmoi rendered its source set."
+    eecho "Run chezmoi apply again so the optional application files are rendered."
+    exit 1
+fi
+
+for required in package.json package-lock.json tsconfig.json agent.config.json src/cli.ts; do
+    if [ ! -f "$APP_DIR/$required" ]; then
+        eecho "Error: managed OpenRouter Agent source is missing $APP_DIR/$required"
+        exit 1
+    fi
+done
+
+mkdir -p "$HOME/.local/bin"
+acquire_install_lock
+trap release_install_lock EXIT
+trap 'release_install_lock; exit 130' INT TERM
+
+NEEDS_BUILD=0
+if [ ! -f "$APP_CLI" ]; then
+    NEEDS_BUILD=1
+fi
+for runtime_dependency in @openrouter/agent @openrouter/sdk dotenv glob zod; do
+    if [ ! -d "$APP_DIR/node_modules/$runtime_dependency" ]; then
+        NEEDS_BUILD=1
+        break
+    fi
+done
+if [ ! -f "$INSTALL_STAMP" ] || [ "$(cat "$INSTALL_STAMP" 2>/dev/null || true)" != "$EXPECTED_BUILD_HASH" ]; then
+    NEEDS_BUILD=1
+fi
+
+if [ "$NEEDS_BUILD" -eq 1 ]; then
+    if ! resolve_npm_cmd; then
+        eecho "Error: Node.js/npm is required for the optional OpenRouter Agent."
+        exit 1
+    fi
+    NODE_CMD="$(resolve_node_cmd || true)"
+    if [ -z "$NODE_CMD" ] || [ "$($NODE_CMD -p 'Number(process.versions.node.split(".")[0])')" -lt 22 ]; then
+        eecho "Error: OpenRouter Agent requires Node.js 22 or newer."
+        exit 1
+    fi
+    if ! require_trust_for_remote_installer "OpenRouter Agent npm dependencies"; then
+        exit 1
+    fi
+    if ! npm_require_minimum_lockfile_age "$APP_DIR/package-lock.json"; then
+        exit 1
+    fi
+
+    eecho "Installing and building the optional OpenRouter Agent from its committed lockfile..."
+    (
+        cd "$APP_DIR"
+        NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
+        NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
+            "$NPM_CMD" ci --include=dev --ignore-scripts --no-fund --no-audit
+        "$NPM_CMD" run build
+        NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
+        NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
+            "$NPM_CMD" prune --omit=dev --ignore-scripts --no-fund --no-audit
+    )
+    printf '%s\n' "$EXPECTED_BUILD_HASH" > "$INSTALL_STAMP"
+    chmod 0600 "$INSTALL_STAMP"
+fi
+
+if [ ! -f "$APP_CLI" ]; then
+    eecho "Error: OpenRouter Agent build did not produce $APP_CLI"
+    exit 1
+fi
+chmod 0755 "$APP_CLI"
+ln -sfn "$APP_CLI" "$LINK_BIN"
+"$LINK_BIN" --help >/dev/null
+
+eecho "OpenRouter Agent ready: $LINK_BIN"
+eecho "Run 'openrouter-agent --doctor' to validate the machine-local key without a network request."

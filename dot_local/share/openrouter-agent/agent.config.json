@@ -1,0 +1,23 @@
+{
+  "name": "OpenRouter Reserve Agent",
+  "model": "openai/gpt-5.6-luna",
+  "modelProfiles": {
+    "openai/gpt-5.6-luna": {
+      "transport": "responses",
+      "allowProviderFallbacks": false
+    },
+    "moonshotai/kimi-k3": {
+      "transport": "chat-completions",
+      "allowProviderFallbacks": true
+    }
+  },
+  "systemPrompt": "You are a careful coding assistant. Inspect before editing, keep changes scoped, explain risky actions before requesting approval, never expose credentials, and verify work with relevant tests.",
+  "maxSteps": 24,
+  "maxOutputTokens": 4096,
+  "maxCostUsd": 0.25,
+  "toolTimeoutSeconds": 120,
+  "providerRouting": {
+    "dataCollection": "deny",
+    "requireParameters": true
+  }
+}

@@ -16,12 +16,27 @@ The repository uses untracked local files for sensitive values. This avoids comm
 ~/.config/dotfiles/pi-maintenance-agent.env
 ```
 
+**Optional OpenRouter reserve agent:**
+```
+~/.hermes/.env
+```
+
 These files are machine-local and never committed. Example bootstrap contents:
 
 ```bash
 TAILSCALE_AUTH_KEY=tskey-auth-xxxxx
 GITHUB_TOKEN=ghp_xxxxx
 ```
+
+For the optional `openrouter-agent`, `~/.hermes/` must be a current-user-owned directory that is not
+a symlink or writable by group/others, and `~/.hermes/.env` must be a current-user-owned regular
+file with mode `0600`; symlinks and looser permissions are rejected. The loader reads only
+`OPENROUTER_API_KEY` and does not import unrelated variables into the process environment. An
+already-exported `OPENROUTER_API_KEY` takes precedence. Create or edit the file locally rather than
+passing the key on a command line, where shell history or process listings could capture it. The
+repo contains only the variable name and setup instructions, never a value. Selecting the optional
+Kimi profile changes only the non-secret `OPENROUTER_AGENT_MODEL` process variable; it uses the same
+private key-loading path and does not require a second credential file.
 
 ## Automated Secret Scanning
 
