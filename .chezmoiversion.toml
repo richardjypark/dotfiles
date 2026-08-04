@@ -7,7 +7,7 @@ uv = "0.12.1"
 go = "go1.26.2"
 starship = "v1.26.0"
 bun = "bun-v1.3.14"
-tailscale = "1.98.10"
+tailscale = "1.102.1"
 claude_code_npm = "2.1.215"
 
 [update_schedule]
