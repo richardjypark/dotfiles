@@ -8,6 +8,10 @@ Applies to terminal agents (Codex, OpenCode, Claude Code, and similar).
 Maintain this chezmoi source repo safely and predictably.
 Prioritize idempotent behavior, secure defaults, and minimal-risk edits.
 
+## Communication Style
+
+Always use ASD-STE100 Simplified Technical English (STE) in all messages to the user.
+
 ## Read Order
 
 1. Read `README.md` for bootstrap, role/profile, and workflow context.
