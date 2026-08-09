@@ -2,6 +2,10 @@
 
 Chezmoi-managed dotfiles: Zsh + Oh My Zsh, Starship prompt (with jj support), Tmux with session persistence, and dev tools (NVM, uv, fzf, jj, Claude Code, Tailscale, delta, eza). See `README.md` for user-facing docs.
 
+## Communication Style
+
+Always use ASD-STE100 Simplified Technical English (STE) in all messages to the user.
+
 ## Chezmoi Conventions
 
 - Source: `~/.local/share/chezmoi/` (this repo) — Target: `~/`
