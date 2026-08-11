@@ -24,7 +24,7 @@ The resulting binary is linked to:
 ## Local Pi Agent Settings Override
 
 This repo tracks a default `~/.pi/agent/settings.json` with
-`defaultModel = "gpt-5.6-sol"` and `defaultThinkingLevel = "xhigh"` (Pi's
+`defaultModel = "gpt-5.6-sol"` and `defaultThinkingLevel = "max"` (Pi's
 maximum reasoning level). The tracked `~/.pi/agent/models.json` intentionally
 has no model overrides, so Pi's built-in and refreshed provider catalogs remain
 authoritative.
