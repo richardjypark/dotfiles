@@ -6,8 +6,8 @@ codex = "rust-v0.148.0"
 uv = "0.12.5"
 go = "go1.26.2"
 starship = "v1.26.0"
-bun = "bun-v1.3.14"
-tailscale = "1.102.2"
+bun = "bun-v1.4.0"
+tailscale = "1.102.3"
 claude_code_npm = "2.1.215"
 
 [update_schedule]
