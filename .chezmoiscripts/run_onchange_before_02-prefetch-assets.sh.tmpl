@@ -53,7 +53,7 @@ CODEX_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 CODEX_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
 
-PREFETCH_STATE="prefetch-assets-${NVIM_VERSION}-${JJ_VERSION}-${CODEX_VERSION}"
+PREFETCH_STATE="prefetch-assets-${NVIM_VERSION}-${JJ_VERSION}-${CODEX_VERSION}-codex-package-v1"
 
 mkdir -p "$CACHE_DIR"
 
@@ -86,22 +86,22 @@ case "$platform" in
     linux-x86_64)
         add_artifact "neovim" "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz" "$NVIM_LINUX_X86_64_SHA" "$CACHE_DIR/neovim-${NVIM_VERSION}-linux-x86_64.tar.gz"
         add_artifact "jj" "https://github.com/jj-vcs/jj/releases/download/${JJ_VERSION}/jj-${JJ_VERSION}-x86_64-unknown-linux-musl.tar.gz" "$JJ_LINUX_X86_64_SHA" "$CACHE_DIR/jj-${JJ_VERSION}-linux-x86_64.tar.gz"
-        add_artifact "codex" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-x86_64-unknown-linux-musl.tar.gz" "$CODEX_LINUX_X86_64_SHA" "$CACHE_DIR/codex-${CODEX_VERSION}-linux-x86_64.tar.gz"
+        add_artifact "codex-package" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-package-x86_64-unknown-linux-musl.tar.gz" "$CODEX_LINUX_X86_64_SHA" "$CACHE_DIR/codex-package-${CODEX_VERSION}-linux-x86_64.tar.gz"
         ;;
     linux-arm64)
         add_artifact "neovim" "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-arm64.tar.gz" "$NVIM_LINUX_ARM64_SHA" "$CACHE_DIR/neovim-${NVIM_VERSION}-linux-arm64.tar.gz"
         add_artifact "jj" "https://github.com/jj-vcs/jj/releases/download/${JJ_VERSION}/jj-${JJ_VERSION}-aarch64-unknown-linux-musl.tar.gz" "$JJ_LINUX_ARM64_SHA" "$CACHE_DIR/jj-${JJ_VERSION}-linux-arm64.tar.gz"
-        add_artifact "codex" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-aarch64-unknown-linux-musl.tar.gz" "$CODEX_LINUX_ARM64_SHA" "$CACHE_DIR/codex-${CODEX_VERSION}-linux-arm64.tar.gz"
+        add_artifact "codex-package" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-package-aarch64-unknown-linux-musl.tar.gz" "$CODEX_LINUX_ARM64_SHA" "$CACHE_DIR/codex-package-${CODEX_VERSION}-linux-arm64.tar.gz"
         ;;
     macos-x86_64)
         add_artifact "neovim" "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-macos-x86_64.tar.gz" "$NVIM_MACOS_X86_64_SHA" "$CACHE_DIR/neovim-${NVIM_VERSION}-macos-x86_64.tar.gz"
         add_artifact "jj" "https://github.com/jj-vcs/jj/releases/download/${JJ_VERSION}/jj-${JJ_VERSION}-x86_64-apple-darwin.tar.gz" "$JJ_MACOS_X86_64_SHA" "$CACHE_DIR/jj-${JJ_VERSION}-macos-x86_64.tar.gz"
-        add_artifact "codex" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-x86_64-apple-darwin.tar.gz" "$CODEX_MACOS_X86_64_SHA" "$CACHE_DIR/codex-${CODEX_VERSION}-macos-x86_64.tar.gz"
+        add_artifact "codex-package" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-package-x86_64-apple-darwin.tar.gz" "$CODEX_MACOS_X86_64_SHA" "$CACHE_DIR/codex-package-${CODEX_VERSION}-macos-x86_64.tar.gz"
         ;;
     macos-arm64)
         add_artifact "neovim" "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-macos-arm64.tar.gz" "$NVIM_MACOS_ARM64_SHA" "$CACHE_DIR/neovim-${NVIM_VERSION}-macos-arm64.tar.gz"
         add_artifact "jj" "https://github.com/jj-vcs/jj/releases/download/${JJ_VERSION}/jj-${JJ_VERSION}-aarch64-apple-darwin.tar.gz" "$JJ_MACOS_ARM64_SHA" "$CACHE_DIR/jj-${JJ_VERSION}-macos-arm64.tar.gz"
-        add_artifact "codex" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-aarch64-apple-darwin.tar.gz" "$CODEX_MACOS_ARM64_SHA" "$CACHE_DIR/codex-${CODEX_VERSION}-macos-arm64.tar.gz"
+        add_artifact "codex-package" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-package-aarch64-apple-darwin.tar.gz" "$CODEX_MACOS_ARM64_SHA" "$CACHE_DIR/codex-package-${CODEX_VERSION}-macos-arm64.tar.gz"
         ;;
 esac
 

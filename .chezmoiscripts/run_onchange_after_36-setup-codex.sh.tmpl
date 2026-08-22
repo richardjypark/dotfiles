@@ -2,7 +2,9 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 CODEX_BIN_DIR="$HOME/.local/bin"
-# Prefer the repo-managed Codex fallback in ~/.local/bin during validation.
+CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
+CODEX_RELEASES_DIR="$CODEX_HOME_DIR/packages/standalone/releases"
+# Prefer the repo-managed Codex entry point in ~/.local/bin during validation.
 # Non-interactive update wrappers can inherit Homebrew before ~/.local/bin.
 export PATH="$CODEX_BIN_DIR${PATH:+:$PATH}"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
@@ -15,20 +17,79 @@ PINNED_CODEX_MACOS_X86_64_SHA="{{ .macos_x86_64_sha256 }}"
 PINNED_CODEX_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 {{- end }}
 
-CODEX_STATE="codex-setup-${PINNED_CODEX_VERSION}"
+CODEX_STATE="codex-package-setup-${PINNED_CODEX_VERSION}"
 PINNED_CODEX_CLEAN="$(normalize_version_token "$PINNED_CODEX_VERSION")"
+
+resolve_symlink_chain() {
+    local path="$1" target depth=0
+    [ -n "$path" ] || return 1
+
+    while [ -L "$path" ]; do
+        depth=$((depth + 1))
+        [ "$depth" -le 20 ] || return 1
+        target="$(readlink "$path")" || return 1
+        case "$target" in
+            /*) path="$target" ;;
+            *) path="$(dirname "$path")/$target" ;;
+        esac
+    done
+
+    printf '%s\n' "$path"
+}
+
+codex_binary_ready_at() {
+    local binary="$1" resolved_binary binary_dir
+    [ -n "$binary" ] && [ -x "$binary" ] || return 1
+    resolved_binary="$(resolve_symlink_chain "$binary")" || return 1
+    [ -x "$resolved_binary" ] || return 1
+    binary_dir="$(dirname "$resolved_binary")"
+    [ -x "$binary_dir/codex-code-mode-host" ] || return 1
+    "$binary" --version >/dev/null 2>&1
+}
 
 codex_binary_ready() {
     local codex_path
     codex_path="$(command -v codex 2>/dev/null || true)"
-    [ -n "$codex_path" ] && [ -x "$codex_path" ]
+    codex_binary_ready_at "$codex_path"
+}
+
+codex_version_at() {
+    local binary="$1" output line
+    [ -n "$binary" ] || return 1
+    output="$("$binary" --version 2>/dev/null || true)"
+    line="$(printf '%s\n' "$output" | awk 'NR==1{print $NF; exit}')"
+    normalize_version_token "$line"
 }
 
 current_codex_version() {
-    local output line
-    output="$(codex --version 2>/dev/null || true)"
-    line="$(printf '%s\n' "$output" | awk 'NR==1{print $NF; exit}')"
-    normalize_version_token "$line"
+    local codex_path
+    codex_path="$(command -v codex 2>/dev/null || true)"
+    codex_version_at "$codex_path"
+}
+
+activate_codex_binary() {
+    local binary="$1" link_tmp
+    codex_binary_ready_at "$binary" || return 1
+
+    mkdir -p "$CODEX_BIN_DIR"
+    link_tmp="$CODEX_BIN_DIR/.codex-link.$$"
+    rm -f "$link_tmp"
+    ln -s "$binary" "$link_tmp" || return 1
+    if ! mv -f "$link_tmp" "$CODEX_BIN_DIR/codex"; then
+        rm -f "$link_tmp"
+        return 1
+    fi
+    hash -r 2>/dev/null || true
+    codex_binary_ready
+}
+
+homebrew_codex_binary() {
+    local brew_prefix binary
+    is_installed brew || return 1
+    brew_prefix="$(brew --prefix 2>/dev/null)" || return 1
+    binary="$brew_prefix/bin/codex"
+    codex_binary_ready_at "$binary" || return 1
+    printf '%s\n' "$binary"
 }
 
 if should_skip_state "$CODEX_STATE"; then
@@ -45,8 +106,8 @@ if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
     exit 0
 fi
 
-# Fast exit if codex is already installed and working when not forcing updates
-if is_installed codex && codex --version >/dev/null 2>&1; then
+# Fast exit if Codex and its command host are already complete.
+if codex_binary_ready; then
     CURRENT_CODEX_VERSION="$(current_codex_version)"
     if [ -n "$CURRENT_CODEX_VERSION" ] && version_ge "$CURRENT_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
         vecho "Codex is already at or above pinned version: $(codex --version 2>/dev/null || echo 'installed')"
@@ -89,8 +150,9 @@ install_via_homebrew() {
     return 1
 }
 
-install_via_release_binary() {
-    local os arch target binary_name download_url temp_dir extracted_binary expected_sha cache_file platform
+install_via_release_package() {
+    local os arch target binary_name download_url temp_dir package_dir package_binary
+    local package_version release_dir release_binary expected_sha cache_file platform
     if ! require_trust_for_remote_download "github.com/openai/codex"; then
         return 1
     fi
@@ -127,54 +189,61 @@ install_via_release_binary() {
     esac
 
     target="${arch}-${os}"
-
-    local current_version
-    current_version="$(current_codex_version)"
-    if [ -n "$current_version" ] && version_ge "$current_version" "$PINNED_CODEX_CLEAN"; then
-        eecho "Codex CLI already at pinned version or newer ($current_version)"
-        return 0
-    fi
-
-    binary_name="codex-${target}.tar.gz"
+    binary_name="codex-package-${target}.tar.gz"
     download_url="https://github.com/openai/codex/releases/download/${PINNED_CODEX_VERSION}/${binary_name}"
-    cache_file="$CACHE_DIR/codex-${PINNED_CODEX_VERSION}-${platform}.tar.gz"
+    cache_file="$CACHE_DIR/codex-package-${PINNED_CODEX_VERSION}-${platform}.tar.gz"
     temp_dir="$(mktemp -d)"
     trap 'rm -rf "$temp_dir"' RETURN
+    package_dir="$temp_dir/package"
+    mkdir -p "$package_dir"
 
-    eecho "Installing Codex CLI from pinned release binary (${PINNED_CODEX_VERSION})..."
+    eecho "Installing Codex CLI from pinned release package (${PINNED_CODEX_VERSION})..."
     download_and_verify "$download_url" "$cache_file" "$expected_sha"
-    cp "$cache_file" "$temp_dir/codex.tar.gz"
+    tar -xzf "$cache_file" -C "$package_dir"
 
-    tar -xzf "$temp_dir/codex.tar.gz" -C "$temp_dir"
-    extracted_binary="$(find "$temp_dir" -maxdepth 3 -type f -perm -u+x \
-        \( -name "codex" -o -name "codex-${target}" -o -name "codex-*" \) \
-        ! -name "*.tar.gz" ! -name "*.zip" ! -name "*.zst" ! -name "*.sigstore" \
-        | head -1)"
-
-    if [ -z "$extracted_binary" ]; then
-        eecho "Error: Codex binary not found in release archive"
+    package_binary="$package_dir/bin/codex"
+    if [ ! -f "$package_dir/codex-package.json" ] || ! codex_binary_ready_at "$package_binary"; then
+        eecho "Error: Codex release package is incomplete"
         return 1
     fi
 
-    mkdir -p "$CODEX_BIN_DIR"
-    install -m 755 "$extracted_binary" "$CODEX_BIN_DIR/codex"
-    hash -r 2>/dev/null || true
-    return 0
+    package_version="$(codex_version_at "$package_binary")"
+    if [ "$package_version" != "$PINNED_CODEX_CLEAN" ]; then
+        eecho "Error: Codex package version $package_version does not match $PINNED_CODEX_CLEAN"
+        return 1
+    fi
+
+    release_dir="$CODEX_RELEASES_DIR/${PINNED_CODEX_CLEAN}-${target}"
+    mkdir -p "$release_dir"
+    cp -R "$package_dir/." "$release_dir/"
+    chmod 755 "$release_dir/bin/codex" "$release_dir/bin/codex-code-mode-host"
+
+    release_binary="$release_dir/bin/codex"
+    if ! codex_binary_ready_at "$release_binary"; then
+        eecho "Error: Installed Codex release package is incomplete"
+        return 1
+    fi
+
+    activate_codex_binary "$release_binary"
 }
 
 CODEX_INSTALL_METHOD=""
 if install_via_homebrew; then
-    INSTALLED_CODEX_VERSION="$(current_codex_version)"
+    HOMEBREW_CODEX_BINARY="$(homebrew_codex_binary || true)"
+    INSTALLED_CODEX_VERSION="$(codex_version_at "$HOMEBREW_CODEX_BINARY" || true)"
     if [ -n "$INSTALLED_CODEX_VERSION" ] && version_ge "$INSTALLED_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
-        CODEX_INSTALL_METHOD="homebrew"
-    else
-        eecho "Homebrew Codex version (${INSTALLED_CODEX_VERSION:-unknown}) is below pinned target $PINNED_CODEX_CLEAN; falling back to pinned release binary."
-        if install_via_release_binary; then
-            CODEX_INSTALL_METHOD="release binary"
+        if activate_codex_binary "$HOMEBREW_CODEX_BINARY"; then
+            CODEX_INSTALL_METHOD="homebrew"
+        else
+            eecho "Homebrew Codex could not be activated; falling back to the pinned release package."
         fi
+    else
+        eecho "Homebrew Codex version (${INSTALLED_CODEX_VERSION:-unknown}) is incomplete or below pinned target $PINNED_CODEX_CLEAN; falling back to the pinned release package."
     fi
-elif install_via_release_binary; then
-    CODEX_INSTALL_METHOD="release binary"
+fi
+
+if [ -z "$CODEX_INSTALL_METHOD" ] && install_via_release_package; then
+    CODEX_INSTALL_METHOD="release package"
 fi
 
 if [ -z "$CODEX_INSTALL_METHOD" ]; then
@@ -185,7 +254,7 @@ vecho "Codex installation method: $CODEX_INSTALL_METHOD"
 
 # Verify installation
 INSTALLED_CODEX_VERSION="$(current_codex_version)"
-if is_installed codex && codex --version >/dev/null 2>&1 && [ -n "$INSTALLED_CODEX_VERSION" ] && version_ge "$INSTALLED_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
+if codex_binary_ready && [ -n "$INSTALLED_CODEX_VERSION" ] && version_ge "$INSTALLED_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
     if [ "$VERBOSE" = "true" ]; then
         echo "Codex installed successfully: $(codex --version 2>/dev/null)"
     fi
