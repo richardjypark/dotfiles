@@ -88,13 +88,14 @@ if ! PLATFORM="$(platform_key)"; then
 fi
 
 install_via_homebrew() {
-    local action="install"
+    local action="install" outdated_formulae=""
     if ! is_installed brew; then
         return 1
     fi
 
     if brew list --formula oven-sh/bun/bun >/dev/null 2>&1; then
-        if ! brew outdated --formula oven-sh/bun/bun 2>/dev/null | grep -Eq '^(bun|oven-sh/bun/bun)($| )'; then
+        outdated_formulae="$(brew outdated --formula oven-sh/bun/bun 2>/dev/null || true)"
+        if ! printf '%s\n' "$outdated_formulae" | grep -Eq '^(bun|oven-sh/bun/bun)($| )'; then
             eecho "Bun already at latest Homebrew version"
             link_homebrew_bun_into_bun_install
             return 0
