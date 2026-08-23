@@ -1,6 +1,6 @@
 [versions]
 fzf = "0.74.3"
-neovim = "v0.12.4"
+neovim = "v0.12.5"
 jj = "v0.44.0"
 codex = "rust-v0.149.0"
 uv = "0.12.5"
