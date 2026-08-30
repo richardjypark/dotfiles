@@ -214,9 +214,9 @@ this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensit
 Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]` and
 `[hermes.delegation]`, and the always-run Hermes setup script reapplies them
 with `hermes config set` on each
-`chezmoi apply`: `model.provider=openai-codex`, `model.default=gpt-5.6-luna`,
+`chezmoi apply`: `model.provider=openai-codex`, `model.default=gpt-5.6-sol`,
 `model.base_url=https://chatgpt.com/backend-api/codex`,
-`display.show_reasoning=true`, `agent.reasoning_effort=medium`,
+`display.show_reasoning=true`, `agent.reasoning_effort=high`,
 `agent.service_tier=""` (normal speed), `agent.max_turns=1000`,
 `goals.max_turns=1000`, `model.context_length=500000`, and
 `tui_by_default=true`. Delegated subtasks use
@@ -237,7 +237,7 @@ budget for long `/goal` runs while retaining a runaway-loop guardrail. When
 `tui_by_default` is enabled, the managed
 `~/.local/bin/hermes` launcher sets `HERMES_TUI=1` for interactive terminals
 unless already set, so `hermes` opens the richer TUI status line. That status
-line includes the current model reasoning effort (for example `medium`) and the
+line includes the current model reasoning effort (for example `high`) and the
 launch working directory with git branch or the current jj workspace plus nearest
 jj bookmark, using a wider right-side budget so roomy terminals show enough of
 deep paths to disambiguate similar checkouts. The setup script
