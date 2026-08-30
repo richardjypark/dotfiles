@@ -639,9 +639,19 @@ remove_hermes_tui_git_branch_patch() {
 }
 
 tui_npm_deps_ready() {
-    [ -f "$TUI_DIR/node_modules/@hermes/ink/package.json" ] || return 1
-    [ -f "$TUI_DIR/node_modules/.package-lock.json" ] || return 1
-    if [ -f "$TUI_DIR/package-lock.json" ] && [ "$TUI_DIR/package-lock.json" -nt "$TUI_DIR/node_modules/.package-lock.json" ]; then
+    local workspace_root="$TUI_DIR"
+    local hidden_lock lock_file
+
+    if [ -f "$INSTALL_DIR/node_modules/@hermes/ink/package.json" ]; then
+        workspace_root="$INSTALL_DIR"
+    fi
+
+    [ -f "$workspace_root/node_modules/@hermes/ink/package.json" ] || return 1
+    hidden_lock="$workspace_root/node_modules/.package-lock.json"
+    [ -f "$hidden_lock" ] || return 1
+
+    lock_file="$workspace_root/package-lock.json"
+    if [ -f "$lock_file" ] && [ "$lock_file" -nt "$hidden_lock" ]; then
         return 1
     fi
     return 0
@@ -659,49 +669,30 @@ tui_sources_newer_than() {
 
 tui_build_fresh() {
     local entry="$TUI_DIR/dist/entry.js"
-    local ink_entry="$TUI_DIR/packages/hermes-ink/dist/entry-exports.js"
     local meta
 
     [ -f "$entry" ] || return 1
-    [ -f "$ink_entry" ] || return 1
-
     tui_sources_newer_than "$entry" && return 1
-    tui_sources_newer_than "$ink_entry" && return 1
 
     for meta in \
         "$TUI_DIR/package.json" \
         "$TUI_DIR/package-lock.json" \
+        "$TUI_DIR/scripts/build.mjs" \
         "$TUI_DIR/tsconfig.json" \
         "$TUI_DIR/tsconfig.build.json" \
-        "$TUI_DIR/packages/hermes-ink/package.json"; do
+        "$TUI_DIR/packages/hermes-ink/package.json" \
+        "$TUI_DIR/packages/hermes-ink/index.js" \
+        "$TUI_DIR/packages/hermes-ink/text-input.js"; do
         [ -f "$meta" ] && [ "$meta" -nt "$entry" ] && return 1
     done
 
     return 0
 }
 
-ensure_hermes_tui_ink_staleness_marker() {
-    local ink_dist="$TUI_DIR/packages/hermes-ink/dist"
-    local actual="$ink_dist/entry-exports.js"
-    local expected="$ink_dist/ink-bundle.js"
-
-    [ -f "$actual" ] || return 1
-    if [ -L "$expected" ]; then
-        [ "$(readlink "$expected")" = "entry-exports.js" ] && return 0
-        rm -f "$expected"
-    elif [ -e "$expected" ]; then
-        # Newer Hermes releases may produce the name checked by the launcher directly.
-        return 0
-    fi
-    ln -s "entry-exports.js" "$expected"
-}
-
 tui_prebuild_ready() {
     [ "$HERMES_TUI_BY_DEFAULT" = "true" ] || return 0
     [ -d "$TUI_DIR" ] || return 1
-    tui_npm_deps_ready || return 1
-    tui_build_fresh || return 1
-    [ -f "$TUI_DIR/packages/hermes-ink/dist/ink-bundle.js" ] || return 1
+    tui_build_fresh
 }
 
 ensure_hermes_tui_prebuilt() {
@@ -720,8 +711,8 @@ ensure_hermes_tui_prebuilt() {
         fi
         eecho "Installing Hermes TUI node dependencies for fast startup..."
         (
-            cd "$TUI_DIR" || exit 1
-            run_quiet npm install --silent --no-fund --no-audit --progress=false
+            cd "$INSTALL_DIR" || exit 1
+            run_quiet env CI=1 npm install --workspace ui-tui --silent --no-fund --no-audit --progress=false
         )
     fi
 
@@ -731,10 +722,6 @@ ensure_hermes_tui_prebuilt() {
             cd "$TUI_DIR" || exit 1
             run_quiet npm run build
         )
-    fi
-
-    if ! ensure_hermes_tui_ink_staleness_marker; then
-        eecho "Warning: Hermes TUI prebuild completed, but the Ink freshness marker could not be prepared."
     fi
 }
 
