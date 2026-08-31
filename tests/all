@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+PASS_COUNT=0
+FAIL_COUNT=0
+SKIP_COUNT=0
+FAILED_SUITES=""
+REQUIRE_MANAGED_NPM_TESTS="${REQUIRE_MANAGED_NPM_TESTS:-0}"
+
+pass_suite() {
+    PASS_COUNT=$((PASS_COUNT + 1))
+    printf '[PASS] %s\n' "$1"
+}
+
+fail_suite() {
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAILED_SUITES="${FAILED_SUITES}${FAILED_SUITES:+, }$1"
+    printf '[FAIL] %s\n' "$1"
+}
+
+skip_suite() {
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+    printf '[SKIP] %s\n' "$1"
+}
+
+run_suite() {
+    local name="$1"
+    shift
+
+    printf '\n==> %s\n' "$name"
+    if "$@"; then
+        pass_suite "$name"
+    else
+        fail_suite "$name"
+    fi
+}
+
+managed_npm_available() {
+    [ -d "$1/node_modules" ]
+}
+
+run_managed_npm_suite() {
+    local name="$1"
+    local project_dir="$2"
+    local suite_fn="$3"
+
+    if ! managed_npm_available "$project_dir"; then
+        if [ "$REQUIRE_MANAGED_NPM_TESTS" = "1" ]; then
+            fail_suite "$name (dependencies are not installed)"
+        else
+            skip_suite "$name (dependencies are not installed)"
+        fi
+        return
+    fi
+
+    run_suite "$name" "$suite_fn"
+}
+
+check_pi_cli() {
+    (
+        cd "$REPO_ROOT/dot_local/share/pi-cli"
+        ./node_modules/.bin/pi --version
+    )
+}
+
+check_pi_maintenance_agent() {
+    (
+        set -e
+        cd "$REPO_ROOT/dot_local/share/pi-maintenance-agent"
+        ./node_modules/.bin/pi --version
+        npm test
+    )
+}
+
+check_openrouter_agent() {
+    (
+        set -e
+        build_dir="$(mktemp -d)"
+        trap 'rm -rf "$build_dir"' EXIT
+        cd "$REPO_ROOT/dot_local/share/openrouter-agent"
+        npm run typecheck
+        npm test
+        npm run build -- --outDir "$build_dir"
+    )
+}
+
+run_suite "shell syntax" "$REPO_ROOT/tests/syntax"
+run_suite "maintenance behavior" bash "$REPO_ROOT/tests/test-cz-maintenance.sh"
+run_suite "update-helper behavior" bash "$REPO_ROOT/tests/test-chezmoi-update-helpers.sh"
+run_suite "maintenance wrapper behavior" bash "$REPO_ROOT/tests/test-cz-wrappers.sh"
+run_suite "skill-routing unit tests" python3 "$REPO_ROOT/tests/test_eval_skill_routing.py"
+run_suite "skill-routing catalog dry run" python3 "$REPO_ROOT/scripts/eval-skill-routing.py" --dry-run
+run_suite "Hermes delegation defaults" python3 "$REPO_ROOT/tests/test_hermes_delegation.py"
+run_suite "agent instruction policy" python3 "$REPO_ROOT/tests/test_agent_instructions.py"
+run_suite "managed package layout" python3 "$REPO_ROOT/tests/test_managed_package_layout.py"
+
+run_managed_npm_suite \
+    "managed Pi CLI" \
+    "$REPO_ROOT/dot_local/share/pi-cli" \
+    check_pi_cli
+run_managed_npm_suite \
+    "managed Pi maintenance agent" \
+    "$REPO_ROOT/dot_local/share/pi-maintenance-agent" \
+    check_pi_maintenance_agent
+run_managed_npm_suite \
+    "OpenRouter agent" \
+    "$REPO_ROOT/dot_local/share/openrouter-agent" \
+    check_openrouter_agent
+
+printf '\nValidation summary: %s passed, %s failed, %s skipped\n' \
+    "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"
+if [ "$FAIL_COUNT" -ne 0 ]; then
+    printf 'Failed suites: %s\n' "$FAILED_SUITES"
+    exit 1
+fi

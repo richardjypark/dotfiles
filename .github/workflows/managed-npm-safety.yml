@@ -1,4 +1,4 @@
-name: managed-npm-safety
+name: repository-validation
 
 on:
   pull_request:
@@ -11,8 +11,14 @@ permissions:
   contents: read
 
 jobs:
-  managed-node-installs:
-    runs-on: ubuntu-latest
+  validation:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - macos-26
+    runs-on: ${{ matrix.os }}
     env:
       npm_config_ignore_scripts: true
       npm_config_fund: false
@@ -22,7 +28,60 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Resolve pinned chezmoi artifact
+        id: chezmoi
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          from pathlib import Path
+
+          pinned = {}
+          in_section = False
+          for raw_line in Path(".chezmoidata.toml").read_text().splitlines():
+              line = raw_line.strip()
+              if line == "[pinned.chezmoi]":
+                  in_section = True
+                  continue
+              if in_section and line.startswith("["):
+                  break
+              if in_section and line and not line.startswith("#"):
+                  key, value = line.split("=", 1)
+                  pinned[key.strip()] = value.strip().strip('"')
+
+          platform = (os.environ["RUNNER_OS"], os.environ["RUNNER_ARCH"])
+          artifacts = {
+              ("Linux", "X64"): ("linux_amd64", "linux_x86_64_sha256"),
+              ("Linux", "ARM64"): ("linux_arm64", "linux_arm64_sha256"),
+              ("macOS", "X64"): ("darwin_amd64", "macos_x86_64_sha256"),
+              ("macOS", "ARM64"): ("darwin_arm64", "macos_arm64_sha256"),
+          }
+          artifact, checksum_key = artifacts[platform]
+          version = pinned["version"]
+          print(f"version={version}")
+          print(f"archive=chezmoi_{version}_{artifact}.tar.gz")
+          print(f"sha256={pinned[checksum_key]}")
+          PY
+
+      - name: Install pinned chezmoi
+        shell: bash
+        env:
+          CHEZMOI_VERSION: ${{ steps.chezmoi.outputs.version }}
+          CHEZMOI_ARCHIVE: ${{ steps.chezmoi.outputs.archive }}
+          CHEZMOI_SHA256: ${{ steps.chezmoi.outputs.sha256 }}
+        run: |
+          install_dir="$RUNNER_TEMP/chezmoi-bin"
+          archive_path="$RUNNER_TEMP/$CHEZMOI_ARCHIVE"
+          mkdir -p "$install_dir"
+          curl --fail --location --silent --show-error \
+            --output "$archive_path" \
+            "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/${CHEZMOI_ARCHIVE}"
+          printf '%s  %s\n' "$CHEZMOI_SHA256" "$archive_path" | shasum -a 256 --check
+          tar -xzf "$archive_path" -C "$install_dir" chezmoi
+          printf '%s\n' "$install_dir" >> "$GITHUB_PATH"
+
       - name: Set up Node.js
+        if: runner.os == 'Linux'
         uses: actions/setup-node@v6
         with:
           node-version: 24.14.0
@@ -30,47 +89,27 @@ jobs:
           cache-dependency-path: |
             dot_local/share/pi-cli/package-lock.json
             dot_local/share/pi-maintenance-agent/package-lock.json
+            dot_local/share/openrouter-agent/package-lock.json
 
-      - name: Validate managed Pi CLI install
+      - name: Install managed Pi CLI dependencies
+        if: runner.os == 'Linux'
         working-directory: dot_local/share/pi-cli
-        run: |
-          npm ci --ignore-scripts --no-fund --no-audit --omit=dev
-          ./node_modules/.bin/pi --version
+        run: npm ci --ignore-scripts --no-fund --no-audit --omit=dev
 
-      - name: Validate managed Pi maintenance agent install
+      - name: Install managed Pi maintenance agent dependencies
+        if: runner.os == 'Linux'
         working-directory: dot_local/share/pi-maintenance-agent
-        run: |
-          npm ci --ignore-scripts --no-fund --no-audit --omit=dev
-          ./node_modules/.bin/pi --version
+        run: npm ci --ignore-scripts --no-fund --no-audit --omit=dev
 
-      - name: Validate shell entrypoints
-        run: |
-          bash -n dot_local/bin/executable_czu
-          bash -n dot_local/bin/executable_czuf
-          bash -n dot_local/bin/executable_czl
-          bash -n dot_local/bin/executable_czm
-          bash -n dot_local/bin/executable_czb
-          bash -n dot_local/bin/executable_czvc
-          bash -n dot_local/bin/executable_chezmoi-health-check
-          bash -n dot_local/bin/executable_chezmoi-rerun-script
-          bash -n dot_local/bin/executable_chezmoi-bump
-          bash -n dot_local/bin/executable_chezmoi-check-versions
-          bash -n dot_local/bin/executable_omarchy-screenshot-active-window-clipboard
-          sh -n dot_local/bin/executable_tmux-status-host
-          bash -n dot_local/share/pi-maintenance-agent/bin/executable_git-ssh.sh
-          bash -n dot_local/share/pi-maintenance-agent/bin/executable_run-maintenance.sh
-          bash -n bootstrap-vps.sh
-          bash -n scripts/bootstrap-omarchy.sh
-          bash -n scripts/server-lockdown-tailscale.sh
-          bash -n scripts/lib/load-helpers.sh
-          bash -n dot_local/private_lib/chezmoi-helpers.sh
-          bash -n dot_local/private_lib/chezmoi-update-helpers.sh
+      - name: Install OpenRouter agent dependencies
+        if: runner.os == 'Linux'
+        working-directory: dot_local/share/openrouter-agent
+        run: npm ci --ignore-scripts --no-fund --no-audit --include=dev
 
-      - name: Validate maintenance behavior
-        run: |
-          bash -n tests/test-cz-maintenance.sh
-          bash -n tests/test-chezmoi-update-helpers.sh
-          bash -n tests/test-cz-wrappers.sh
-          bash tests/test-cz-maintenance.sh
-          bash tests/test-chezmoi-update-helpers.sh
-          bash tests/test-cz-wrappers.sh
+      - name: Run full validation
+        if: runner.os == 'Linux'
+        run: REQUIRE_MANAGED_NPM_TESTS=1 ./tests/all
+
+      - name: Run portable core validation
+        if: runner.os == 'macOS'
+        run: ./tests/all

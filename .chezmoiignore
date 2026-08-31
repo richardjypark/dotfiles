@@ -112,6 +112,10 @@ logs/*
 .local/share/pi-maintenance-agent
 {{ end }}
 
+# Generated managed Pi dependencies are never chezmoi-managed.
+.local/share/pi-cli/node_modules
+.local/share/pi-maintenance-agent/node_modules
+
 # OpenRouter Agent is an explicit paid-credit fallback, opt-in per machine.
 # Generated dependencies/builds and repository tests are never chezmoi-managed.
 .local/share/openrouter-agent/node_modules

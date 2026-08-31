@@ -18,6 +18,9 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 4. Scripts depend on `dot_local/private_lib/chezmoi-helpers.sh` plus state markers in `~/.cache/chezmoi-state`; use `chezmoi-rerun-script <source-script-path>` when you need to invalidate one remembered `run_onchange_*` step without clearing all state.
 5. Shell, tmux, jj, and helper commands are layered on top of that rendered state.
 
+See `docs/file-layout.md` for the verified source-to-target map, repository-only
+exclusions, and canonical ownership rules.
+
 ## Subsystems
 
 ### Bootstrap and Hardening
@@ -30,7 +33,7 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 
 - Key files: `.chezmoidata.toml`, `.chezmoiversion.toml`, `.chezmoiexternal.toml.tmpl`
 - Responsibility: version pins, template inputs, external dependency revisions
-- Constraints: keep pins deterministic and refresh behavior consistent with installer logic
+- Constraints: keep pins deterministic and refresh behavior consistent with installer logic; tracked externals use a weekly `168h` refresh unless a specific source requires another policy
 
 ### Apply-Time Setup Scripts
 
@@ -66,6 +69,9 @@ This repo is the source of truth for a chezmoi-managed home directory. The desig
 | Version pins or externals | pin files, relevant setup scripts, `dotfiles-version-refresh` | template render checks, `chezmoi apply --refresh-externals`, then `chezmoi status` |
 | Shell or tmux behavior | `dot_zshrc.tmpl`, `dot_tmux.conf`, relevant `private_dot_config/*` files | `chezmoi diff` / `apply` / `status`, then `zsh -n ~/.zshrc` and/or `tmux source-file ~/.tmux.conf` |
 | Agent docs, skills, or Codex/Claude config | `AGENTS.md`, `CLAUDE.md`, `docs/tooling-and-skills.md`, `.claude/settings.local.json`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` | link/reference review, then `chezmoi diff` / `apply` / `status` |
+| Test or CI behavior | `tests/`, `.github/workflows/`, relevant production callers | focused test while editing, then `./tests/all`; CI requires managed npm suites |
+
+Use focused tests during the edit loop. Run `./tests/all` before completing a task. Its default local mode does not install packages or use the network; it reports managed npm suites as skipped when dependencies are absent. CI sets `REQUIRE_MANAGED_NPM_TESTS=1`, so a skipped managed npm suite fails the job. Run `chezmoi apply` only at an approved verification gate.
 
 ## Plan Before Editing When
 
@@ -78,6 +84,7 @@ Use `plans/README.md` for the canonical planning flow: deep repo read, `*-resear
 
 ## Deep Dives
 
+- `docs/file-layout.md`
 - `docs/architecture-and-performance.md`
 - `docs/bootstrap-and-flags.md`
 - `docs/tooling-and-skills.md`

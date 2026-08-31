@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+PASS_COUNT=0
+FAIL_COUNT=0
+SKIP_COUNT=0
+TEMP_DIR="$(mktemp -d)"
+
+cleanup() {
+    rm -rf "$TEMP_DIR"
+}
+trap cleanup EXIT
+
+pass() {
+    PASS_COUNT=$((PASS_COUNT + 1))
+}
+
+fail() {
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    printf '[FAIL] %s\n' "$1"
+}
+
+skip() {
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+    printf '[SKIP] %s\n' "$1"
+}
+
+check_with_shell() {
+    local shell_name="$1"
+    local file="$2"
+
+    if ! command -v "$shell_name" >/dev/null 2>&1; then
+        skip "$file ($shell_name is not installed)"
+        return 0
+    fi
+
+    if "$shell_name" -n "$REPO_ROOT/$file"; then
+        pass
+    else
+        fail "$file"
+    fi
+}
+
+check_template() {
+    local file="$1"
+    local rendered="$TEMP_DIR/rendered.sh"
+
+    if ! command -v chezmoi >/dev/null 2>&1; then
+        skip "$file (chezmoi is not installed)"
+        return
+    fi
+
+    if ! chezmoi --source "$REPO_ROOT" execute-template < "$REPO_ROOT/$file" > "$rendered"; then
+        fail "$file (template rendering failed)"
+        return
+    fi
+
+    if bash -n "$rendered"; then
+        pass
+    else
+        fail "$file (rendered shell syntax)"
+    fi
+}
+
+while IFS= read -r file; do
+    [ -f "$REPO_ROOT/$file" ] || continue
+
+    case "$file" in
+        .chezmoiscripts/*.sh.tmpl)
+            check_template "$file"
+            continue
+            ;;
+        private_dot_config/shell/*.sh)
+            check_with_shell zsh "$file"
+            continue
+            ;;
+    esac
+
+    first_line=""
+    IFS= read -r first_line < "$REPO_ROOT/$file" || true
+    case "$first_line" in
+        '#!'*bash*) check_with_shell bash "$file" ;;
+        '#!'*zsh*) check_with_shell zsh "$file" ;;
+        '#!'*/sh|'#!'*'/sh '*|'#!'*'env sh'*) check_with_shell sh "$file" ;;
+        *)
+            case "$file" in
+                *.sh) check_with_shell bash "$file" ;;
+            esac
+            ;;
+    esac
+done < <(git -C "$REPO_ROOT" ls-files --cached --others --exclude-standard)
+
+printf '\nShell syntax: %s passed, %s failed, %s skipped\n' \
+    "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"
+[ "$FAIL_COUNT" -eq 0 ]
