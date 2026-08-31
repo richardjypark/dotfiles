@@ -30,3 +30,7 @@ plans/[0-9]*.md
 # Generated OpenRouter Agent dependencies and build output.
 /dot_local/share/openrouter-agent/node_modules/
 /dot_local/share/openrouter-agent/dist/
+
+# Generated managed Pi dependencies.
+/dot_local/share/pi-cli/node_modules/
+/dot_local/share/pi-maintenance-agent/node_modules/

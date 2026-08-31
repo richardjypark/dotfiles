@@ -47,11 +47,21 @@ Tuning note:
 
 ## Validation Checklist
 
+Use focused tests while editing. Before completing a task, run the aggregate non-mutating check:
+
 ```bash
-bash -n scripts/bootstrap-omarchy.sh
-bash -n bootstrap-vps.sh
-bash -n .chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl
-for f in .chezmoiscripts/*.tmpl; do chezmoi execute-template < "$f" | bash -n; done
+./tests/all
+```
+
+The local command does not install packages or use the network. It reports managed npm suites as skipped when their dependencies are absent. Skipped suites are not passes and must be included in the result summary. CI installs the committed npm dependencies and uses required mode:
+
+```bash
+REQUIRE_MANAGED_NPM_TESTS=1 ./tests/all
+```
+
+At an approved apply gate, verify rendered targets:
+
+```bash
 chezmoi diff
 chezmoi apply
 chezmoi status

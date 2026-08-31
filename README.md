@@ -219,11 +219,10 @@ with `hermes config set` on each
 `display.show_reasoning=true`, `agent.reasoning_effort=high`,
 `agent.service_tier=""` (normal speed), `agent.max_turns=1000`,
 `goals.max_turns=1000`, `model.context_length=500000`, and
-`tui_by_default=true`. Delegated subtasks use
-`delegation.provider=openai-codex`, `delegation.model=gpt-5.3-codex-spark`, and
-`delegation.reasoning_effort=high`, so quick reviewers, repo inspectors, and
-other spawned subagents retain their dedicated fast route instead of inheriting
-the main-agent default. Existing
+`tui_by_default=true`. Delegation provider, model, and reasoning overrides are
+empty by default, so spawned subagents inherit the active parent route. This
+avoids a public, account-specific model pin. A machine that needs a different
+delegation route can set a machine-local Hermes override. Existing
 Hermes sessions keep their startup delegation config; start a new CLI session or
 restart the gateway to pick up delegation changes. The empty main-agent
 service tier explicitly keeps normal processing rather than OpenAI Priority
@@ -371,6 +370,7 @@ See `docs/architecture-and-performance.md` for implementation details.
 
 - `ARCHITECTURE.md`
 - `plans/README.md`
+- `docs/file-layout.md`
 - `docs/bootstrap-and-flags.md`
 - `docs/architecture-and-performance.md`
 - `docs/tooling-and-skills.md`

@@ -16,8 +16,9 @@ Always use ASD-STE100 Simplified Technical English (STE) in all messages to the 
 
 1. Read `README.md` for bootstrap, role/profile, and workflow context.
 2. Read `ARCHITECTURE.md` when the task spans a subsystem, changes behavior, or needs repo-wide context.
-3. Load the relevant skill before domain work (`chezmoi-repo-maintainer`, `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`, `jj-remote-truth-reset`, `deli-auto-research`).
-4. Read `plans/README.md` when the change is multi-step, high-risk, or likely to span multiple iterations. Treat dated plan files there as local scratch notes, not committed source.
+3. Read `docs/file-layout.md` when the task changes path ownership, rendering, or repository structure.
+4. Load the relevant skill before domain work (`chezmoi-repo-maintainer`, `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`, `jj-remote-truth-reset`, `deli-auto-research`).
+5. Read `plans/README.md` when the change is multi-step, high-risk, or likely to span multiple iterations. Treat dated plan files there as local scratch notes, not committed source.
 
 ## First Pass
 
@@ -48,6 +49,8 @@ Higher-level harness/system instructions still take precedence over this file.
 - Never use `git restore` or `jj restore` to revert files you didn't author — coordinate with other agents.
 - Before deleting a file to resolve a lint/type failure, stop and ask the user first.
 - If a git/jj operation leaves you unsure about other agents' in-flight work, stop and coordinate.
+- Keep dangerous-mode and permission-prompt bypasses disabled in tracked client configuration. Use client-supported per-run or machine-local overrides for temporary exceptions.
+- Treat `.claude/settings.local.json` as a tracked project allowlist, not a personal escape hatch. Keep it narrow and let one-off commands require explicit approval.
 - Keep commits atomic: commit only the files you touched, list each path explicitly.
 - Never amend commits unless you have explicit written approval.
 - Double-check `git status` or `jj status` before any commit or describe.
@@ -84,15 +87,26 @@ Higher-level harness/system instructions still take precedence over this file.
 - Edit source files in this repo, then verify: `chezmoi diff` → `chezmoi apply` → `chezmoi status`.
 - Use `chezmoi apply --refresh-externals` when changes affect `.chezmoiexternal.toml.tmpl`.
 - Role-aware: `CHEZMOI_ROLE=server` skips heavy tools; `CHEZMOI_PROFILE=omarchy` for Arch.
+- `dot_chezmoi.toml.tmpl` enables `git.autoCommit` and disables auto-push. Inspect status before and after chezmoi commands that can update the source, and do not create commits unless the user asks.
+
+## Version Control
+
+- Prefer `jj` for history-changing operations in this JJ-backed workspace. Read-only Git inspection is acceptable.
+- Load the `jj` skill before describe, commit, rebase, bookmark, or push operations.
+- Use conventional descriptions: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, or `chore:`.
+- Explain behavioral impact in descriptions for bootstrap or script changes.
+- Include validation evidence in review or handoff notes when possible.
 
 ## Validation Checklist
 
-1. `bash -n` on edited shell scripts (or `chezmoi execute-template < file.tmpl | bash -n` for templates).
-2. `chezmoi diff` — verify only intended changes render.
-3. `chezmoi apply` — confirm it succeeds.
-4. `zsh -n ~/.zshrc` if shell config changed.
-5. `tmux source-file ~/.tmux.conf` if tmux config changed.
-6. Summarize changes, risks, and any manual follow-up.
+1. During editing, run the focused test for the changed subsystem.
+2. Before completing a task, run `./tests/all`. Skipped suites are not passes; report them explicitly.
+3. CI runs managed npm suites in required mode with `REQUIRE_MANAGED_NPM_TESTS=1`.
+4. Run `chezmoi diff` and verify only intended changes render.
+5. Run `chezmoi apply` only at an approved verification gate, then confirm `chezmoi status` is clean.
+6. Run `zsh -n ~/.zshrc` if shell config changed.
+7. Run `tmux source-file ~/.tmux.conf` if tmux config changed.
+8. Summarize changes, skipped suites, risks, and any manual follow-up.
 
 ## High-Impact Surfaces
 
@@ -100,10 +114,4 @@ Higher-level harness/system instructions still take precedence over this file.
 - `dot_zshrc.tmpl`, `dot_tmux.conf` — daily shell/tmux behavior
 - `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh` — bootstrap and hardening
 - `.chezmoiscripts/` and `dot_local/private_lib/chezmoi-helpers.sh` — apply-time automation and idempotency
-- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `.claude/settings.local.json`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` — agent operating system and tool-specific guidance
-
-## Commit Guidance
-
-- Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
-- Explain behavioral impact in commit body when changing bootstrap or scripts.
-- Include validation evidence in PR/summary notes when possible.
+- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `docs/file-layout.md`, `plans/README.md`, `.claude/settings.local.json`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` — agent operating system and tool-specific guidance

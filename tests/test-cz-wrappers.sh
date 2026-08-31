@@ -99,6 +99,12 @@ assert_order() {
     fail "$msg"
 }
 
+make_temp_dir() {
+    local root
+    root="$(mktemp -d)"
+    (cd "$root" && pwd -P)
+}
+
 reset_test_state() {
     export JJ_DIFF_SUMMARY_PRE=""
     export JJ_DIFF_SUMMARY_POST=""
@@ -401,7 +407,11 @@ run_wrapper() {
         export CHECK_UPDATES_STATUS="${CHECK_UPDATES_STATUS:-0}"
         export PACMAN_QUERY_STATUS="${PACMAN_QUERY_STATUS:-0}"
         export JJ_STUB_ROOT="$LAST_SOURCE"
-        bash "${SCRIPT_ROOT}/dot_local/bin/executable_${wrapper}" "${args[@]}"
+        if [ "${#args[@]}" -eq 0 ]; then
+            bash "${SCRIPT_ROOT}/dot_local/bin/executable_${wrapper}"
+        else
+            bash "${SCRIPT_ROOT}/dot_local/bin/executable_${wrapper}" "${args[@]}"
+        fi
     ) > "$LAST_OUT" 2>&1; then
         LAST_STATUS=0
     else
@@ -514,7 +524,7 @@ run_test() {
 
 test_czl_full_noarg_and_bump_pins() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -530,7 +540,7 @@ test_czl_full_noarg_and_bump_pins() {
 
 test_czl_conflicting_and_unknown_flags() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -545,7 +555,7 @@ test_czl_conflicting_and_unknown_flags() {
 
 test_czl_full_rejects_dirty_source() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -565,7 +575,7 @@ test_czl_full_rejects_dirty_source() {
 
 test_czl_system_only_allows_dirty_and_applies() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -581,7 +591,7 @@ test_czl_system_only_allows_dirty_and_applies() {
 
 test_czl_plan_mode_nonmutating() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -593,7 +603,7 @@ test_czl_plan_mode_nonmutating() {
 
 test_czl_plan_handles_checkupdates_statuses() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -609,7 +619,7 @@ test_czl_plan_handles_checkupdates_statuses() {
 
 test_czl_plan_handles_pacman_query_statuses() {
     local fixture saved_original_path
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -633,7 +643,7 @@ test_czl_plan_handles_pacman_query_statuses() {
 
 test_czm_full_noarg_and_bump_pins() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -650,7 +660,7 @@ test_czm_full_noarg_and_bump_pins() {
 
 test_czm_unknown_and_conflict_flags() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -664,7 +674,7 @@ test_czm_unknown_and_conflict_flags() {
 
 test_czm_full_rejects_dirty_source() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -683,7 +693,7 @@ test_czm_full_rejects_dirty_source() {
 
 test_czm_system_only_allows_dirty_and_skips_bump() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -699,7 +709,7 @@ test_czm_system_only_allows_dirty_and_skips_bump() {
 
 test_czm_plan_mode_nonmutating() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -711,7 +721,7 @@ test_czm_plan_mode_nonmutating() {
 
 test_czm_plan_system_only_skips_bump() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -724,7 +734,7 @@ test_czm_plan_system_only_skips_bump() {
 
 test_czm_no_change_skips_apply_without_shasum() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -739,7 +749,7 @@ test_czm_no_change_skips_apply_without_shasum() {
 
 test_czm_changed_summary_triggers_selected_apply() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -755,7 +765,7 @@ test_czm_changed_summary_triggers_selected_apply() {
 
 test_czm_cleanup_warning_nonfatal() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state
@@ -769,7 +779,7 @@ test_czm_cleanup_warning_nonfatal() {
 
 test_verbose_sets_verbosity_context() {
     local fixture
-    fixture="$(mktemp -d)"
+    fixture="$(make_temp_dir)"
     TEST_FIXTURE_ROOT="$fixture"
     create_fixture "$fixture"
     reset_test_state

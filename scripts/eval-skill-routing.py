@@ -96,7 +96,7 @@ def load_catalog(skills_dir: Path = SKILLS_DIR) -> list[dict[str, str]]:
     if duplicates:
         raise HarnessError(f"duplicate skill names: {', '.join(duplicates)}")
 
-    for path, skill in zip(paths, catalog, strict=True):
+    for path, skill in zip(paths, catalog):
         if path.parent.name != skill["name"]:
             raise HarnessError(
                 f"{path}: directory name does not match skill name {skill['name']!r}"
