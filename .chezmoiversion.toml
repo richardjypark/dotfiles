@@ -2,11 +2,11 @@
 fzf = "0.74.3"
 neovim = "v0.12.5"
 jj = "v0.45.1"
-codex = "rust-v0.153.0"
+codex = "rust-v0.153.3"
 uv = "0.12.9"
 go = "go1.26.2"
 starship = "v1.26.0"
-bun = "bun-v1.4.0"
+bun = "bun-v1.4.1"
 tailscale = "1.102.3"
 claude_code_npm = "2.1.215"
 
