@@ -1,7 +1,7 @@
 # Node.js and NVM configuration
 # This data is used by chezmoi templates, particularly in setup scripts
 [nvm]
-version = "v0.40.7"
+version = "v0.40.8"
 nodeVersion = "lts/*" # Specifies which Node.js version to install (lts/* is recommended for stability)
 
 # Python configuration
@@ -39,28 +39,28 @@ macos_x86_64_sha256 = "6171582d0b5a98a1005cd9643faebff7936812ec264d7968a39d9cef3
 macos_arm64_sha256 = "51ba42e3d0682616f6eb015045bfe45289b396f03511f9897f645ce8e9272743"
 
 [pinned.codex]
-version = "rust-v0.153.3"
-linux_x86_64_sha256 = "47bb1fb36fb1dbd5fe1af3eb0db422ffb4c3c38d9c1762c7618a9bed46c44a63"
-linux_arm64_sha256 = "53d4604d339cdc87f1c396aca80c2addc8e092987b1b15c5f34dcda1fa54748a"
-macos_x86_64_sha256 = "a387e1b26f68ee9c0c6cce3645ed82c2958876db74c76b49a94f81a5e4d17522"
-macos_arm64_sha256 = "1101ce8b7f9aaf598120bf14ff260c5f591eaa2c611cf8738070529e60ae8105"
+version = "rust-v0.155.1"
+linux_x86_64_sha256 = "a65b895c6ac1a73629bbe4b864640c86133e94a43b4d67b3103044e1a306d5a2"
+linux_arm64_sha256 = "71857dbc9bea3613410e8a69cfb46b07c0402d6d20fec18843dbaffd757634bd"
+macos_x86_64_sha256 = "be752aebb2ac022c5bfed3fa14f46943d11ddb36a950b553b058794aba22496a"
+macos_arm64_sha256 = "e6e08717da9e35b72332eff753527fe79a9ae876081033c5c6820a8e5f58b943"
 
 [pinned.uv]
-version = "0.12.9"
-linux_x86_64_sha256 = "ec7a99cd05e0cd7f80243f135ce1361c76835cb0ee60055d14d20eba8eba1460"
-linux_arm64_sha256 = "c36fe17937ff6bd16dc42fc13854b5465999fcab2efe0af559381e945e3c6001"
-macos_x86_64_sha256 = "e1ca175824f1056589ce9908f7631879ebc3c36535b5e63dc06510beb370b4c1"
-macos_arm64_sha256 = "301f72afaf54060f92da7016cb0115bd077f43a9c8e39c1d8170a0bac80fd398"
+version = "0.12.17"
+linux_x86_64_sha256 = "fa82fd8dde8e8eefdecada6aa0889666556cfceb690d06e0c3bca49eb3070a63"
+linux_arm64_sha256 = "d636d1b678e9e7f367ecb22b46bd1cabbed234d6bc3b4d96365d2b507f72f86c"
+macos_x86_64_sha256 = "8dcf05a8c809bb3c471d2b614788ba27a6e41298fc8c31ac84b5f4339fd468e5"
+macos_arm64_sha256 = "85f00cbdc6dd3e97eba4c31b4d014375a9fdfe8f570023b84e5102fc3456896b"
 
 [pinned.go]
 version = "go1.26.2"
 linux_x86_64_sha256 = "990e6b4bbba816dc3ee129eaeaf4b42f17c2800b88a2166c265ac1a200262282"
 
 [pinned.hermes_agent]
-version = "0.16.0"
+version = "0.21.1"
 repo_url = "https://github.com/NousResearch/hermes-agent.git"
 branch = "main"
-ref = "9ba4615db2be22d307f4d29501cde6da7c9a3d83"
+ref = "45a6101f36576367359c171cd5820ee76a3d047b"
 extras = ["messaging", "cli", "pty", "honcho", "mcp", "acp"]
 
 [hermes.preferences]
@@ -106,23 +106,23 @@ macos_x86_64_sha256 = "5548f406a4b6f5695903bdea83f77ce47ec12c8c0e62dabd33122d8f1
 macos_arm64_sha256 = "c40b27b11f580411e068f2fa6c1be7830a387c0bc47a94d1d37f32b054c5361d"
 
 [pinned.bun]
-version = "bun-v1.4.1"
-linux_x86_64_sha256 = "74c1c3bee7cd998500c8f969cd8972355ac6a07207e94a39eece1999b56ffabf"
-linux_arm64_sha256 = "580ce77533108dc6b10bec1721397e4f5aa44e909726da2451d483dfc5e581d6"
-macos_x86_64_sha256 = "8f34239f276a3f0d27bfcd1ffecfe5d2127e74fb0aa4c0971a0cdec7b225c965"
-macos_arm64_sha256 = "d8973ce835fa7867e5cc79afee6fc6f1ae0117aa4bd5fc2546fd00c512f71386"
+version = "bun-v1.4.2"
+linux_x86_64_sha256 = "36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d422a913"
+linux_arm64_sha256 = "54328bbc2d9c8e0c9f892c544d66c57a83b84139e34909e5ee81758f1ac8fda7"
+macos_x86_64_sha256 = "80520d7e17526308c9185d261679ac6d27798d3803a0e9f7ff9121ab8affb012"
+macos_arm64_sha256 = "90987a3a16d7db556d886ac3d551e7b6d3edf0a1cf43acaed622e8676be1d12f"
 
 [pinned.tailscale]
-version = "1.102.3"
-linux_x86_64_sha256 = "36ddd9b51be57ffc2990cf76323cfa13643bfbb1b8a969f6183fa164741cdef5"
-linux_arm64_sha256 = "a0fa1b154af8c61f862a2259f559f7396d96c0225f4a863eae2333e1546bbe25"
+version = "1.102.4"
+linux_x86_64_sha256 = "50748df1045e60b5b695f19f4c56b0da36c019948b440fb456b6584a50f0d8b9"
+linux_arm64_sha256 = "9dd1e6a592a014bbaea0103167ffe299adeda4ba14e078ce9c2895364f6c4c3f"
 
 [pinned.chezmoi]
-version = "2.72.1"
-linux_x86_64_sha256 = "9f97d32caca166e5c92160ec3a9325519809c38963121cef38173142065c981f"
-linux_arm64_sha256 = "75508ef41216b6d64f3145986b751729d7f92d09c6bad77d51cf2895ab35a508"
-macos_x86_64_sha256 = "bf0f0e048291efe126cb8bc51cf566057b92755cd53ce82c45efa11d2f8f4898"
-macos_arm64_sha256 = "938d422091cc001e68fe3fd7efea9b923a36facbf2b8db67063639abbaf72de2"
+version = "2.72.2"
+linux_x86_64_sha256 = "a2be1b8bcdf06c6f173e070bb3ddbcc52c50478fe9b57f6e6c63d15c7cff4f03"
+linux_arm64_sha256 = "499925fd10804b7c1a5dc4b4a275c8935261d02a4be0c18bbd41b7747810de67"
+macos_x86_64_sha256 = "08ad1ba33a73e68f7657ee226f72b5d800b5a947954b06e185e8591bd32b0063"
+macos_arm64_sha256 = "2b0c7e57f3f2da44628fa9f6863b9bd41f0935cfd2416228aa9df6daab6690f5"
 
 [pinned.claude]
-npm_version = "2.1.215"
+npm_version = "2.1.278"
