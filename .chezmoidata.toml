@@ -72,7 +72,7 @@ model = ""
 reasoning_effort = ""
 
 [hermes.tui_diff]
-patch_version = "muted-diff-v2"
+patch_version = "muted-diff-v3-skin-aware"
 added_bg = "rgb(31,37,33)"
 removed_bg = "rgb(40,33,35)"
 added_fg = "rgb(112,143,104)"
