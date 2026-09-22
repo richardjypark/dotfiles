@@ -154,7 +154,7 @@ Shell preview behavior:
 | --- | --- | --- |
 | `CHEZMOI_ROLE` | `workstation` | Full personal workstation toolchain. |
 | `CHEZMOI_ROLE` | `server` | Server-focused setup, skips workstation-only tooling. |
-| `CHEZMOI_PROFILE` | `omarchy` | Skip managed shell/terminal targets and keep local Omarchy files. |
+| `CHEZMOI_PROFILE` | `omarchy` | Manage `.zshrc` so Ghostty's zsh starts Herdr; keep local Omarchy terminal settings and skip tmux setup. |
 | `CHEZMOI_PROFILE` | `standard` | Keep standard managed shell/terminal targets. |
 
 | Optional tool | Server default | Opt-in marker | Runtime |

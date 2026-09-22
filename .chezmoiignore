@@ -90,11 +90,11 @@ logs/*
 {{ $force_str := lower (printf "%v" $force_raw) }}
 {{ $force_zsh := or (eq $force_str "true") (eq $force_str "1") (eq $force_str "yes") }}
 {{ if eq $profile "omarchy" }}
-# Keep Omarchy terminal/shell defaults in place
+# Keep Omarchy's terminal defaults, but manage .zshrc so Ghostty starts Herdr
+# instead of the old tmux setup.
 .config/ghostty/config
 .config/starship.toml
 .zshenv
-.zshrc
 .tmux.conf
 
 # Skip shell-stack setup scripts that assume this repo owns defaults

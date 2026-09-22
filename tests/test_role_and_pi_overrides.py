@@ -17,6 +17,34 @@ OVERRIDE = ROOT / ".chezmoiscripts/run_after_98-pi-local-overrides.sh.tmpl"
 
 
 class RoleAndOverrideTest(unittest.TestCase):
+    def test_omarchy_uses_managed_zshrc_with_herdr(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            home = root / "home"
+            home.mkdir()
+            for name in (".chezmoiignore", "dot_zshrc.tmpl", "private_dot_config/ghostty/config",
+                         ".chezmoitemplates/resolved-role", ".chezmoitemplates/resolved-profile"):
+                target = source / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / name).read_bytes())
+            config = root / "config.toml"
+            config.write_text('[data]\nrole = "workstation"\nprofile = "omarchy"\n')
+            command = ["chezmoi", "--source", str(source), "--destination", str(home),
+                       "--config", str(config)]
+            env = {**os.environ, "HOME": str(home)}
+            managed = subprocess.run(command + ["managed"], env=env, check=True,
+                                     capture_output=True, text=True).stdout.splitlines()
+            ignored = subprocess.run(command + ["ignored"], env=env, check=True,
+                                     capture_output=True, text=True).stdout.splitlines()
+            self.assertIn(".zshrc", managed)
+            self.assertIn(".config/ghostty/config", ignored)
+            rendered = subprocess.run(command + ["cat", str(home / ".zshrc")], env=env,
+                                      check=True, capture_output=True, text=True).stdout
+            self.assertIn("exec herdr", rendered)
+            self.assertIn('[[ -z "${HERDR_ENV:-}" ]]', rendered)
+            self.assertNotIn("exec tmux new-session", rendered)
+
     def test_pi_source_returns_after_local_override_is_removed(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory) / "home"
