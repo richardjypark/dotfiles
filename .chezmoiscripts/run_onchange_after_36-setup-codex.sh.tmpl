@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 CODEX_BIN_DIR="$HOME/.local/bin"
@@ -93,7 +94,9 @@ homebrew_codex_binary() {
 }
 
 if should_skip_state "$CODEX_STATE"; then
-    if codex_binary_ready; then
+    INSTALLED_CODEX_VERSION="$(current_codex_version)"
+    if codex_binary_ready && [ -n "$INSTALLED_CODEX_VERSION" ] \
+        && version_ge "$INSTALLED_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
         vecho "Codex setup already completed (state tracked)"
         exit 0
     fi
@@ -107,7 +110,7 @@ if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
 fi
 
 # Fast exit if Codex and its command host are already complete.
-if codex_binary_ready; then
+if codex_binary_ready && ! is_force_update; then
     CURRENT_CODEX_VERSION="$(current_codex_version)"
     if [ -n "$CURRENT_CODEX_VERSION" ] && version_ge "$CURRENT_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
         vecho "Codex is already at or above pinned version: $(codex --version 2>/dev/null || echo 'installed')"
@@ -150,9 +153,10 @@ install_via_homebrew() {
     return 1
 }
 
-install_via_release_package() {
+install_via_release_package() (
     local os arch target binary_name download_url temp_dir package_dir package_binary
     local package_version release_dir release_binary expected_sha cache_file platform
+    local staged_release backup_release
     if ! require_trust_for_remote_download "github.com/openai/codex"; then
         return 1
     fi
@@ -192,14 +196,14 @@ install_via_release_package() {
     binary_name="codex-package-${target}.tar.gz"
     download_url="https://github.com/openai/codex/releases/download/${PINNED_CODEX_VERSION}/${binary_name}"
     cache_file="$CACHE_DIR/codex-package-${PINNED_CODEX_VERSION}-${platform}.tar.gz"
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$temp_dir"' RETURN
+    temp_dir="$(mktemp -d)" || return 1
+    trap 'rm -rf "$temp_dir"; [ -z "${staged_release:-}" ] || rm -rf "$staged_release"' EXIT
     package_dir="$temp_dir/package"
-    mkdir -p "$package_dir"
+    mkdir -p "$package_dir" || return 1
 
     eecho "Installing Codex CLI from pinned release package (${PINNED_CODEX_VERSION})..."
-    download_and_verify "$download_url" "$cache_file" "$expected_sha"
-    tar -xzf "$cache_file" -C "$package_dir"
+    download_and_verify "$download_url" "$cache_file" "$expected_sha" || return 1
+    tar -xzf "$cache_file" -C "$package_dir" || return 1
 
     package_binary="$package_dir/bin/codex"
     if [ ! -f "$package_dir/codex-package.json" ] || ! codex_binary_ready_at "$package_binary"; then
@@ -214,18 +218,38 @@ install_via_release_package() {
     fi
 
     release_dir="$CODEX_RELEASES_DIR/${PINNED_CODEX_CLEAN}-${target}"
-    mkdir -p "$release_dir"
-    cp -R "$package_dir/." "$release_dir/"
-    chmod 755 "$release_dir/bin/codex" "$release_dir/bin/codex-code-mode-host"
+    mkdir -p "$CODEX_RELEASES_DIR" || return 1
+    staged_release="$(mktemp -d "$CODEX_RELEASES_DIR/.codex-stage.XXXXXXXX")" || return 1
+    cp -R "$package_dir/." "$staged_release/" || return 1
+    chmod 755 "$staged_release/bin/codex" "$staged_release/bin/codex-code-mode-host" || return 1
+    codex_binary_ready_at "$staged_release/bin/codex" || return 1
+
+    backup_release="${release_dir}.backup.$$"
+    [ ! -e "$backup_release" ] && [ ! -L "$backup_release" ] || return 1
+    if [ -e "$release_dir" ] || [ -L "$release_dir" ]; then
+        mv "$release_dir" "$backup_release" || return 1
+    fi
+    if ! mv "$staged_release" "$release_dir"; then
+        [ ! -e "$backup_release" ] || mv "$backup_release" "$release_dir"
+        return 1
+    fi
 
     release_binary="$release_dir/bin/codex"
     if ! codex_binary_ready_at "$release_binary"; then
         eecho "Error: Installed Codex release package is incomplete"
+        rm -rf "$release_dir"
+        [ ! -e "$backup_release" ] || mv "$backup_release" "$release_dir"
         return 1
     fi
 
-    activate_codex_binary "$release_binary"
-}
+    if ! activate_codex_binary "$release_binary"; then
+        rm -rf "$release_dir"
+        [ ! -e "$backup_release" ] || mv "$backup_release" "$release_dir"
+        return 1
+    fi
+    [ ! -e "$backup_release" ] || rm -rf "$backup_release"
+    return 0
+)
 
 CODEX_INSTALL_METHOD=""
 if install_via_homebrew; then

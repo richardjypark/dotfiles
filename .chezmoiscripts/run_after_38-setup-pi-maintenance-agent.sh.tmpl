@@ -115,7 +115,7 @@ clear_pi_agent_state
 
 add_to_path "$HOME/.local/bin"
 
-# shellcheck disable=SC2034 # resolve_npm_cmd sets NPM_CMD for sourced npm helpers.
+# shellcheck disable=SC2034 # npm helpers use NPM_CMD.
 NPM_CMD=""
 INSTALLED_PI_VERSION="$(installed_pi_version)"
 NEEDS_PI_AGENT_INSTALL=0
@@ -127,7 +127,7 @@ if [ "$INSTALLED_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
 fi
 
 if [ "$NEEDS_PI_AGENT_INSTALL" -eq 1 ]; then
-    if ! resolve_npm_cmd; then
+    if ! NPM_CMD="$(resolve_npm_cmd)"; then
         eecho "Error: npm is required to install the pi maintenance agent dependency."
         eecho "Install Node.js/npm first, then rerun chezmoi apply."
         exit 1

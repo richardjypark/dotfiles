@@ -2357,9 +2357,9 @@ EOF
         return 1
     fi
 
-    # shellcheck disable=SC2034 # resolve_npm_cmd sets NPM_CMD for sourced npm helpers.
+    # shellcheck disable=SC2034 # npm helpers use NPM_CMD.
     NPM_CMD=""
-    if ! resolve_npm_cmd; then
+    if ! NPM_CMD="$(resolve_npm_cmd)"; then
         tx_fail "npm is required to validate $(display_repo_path "$lockfile")"
         return 1
     fi

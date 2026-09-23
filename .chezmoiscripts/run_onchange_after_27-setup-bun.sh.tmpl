@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
@@ -27,7 +28,10 @@ current_bun_version() {
 
 if should_skip_state "$BUN_STATE"; then
     export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
-    if bun_binary_ready; then
+    add_to_path "$BUN_INSTALL/bin"
+    INSTALLED_BUN_VERSION="$(current_bun_version)"
+    if bun_binary_ready && [ -n "$INSTALLED_BUN_VERSION" ] \
+        && version_ge "$INSTALLED_BUN_VERSION" "$PINNED_BUN_CLEAN"; then
         vecho "Bun setup already completed (state tracked)"
         exit 0
     fi
@@ -65,7 +69,7 @@ link_homebrew_bun_into_bun_install() {
 link_homebrew_bun_into_bun_install
 
 # Fast exit if bun is already installed (but mark state)
-if is_installed bun; then
+if is_installed bun && ! is_force_update; then
     CURRENT_BUN_VERSION="$(current_bun_version)"
     if [ -n "$CURRENT_BUN_VERSION" ] && version_ge "$CURRENT_BUN_VERSION" "$PINNED_BUN_CLEAN"; then
         vecho "Bun is already at or above pinned version: $CURRENT_BUN_VERSION"
@@ -118,7 +122,7 @@ install_via_homebrew() {
     return 1
 }
 
-install_via_release_binary() {
+install_via_release_binary() (
     local asset_name expected_sha download_url cache_file temp_dir bin_path
     if ! require_trust_for_remote_download "github.com/oven-sh/bun"; then
         return 1
@@ -154,12 +158,12 @@ install_via_release_binary() {
 
     download_url="https://github.com/oven-sh/bun/releases/download/${PINNED_BUN_VERSION}/${asset_name}"
     cache_file="$CACHE_DIR/bun-${PINNED_BUN_VERSION}-${PLATFORM}.zip"
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$temp_dir"' RETURN
+    temp_dir="$(mktemp -d)" || return 1
+    trap 'rm -rf "$temp_dir"' EXIT
 
     eecho "Installing Bun from pinned release binary (${PINNED_BUN_VERSION})..."
-    download_and_verify "$download_url" "$cache_file" "$expected_sha"
-    unzip -q "$cache_file" -d "$temp_dir"
+    download_and_verify "$download_url" "$cache_file" "$expected_sha" || return 1
+    unzip -q "$cache_file" -d "$temp_dir" || return 1
 
     bin_path="$(find "$temp_dir" -maxdepth 4 -type f -name bun | head -1)"
     if [ -z "$bin_path" ]; then
@@ -167,10 +171,8 @@ install_via_release_binary() {
         return 1
     fi
 
-    mkdir -p "$BUN_INSTALL/bin"
-    install -m 755 "$bin_path" "$BUN_INSTALL/bin/bun"
-    return 0
-}
+    install_checked_binary "$bin_path" "$BUN_INSTALL/bin/bun"
+)
 
 # Try installation methods in order of preference
 if [[ "$PLATFORM" == macos-* ]]; then

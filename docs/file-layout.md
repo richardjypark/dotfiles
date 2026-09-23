@@ -23,8 +23,8 @@ Chezmoi encodes target properties in source names:
 - `executable_foo` becomes executable `foo`.
 - A final `.tmpl` suffix is removed after chezmoi renders the Go template.
 - Files named `run_before_*`, `run_after_*`, or `run_onchange_*` under
-  `.chezmoiscripts/` are apply-time scripts. Chezmoi removes the run prefix from
-  their target name and schedules them according to the prefix.
+  `.chezmoiscripts/` are apply-time scripts. Chezmoi schedules them according
+  to the prefix; they do not become managed target files.
 
 See the official [chezmoi special-files reference](https://www.chezmoi.io/reference/special-files/)
 for the complete naming and execution rules.
@@ -45,7 +45,10 @@ for the complete naming and execution rules.
 | `private_dot_config/mise/config.toml` | `~/.config/mise/config.toml` | Managed global runtime defaults |
 | `dot_local/bin/executable_czu` | `~/.local/bin/czu` | Managed executable |
 | `dot_local/private_lib/chezmoi-helpers.sh` | `~/.local/lib/chezmoi-helpers.sh` | Managed shared script library |
-| `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl` | `~/.chezmoiscripts/39-setup-hermes-agent.sh` | Managed apply-time script |
+| `dot_local/private_lib/chezmoi/{core,artifacts,npm}.sh` | `~/.local/lib/chezmoi/` | Managed helper modules |
+| `dot_local/private_lib/chezmoi/hermes/` | `~/.local/lib/chezmoi/hermes/` | Managed Hermes modules |
+| `.chezmoitemplates/setup/helper-hashes.tmpl` | Source-only rendering input | Helper change detection for run-onchange scripts |
+| `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl` | Executed during apply; no managed file target | Always-run Hermes setup |
 | `private_dot_agents/private_skills/chezmoi-repo-maintainer/SKILL.md` | `~/.agents/skills/chezmoi-repo-maintainer/SKILL.md` | Canonical managed shared skill |
 | `private_dot_codex/AGENTS.md.tmpl` | `~/.codex/AGENTS.md` | Managed Codex context |
 | `private_dot_claude/settings.json` | `~/.claude/settings.json` | Managed Claude configuration |
@@ -106,7 +109,7 @@ high-risk version-source task; do not delete it as part of layout cleanup.
 
 - `.chezmoiscripts/`: apply-time installation and convergence.
 - `scripts/` and `bootstrap-vps.sh`: first-run and maintenance entry points.
-- `dot_local/private_lib/chezmoi-helpers.sh`: shared apply-script contract.
+- `dot_local/private_lib/chezmoi-helpers.sh`: compatibility entry point for shared apply-script modules.
 
 ### Agent operating system
 

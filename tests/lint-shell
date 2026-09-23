@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+. "$REPO_ROOT/tests/lib/shell-files.sh"
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
@@ -23,7 +24,7 @@ while IFS= read -r file; do
                 printf 'chezmoi is required to render %s\n' "$file" >&2
                 exit 1
             fi
-            chezmoi --source "$REPO_ROOT" execute-template < "$REPO_ROOT/$file" > "$TEMP_DIR/rendered.sh"
+            render_test_template "$file" "$TEMP_DIR/rendered.sh"
             shellcheck -S error -s bash "$TEMP_DIR/rendered.sh"
             count=$((count + 1))
             ;;
@@ -35,9 +36,17 @@ while IFS= read -r file; do
                     shellcheck -S error -s bash "$REPO_ROOT/$file"
                     count=$((count + 1))
                     ;;
+                *)
+                    case "$file" in
+                        dot_local/private_lib/chezmoi/*.sh|dot_local/private_lib/chezmoi/hermes/*.sh|tests/lib/*.sh)
+                            shellcheck -S error -s bash "$REPO_ROOT/$file"
+                            count=$((count + 1))
+                            ;;
+                    esac
+                    ;;
             esac
             ;;
     esac
-done < <(git -C "$REPO_ROOT" ls-files --cached --others --exclude-standard)
+done < <(test_shell_files)
 
 printf 'ShellCheck: %s Bash files checked at error severity\n' "$count"

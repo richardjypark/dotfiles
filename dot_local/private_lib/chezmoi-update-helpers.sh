@@ -252,32 +252,7 @@ run_with_optional_output_sanitizer() {
     "$@"
 }
 
-resolve_npm_cmd() {
-    local candidate resolved
-
-    if command -v mise >/dev/null 2>&1; then
-        candidate="$(cd "$HOME" && mise which npm 2>/dev/null || true)"
-        if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" -v >/dev/null 2>&1; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    fi
-
-    if command -v npm >/dev/null 2>&1; then
-        candidate="$(command -v npm)"
-        resolved="$candidate"
-        if command -v readlink >/dev/null 2>&1; then
-            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
-        fi
-        if [ -x "$resolved" ] && "$resolved" -v >/dev/null 2>&1; then
-            printf '%s\n' "$resolved"
-            return 0
-        fi
-        if [ -x "$candidate" ] && "$candidate" -v >/dev/null 2>&1; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    fi
-
-    return 1
-}
+# Use the same runtime resolver as apply-time setup.
+CHEZMOI_UPDATE_HELPERS_DIR="${BASH_SOURCE[0]%/*}"
+if [ "$CHEZMOI_UPDATE_HELPERS_DIR" = "${BASH_SOURCE[0]}" ]; then CHEZMOI_UPDATE_HELPERS_DIR=.; fi
+. "$CHEZMOI_UPDATE_HELPERS_DIR/chezmoi/npm.sh" || return 1

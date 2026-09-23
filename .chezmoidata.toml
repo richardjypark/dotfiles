@@ -51,7 +51,7 @@ version = "0.21.1"
 repo_url = "https://github.com/NousResearch/hermes-agent.git"
 branch = "main"
 ref = "45a6101f36576367359c171cd5820ee76a3d047b"
-extras = ["messaging", "cli", "pty", "honcho", "mcp", "acp"]
+extras = ["messaging", "pty", "honcho", "mcp", "acp"]
 
 [hermes.preferences]
 model_provider = "openai-codex"

@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_FILE = REPO_ROOT / ".chezmoidata.toml"
 TEMPLATE_FILE = REPO_ROOT / ".chezmoiscripts" / "run_after_39-setup-hermes-agent.sh.tmpl"
 README_FILE = REPO_ROOT / "README.md"
+CONFIG_MODULE = REPO_ROOT / "dot_local/private_lib/chezmoi/hermes/config.sh"
 
 
 def read_toml_section(path: Path, section: str) -> dict[str, str]:
@@ -58,7 +59,7 @@ class HermesDelegationDefaultsTest(unittest.TestCase):
             self.assertIn(f'{variable}=""', rendered, variable)
             self.assertIn(
                 f'config set {config_key} "${variable}"',
-                rendered,
+                CONFIG_MODULE.read_text(encoding="utf-8"),
             )
 
     def test_managed_hermes_docs_do_not_promise_spark_delegation(self) -> None:

@@ -23,8 +23,7 @@ mise() {
 # shellcheck disable=SC1091
 . "$REPO_ROOT/dot_local/private_lib/chezmoi-helpers.sh"
 NPM_CMD=""
-resolve_npm_cmd
-[ "$NPM_CMD" = "$TEST_MISE_NPM" ]
+[ "$(resolve_npm_cmd)" = "$TEST_MISE_NPM" ]
 
 # The update helpers return the same global npm path, not a project-local one.
 # shellcheck disable=SC1091

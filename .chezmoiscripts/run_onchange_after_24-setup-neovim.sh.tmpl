@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
@@ -41,7 +42,7 @@ fi
 add_to_path "$HOME/.local/bin"
 
 # Fast exit if nvim is already installed with required version (but mark state)
-if nvim_meets_requirement; then
+if nvim_meets_requirement && ! is_force_update; then
     vecho "Neovim is already installed and up to date: $(nvim --version | sed -n '1p' 2>/dev/null || echo 'installed')"
     mark_state "neovim-setup"
     exit 0
@@ -116,7 +117,7 @@ install_via_homebrew() {
     return 1
 }
 
-install_via_release_binary() {
+install_via_release_binary() (
     local platform archive_name download_url temp_dir root_dir install_root expected_sha cache_file
     if ! require_trust_for_remote_download "github.com/neovim/neovim"; then
         return 1
@@ -151,27 +152,53 @@ install_via_release_binary() {
 
     download_url="https://github.com/neovim/neovim/releases/download/${PINNED_NVIM_VERSION}/${archive_name}"
     cache_file="$CACHE_DIR/neovim-${PINNED_NVIM_VERSION}-${platform}.tar.gz"
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$temp_dir"' RETURN
+    mkdir -p "$HOME/.local" "$HOME/.local/bin" || return 1
+    temp_dir="$(mktemp -d "$HOME/.local/.nvim-stage.XXXXXXXX")" || return 1
+    trap 'rm -rf "$temp_dir"' EXIT
 
     eecho "Installing Neovim from pinned release binary (${PINNED_NVIM_VERSION})..."
-    download_and_verify "$download_url" "$cache_file" "$expected_sha"
-    cp "$cache_file" "$temp_dir/nvim.tar.gz"
+    download_and_verify "$download_url" "$cache_file" "$expected_sha" || return 1
+    cp "$cache_file" "$temp_dir/nvim.tar.gz" || return 1
 
-    tar -xzf "$temp_dir/nvim.tar.gz" -C "$temp_dir"
-    root_dir="$(tar -tzf "$temp_dir/nvim.tar.gz" | sed -n '1p' | cut -d/ -f1)"
+    tar -xzf "$temp_dir/nvim.tar.gz" -C "$temp_dir" || return 1
+    root_dir="$(tar -tzf "$temp_dir/nvim.tar.gz" | sed -n '1p' | cut -d/ -f1)" || return 1
     if [ -z "$root_dir" ] || [ ! -d "$temp_dir/$root_dir" ]; then
         eecho "Error: Could not determine extracted Neovim directory."
         return 1
     fi
 
+    local candidate_version backup_root link_tmp
+    candidate_version="$("$temp_dir/$root_dir/bin/nvim" --version 2>/dev/null | sed -n '1s/^NVIM v//p' | awk '{print $1}')" || return 1
+    if [ -z "$candidate_version" ] || ! version_ge "$candidate_version" "$REQUIRED_NVIM_VERSION"; then
+        eecho "Error: Neovim release does not meet ${REQUIRED_NVIM_VERSION}."
+        return 1
+    fi
+
     install_root="$HOME/.local/neovim"
-    mkdir -p "$HOME/.local/bin"
-    rm -rf "$install_root"
-    mv "$temp_dir/$root_dir" "$install_root"
-    ln -sf "$install_root/bin/nvim" "$HOME/.local/bin/nvim"
+    backup_root="$HOME/.local/.neovim-backup.$$"
+    [ ! -e "$backup_root" ] && [ ! -L "$backup_root" ] || return 1
+    if [ -e "$install_root" ] || [ -L "$install_root" ]; then
+        mv "$install_root" "$backup_root" || return 1
+    fi
+    if ! mv "$temp_dir/$root_dir" "$install_root"; then
+        [ ! -e "$backup_root" ] || mv "$backup_root" "$install_root"
+        return 1
+    fi
+    if ! link_tmp="$(mktemp "$HOME/.local/bin/.nvim-link.XXXXXXXX")"; then
+        rm -rf "$install_root"
+        [ ! -e "$backup_root" ] || mv "$backup_root" "$install_root"
+        return 1
+    fi
+    rm -f "$link_tmp"
+    if ! ln -s "$install_root/bin/nvim" "$link_tmp" || ! mv -f "$link_tmp" "$HOME/.local/bin/nvim"; then
+        rm -f "$link_tmp"
+        rm -rf "$install_root"
+        [ ! -e "$backup_root" ] || mv "$backup_root" "$install_root"
+        return 1
+    fi
+    [ ! -e "$backup_root" ] || rm -rf "$backup_root"
     return 0
-}
+)
 
 if install_via_package_manager; then
     if nvim_meets_requirement; then

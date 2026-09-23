@@ -56,7 +56,9 @@ exclusions, and canonical ownership rules.
 ## Dependency Direction
 
 - Data/version files feed templates and scripts; prefer updating them before duplicating constants elsewhere.
-- `dot_local/private_lib/chezmoi-helpers.sh` is the shared contract for setup scripts.
+- `dot_local/private_lib/chezmoi-helpers.sh` is the compatibility entry point for setup scripts. It loads `chezmoi/core.sh`, `chezmoi/artifacts.sh`, and `chezmoi/npm.sh` relative to its own path. Hermes has install, config, gateway, and TUI modules under `chezmoi/hermes/`.
+- `run_onchange` templates include helper checksums. A helper edit changes their rendered content and makes chezmoi rerun them. `run_after` scripts run on each apply. Before-scripts use the selected source helper; after-scripts use the deployed helper.
+- Install state is not proof of readiness. Scripts check the command and required files before they skip work. Quiet failures keep the command status and show bounded diagnostic output.
 - Runtime docs (`README.md`, `docs/`) explain user workflows; agent docs (`AGENTS.md`, skills, `plans/README.md`) explain implementation workflows.
 - Skills should reference deeper docs or references instead of duplicating long repo context.
 

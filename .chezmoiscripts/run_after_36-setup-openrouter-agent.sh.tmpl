@@ -136,7 +136,7 @@ if [ ! -f "$INSTALL_STAMP" ] || [ "$(cat "$INSTALL_STAMP" 2>/dev/null || true)" 
 fi
 
 if [ "$NEEDS_BUILD" -eq 1 ]; then
-    if ! resolve_npm_cmd; then
+    if ! NPM_CMD="$(resolve_npm_cmd)"; then
         eecho "Error: Node.js/npm is required for the optional OpenRouter Agent."
         exit 1
     fi
@@ -155,9 +155,7 @@ if [ "$NEEDS_BUILD" -eq 1 ]; then
     eecho "Installing and building the optional OpenRouter Agent from its committed lockfile..."
     (
         cd "$APP_DIR"
-        NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
-        NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
-            "$NPM_CMD" ci --include=dev --ignore-scripts --no-fund --no-audit
+        run_managed_npm_ci "$APP_DIR" build
         "$NPM_CMD" run build
         NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
         NPM_CONFIG_REPLACE_REGISTRY_HOST=always \

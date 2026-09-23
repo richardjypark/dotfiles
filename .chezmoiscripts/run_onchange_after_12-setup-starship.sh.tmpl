@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 add_to_path "$HOME/.local/bin"
@@ -30,7 +31,9 @@ current_starship_version() {
 }
 
 if should_skip_state "$STARSHIP_STATE"; then
-    if starship_binary_ready; then
+    INSTALLED_STARSHIP_VERSION="$(current_starship_version)"
+    if starship_binary_ready && [ -n "$INSTALLED_STARSHIP_VERSION" ] \
+        && version_ge "$INSTALLED_STARSHIP_VERSION" "$PINNED_STARSHIP_CLEAN"; then
         vecho "Starship setup already completed (state tracked)"
         exit 0
     fi
@@ -40,7 +43,7 @@ fi
 vecho "Setting up Starship prompt..."
 
 # Fast exit if starship is already installed and working (but mark state)
-if is_installed starship; then
+if is_installed starship && ! is_force_update; then
     CURRENT_STARSHIP_VERSION="$(current_starship_version)"
     if [ -n "$CURRENT_STARSHIP_VERSION" ] && version_ge "$CURRENT_STARSHIP_VERSION" "$PINNED_STARSHIP_CLEAN"; then
         vecho "Starship is already at or above pinned version: $CURRENT_STARSHIP_VERSION"
@@ -59,33 +62,10 @@ if is_installed starship; then
 fi
 
 install_via_homebrew() {
-    local action="install"
-    if ! is_installed brew; then
-        return 1
-    fi
-
-    if brew list --formula starship >/dev/null 2>&1; then
-        if ! brew outdated --formula starship 2>/dev/null | grep -Eq '^starship($| )'; then
-            eecho "Starship already at latest Homebrew version"
-            return 0
-        fi
-        action="upgrade"
-    fi
-
-    eecho "Running brew $action for Starship..."
-    if [ "$VERBOSE" = "true" ]; then
-        if brew "$action" starship; then
-            return 0
-        fi
-    else
-        if brew "$action" starship --quiet 2>/dev/null || brew "$action" starship; then
-            return 0
-        fi
-    fi
-    return 1
+    brew_install_formula starship Starship true
 }
 
-install_via_release_binary() {
+install_via_release_binary() (
     local platform asset_name expected_sha download_url cache_file temp_dir extracted_bin
     if ! require_trust_for_remote_download "github.com/starship/starship"; then
         return 1
@@ -120,13 +100,13 @@ install_via_release_binary() {
 
     download_url="https://github.com/starship/starship/releases/download/${PINNED_STARSHIP_VERSION}/${asset_name}"
     cache_file="$CACHE_DIR/starship-${PINNED_STARSHIP_VERSION}-${platform}.tar.gz"
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$temp_dir"' RETURN
+    temp_dir="$(mktemp -d)" || return 1
+    trap 'rm -rf "$temp_dir"' EXIT
 
     eecho "Installing Starship from pinned release binary (${PINNED_STARSHIP_VERSION})..."
-    download_and_verify "$download_url" "$cache_file" "$expected_sha"
-    cp "$cache_file" "$temp_dir/starship.tar.gz"
-    tar -xzf "$temp_dir/starship.tar.gz" -C "$temp_dir"
+    download_and_verify "$download_url" "$cache_file" "$expected_sha" || return 1
+    cp "$cache_file" "$temp_dir/starship.tar.gz" || return 1
+    tar -xzf "$temp_dir/starship.tar.gz" -C "$temp_dir" || return 1
 
     extracted_bin="$(find "$temp_dir" -maxdepth 3 -type f -name starship | head -1)"
     if [ -z "$extracted_bin" ]; then
@@ -134,9 +114,8 @@ install_via_release_binary() {
         return 1
     fi
 
-    install -m 755 "$extracted_bin" "$HOME/.local/bin/starship"
-    return 0
-}
+    install_checked_binary "$extracted_bin" "$HOME/.local/bin/starship"
+)
 
 if is_force_update; then
     if install_via_release_binary; then
