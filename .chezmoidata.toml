@@ -1,9 +1,3 @@
-# Node.js and NVM configuration
-# This data is used by chezmoi templates, particularly in setup scripts
-[nvm]
-version = "v0.40.8"
-nodeVersion = "lts/*" # Specifies which Node.js version to install (lts/* is recommended for stability)
-
 # Python configuration
 [python]
 version = "3.12"  # Python version to install via uv (can be "3.12", "3.11", "latest", etc.)
@@ -19,10 +13,6 @@ email = "git@richardjypark.com"
 [git]
 # Default branch used by chezmoi update pull/rebase
 defaultBranch = "master"
-
-# Global npm packages installed alongside Node.js
-[npm]
-packages = ["yarn", "pnpm"]
 
 [pinned.neovim]
 version = "v0.12.5"

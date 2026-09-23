@@ -1,0 +1,9 @@
+---
+# Only common post-bootstrap packages. SSH/firewall policy stays in bootstrap.
+server_base_packages:
+  - ca-certificates
+  - curl
+  - git
+  - jq
+  - tmux
+  - unattended-upgrades

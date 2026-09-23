@@ -9,7 +9,7 @@ description: "Update pinned tool versions and external dependency references for
 
 Use this skill when:
 
-- bumping Node, NVM, Python, FZF, Hermes Agent, plugin, or archive revisions
+- bumping project runtimes, Python, FZF, Hermes Agent, plugin, or archive revisions
 - changing `.chezmoidata.toml`, `.chezmoiversion.toml`, or `.chezmoiexternal.toml.tmpl`
 - adjusting setup logic because a pinned version or refresh policy changed
 
@@ -53,7 +53,7 @@ Use template rendering + shell parsing for `.tmpl` files:
 
 ```bash
 chezmoi execute-template < .chezmoiexternal.toml.tmpl >/tmp/chezmoiexternal.rendered.toml
-chezmoi execute-template < .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_after_30-setup-mise.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl | bash -n
 chezmoi execute-template < .chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl | bash -n

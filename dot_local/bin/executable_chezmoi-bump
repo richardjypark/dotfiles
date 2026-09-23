@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # chezmoi-bump — Automated dependency version bumper for chezmoi dotfiles
-# Queries latest versions for all 14 pinned dependencies, fetches SHA256
+# Queries latest versions for all 13 pinned dependencies, fetches SHA256
 # checksums where needed, and edits pinned source files in place.
 #
 # Usage:
@@ -83,7 +83,6 @@ ALL_DEPS=(
     "chezmoi|twpayne/chezmoi|raw|checksums_txt|4"
     "claude|npm:@anthropic-ai/claude-code|raw|none|0"
     "pi|npm:@earendil-works/pi-coding-agent|raw|none|0"
-    "nvm|nvm-sh/nvm|v|none|0"
     "fzf|junegunn/fzf|raw|none|0"
     "zsh-syntax-highlighting|zsh-users/zsh-syntax-highlighting|raw|none|0"
     "zsh-autosuggestions|zsh-users/zsh-autosuggestions|v|none|0"
@@ -215,7 +214,7 @@ usage() {
 Usage: chezmoi-bump [OPTIONS] [DEPS...]
 
 Options:
-  --check, -c        Report versions for all 14 deps (default if no deps given)
+  --check, -c        Report versions for all 13 deps (default if no deps given)
   --all, -a          Bump all deps with available updates
   --dry-run, -n      Show what would change without writing
   --skip-sha         Version-only bump (skip SHA256 artifact downloads)
@@ -227,7 +226,7 @@ Options:
   --help, -h         Show this help
 
 Examples:
-  chezmoi-bump --check             # Report all 14 deps
+  chezmoi-bump --check             # Report all 13 deps
   chezmoi-bump jj uv               # Bump specific deps
   chezmoi-bump --all               # Bump everything outdated
   chezmoi-bump --dry-run jj        # Preview changes for jj
@@ -236,7 +235,7 @@ Examples:
   chezmoi-bump --skip-sha --all    # Version-only bump (no downloads)
 
 Dependencies: neovim, jj, codex, uv, starship, bun, tailscale, chezmoi,
-              claude, pi, nvm, fzf, zsh-syntax-highlighting, zsh-autosuggestions
+              claude, pi, fzf, zsh-syntax-highlighting, zsh-autosuggestions
 EOF
 }
 
@@ -615,10 +614,6 @@ get_current_version() {
         pi)
             get_current_pi_version
             ;;
-        nvm)
-            sed -n '/^\[nvm\]/,/^\[/{s/^version = "\([^"]*\)".*/\1/p;}' \
-                "$CHEZMOI_DIR/.chezmoidata.toml" | head -1
-            ;;
         fzf)
             sed -n '/^\["\.local\/share\/fzf"\]/,/^\[/{s/.*"--branch", "\([^"]*\)".*/\1/p;}' \
                 "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1
@@ -672,7 +667,7 @@ get_latest_version() {
             echo "${raw_tag#v}"
             ;;
         v)
-            # Ensure v prefix (neovim, jj, starship, nvm, zsh-autosuggestions store with v)
+            # Ensure v prefix (neovim, jj, starship, zsh-autosuggestions store with v)
             if [[ "$raw_tag" != v* ]]; then
                 echo "v${raw_tag}"
             else
@@ -1720,15 +1715,6 @@ build_dep_manifest() {
                 "$latest" \
                 "$(display_repo_path "$data_file") [pinned.claude] npm_version"
             ;;
-        nvm)
-            tx_add_toml_op \
-                "$data_file" \
-                "nvm" \
-                "version" \
-                "$current" \
-                "$latest" \
-                "$(display_repo_path "$data_file") [nvm] version"
-            ;;
         fzf)
             tx_add_literal_op \
                 "$external_file" \
@@ -2279,9 +2265,16 @@ EOF
 pi_regenerate_lockfile() {
     local project_dir="$1"
     local before_cutoff="$2"
-    local registry
+    local registry npm_cmd
 
-    if ! command -v npm >/dev/null 2>&1; then
+    npm_cmd=""
+    if command -v mise >/dev/null 2>&1; then
+        npm_cmd="$(cd "$HOME" && mise which npm 2>/dev/null || true)"
+    fi
+    if [ -z "$npm_cmd" ] && command -v npm >/dev/null 2>&1; then
+        npm_cmd="$(command -v npm)"
+    fi
+    if [ -z "$npm_cmd" ] || [ ! -x "$npm_cmd" ]; then
         tx_fail "npm is required to regenerate committed Pi lockfiles"
         return 1
     fi
@@ -2291,9 +2284,10 @@ pi_regenerate_lockfile() {
     if [ -n "$before_cutoff" ]; then
         if ! (
             cd "$project_dir" || exit 1
+            export PATH="$(dirname "$npm_cmd"):$PATH"
             NPM_CONFIG_REGISTRY="$registry" \
             NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
-                npm install --package-lock-only --ignore-scripts --no-fund --no-audit --omit=dev --before "$before_cutoff" >/dev/null
+                "$npm_cmd" install --package-lock-only --ignore-scripts --no-fund --no-audit --omit=dev --before "$before_cutoff" >/dev/null
         ); then
             tx_fail "Failed to regenerate $(display_repo_path "$project_dir/package-lock.json")"
             return 1
@@ -2303,9 +2297,10 @@ pi_regenerate_lockfile() {
 
     if ! (
         cd "$project_dir" || exit 1
+        export PATH="$(dirname "$npm_cmd"):$PATH"
         NPM_CONFIG_REGISTRY="$registry" \
         NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
-            npm install --package-lock-only --ignore-scripts --no-fund --no-audit --omit=dev >/dev/null
+            "$npm_cmd" install --package-lock-only --ignore-scripts --no-fund --no-audit --omit=dev >/dev/null
     ); then
         tx_fail "Failed to regenerate $(display_repo_path "$project_dir/package-lock.json")"
         return 1
@@ -2700,7 +2695,7 @@ bump_dep() {
     local entry
     if ! entry="$(find_dep_entry "$dep_name")"; then
         echo "${RED}Error: Unknown dependency '${dep_name}'${RESET}" >&2
-        echo "Valid deps: neovim jj codex uv starship bun tailscale chezmoi claude pi nvm fzf zsh-syntax-highlighting zsh-autosuggestions" >&2
+        echo "Valid deps: neovim jj codex uv starship bun tailscale chezmoi claude pi fzf zsh-syntax-highlighting zsh-autosuggestions" >&2
         return 1
     fi
 

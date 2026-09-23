@@ -36,6 +36,22 @@ run_suite() {
     fi
 }
 
+run_lint_suite() {
+    local name="$1"
+    local command_name="$2"
+    local script="$3"
+
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+        if [ "${REQUIRE_LINT_TOOLS:-0}" = "1" ]; then
+            fail_suite "$name ($command_name is not installed)"
+        else
+            skip_suite "$name ($command_name is not installed)"
+        fi
+        return
+    fi
+    run_suite "$name" bash "$script"
+}
+
 managed_npm_available() {
     [ -d "$1/node_modules" ]
 }
@@ -86,8 +102,11 @@ check_openrouter_agent() {
 }
 
 run_suite "shell syntax" "$REPO_ROOT/tests/syntax"
+run_lint_suite "ShellCheck" shellcheck "$REPO_ROOT/tests/lint-shell"
+run_lint_suite "actionlint" actionlint "$REPO_ROOT/tests/lint-actions"
 run_suite "maintenance behavior" bash "$REPO_ROOT/tests/test-cz-maintenance.sh"
 run_suite "update-helper behavior" bash "$REPO_ROOT/tests/test-chezmoi-update-helpers.sh"
+run_suite "mise migration behavior" bash "$REPO_ROOT/tests/test-mise-migration.sh"
 run_suite "maintenance wrapper behavior" bash "$REPO_ROOT/tests/test-cz-wrappers.sh"
 run_suite "skill-routing unit tests" python3 "$REPO_ROOT/tests/test_eval_skill_routing.py"
 run_suite "skill-routing catalog dry run" python3 "$REPO_ROOT/scripts/eval-skill-routing.py" --dry-run

@@ -80,10 +80,6 @@ github_latest_tag() {
 
 # Extract pinned version from chezmoi config files
 # Returns: "version source_file"
-get_pinned_nvm() {
-    sed -n '/^\[nvm\]/,/^\[/{s/^version = "\([^"]*\)".*/\1/p;}' "$CHEZMOI_DIR/.chezmoidata.toml" | head -1 | sed 's/^v//'
-}
-
 get_pinned_fzf() {
     # Check .chezmoiexternal.toml.tmpl for the fzf clone branch tag
     sed -n '/^\["\.local\/share\/fzf"\]/,/^\[/{s/.*"--branch", "\([^"]*\)".*/\1/p;}' "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1 | sed 's/^v//'
@@ -133,7 +129,6 @@ check_dep() {
     fi
 }
 
-check_dep "nvm" "$(get_pinned_nvm)" "nvm-sh/nvm"
 check_dep "fzf" "$(get_pinned_fzf)" "junegunn/fzf"
 check_dep "zsh-syntax-highlighting" "$(get_pinned_zsh_syntax_highlighting)" "zsh-users/zsh-syntax-highlighting"
 check_dep "zsh-autosuggestions" "$(get_pinned_zsh_autosuggestions)" "zsh-users/zsh-autosuggestions"
@@ -146,7 +141,7 @@ if [ "$has_update" = "true" ]; then
     output="${output}
 
 Updates available! To bump versions automatically:
-  chezmoi-bump --check           # Full report (all 14 deps)
+  chezmoi-bump --check           # Full report (all 13 deps)
   chezmoi-bump <dep> [<dep>...]  # Bump specific deps
   chezmoi-bump --all             # Bump all outdated deps"
 fi

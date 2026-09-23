@@ -98,10 +98,6 @@ fi
 
 # ZLE error fixes are handled by zsh-fix.sh loaded earlier
 
-# NVM is lazy-loaded in ~/.zshenv — completion loads on first use of nvm/node/npm/npx
-
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "nvm (lazy, skipped)"
-
 # Load additional shell configurations from your config directory.
 for conf in "$HOME/.config/shell/"*.sh; do
 	[[ "$conf" == *"/zsh-fix.sh" ]] && continue
@@ -109,6 +105,12 @@ for conf in "$HOME/.config/shell/"*.sh; do
 done
 
 [[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "shell configs loaded"
+
+# Update project tool paths after shared PATH setup and on directory changes.
+if [[ -n "${DOTFILES_MISE_BIN:-}" ]]; then
+    eval "$("$DOTFILES_MISE_BIN" activate zsh)"
+fi
+[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "mise activated"
 
 # Initialize Starship prompt (cached for performance)
 if command -v starship >/dev/null 2>&1; then

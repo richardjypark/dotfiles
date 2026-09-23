@@ -9,7 +9,7 @@ Clears chezmoi's remembered run_onchange state for the given source script so th
 next `chezmoi apply` reruns it.
 
 Examples:
-  chezmoi-rerun-script .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl
+  chezmoi-rerun-script .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl
   chezmoi-rerun-script -S /tmp/src -D /tmp/dest .chezmoiscripts/run_onchange_after_test.sh
 EOF
 }

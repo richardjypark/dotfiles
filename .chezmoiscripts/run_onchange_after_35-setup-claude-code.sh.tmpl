@@ -11,6 +11,14 @@ PINNED_CLAUDE_NPM_VERSION="2.1.44"
 CLAUDE_STATE="claude-code-setup-${PINNED_CLAUDE_NPM_VERSION}"
 CLAUDE_LINK_BIN="$HOME/.local/bin/claude"
 
+claude_link_points_to_nvm() {
+    [ -L "$CLAUDE_LINK_BIN" ] || return 1
+    case "$(readlink "$CLAUDE_LINK_BIN")" in
+        "$HOME/.nvm/"*) return 0 ;;
+    esac
+    return 1
+}
+
 claude_installed_version() {
     if ! is_installed claude; then
         return 0
@@ -25,7 +33,7 @@ claude_binary_ready() {
 }
 
 if should_skip_state "$CLAUDE_STATE"; then
-    if claude_binary_ready; then
+    if ! claude_link_points_to_nvm && claude_binary_ready; then
         vecho "Claude Code setup already completed (state tracked)"
         exit 0
     fi
@@ -38,6 +46,10 @@ vecho "Setting up Claude Code..."
 
 # Fast exit if claude is already installed and working (but mark state)
 installed_version="$(claude_installed_version)"
+if claude_link_points_to_nvm; then
+    # Keep the old link until the new npm installation succeeds.
+    installed_version=""
+fi
 if [ -n "$installed_version" ]; then
     if version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
         vecho "Claude Code is already at version $installed_version"
@@ -50,44 +62,6 @@ if [ -n "$installed_version" ]; then
 fi
 
 NPM_CMD=""
-resolve_npm_cmd() {
-    local nvm_dir current_node nvm_bin candidate resolved
-
-    nvm_dir="$HOME/.nvm"
-    if [ -f "$nvm_dir/nvm.sh" ]; then
-        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
-        if command -v nvm >/dev/null 2>&1; then
-            nvm use default >/dev/null 2>&1 || true
-            current_node="$(nvm which current 2>/dev/null || true)"
-            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
-                nvm_bin="$(dirname "$current_node")"
-                if [ -x "$nvm_bin/npm" ]; then
-                    if "$nvm_bin/npm" -v >/dev/null 2>&1; then
-                        NPM_CMD="$nvm_bin/npm"
-                        return 0
-                    fi
-                fi
-            fi
-        fi
-    fi
-
-    if is_installed npm; then
-        candidate="$(command -v npm)"
-        resolved="$candidate"
-        if command -v readlink >/dev/null 2>&1; then
-            resolved="$(readlink -f "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
-        fi
-        if [ -x "$resolved" ]; then
-            NPM_CMD="$resolved"
-        else
-            NPM_CMD="$candidate"
-        fi
-        return 0
-    fi
-
-    return 1
-}
-
 if ! resolve_npm_cmd; then
     if ! is_force_update && [ -n "$installed_version" ]; then
         vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."

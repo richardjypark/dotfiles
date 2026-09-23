@@ -263,21 +263,13 @@ download_and_verify() {
 # --- Managed npm Safety Helpers ---
 
 resolve_npm_cmd() {
-    local nvm_dir current_node nvm_bin candidate resolved
+    local candidate resolved
 
-    nvm_dir="$HOME/.nvm"
-    if [ -f "$nvm_dir/nvm.sh" ]; then
-        . "$nvm_dir/nvm.sh" >/dev/null 2>&1 || true
-        if command -v nvm >/dev/null 2>&1; then
-            nvm use default >/dev/null 2>&1 || true
-            current_node="$(nvm which current 2>/dev/null || true)"
-            if [ -n "$current_node" ] && [ -x "$current_node" ]; then
-                nvm_bin="$(dirname "$current_node")"
-                if [ -x "$nvm_bin/npm" ] && "$nvm_bin/npm" -v >/dev/null 2>&1; then
-                    NPM_CMD="$nvm_bin/npm"
-                    return 0
-                fi
-            fi
+    if is_installed mise; then
+        candidate="$(cd "$HOME" && mise which npm 2>/dev/null || true)"
+        if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" -v >/dev/null 2>&1; then
+            NPM_CMD="$candidate"
+            return 0
         fi
     fi
 

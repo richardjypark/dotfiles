@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+if ! command -v actionlint >/dev/null 2>&1; then
+    if [ "${REQUIRE_LINT_TOOLS:-0}" = "1" ]; then
+        printf 'actionlint is required\n' >&2
+        exit 1
+    fi
+    printf '[SKIP] actionlint is not installed\n'
+    exit 0
+fi
+
+cd "$REPO_ROOT"
+actionlint -no-color

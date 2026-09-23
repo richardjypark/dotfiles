@@ -164,8 +164,6 @@ case "$url" in
         response="{\"tag_name\":\"${MOCK_NEOVIM_LATEST}\"}" ;;
     *"/repos/jj-vcs/jj/releases/latest")
         response="{\"tag_name\":\"${MOCK_JJ_LATEST}\"}" ;;
-    *"/repos/nvm-sh/nvm/releases/latest")
-        response="{\"tag_name\":\"${MOCK_NVM_LATEST}\"}" ;;
     *"/repos/junegunn/fzf/releases/latest")
         response="{\"tag_name\":\"${MOCK_FZF_LATEST}\"}" ;;
     *"/repos/zsh-users/zsh-syntax-highlighting/releases/latest")
@@ -291,8 +289,6 @@ version = "1.0.0"
 [pinned.claude]
 npm_version = "1.0.0"
 
-[nvm]
-version = "1.0.0"
 EOF
 
     cat >"${chezmoi_dir}/.chezmoiversion.toml" <<'EOF'
@@ -371,7 +367,6 @@ run_bump() {
         PATH="${fixture_dir}/bin:$PATH" \
         MOCK_NEOVIM_LATEST="${MOCK_NEOVIM_LATEST:-1.0.0}" \
         MOCK_JJ_LATEST="${MOCK_JJ_LATEST:-1.0.0}" \
-        MOCK_NVM_LATEST="${MOCK_NVM_LATEST:-v1.0.0}" \
         MOCK_FZF_LATEST="${MOCK_FZF_LATEST:-1.0.0}" \
         MOCK_ZSH_SYNTAX_HIGHLIGHTING_LATEST="${MOCK_ZSH_SYNTAX_HIGHLIGHTING_LATEST:-v1.0.0}" \
         MOCK_ZSH_AUTOSUGGESTIONS_LATEST="${MOCK_ZSH_AUTOSUGGESTIONS_LATEST:-v1.0.0}" \
@@ -401,7 +396,6 @@ run_bump_with_env() {
         PATH="${fixture_dir}/bin:$PATH" \
         MOCK_NEOVIM_LATEST="${MOCK_NEOVIM_LATEST:-1.0.0}" \
         MOCK_JJ_LATEST="${MOCK_JJ_LATEST:-1.0.0}" \
-        MOCK_NVM_LATEST="${MOCK_NVM_LATEST:-v1.0.0}" \
         MOCK_FZF_LATEST="${MOCK_FZF_LATEST:-1.0.0}" \
         MOCK_ZSH_SYNTAX_HIGHLIGHTING_LATEST="${MOCK_ZSH_SYNTAX_HIGHLIGHTING_LATEST:-v1.0.0}" \
         MOCK_ZSH_AUTOSUGGESTIONS_LATEST="${MOCK_ZSH_AUTOSUGGESTIONS_LATEST:-v1.0.0}" \
@@ -432,7 +426,6 @@ run_bump_bg() {
         PATH="${fixture_dir}/bin:$PATH" \
         MOCK_NEOVIM_LATEST="${MOCK_NEOVIM_LATEST:-1.0.0}" \
         MOCK_JJ_LATEST="${MOCK_JJ_LATEST:-1.0.0}" \
-        MOCK_NVM_LATEST="${MOCK_NVM_LATEST:-v1.0.0}" \
         MOCK_FZF_LATEST="${MOCK_FZF_LATEST:-1.0.0}" \
         MOCK_ZSH_SYNTAX_HIGHLIGHTING_LATEST="${MOCK_ZSH_SYNTAX_HIGHLIGHTING_LATEST:-v1.0.0}" \
         MOCK_ZSH_AUTOSUGGESTIONS_LATEST="${MOCK_ZSH_AUTOSUGGESTIONS_LATEST:-v1.0.0}" \

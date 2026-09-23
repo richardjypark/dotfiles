@@ -1,0 +1,6 @@
+# Defaults for managed agent tools. Project mise.toml files override these.
+# Python remains under uv. Elixir and Erlang are selected by each project.
+[tools]
+node = "24.14.0"
+pnpm = "10.30.3"
+yarn = "1.22.22"

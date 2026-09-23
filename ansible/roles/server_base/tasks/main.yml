@@ -1,0 +1,13 @@
+---
+- name: Require Debian or Ubuntu
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == 'Debian'
+    fail_msg: This role only supports Debian and Ubuntu.
+
+- name: Install common server packages
+  ansible.builtin.apt:
+    name: "{{ server_base_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
