@@ -45,6 +45,11 @@ chezmoi init --apply richardjypark
 TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 ```
 
+Workstation project runtimes use mise for Node and Elixir/Erlang; uv still owns
+Python. See [developer platforms](docs/developer-platforms.md) for the
+mixed-monorepo example, package sets, lint checks, and the optional free
+Colima path. Servers skip project runtime setup.
+
 ### macOS Brave Browser Tor Policy
 
 On macOS, `chezmoi apply` enforces a non-optional Brave Browser managed policy:

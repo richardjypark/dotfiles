@@ -1,0 +1,9 @@
+---
+- name: Apply common server packages after bootstrap
+  hosts: servers
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../packages/debian-server.yml
+  roles:
+    - server_base

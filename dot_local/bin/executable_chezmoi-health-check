@@ -237,18 +237,12 @@ done
 vecho ""
 vecho "--- Development Tools ---"
 
-# Make NVM-managed Node tools visible in non-interactive apply runs.
-NVM_NODE_BIN=""
-if [ -f "$HOME/.nvm/nvm.sh" ]; then
-    # shellcheck disable=SC1090
-    . "$HOME/.nvm/nvm.sh"
-    if command -v nvm >/dev/null 2>&1; then
-        NVM_NODE_PATH="$(nvm which default 2>/dev/null || true)"
-        if [ -n "$NVM_NODE_PATH" ] && [ -x "$NVM_NODE_PATH" ]; then
-            NVM_NODE_BIN="$(dirname "$NVM_NODE_PATH")"
-            export PATH="$NVM_NODE_BIN:$PATH"
-            hash -r 2>/dev/null || true
-        fi
+# Make the global mise Node runtime visible in non-interactive checks.
+if command -v mise >/dev/null 2>&1; then
+    MISE_NODE_PATH="$(mise which node 2>/dev/null || true)"
+    if [ -n "$MISE_NODE_PATH" ] && [ -x "$MISE_NODE_PATH" ]; then
+        export PATH="$(dirname "$MISE_NODE_PATH"):$PATH"
+        hash -r 2>/dev/null || true
     fi
 fi
 
@@ -322,17 +316,16 @@ else
     check_warn "go not installed"
 fi
 
-# Node.js / NVM
-if [ -d "$HOME/.nvm" ]; then
-    check_pass "NVM installed"
-    if is_installed node; then
-        NODE_VERSION=$(node -v 2>/dev/null || echo "unknown")
-        check_pass "Node.js: $NODE_VERSION"
+# Project runtimes
+if is_installed mise; then
+    check_pass "mise: $(mise --version 2>/dev/null || echo unknown)"
+    if mise exec -- node --version >/dev/null 2>&1; then
+        check_pass "Node.js: $(mise exec -- node --version)"
     else
-        check_warn "Node.js not available from NVM default alias"
+        check_warn "Node.js is not installed for the active mise configuration"
     fi
 else
-    check_warn "NVM not installed"
+    check_warn "mise not installed"
 fi
 
 # uv (Python)

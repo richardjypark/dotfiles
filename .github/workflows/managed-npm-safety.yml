@@ -91,6 +91,27 @@ jobs:
             dot_local/share/pi-maintenance-agent/package-lock.json
             dot_local/share/openrouter-agent/package-lock.json
 
+      - name: Install ShellCheck on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Install ShellCheck and actionlint on macOS
+        if: runner.os == 'macOS'
+        run: brew install shellcheck actionlint
+
+      - name: Set up Go for actionlint
+        if: runner.os == 'Linux'
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Install actionlint on Linux
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p "$RUNNER_TEMP/actionlint-bin"
+          GOBIN="$RUNNER_TEMP/actionlint-bin" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          printf '%s\n' "$RUNNER_TEMP/actionlint-bin" >> "$GITHUB_PATH"
+
       - name: Install managed Pi CLI dependencies
         if: runner.os == 'Linux'
         working-directory: dot_local/share/pi-cli
@@ -108,8 +129,8 @@ jobs:
 
       - name: Run full validation
         if: runner.os == 'Linux'
-        run: REQUIRE_MANAGED_NPM_TESTS=1 ./tests/all
+        run: REQUIRE_MANAGED_NPM_TESTS=1 REQUIRE_LINT_TOOLS=1 ./tests/all
 
       - name: Run portable core validation
         if: runner.os == 'macOS'
-        run: ./tests/all
+        run: REQUIRE_LINT_TOOLS=1 ./tests/all

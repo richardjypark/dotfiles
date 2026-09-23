@@ -35,7 +35,6 @@ NON_NPM_BUMP_DEPS=(
   bun
   tailscale
   chezmoi
-  nvm
   fzf
   zsh-syntax-highlighting
   zsh-autosuggestions
@@ -54,6 +53,15 @@ if [[ -f "$RUNTIME_ENV_FILE" ]]; then
   # shellcheck disable=SC1090
   . "$RUNTIME_ENV_FILE"
   set +a
+fi
+
+# systemd user units do not load an interactive shell or mise hooks.
+export PATH="$HOME/.local/bin:$PATH"
+if command -v mise >/dev/null 2>&1; then
+  MISE_NODE="$(cd "$HOME" && mise which node 2>/dev/null || true)"
+  if [[ -n "$MISE_NODE" && -x "$MISE_NODE" ]]; then
+    export PATH="$(dirname "$MISE_NODE"):$PATH"
+  fi
 fi
 
 PI_PROVIDER="${PI_PROVIDER:-}"

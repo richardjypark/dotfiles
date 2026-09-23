@@ -67,5 +67,5 @@ When editing `.tmpl` scripts, validate rendered output:
 
 ```bash
 chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
-chezmoi execute-template < .chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiscripts/run_after_30-setup-mise.sh.tmpl | bash -n
 ```

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+if ! command -v shellcheck >/dev/null 2>&1; then
+    if [ "${REQUIRE_LINT_TOOLS:-0}" = "1" ]; then
+        printf 'shellcheck is required\n' >&2
+        exit 1
+    fi
+    printf '[SKIP] shellcheck is not installed\n'
+    exit 0
+fi
+
+count=0
+while IFS= read -r file; do
+    [ -f "$REPO_ROOT/$file" ] || continue
+    case "$file" in
+        *.sh.tmpl)
+            if ! command -v chezmoi >/dev/null 2>&1; then
+                printf 'chezmoi is required to render %s\n' "$file" >&2
+                exit 1
+            fi
+            chezmoi --source "$REPO_ROOT" execute-template < "$REPO_ROOT/$file" > "$TEMP_DIR/rendered.sh"
+            shellcheck -S error -s bash "$TEMP_DIR/rendered.sh"
+            count=$((count + 1))
+            ;;
+        *)
+            first_line=""
+            IFS= read -r first_line < "$REPO_ROOT/$file" || true
+            case "$first_line" in
+                '#!'*bash*)
+                    shellcheck -S error -s bash "$REPO_ROOT/$file"
+                    count=$((count + 1))
+                    ;;
+            esac
+            ;;
+    esac
+done < <(git -C "$REPO_ROOT" ls-files --cached --others --exclude-standard)
+
+printf 'ShellCheck: %s Bash files checked at error severity\n' "$count"

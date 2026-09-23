@@ -696,13 +696,20 @@ tui_prebuild_ready() {
 }
 
 ensure_hermes_tui_prebuilt() {
+    local node_cmd
     [ "$HERMES_TUI_BY_DEFAULT" = "true" ] || return 0
     [ -d "$TUI_DIR" ] || return 0
 
-    if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+    if ! resolve_npm_cmd; then
         eecho "Warning: node/npm not available; Hermes TUI will prepare itself on first launch."
         return 0
     fi
+    node_cmd="$(resolve_node_cmd || true)"
+    if [ -z "$node_cmd" ]; then
+        eecho "Warning: node/npm not available; Hermes TUI will prepare itself on first launch."
+        return 0
+    fi
+    export PATH="$(dirname "$node_cmd"):$PATH"
 
     if ! tui_npm_deps_ready; then
         if ! require_trust_for_remote_download "npm packages for Hermes TUI"; then
@@ -712,7 +719,7 @@ ensure_hermes_tui_prebuilt() {
         eecho "Installing Hermes TUI node dependencies for fast startup..."
         (
             cd "$INSTALL_DIR" || exit 1
-            run_quiet env CI=1 npm install --workspace ui-tui --silent --no-fund --no-audit --progress=false
+            run_quiet env CI=1 "$NPM_CMD" install --workspace ui-tui --silent --no-fund --no-audit --progress=false
         )
     fi
 
@@ -720,7 +727,7 @@ ensure_hermes_tui_prebuilt() {
         eecho "Prebuilding Hermes TUI for fast startup..."
         (
             cd "$TUI_DIR" || exit 1
-            run_quiet npm run build
+            run_quiet "$NPM_CMD" run build
         )
     fi
 }

@@ -44,7 +44,7 @@ fi
   - `.chezmoiscripts/run_onchange_after_37-setup-tailscale.sh.tmpl`
 - Templated script examples:
   - `.chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl`
-  - `.chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl`
+  - `.chezmoiscripts/run_after_30-setup-mise.sh.tmpl`
 
 ## Order and Naming
 

@@ -1,0 +1,45 @@
+# Copy this file into a project with apps/api, apps/web, and apps/jobs.
+# Confirm Erlang/Elixir compatibility with the project's Phoenix release.
+[tools]
+erlang = "29.0"
+elixir = "1.20.4-otp-29"
+node = "24.14.0"
+pnpm = "10.30.3"
+
+[tasks."setup:api"]
+dir = "apps/api"
+run = "mix deps.get"
+
+[tasks."setup:web"]
+dir = "apps/web"
+run = "pnpm install --frozen-lockfile"
+
+[tasks."setup:jobs"]
+dir = "apps/jobs"
+run = "uv sync --locked"
+
+[tasks.setup]
+depends = ["setup:api", "setup:web", "setup:jobs"]
+
+[tasks."test:api"]
+dir = "apps/api"
+run = "mix test"
+
+[tasks."test:web"]
+dir = "apps/web"
+run = "pnpm test"
+
+[tasks."test:jobs"]
+dir = "apps/jobs"
+run = "uv run pytest"
+
+[tasks.test]
+depends = ["test:api", "test:web", "test:jobs"]
+
+[tasks."dev:api"]
+dir = "apps/api"
+run = "mix phx.server"
+
+[tasks."dev:web"]
+dir = "apps/web"
+run = "pnpm dev"

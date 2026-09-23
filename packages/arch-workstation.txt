@@ -1,0 +1,20 @@
+# Official pacman packages for an Omarchy workstation.
+# Omarchy and chezmoi also install tools; do not blindly remove existing ones.
+git
+curl
+wget
+zsh
+tmux
+openssh
+tailscale
+chezmoi
+ripgrep
+fd
+bat
+git-delta
+eza
+jq
+jujutsu
+mise
+shellcheck
+actionlint

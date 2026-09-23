@@ -88,4 +88,5 @@ Use `plans/README.md` for the canonical planning flow: deep repo read, `*-resear
 - `docs/architecture-and-performance.md`
 - `docs/bootstrap-and-flags.md`
 - `docs/tooling-and-skills.md`
+- `docs/developer-platforms.md`
 - `docs/secrets-management.md`

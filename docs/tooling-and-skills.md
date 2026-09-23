@@ -22,6 +22,10 @@ Claude support remains compatible, but shared planning conventions should point 
 
 ## Local Update Commands
 
+Project runtimes, package sets, and the optional Colima path are described in
+`docs/developer-platforms.md`. mise selects Node and Elixir/Erlang per project;
+uv remains the Python owner.
+
 - `czu`: resolves a validated selected source, repairs/fetches repo-local `trunk()` via `jj-sync-trunk`, rebases the current change, and applies that same source.
 - `czuf`: forced selected-source update with externals/tool refresh; it does not run broad package-manager upgrades or bump source pins.
 - `czl`: Omarchy/Arch maintenance wrapper with compatible no-argument full maintenance plus `--system-only`, `--plan`, and `--verbose`. Full mode requires a clean current JJ change, atomically bumps pins, and always runs the Arch convergence apply.

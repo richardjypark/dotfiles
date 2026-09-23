@@ -42,6 +42,7 @@ for the complete naming and execution rules.
 | `dot_zshrc.tmpl` | `~/.zshrc` | Managed rendered shell config |
 | `dot_tmux.conf` | `~/.tmux.conf` | Managed tmux config |
 | `private_dot_config/shell/alias.sh` | `~/.config/shell/alias.sh` | Managed private shell config |
+| `private_dot_config/mise/config.toml` | `~/.config/mise/config.toml` | Managed global runtime defaults |
 | `dot_local/bin/executable_czu` | `~/.local/bin/czu` | Managed executable |
 | `dot_local/private_lib/chezmoi-helpers.sh` | `~/.local/lib/chezmoi-helpers.sh` | Managed shared script library |
 | `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl` | `~/.chezmoiscripts/39-setup-hermes-agent.sh` | Managed apply-time script |
@@ -69,6 +70,7 @@ These paths remain in the source repository and do not render into `$HOME`:
 | `.github/` | Repo-only CI rule in `.chezmoiignore` |
 | `.githooks/` and `.gitleaksignore` | Repo-only guardrail rules |
 | `tests/` | Repo-only test rule |
+| `examples/`, `packages/`, and `ansible/` | Repo-only examples and package/Ansible rules |
 | `evals/` and `scripts/eval-skill-routing.py` | Skill-evaluation rules |
 | `docs/skill-routing-eval.md` | Skill-evaluation rule |
 | Dated `plans/*.md` | `plans/[0-9]*.md` rule |

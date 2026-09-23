@@ -5,11 +5,11 @@ Use this map to propagate version bumps safely.
 ## Primary Pin Files
 
 - `.chezmoidata.toml`
-  - `nvm.version`
-  - `nvm.nodeVersion`
   - `python.version`
-  - `npm.packages` (if package set changes with version policy)
   - `[pinned.hermes_agent]` `version`, `ref`, `repo_url`, `branch`, and `extras`
+- `private_dot_config/mise/config.toml`
+  - Global Node and package-manager defaults for managed agent tools.
+  - Project-specific Erlang, Elixir, Node, and package-manager versions belong in each project's `mise.toml`.
 - `.chezmoiversion.toml`
   - `versions.fzf`
   - `versions.go`
@@ -17,14 +17,13 @@ Use this map to propagate version bumps safely.
   - Oh My Zsh archive commit URL
   - zsh plugin release tarball URLs
   - fzf git branch/tag in `clone.args`
-  - NVM archive URL (templated via `{{ .nvm.version }}`)
 
 ## Script Touchpoints
 
 - `.chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl`
   - Keep version extraction logic compatible with external pin format.
-- `.chezmoiscripts/run_onchange_after_30-setup-node.sh.tmpl`
-  - Keep Node/NVM setup logic aligned with `.chezmoidata.toml`.
+- `.chezmoiscripts/run_after_30-setup-mise.sh.tmpl`
+  - Keep global agent Node installation aligned with `private_dot_config/mise/config.toml`.
 - `.chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl`
   - Keep Python setup aligned with `.chezmoidata.toml`.
 - `.chezmoiscripts/run_onchange_after_29-setup-ibkr-data-deps.sh.tmpl`

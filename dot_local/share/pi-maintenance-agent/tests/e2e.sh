@@ -64,7 +64,7 @@ assert_call() {
 }
 
 assert_call 'czuf|'
-assert_call 'chezmoi-bump|neovim jj codex uv starship bun tailscale chezmoi nvm fzf zsh-syntax-highlighting zsh-autosuggestions'
+assert_call 'chezmoi-bump|neovim jj codex uv starship bun tailscale chezmoi fzf zsh-syntax-highlighting zsh-autosuggestions'
 assert_call 'chezmoi|apply --refresh-externals --force'
 assert_call 'jj|-R'
 

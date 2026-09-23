@@ -33,17 +33,12 @@ is_installed() {
 }
 
 # Show verbose mode information
-# Prefer NVM default runtime only when we will actually print tool versions.
-if [ -f "$HOME/.nvm/nvm.sh" ]; then
-    # shellcheck disable=SC1090
-    . "$HOME/.nvm/nvm.sh"
-    if command -v nvm >/dev/null 2>&1; then
-        NVM_DEFAULT_NODE="$(nvm which default 2>/dev/null || true)"
-        if [ -n "$NVM_DEFAULT_NODE" ] && [ -x "$NVM_DEFAULT_NODE" ]; then
-            NVM_DEFAULT_NODE_DIR="$(dirname "$NVM_DEFAULT_NODE")"
-            export PATH="$NVM_DEFAULT_NODE_DIR:$PATH"
-            hash -r 2>/dev/null || true
-        fi
+# Include the configured Node runtime in this non-interactive script.
+if command -v mise >/dev/null 2>&1; then
+    MISE_NODE="$(mise which node 2>/dev/null || true)"
+    if [ -n "$MISE_NODE" ] && [ -x "$MISE_NODE" ]; then
+        export PATH="$(dirname "$MISE_NODE"):$PATH"
+        hash -r 2>/dev/null || true
     fi
 fi
 

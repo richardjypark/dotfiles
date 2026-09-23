@@ -486,7 +486,7 @@ install_dotfiles() {
     fi
   fi
 
-  sudo -u "${USERNAME}" -H env "VERBOSE=${VERBOSE}" "TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS}" \
+  sudo -u "${USERNAME}" -H env "CHEZMOI_ROLE=server" "VERBOSE=${VERBOSE}" "TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS}" \
     "${chezmoi_bin}" init --apply --force "${DOTFILES_REPO}"
 }
 

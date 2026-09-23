@@ -1,5 +1,5 @@
 # ~/.zshenv - Loaded for ALL shells (interactive and non-interactive)
-# This ensures Node.js tools (npm, pnpm, node) are available in IDE terminals
+# This ensures managed tools are available in IDE terminals.
 
 # Shell startup profiling (optional, enable with ZSH_PROFILE_STARTUP=1)
 if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
@@ -64,24 +64,21 @@ _dotfiles_path_prepend_once "$HOME/.local/bin"
 # Disable Homebrew analytics for all zsh shells.
 export HOMEBREW_NO_ANALYTICS="1"
 
-# NVM lazy loading - sourced on first use of nvm/node/npm/npx/claude
-export NVM_DIR="$HOME/.nvm"
-
-if [ -s "$NVM_DIR/nvm.sh" ]; then
-    _nvm_lazy_load() {
-        unset -f nvm node npm npx claude
-        source "$NVM_DIR/nvm.sh"
-        [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
-    }
-    nvm()    { _nvm_lazy_load; nvm    "$@"; }
-    node()   { _nvm_lazy_load; node   "$@"; }
-    npm()    { _nvm_lazy_load; npm    "$@"; }
-    npx()    { _nvm_lazy_load; npx    "$@"; }
-    claude() { _nvm_lazy_load; claude "$@"; }
+# Shims resolve project tools in non-interactive shells and editor terminals.
+# An IDE can start zsh without Homebrew in PATH, so find its common locations.
+DOTFILES_MISE_BIN=""
+if (( $+commands[mise] )); then
+    DOTFILES_MISE_BIN="$(command -v mise)"
+elif [[ -x /opt/homebrew/bin/mise ]]; then
+    DOTFILES_MISE_BIN=/opt/homebrew/bin/mise
+elif [[ -x /usr/local/bin/mise ]]; then
+    DOTFILES_MISE_BIN=/usr/local/bin/mise
+fi
+if [[ -n "$DOTFILES_MISE_BIN" ]]; then
+    eval "$("$DOTFILES_MISE_BIN" activate zsh --shims)"
 fi
 
-# Profile NVM setup (lazy wrappers only, no actual load)
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "nvm lazy wrappers defined"
+[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "mise shims activated"
 
 # Bun
 export BUN_INSTALL="$HOME/.bun"

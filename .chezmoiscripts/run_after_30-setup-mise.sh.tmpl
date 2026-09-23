@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+# Run on each apply so changes to global mise config are installed.
+# The server role ignores this script. Keep OS package managers as the CLI owner.
+if ! command -v mise >/dev/null 2>&1; then
+    case "$(uname -s)" in
+        Darwin)
+            if ! command -v brew >/dev/null 2>&1; then
+                eecho "Homebrew is required to install mise on macOS."
+                exit 1
+            fi
+            brew install mise
+            ;;
+        Linux)
+            if command -v pacman >/dev/null 2>&1; then
+                run_privileged pacman -S --noconfirm --needed mise
+            elif command -v apt-get >/dev/null 2>&1; then
+                # extrepo provides a signed repository definition for Debian/Ubuntu.
+                if ! require_trust_for_remote_installer "mise extrepo repository"; then
+                    exit 1
+                fi
+                run_privileged apt-get install -y extrepo
+                run_privileged extrepo enable mise
+                run_privileged apt-get update
+                run_privileged apt-get install -y mise
+            else
+                eecho "Install mise with this system's package manager, then rerun chezmoi apply."
+                exit 1
+            fi
+            ;;
+        *)
+            eecho "Unsupported operating system for mise setup."
+            exit 1
+            ;;
+    esac
+fi
+
+if ! command -v mise >/dev/null 2>&1; then
+    eecho "mise installation did not put mise on PATH. Rerun chezmoi apply after fixing PATH."
+    exit 1
+fi
+
+# Global Node is for repo-managed agents. Projects can override it in mise.toml.
+cd "$HOME"
+mise install
+mise reshim
+for tool in node npm pnpm yarn; do
+    if ! mise exec -- "$tool" --version >/dev/null 2>&1; then
+        eecho "mise could not run the configured $tool version."
+        exit 1
+    fi
+done
+
+# Preserve the old Node links until the replacement works. Remove only links
+# that point into the old managed NVM tree; keep all other user-owned files.
+for tool in node npm npx corepack yarn pnpm; do
+    link="$HOME/.local/bin/$tool"
+    if [ -L "$link" ]; then
+        target="$(readlink "$link")"
+        case "$target" in
+            "$HOME/.nvm/"*) rm "$link" ;;
+        esac
+    fi
+done
+
+vecho "mise setup complete: $(mise --version)"
