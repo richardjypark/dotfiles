@@ -173,8 +173,12 @@ if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
     fi
 fi
 
-# Auto-start tmux after all shell setup/profiling is complete.
-# Skipped for: SSH sessions, VSCode terminals, already in tmux, or NOTMUX=1
-if [[ -z "$TMUX" ]] && [[ -z "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]] && [[ -z "$NOTMUX" ]]; then
-    exec tmux new-session -A
+# Auto-start Herdr after all shell setup/profiling is complete.
+# Skipped for: SSH sessions, VSCode terminals, Herdr panes, or NOTMUX=1.
+if [[ -z "$HERDR_ENV" ]] && [[ -z "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]] && [[ -z "$NOTMUX" ]]; then
+    if (( $+commands[herdr] )); then
+        exec herdr
+    else
+        print -u2 'herdr is not installed; continuing without a terminal multiplexer.'
+    fi
 fi
