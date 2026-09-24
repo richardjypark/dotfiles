@@ -148,6 +148,8 @@ create_fixture() {
     printf '{"last":1}\n' > "$source/dot_pi/agent/settings.json"
 
     cp "$SCRIPT_ROOT/dot_local/private_lib/chezmoi-update-helpers.sh" "$root/.local/lib/chezmoi-update-helpers.sh"
+    mkdir -p "$root/.local/lib/chezmoi"
+    cp "$SCRIPT_ROOT/dot_local/private_lib/chezmoi/npm.sh" "$root/.local/lib/chezmoi/npm.sh"
 
     cat > "$root/bin/chezmoi" <<'EOF'
 #!/usr/bin/env bash

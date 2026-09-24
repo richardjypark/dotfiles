@@ -363,11 +363,19 @@ Notes:
 
 Setup scripts under `.chezmoiscripts/` are expected to:
 
-1. Source `~/.local/lib/chezmoi-helpers.sh` (directly or via the shared loader).
+1. Load `chezmoi-helpers.sh` through the shared loader. Before-scripts use the selected source checkout; after-scripts use the deployed copy.
 2. Stay idempotent across repeated `chezmoi apply` runs.
 3. Stay quiet by default (`vecho` for verbose detail, `eecho` for essential output).
 4. Use state markers under `~/.cache/chezmoi-state`.
 5. Gate remote installers/downloads behind `TRUST_ON_FIRST_USE_INSTALLERS=1`.
+
+The compatibility helper loads small `core`, `artifacts`, and `npm` modules
+from `~/.local/lib/chezmoi/`. A failed quiet command prints its captured error
+and keeps its exit status. A state marker is written only after a tool passes
+its readiness check. Release installers stage and check a new binary before
+they replace the old one. Hermes uses separate install, config, gateway, and
+TUI modules. The helper checksum in each `run_onchange` script makes a helper
+change trigger that script again. `run_after` scripts run on each apply.
 
 See `docs/architecture-and-performance.md` for implementation details.
 

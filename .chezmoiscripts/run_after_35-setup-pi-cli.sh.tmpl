@@ -169,7 +169,7 @@ fi
 
 if [ "$NEEDS_PI_CLI_INSTALL" -eq 1 ]; then
     NPM_CMD=""
-    if ! resolve_npm_cmd; then
+    if ! NPM_CMD="$(resolve_npm_cmd)"; then
         eecho "Error: npm is required to install the Pi CLI."
         eecho "Install Node.js/npm first, then rerun chezmoi apply."
         exit 1

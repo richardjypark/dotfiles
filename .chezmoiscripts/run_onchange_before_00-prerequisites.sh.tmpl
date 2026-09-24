@@ -1,28 +1,11 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 
-HELPER_PATH="$HOME/.local/lib/chezmoi-helpers.sh"
-if [ -f "$HELPER_PATH" ]; then
-    # shellcheck disable=SC1090
-    . "$HELPER_PATH"
-else
-    CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
-    if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
-        CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"
-    fi
-    # shellcheck disable=SC1090
-    . "$CHEZMOI_SOURCE_DIR/scripts/lib/load-helpers.sh"
-fi
-
-if ! command -v should_skip_state >/dev/null 2>&1; then
-    should_skip_state() {
-        local state_name="$1"
-        if state_exists "$state_name" && ! is_force_update; then
-            return 0
-        fi
-        return 1
-    }
-fi
+CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
+if [ -z "$CHEZMOI_SOURCE_DIR" ]; then CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"; fi
+# shellcheck disable=SC1090
+. "$CHEZMOI_SOURCE_DIR/scripts/lib/load-helpers.sh"
 
 {{- with .pinned.chezmoi }}
 PINNED_CHEZMOI_VERSION="{{ .version }}"
@@ -281,7 +264,7 @@ install_chezmoi_via_package_manager() {
     return 1
 }
 
-install_chezmoi_via_pinned_release() {
+install_chezmoi_via_pinned_release() (
     local platform archive_name expected_sha download_url cache_file temp_dir chezmoi_bin
 
     if ! require_trust_for_remote_download "github.com/twpayne/chezmoi"; then
@@ -320,12 +303,12 @@ install_chezmoi_via_pinned_release() {
     cache_file="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}/chezmoi-${PINNED_CHEZMOI_VERSION}-${platform}.tar.gz"
 
     mkdir -p "$HOME/.local/bin"
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$temp_dir"' RETURN
+    temp_dir="$(mktemp -d)" || return 1
+    trap 'rm -rf "$temp_dir"' EXIT
 
-    download_and_verify "$download_url" "$cache_file" "$expected_sha"
-    cp "$cache_file" "$temp_dir/chezmoi.tar.gz"
-    tar -xzf "$temp_dir/chezmoi.tar.gz" -C "$temp_dir"
+    download_and_verify "$download_url" "$cache_file" "$expected_sha" || return 1
+    cp "$cache_file" "$temp_dir/chezmoi.tar.gz" || return 1
+    tar -xzf "$temp_dir/chezmoi.tar.gz" -C "$temp_dir" || return 1
 
     chezmoi_bin="$(find "$temp_dir" -maxdepth 3 -type f -name chezmoi | head -1)"
     if [ -z "$chezmoi_bin" ]; then
@@ -333,9 +316,8 @@ install_chezmoi_via_pinned_release() {
         return 1
     fi
 
-    install -m 755 "$chezmoi_bin" "$HOME/.local/bin/chezmoi"
-    return 0
-}
+    install_checked_binary "$chezmoi_bin" "$HOME/.local/bin/chezmoi"
+)
 
 # Install or update chezmoi when the active binary is below the repo pin.
 if ! chezmoi_meets_pinned_version; then

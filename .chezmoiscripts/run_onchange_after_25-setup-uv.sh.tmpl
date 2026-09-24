@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
@@ -40,7 +41,10 @@ current_uv_version() {
 }
 
 if should_skip_state "$UV_STATE"; then
-    if [ -x "$UV_DIR/uv" ] && uv_python_ready; then
+    INSTALLED_UV_VERSION="$(current_uv_version)"
+    if [ -x "$UV_DIR/uv" ] && uv_python_ready \
+        && [ -n "$INSTALLED_UV_VERSION" ] \
+        && version_ge "$INSTALLED_UV_VERSION" "$PINNED_UV_CLEAN"; then
         vecho "uv setup already completed (state tracked)"
         exit 0
     fi
@@ -68,7 +72,7 @@ resolve_brew_cmd() {
     return 1
 }
 
-install_uv_from_pinned_release() {
+install_uv_from_pinned_release() (
     local platform="$1"
     local archive_name=""
     local expected_sha=""
@@ -106,13 +110,13 @@ install_uv_from_pinned_release() {
 
     download_url="https://github.com/astral-sh/uv/releases/download/${PINNED_UV_VERSION}/${archive_name}"
     cache_file="$CACHE_DIR/uv-${PINNED_UV_VERSION}-${platform}.tar.gz"
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$temp_dir"' RETURN
+    temp_dir="$(mktemp -d)" || return 1
+    trap 'rm -rf "$temp_dir"' EXIT
 
     eecho "Installing uv from pinned release binary (${PINNED_UV_VERSION})..."
-    download_and_verify "$download_url" "$cache_file" "$expected_sha"
-    cp "$cache_file" "$temp_dir/uv.tar.gz"
-    tar -xzf "$temp_dir/uv.tar.gz" -C "$temp_dir"
+    download_and_verify "$download_url" "$cache_file" "$expected_sha" || return 1
+    cp "$cache_file" "$temp_dir/uv.tar.gz" || return 1
+    tar -xzf "$temp_dir/uv.tar.gz" -C "$temp_dir" || return 1
 
     uv_binary="$(find "$temp_dir" -maxdepth 3 -type f -name uv | head -1)"
     if [ -z "$uv_binary" ]; then
@@ -120,9 +124,8 @@ install_uv_from_pinned_release() {
         return 1
     fi
 
-    # Replace any Homebrew symlink so the pinned binary lives in ~/.local/bin.
-    rm -f "$UV_DIR/uv"
-    install -m 755 "$uv_binary" "$UV_DIR/uv"
+    # Activation replaces a Homebrew link only after the new command works.
+    install_checked_binary "$uv_binary" "$UV_DIR/uv" || return 1
     hash -r 2>/dev/null || true
 
     if [ -x "$UV_DIR/uv" ]; then
@@ -132,7 +135,7 @@ install_uv_from_pinned_release() {
 
     eecho "Warning: uv installation may have failed. Check manually."
     return 1
-}
+)
 
 install_uv_via_homebrew() {
     local brew_cmd="$1"
@@ -175,7 +178,7 @@ ensure_uv_on_path_from_homebrew() {
 
 # Check if uv is already installed
 UV_NEEDS_INSTALL=true
-if is_installed uv; then
+if is_installed uv && ! is_force_update; then
     CURRENT_UV_VERSION="$(current_uv_version)"
     if [ -n "$CURRENT_UV_VERSION" ] && version_ge "$CURRENT_UV_VERSION" "$PINNED_UV_CLEAN"; then
         UV_NEEDS_INSTALL=false

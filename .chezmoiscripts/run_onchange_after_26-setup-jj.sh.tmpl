@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
@@ -13,6 +14,7 @@ PINNED_JJ_MACOS_ARM64_SHA="{{ .macos_arm64_sha256 }}"
 
 JJ_STATE="jj-setup-${PINNED_JJ_VERSION}"
 PINNED_JJ_CLEAN="$(normalize_version_token "$PINNED_JJ_VERSION")"
+add_to_path "$HOME/.local/bin"
 
 jj_binary_ready() {
     local jj_path
@@ -28,28 +30,19 @@ current_jj_version() {
 }
 
 if should_skip_state "$JJ_STATE"; then
-    if jj_binary_ready; then
+    INSTALLED_JJ_VERSION="$(current_jj_version)"
+    if jj_binary_ready && [ -n "$INSTALLED_JJ_VERSION" ] \
+        && version_ge "$INSTALLED_JJ_VERSION" "$PINNED_JJ_CLEAN"; then
         vecho "Jujutsu setup already completed (state tracked)"
         exit 0
     fi
     vecho "Jujutsu state exists but managed binary is missing; re-running setup."
 fi
 
-# Cleanup trap for reliable temp directory removal
-TEMP_DIR=""
-cleanup() {
-    if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
-        rm -rf "$TEMP_DIR"
-    fi
-}
-trap cleanup EXIT INT TERM
-
 vecho "Setting up Jujutsu (jj)..."
 
-add_to_path "$HOME/.local/bin"
-
 # Fast exit if jj is already installed (but mark state)
-if is_installed jj; then
+if is_installed jj && ! is_force_update; then
     CURRENT_JJ_VERSION="$(current_jj_version)"
     if [ -n "$CURRENT_JJ_VERSION" ] && version_ge "$CURRENT_JJ_VERSION" "$PINNED_JJ_CLEAN"; then
         vecho "Jujutsu is already at or above pinned version: $CURRENT_JJ_VERSION"
@@ -97,33 +90,10 @@ install_via_package_manager() {
 }
 
 install_via_homebrew() {
-    local action="install"
-    if ! is_installed brew; then
-        return 1
-    fi
-
-    if brew list --formula jj >/dev/null 2>&1; then
-        if ! brew outdated --formula jj 2>/dev/null | grep -Eq '^jj($| )'; then
-            eecho "Jujutsu already at latest Homebrew version"
-            return 0
-        fi
-        action="upgrade"
-    fi
-
-    eecho "Running brew $action for Jujutsu..."
-    if [ "$VERBOSE" = "true" ]; then
-        if brew "$action" jj; then
-            return 0
-        fi
-    else
-        if brew "$action" jj >/dev/null 2>&1; then
-            return 0
-        fi
-    fi
-    return 1
+    brew_install_formula jj Jujutsu false
 }
 
-install_via_binary() {
+install_via_binary() (
     # Download pre-built binary from GitHub releases
     eecho "Installing Jujutsu from pinned pre-built binary..."
     if ! require_trust_for_remote_download "github.com/jj-vcs/jj"; then
@@ -162,7 +132,8 @@ install_via_binary() {
     mkdir -p "$INSTALL_DIR"
 
     # Download and extract (TEMP_DIR cleaned up by trap)
-    TEMP_DIR=$(mktemp -d)
+    TEMP_DIR=$(mktemp -d) || return 1
+    trap 'rm -rf "$TEMP_DIR"' EXIT
     local cache_file
     cache_file="$CACHE_DIR/jj-${PINNED_JJ_VERSION}-${PLATFORM}.tar.gz"
     vecho "Downloading from: $DOWNLOAD_URL"
@@ -171,14 +142,13 @@ install_via_binary() {
         return 1
     fi
 
-    cp "$cache_file" "$TEMP_DIR/jj.tar.gz"
-    tar -xzf "$TEMP_DIR/jj.tar.gz" -C "$TEMP_DIR"
+    cp "$cache_file" "$TEMP_DIR/jj.tar.gz" || return 1
+    tar -xzf "$TEMP_DIR/jj.tar.gz" -C "$TEMP_DIR" || return 1
 
     # Find and install the jj binary
     if [ -f "$TEMP_DIR/jj" ]; then
-        mv "$TEMP_DIR/jj" "$INSTALL_DIR/jj"
-        chmod +x "$INSTALL_DIR/jj"
-        return 0
+        install_checked_binary "$TEMP_DIR/jj" "$INSTALL_DIR/jj"
+        return $?
     fi
 
     local jj_archive_bin=""
@@ -189,22 +159,20 @@ install_via_binary() {
         fi
     done
     if [ -n "$jj_archive_bin" ]; then
-        mv "$jj_archive_bin" "$INSTALL_DIR/jj"
-        chmod +x "$INSTALL_DIR/jj"
-        return 0
+        install_checked_binary "$jj_archive_bin" "$INSTALL_DIR/jj"
+        return $?
     fi
 
     local jj_bin
     jj_bin="$(find "$TEMP_DIR" -name "jj" -type f 2>/dev/null | head -1 || true)"
     if [ -n "$jj_bin" ]; then
-        mv "$jj_bin" "$INSTALL_DIR/jj"
-        chmod +x "$INSTALL_DIR/jj"
-        return 0
+        install_checked_binary "$jj_bin" "$INSTALL_DIR/jj"
+        return $?
     fi
 
     eecho "Error: Could not find jj binary in downloaded archive"
     return 1
-}
+)
 
 # Try installation methods in order of preference
 if is_force_update; then

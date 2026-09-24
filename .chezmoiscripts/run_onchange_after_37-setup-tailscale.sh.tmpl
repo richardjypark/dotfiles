@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
+add_to_path "$HOME/.local/bin"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
 {{- with .pinned.tailscale }}
@@ -37,7 +39,9 @@ tailscale_brew_cask_token() {
 }
 
 if should_skip_state "$TAILSCALE_STATE"; then
-    if tailscale_binary_ready; then
+    INSTALLED_TAILSCALE_VERSION="$(current_tailscale_version)"
+    if tailscale_binary_ready && [ -n "$INSTALLED_TAILSCALE_VERSION" ] \
+        && version_ge "$INSTALLED_TAILSCALE_VERSION" "$PINNED_TAILSCALE_VERSION"; then
         vecho "Tailscale setup already completed (state tracked)"
         exit 0
     fi
@@ -61,7 +65,7 @@ fi
 vecho "Setting up Tailscale..."
 
 # Fast exit if tailscale is already installed (but mark state)
-if is_installed tailscale; then
+if is_installed tailscale && ! is_force_update; then
     CURRENT_TAILSCALE_VERSION="$(current_tailscale_version)"
     if [ -n "$CURRENT_TAILSCALE_VERSION" ] && version_ge "$CURRENT_TAILSCALE_VERSION" "$PINNED_TAILSCALE_VERSION"; then
         vecho "Tailscale is already at or above pinned version: $CURRENT_TAILSCALE_VERSION"
@@ -161,7 +165,7 @@ elif [ "$OS_FAMILY" = "linux" ]; then
         return 1
     }
 
-    install_via_pinned_tarball() {
+    install_via_pinned_tarball() (
         local arch tailball expected_sha download_url cache_file temp_dir ts_bin tsd_bin
         if ! require_trust_for_remote_installer "pkgs.tailscale.com tarball download"; then
             return 1
@@ -184,12 +188,12 @@ elif [ "$OS_FAMILY" = "linux" ]; then
         tailball="tailscale_${PINNED_TAILSCALE_VERSION}_${arch}.tgz"
         download_url="https://pkgs.tailscale.com/stable/${tailball}"
         cache_file="$CACHE_DIR/${tailball}"
-        temp_dir="$(mktemp -d)"
-        trap 'rm -rf "$temp_dir"' RETURN
+        temp_dir="$(mktemp -d)" || return 1
+        trap 'rm -rf "$temp_dir"' EXIT
 
         eecho "Installing Tailscale from pinned tarball (${PINNED_TAILSCALE_VERSION})..."
-        download_and_verify "$download_url" "$cache_file" "$expected_sha"
-        tar -xzf "$cache_file" -C "$temp_dir"
+        download_and_verify "$download_url" "$cache_file" "$expected_sha" || return 1
+        tar -xzf "$cache_file" -C "$temp_dir" || return 1
 
         ts_bin="$(find "$temp_dir" -type f -name tailscale | head -1)"
         tsd_bin="$(find "$temp_dir" -type f -name tailscaled | head -1)"
@@ -198,11 +202,9 @@ elif [ "$OS_FAMILY" = "linux" ]; then
             return 1
         fi
 
-        mkdir -p "$HOME/.local/bin"
-        install -m 755 "$ts_bin" "$HOME/.local/bin/tailscale"
-        install -m 755 "$tsd_bin" "$HOME/.local/bin/tailscaled"
-        return 0
-    }
+        install_checked_binary "$ts_bin" "$HOME/.local/bin/tailscale" || return 1
+        install_checked_binary "$tsd_bin" "$HOME/.local/bin/tailscaled"
+    )
 
     if is_force_update; then
         if install_via_pinned_tarball; then

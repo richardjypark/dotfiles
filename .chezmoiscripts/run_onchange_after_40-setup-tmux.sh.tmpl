@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 # Rerun when tmux plugin/config content changes.
 TMUX_CONFIG_HASH="{{ include "dot_tmux.conf" | sha256sum }}"

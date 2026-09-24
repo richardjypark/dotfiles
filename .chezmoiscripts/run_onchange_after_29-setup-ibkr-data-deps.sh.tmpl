@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
@@ -41,7 +42,7 @@ if should_skip_state "$GO_STATE" && go_ready && java_ready; then
     exit 0
 fi
 
-install_go_user_local() {
+install_go_user_local() (
     local platform archive url cache_file temp_dir staging_dir
 
     if go_ready; then
@@ -69,16 +70,16 @@ install_go_user_local() {
 
     url="https://go.dev/dl/${archive}"
     cache_file="$CACHE_DIR/$archive"
-    temp_dir="$(mktemp -d)"
+    temp_dir="$(mktemp -d)" || return 1
     staging_dir="$GO_INSTALL_DIR.tmp.$$"
-    trap 'rm -rf "$temp_dir" "$staging_dir"' RETURN
+    trap 'rm -rf "$temp_dir" "$staging_dir"' EXIT
 
     eecho "Installing Go $PINNED_GO_VERSION from verified upstream tarball..."
-    download_and_verify "$url" "$cache_file" "$PINNED_GO_LINUX_X86_64_SHA"
+    download_and_verify "$url" "$cache_file" "$PINNED_GO_LINUX_X86_64_SHA" || return 1
 
     rm -rf "$staging_dir"
     mkdir -p "$staging_dir"
-    tar -C "$staging_dir" --strip-components=1 -xzf "$cache_file"
+    tar -C "$staging_dir" --strip-components=1 -xzf "$cache_file" || return 1
 
     mkdir -p "$GO_ROOT_BASE" "$HOME/.local/bin"
     rm -rf "$GO_INSTALL_DIR.prev"
@@ -88,7 +89,7 @@ install_go_user_local() {
     mv "$staging_dir" "$GO_INSTALL_DIR"
     ln -sfn "$GO_INSTALL_DIR/bin/go" "$GO_LINK"
     ln -sfn "$GO_INSTALL_DIR/bin/gofmt" "$GOFMT_LINK"
-}
+)
 
 install_java_runtime() {
     if java_ready; then

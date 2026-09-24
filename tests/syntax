@@ -2,6 +2,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+. "$REPO_ROOT/tests/lib/shell-files.sh"
 PASS_COUNT=0
 FAIL_COUNT=0
 SKIP_COUNT=0
@@ -47,11 +48,15 @@ check_template() {
     local rendered="$TEMP_DIR/rendered.sh"
 
     if ! command -v chezmoi >/dev/null 2>&1; then
-        skip "$file (chezmoi is not installed)"
+        if [ "${REQUIRE_MANAGED_NPM_TESTS:-0}" = "1" ]; then
+            fail "$file (chezmoi is required)"
+        else
+            skip "$file (chezmoi is not installed)"
+        fi
         return
     fi
 
-    if ! chezmoi --source "$REPO_ROOT" execute-template < "$REPO_ROOT/$file" > "$rendered"; then
+    if ! render_test_template "$file" "$rendered"; then
         fail "$file (template rendering failed)"
         return
     fi
@@ -89,8 +94,10 @@ while IFS= read -r file; do
             esac
             ;;
     esac
-done < <(git -C "$REPO_ROOT" ls-files --cached --others --exclude-standard)
+done < <(test_shell_files)
 
 printf '\nShell syntax: %s passed, %s failed, %s skipped\n' \
     "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"
-[ "$FAIL_COUNT" -eq 0 ]
+if [ "$FAIL_COUNT" -ne 0 ]; then exit 1; fi
+if [ "$SKIP_COUNT" -ne 0 ]; then exit 77; fi
+exit 0
