@@ -31,7 +31,7 @@ class AgentInstructionPolicyTest(unittest.TestCase):
 
     def test_tracked_claude_settings_keep_safety_prompts(self) -> None:
         settings = json.loads(
-            (REPO_ROOT / "private_dot_claude/settings.json").read_text(
+            (REPO_ROOT / "private_dot_claude/create_settings.json").read_text(
                 encoding="utf-8"
             )
         )

@@ -49,9 +49,8 @@ for the complete naming and execution rules.
 | `dot_local/private_lib/chezmoi/hermes/` | `~/.local/lib/chezmoi/hermes/` | Managed Hermes modules |
 | `.chezmoitemplates/setup/helper-hashes.tmpl` | Source-only rendering input | Helper change detection for run-onchange scripts |
 | `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl` | Executed during apply; no managed file target | Always-run Hermes setup |
-| `private_dot_agents/private_skills/chezmoi-repo-maintainer/SKILL.md` | `~/.agents/skills/chezmoi-repo-maintainer/SKILL.md` | Canonical managed shared skill |
 | `private_dot_codex/AGENTS.md.tmpl` | `~/.codex/AGENTS.md` | Managed Codex context |
-| `private_dot_claude/settings.json` | `~/.claude/settings.json` | Managed Claude configuration |
+| `private_dot_claude/create_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits |
 | `scripts/bootstrap-omarchy.sh` | `~/scripts/bootstrap-omarchy.sh` | Managed bootstrap entry point |
 | `bootstrap-vps.sh` | `~/bootstrap-vps.sh` | Managed bootstrap entry point |
 | `dot_local/share/pi-cli/package.json` | `~/.local/share/pi-cli/package.json` | Managed embedded application |

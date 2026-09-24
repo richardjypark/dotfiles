@@ -4,7 +4,7 @@
 
 - `AGENTS.md` — short control-plane rules for agents: safety, work sizing, skill routing, and validation.
 - `ARCHITECTURE.md` — stable mental model of repo subsystems, invariants, and change routing.
-- `plans/README.md` — canonical Codex planning workflow, including local research/plan artifacts, annotation, approval, and progress tracking.
+- `plans/README.md` — canonical Codex planning workflow, including local research/plan artifacts, annotation, and progress tracking.
 - `README.md` and `docs/` — user-facing workflows and subsystem-specific deep dives.
 
 ## Codex Planning Workflow
@@ -15,8 +15,8 @@ Codex is the canonical planning workflow owner for this repo's high-impact work.
 2. Write a local `*-research.md` artifact.
 3. Write a local `*-plan.md` artifact.
 4. Review and annotate the plan in the editor.
-5. Revise until the plan is approved.
-6. Implement against that approved plan and keep the plan status current.
+5. Revise until the plan is decision-complete.
+6. Implement against that plan and keep the plan status current.
 
 Claude support remains compatible, but shared planning conventions should point back to the same `plans/README.md` contract instead of duplicating a separate Claude-first process.
 

@@ -82,7 +82,7 @@ Use focused tests during the edit loop. Run `./tests/all` before completing a ta
 - The implementation needs multiple phases, multiple tools, or coordination with other agents.
 - The success criteria or validation path are not obvious at the start.
 
-Use `plans/README.md` for the canonical planning flow: deep repo read, `*-research.md`, `*-plan.md`, annotation/revision, approval gate, then implementation.
+Use `plans/README.md` for the canonical planning flow: deep repo read, `*-research.md`, `*-plan.md`, annotation/revision, then implementation.
 
 ## Deep Dives
 

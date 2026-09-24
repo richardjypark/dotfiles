@@ -1,1 +1,4 @@
 .config/shell/agnoster-custom.sh
+.agents/skills/chezmoi-repo-maintainer/SKILL.md
+.agents/skills/chezmoi-repo-maintainer/agents/openai.yaml
+.agents/skills/chezmoi-repo-maintainer/references/validation-and-ci.md

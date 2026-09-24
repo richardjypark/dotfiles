@@ -11,11 +11,6 @@
       "expected_skill": "chezmoi-bootstrap-operator"
     },
     {
-      "id": "cross-cutting-agent-docs",
-      "request": "Reorganize this dotfiles repo's AGENTS.md, ARCHITECTURE.md, and shared skill documentation so all agent clients follow one planning workflow.",
-      "expected_skill": "chezmoi-repo-maintainer"
-    },
-    {
       "id": "idempotent-setup-script",
       "request": "Make run_onchange_after_25-setup-uv.sh.tmpl skip repeated setup work correctly without changing the pinned uv version.",
       "expected_skill": "chezmoi-script-maintainer"
