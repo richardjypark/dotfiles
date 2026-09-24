@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+SECONDS=0
 
 ROLE=""
 DOTFILES_REPO="${DOTFILES_REPO:-richardjypark}"
@@ -105,7 +106,7 @@ stop_sudo_session() {
 
 install_packages() {
   local -a base_packages=(
-    git curl wget zsh tmux openssh tailscale chezmoi
+    git curl wget zsh tmux openssh tailscale chezmoi python
     # bat powers file previews; git-delta/eza power interactive diff and ls flows.
     ripgrep fd bat git-delta eza jq
   )
@@ -182,20 +183,23 @@ apply_chezmoi_role() {
   export CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO=1
 
   if [[ -d "$HOME/.local/share/chezmoi/.git" ]]; then
-    log "Applying existing chezmoi source with CHEZMOI_ROLE=$CHEZMOI_ROLE"
-    chezmoi apply
+    log "Using existing chezmoi source with CHEZMOI_ROLE=$CHEZMOI_ROLE"
   else
-    log "Initializing chezmoi source from '$DOTFILES_REPO' with CHEZMOI_ROLE=$CHEZMOI_ROLE"
-    chezmoi init --apply "$DOTFILES_REPO"
+    log "Initializing chezmoi source from '$DOTFILES_REPO'"
+    chezmoi init "$DOTFILES_REPO"
   fi
+  python3 "$HOME/.local/share/chezmoi/scripts/set-chezmoi-local-data.py" \
+    --role "$ROLE" --profile omarchy
+  chezmoi apply
 }
 
 print_next_steps() {
   cat <<EOF2
-Bootstrap complete.
+Bootstrap complete in $((SECONDS / 60))m $((SECONDS % 60))s.
 
 Role: $ROLE
-Chezmoi role env: CHEZMOI_ROLE=$ROLE
+Chezmoi saved role: $ROLE
+Chezmoi saved profile: omarchy
 
 Next steps:
   1. Join Tailscale if not already connected:
@@ -207,6 +211,8 @@ EOF2
   2. Verify you can connect to this machine through Tailscale.
   3. Then enforce Tailscale-only SSH:
      sudo ./scripts/server-lockdown-tailscale.sh
+  4. Open a new Tailscale SSH connection and confirm within five minutes:
+     sudo ./scripts/server-lockdown-tailscale.sh --confirm
 EOF2
   fi
 }

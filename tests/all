@@ -108,6 +108,10 @@ check_openrouter_agent() {
 }
 
 run_suite "shell syntax" "$REPO_ROOT/tests/syntax"
+run_suite "startup syntax discovery" bash "$REPO_ROOT/tests/test-syntax-startup.sh"
+run_suite "zsh startup behavior" python3 "$REPO_ROOT/tests/test_zsh_startup.py"
+run_suite "role and Pi overrides" python3 "$REPO_ROOT/tests/test_role_and_pi_overrides.py"
+run_suite "access guard behavior" python3 "$REPO_ROOT/tests/test_access_guards.py"
 run_lint_suite "ShellCheck" shellcheck "$REPO_ROOT/tests/lint-shell"
 run_lint_suite "actionlint" actionlint "$REPO_ROOT/tests/lint-actions"
 run_suite "maintenance behavior" bash "$REPO_ROOT/tests/test-cz-maintenance.sh"

@@ -8,8 +8,7 @@ set -euo pipefail
 #   USERNAME=rich DOTFILES_REPO=https://github.com/you/dotfiles.git ./bootstrap-vps.sh
 #
 # Safety:
-#   DISABLE_ROOT_LOGIN and LOCK_SSH_TO_TAILSCALE default to 0.
-#   Set to 1 only AFTER confirming SSH / Tailscale work.
+#   Remote access changes use the separate staged lockdown script.
 
 # --- Configuration (override via environment) --------------------------------
 
@@ -41,10 +40,12 @@ export DEBIAN_FRONTEND=noninteractive
 
 # --- Logging & helpers -------------------------------------------------------
 
-LOG_FILE="/var/log/bootstrap.log"
-touch "${LOG_FILE}"
-chmod 600 "${LOG_FILE}"
-exec > >(tee -a "${LOG_FILE}") 2>&1
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+  LOG_FILE="/var/log/bootstrap.log"
+  touch "${LOG_FILE}"
+  chmod 600 "${LOG_FILE}"
+  exec > >(tee -a "${LOG_FILE}") 2>&1
+fi
 
 VERBOSE="${VERBOSE:-false}"
 vecho() { [[ "${VERBOSE}" == "true" ]] && echo "$@" || true; }
@@ -103,10 +104,43 @@ verify_sha256() {
   [[ "$(sha256_file "$file")" == "$expected" ]]
 }
 
+authorized_keys_has_key() {
+  awk 'NF >= 2 && $1 ~ /^(ssh-(ed25519|rsa)|ecdsa-sha2-|sk-ssh-)/ && $2 ~ /^[A-Za-z0-9+\/=]+$/ { found=1 } END { exit !found }' "$1" || return 1
+  command -v ssh-keygen >/dev/null 2>&1 || return 1
+  ssh-keygen -l -f "$1" >/dev/null 2>&1
+}
+
 # --- Validation --------------------------------------------------------------
 
 validate() {
   [[ "${EUID}" -eq 0 ]] || { echo "ERROR: Must run as root."; exit 1; }
+
+  [[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]*$ && "$USERNAME" != root ]] || {
+    echo "ERROR: USERNAME must name a non-root local user." >&2; exit 1;
+  }
+  [[ "$SSH_PORT" =~ ^[0-9]+$ ]] && (( SSH_PORT >= 1 && SSH_PORT <= 65535 )) || {
+    echo "ERROR: SSH_PORT must be between 1 and 65535." >&2; exit 1;
+  }
+  local flag
+  for flag in LOCK_SSH_TO_TAILSCALE DISABLE_ROOT_LOGIN ALLOW_PASSWORDLESS_SUDO COPY_ROOT_AUTH_KEYS TRUST_ON_FIRST_USE_INSTALLERS; do
+    [[ "${!flag}" = 0 || "${!flag}" = 1 ]] || {
+      echo "ERROR: $flag must be 0 or 1." >&2; exit 1;
+    }
+  done
+  if [[ "$DISABLE_ROOT_LOGIN" = 1 || "$LOCK_SSH_TO_TAILSCALE" = 1 ]]; then
+    echo "ERROR: Use scripts/server-lockdown-tailscale.sh from a working Tailscale SSH session for access restriction and timed recovery." >&2
+    exit 1
+  fi
+  if [[ "$COPY_ROOT_AUTH_KEYS" = 1 && ! -s /root/.ssh/authorized_keys ]]; then
+    echo "ERROR: Root authorized_keys is missing or empty." >&2; exit 1
+  fi
+  if [[ "$COPY_ROOT_AUTH_KEYS" = 1 ]] && ! authorized_keys_has_key /root/.ssh/authorized_keys; then
+    echo "ERROR: Root authorized_keys has no usable public key." >&2; exit 1
+  fi
+  if ! id -u "$USERNAME" >/dev/null 2>&1 && [[ "$COPY_ROOT_AUTH_KEYS" != 1 ]]; then
+    echo "ERROR: Create the non-root user and install its SSH key before system updates, or select COPY_ROOT_AUTH_KEYS=1." >&2
+    exit 1
+  fi
 
   # shellcheck source=/dev/null
   source /etc/os-release 2>/dev/null || { echo "ERROR: /etc/os-release not found."; exit 1; }
@@ -174,6 +208,10 @@ setup_user() {
   if ! id -u "${USERNAME}" >/dev/null 2>&1; then
     adduser --disabled-password --gecos "" "${USERNAME}"
   fi
+  USER_HOME="$(getent passwd "$USERNAME" | cut -d: -f6)"
+  [[ -n "$USER_HOME" && -d "$USER_HOME" ]] || {
+    echo "ERROR: Cannot resolve a home directory for $USERNAME." >&2; return 1;
+  }
 
   apt_install sudo
   usermod -aG sudo "${USERNAME}"
@@ -182,16 +220,29 @@ setup_user() {
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}"
     chmod 440 "/etc/sudoers.d/${USERNAME}"
   else
-    rm -f "/etc/sudoers.d/${USERNAME}"
-    echo "Passwordless sudo disabled by default (set ALLOW_PASSWORDLESS_SUDO=1 to enable)."
+    echo "Passwordless sudo was not configured by this run. Review any existing user sudo rule."
   fi
 
   # Copy root's SSH keys to the new user (opt-in only)
   if [[ "${COPY_ROOT_AUTH_KEYS}" == "1" ]]; then
     if [[ -f /root/.ssh/authorized_keys ]]; then
-      install -d -m 700 -o "${USERNAME}" -g "${USERNAME}" "/home/${USERNAME}/.ssh"
-      install -m 600 -o "${USERNAME}" -g "${USERNAME}" \
-        /root/.ssh/authorized_keys "/home/${USERNAME}/.ssh/authorized_keys"
+      local target_keys="$USER_HOME/.ssh/authorized_keys" key_line
+      [[ ! -L "$USER_HOME/.ssh" && ! -L "$target_keys" ]] || {
+        echo "ERROR: Refusing to write SSH keys through a symlink." >&2
+        return 1
+      }
+      install -d -m 700 -o "${USERNAME}" -g "$(id -gn "$USERNAME")" "$USER_HOME/.ssh"
+      if [[ ! -e "$target_keys" ]]; then
+        install -m 600 -o "${USERNAME}" -g "$(id -gn "$USERNAME")" \
+          /root/.ssh/authorized_keys "$target_keys"
+      else
+        while IFS= read -r key_line || [[ -n "$key_line" ]]; do
+          [[ -n "$key_line" ]] || continue
+          grep -Fqx -- "$key_line" "$target_keys" || printf '%s\n' "$key_line" >> "$target_keys"
+        done < /root/.ssh/authorized_keys
+        chown "${USERNAME}:$(id -gn "$USERNAME")" "$target_keys"
+        chmod 600 "$target_keys"
+      fi
     else
       echo "WARNING: /root/.ssh/authorized_keys not found."
     fi
@@ -201,26 +252,37 @@ setup_user() {
 }
 
 write_security_flags() {
-  local state_dir="/home/${USERNAME}/.config/bootstrap"
-  local state_file="${state_dir}/security-flags.env"
+  local state_dir="$USER_HOME/.config/bootstrap"
+  local state_file="${state_dir}/security-flags.json"
 
-  install -d -m 700 -o "${USERNAME}" -g "${USERNAME}" "${state_dir}"
+  install -d -m 700 -o "${USERNAME}" -g "$(id -gn "$USERNAME")" "${state_dir}"
   cat > "${state_file}" <<EOF
-ALLOW_PASSWORDLESS_SUDO=${ALLOW_PASSWORDLESS_SUDO}
-COPY_ROOT_AUTH_KEYS=${COPY_ROOT_AUTH_KEYS}
-TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS}
+{"allow_passwordless_sudo": ${ALLOW_PASSWORDLESS_SUDO}, "copy_root_auth_keys": ${COPY_ROOT_AUTH_KEYS}, "trust_on_first_use_installers": ${TRUST_ON_FIRST_USE_INSTALLERS}}
 EOF
-  chown "${USERNAME}:${USERNAME}" "${state_file}"
+  chown "${USERNAME}:$(id -gn "$USERNAME")" "${state_file}"
   chmod 600 "${state_file}"
   vecho "Wrote bootstrap security flags to ${state_file}"
 }
 
 ensure_ssh_access() {
-  if [[ ! -f "/home/${USERNAME}/.ssh/authorized_keys" ]]; then
-    echo "ERROR: /home/${USERNAME}/.ssh/authorized_keys is missing." >&2
+  local ssh_dir="$USER_HOME/.ssh" keys="$USER_HOME/.ssh/authorized_keys"
+  [[ ! -L "$ssh_dir" && ! -L "$keys" ]] || {
+    echo "ERROR: SSH key directory or file must not be a symlink." >&2; return 1;
+  }
+  if [[ ! -s "$keys" ]]; then
+    echo "ERROR: $keys is missing or empty." >&2
     echo "Provide SSH keys before proceeding, or re-run with COPY_ROOT_AUTH_KEYS=1." >&2
-    exit 1
+    return 1
   fi
+  [[ "$(stat -c %u "$ssh_dir")" = "$(id -u "$USERNAME")" && "$(stat -c %u "$keys")" = "$(id -u "$USERNAME")" ]] || {
+    echo "ERROR: SSH key directory or file has the wrong owner." >&2; return 1;
+  }
+  [[ "$(stat -c %a "$ssh_dir")" =~ ^7[0-5][0-5]$ && "$(stat -c %a "$keys")" =~ ^[0-7][0-5][0-5]$ ]] || {
+    echo "ERROR: SSH key directory or file permissions are too broad." >&2; return 1;
+  }
+  authorized_keys_has_key "$keys" || {
+    echo "ERROR: $keys has no usable public key." >&2; return 1;
+  }
 }
 
 # --- SSH hardening -----------------------------------------------------------
@@ -236,14 +298,16 @@ harden_sshd() {
   [[ -f /etc/ssh/ssh_host_rsa_key ]] || \
     ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N "" >/dev/null
 
-  local allow_users="${USERNAME}" root_login="prohibit-password"
-  if [[ "${DISABLE_ROOT_LOGIN}" == "1" ]]; then
-    root_login="no"
-  else
-    allow_users="root ${USERNAME}"
+  local allow_users="root ${USERNAME}" root_login="prohibit-password"
+
+  local dropin=/etc/ssh/sshd_config.d/99-hardening.conf backup="" had_dropin=0
+  if [[ -e "$dropin" ]]; then
+    backup="$(mktemp /etc/ssh/sshd_config.d/.99-hardening.XXXXXXXX)"
+    cp -p "$dropin" "$backup"
+    had_dropin=1
   fi
 
-  cat > /etc/ssh/sshd_config.d/99-hardening.conf <<EOF
+  cat > "$dropin" <<EOF || { restore_sshd_dropin "$dropin" "$backup" "$had_dropin"; return 1; }
 Port ${SSH_PORT}
 
 # Authentication
@@ -265,8 +329,56 @@ HostKey /etc/ssh/ssh_host_ed25519_key
 HostKey /etc/ssh/ssh_host_rsa_key
 EOF
 
-  sshd -t || { echo "ERROR: sshd config invalid."; exit 1; }
-  systemctl enable ssh || true
+  if ! sshd -t; then
+    echo "ERROR: sshd config invalid." >&2
+    restore_sshd_dropin "$dropin" "$backup" "$had_dropin"
+    return 1
+  fi
+  local effective
+  if ! effective="$(sshd -T -C "user=$USERNAME,host=localhost,addr=127.0.0.1")"; then
+    restore_sshd_dropin "$dropin" "$backup" "$had_dropin"
+    return 1
+  fi
+  if ! { grep -Eq '^passwordauthentication no$' <<< "$effective" &&
+    grep -Eq '^kbdinteractiveauthentication no$' <<< "$effective" &&
+    grep -Eq '^pubkeyauthentication yes$' <<< "$effective" &&
+    grep -Eq "^port $SSH_PORT$" <<< "$effective" &&
+    grep -Eq "^permitrootlogin $root_login$" <<< "$effective"; }; then
+    echo "ERROR: Effective SSH settings differ from the managed hardening file. Check earlier includes and Match blocks." >&2
+    restore_sshd_dropin "$dropin" "$backup" "$had_dropin"
+    return 1
+  fi
+  local root_effective
+  root_effective="$(sshd -T -C "user=root,host=localhost,addr=127.0.0.1")" || {
+    restore_sshd_dropin "$dropin" "$backup" "$had_dropin"
+    return 1
+  }
+  if ! grep -Eq '^permitrootlogin prohibit-password$' <<< "$root_effective"; then
+    echo "ERROR: Effective root SSH policy differs from the managed hardening file." >&2
+    restore_sshd_dropin "$dropin" "$backup" "$had_dropin"
+    return 1
+  fi
+  if ! systemctl enable ssh || ! { systemctl restart ssh || systemctl restart sshd; }; then
+    echo "ERROR: SSH service could not restart; restoring its prior configuration." >&2
+    restore_sshd_dropin "$dropin" "$backup" "$had_dropin"
+    return 1
+  fi
+  if ! ss -ltnH | awk -v port="$SSH_PORT" '$4 ~ (":" port "$") {found=1} END {exit !found}'; then
+    echo "ERROR: SSH is not listening on the selected port; restoring its prior configuration." >&2
+    restore_sshd_dropin "$dropin" "$backup" "$had_dropin"
+    return 1
+  fi
+  [[ -z "$backup" ]] || rm -f "$backup"
+}
+
+restore_sshd_dropin() {
+  local dropin="$1" backup="$2" had_dropin="$3"
+  if [[ "$had_dropin" = 1 ]]; then
+    cp -p "$backup" "$dropin"
+    rm -f "$backup"
+  else
+    rm -f "$dropin"
+  fi
   systemctl restart ssh || systemctl restart sshd || true
 }
 
@@ -276,21 +388,9 @@ configure_ufw() {
   echo "== Firewall =="
   apt_install ufw
 
+  ufw allow "${SSH_PORT}/tcp"
   ufw default deny incoming
   ufw default allow outgoing
-  ufw allow "${SSH_PORT}/tcp"
-
-  # Only enable tailscale-only SSH after you have confirmed Tailscale login and
-  # a second active session over tailscale0. If tailscale0 is unavailable, keep
-  # baseline SSH access open and retry hardening later.
-  if [[ "${LOCK_SSH_TO_TAILSCALE}" == "1" ]]; then
-    if ip link show tailscale0 >/dev/null 2>&1; then
-      ufw delete allow "${SSH_PORT}/tcp" || true
-      ufw allow in on tailscale0 to any port "${SSH_PORT}" proto tcp
-    else
-      echo "WARNING: LOCK_SSH_TO_TAILSCALE=1 but tailscale0 not found. Keeping SSH open."
-    fi
-  fi
 
   if command -v tailscale >/dev/null 2>&1; then
     ufw allow 41641/udp comment "Tailscale"
@@ -414,7 +514,7 @@ install_tailscale() {
 
 install_dotfiles() {
   echo "== Dotfiles =="
-  apt_install git ca-certificates curl bat
+  apt_install git ca-certificates curl bat python3
 
   if ! command -v delta >/dev/null 2>&1; then
     if apt-cache show git-delta >/dev/null 2>&1; then
@@ -486,8 +586,11 @@ install_dotfiles() {
     fi
   fi
 
+  sudo -u "${USERNAME}" -H "${chezmoi_bin}" init "${DOTFILES_REPO}"
+  sudo -u "${USERNAME}" -H python3 "$USER_HOME/.local/share/chezmoi/scripts/set-chezmoi-local-data.py" \
+    --role server --profile standard
   sudo -u "${USERNAME}" -H env "CHEZMOI_ROLE=server" "VERBOSE=${VERBOSE}" "TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS}" \
-    "${chezmoi_bin}" init --apply --force "${DOTFILES_REPO}"
+    "${chezmoi_bin}" apply
 }
 
 # --- Verification ------------------------------------------------------------
@@ -521,33 +624,51 @@ verify() {
   else
     vecho "  [SKIP] Passwordless sudo check (ALLOW_PASSWORDLESS_SUDO=0)"
   fi
-  check "SSH authorized_keys"         test -f "/home/${USERNAME}/.ssh/authorized_keys"
+  check "SSH authorized_keys"         ensure_ssh_access
   check "SSHD config valid"           sshd -t
   check "SSHD running"               bash -c "systemctl is-active ssh || systemctl is-active sshd"
+  check "SSH listening on selected port" bash -c "ss -ltnH | awk -v port='$SSH_PORT' '\$4 ~ (\":\" port \"\$\") {found=1} END {exit !found}'"
   check "UFW active"                  bash -c "ufw status | grep -q 'Status: active'"
+  check "Public SSH UFW rule"         bash -c "ufw status | grep -Eq '^${SSH_PORT}/tcp[[:space:]]+ALLOW[[:space:]]+Anywhere'"
   check "fail2ban running"            systemctl is-active fail2ban
   check "fail2ban sshd jail"          fail2ban-client status sshd
   check "Kernel hardening config"     test -f /etc/sysctl.d/99-hardening.conf
   check "Swap active"                 bash -c "swapon --show | grep -q '/'"
-  check "Tailscale installed"         bash -c "command -v tailscale"
+  check_optional "Tailscale installed" bash -c "command -v tailscale"
   check "bat installed"               bash -c "command -v bat || command -v batcat"
   check_optional "delta installed"    bash -c "command -v delta"
   check_optional "eza/exa installed"  bash -c "command -v eza || command -v exa"
-  check "Dotfiles applied"            sudo -u "${USERNAME}" -H chezmoi status
+  local chezmoi_status
+  if chezmoi_status="$(sudo -u "${USERNAME}" -H chezmoi status --exclude=scripts 2>&1)"; then
+    if [[ -z "$chezmoi_status" ]]; then
+      vecho "  [PASS] Dotfiles match destination"; (( ++pass ))
+    else
+      echo "  [FAIL] Dotfiles differ from destination"; (( ++fail ))
+      printf '%s\n' "$chezmoi_status"
+    fi
+  else
+    echo "  [FAIL] Could not check dotfiles destination"; (( ++fail ))
+    printf '%s\n' "$chezmoi_status"
+  fi
 
   echo ""
   echo "  Results: ${pass} passed, ${warn} warnings, ${fail} failed"
-  (( fail > 0 )) && echo "  Review failures above." || true
+  if (( fail > 0 )); then
+    echo "  Review failures above."
+    return 1
+  fi
+  return 0
 }
 
 # --- Summary -----------------------------------------------------------------
 
 print_summary() {
   local minutes=$(( SECONDS / 60 )) seconds=$(( SECONDS % 60 ))
-  local root_status="key-only"
-  [[ "${DISABLE_ROOT_LOGIN}" == "1" ]] && root_status="disabled"
-  local ts_status="installed (SSH open on all interfaces)"
-  [[ "${LOCK_SSH_TO_TAILSCALE}" == "1" ]] && ts_status="SSH locked to tailscale0"
+  local root_status="key-only" ts_status="not installed"
+  if command -v tailscale >/dev/null 2>&1; then
+    ts_status="installed; login pending"
+    if tailscale status --self >/dev/null 2>&1; then ts_status="connected"; fi
+  fi
 
   echo ""
   echo "============================================"
@@ -558,9 +679,13 @@ print_summary() {
   echo "  SSH port:  ${SSH_PORT}"
   echo "  Root SSH:  ${root_status}"
   echo "  Tailscale: ${ts_status}"
+  echo "  SSH access: public port ${SSH_PORT}"
   echo "  NOPASSWD sudo: ${ALLOW_PASSWORDLESS_SUDO}"
   echo "  Copy root keys: ${COPY_ROOT_AUTH_KEYS}"
   echo "  TOFU installers: ${TRUST_ON_FIRST_USE_INSTALLERS}"
+  echo ""
+  echo "  Measured phase times:"
+  printf '    %s\n' "${PHASE_TIMINGS[@]}"
   echo ""
 
   if [[ -f /var/run/reboot-required ]]; then
@@ -570,38 +695,57 @@ print_summary() {
 
   echo "  Next steps:"
   echo "  1. Test: ssh -p ${SSH_PORT} ${USERNAME}@<this-ip>"
-  echo "  2. If that works, re-run with DISABLE_ROOT_LOGIN=1"
-  echo "  3. Run 'tailscale up' to join your tailnet"
-  echo "  4. Once confirmed, re-run with LOCK_SSH_TO_TAILSCALE=1"
-  echo "     Rollback: ufw allow ${SSH_PORT}/tcp && ufw reload"
+  echo "  2. Run 'tailscale up' to join your tailnet"
+  echo "  3. Test a new Tailscale SSH connection as ${USERNAME}"
+  echo "  4. From that Tailscale SSH session, run scripts/server-lockdown-tailscale.sh"
+  echo "  5. Confirm from another new Tailscale SSH session within five minutes"
   echo ""
 }
 
 # --- Main --------------------------------------------------------------------
 
+PHASE_TIMINGS=()
+
+timed_phase() {
+  local label="$1" started=$SECONDS
+  shift
+  "$@"
+  PHASE_TIMINGS+=("$label: $((SECONDS - started))s")
+}
+
 main() {
   validate
+  if id -u "$USERNAME" >/dev/null 2>&1; then
+    USER_HOME="$(getent passwd "$USERNAME" | cut -d: -f6)"
+    [[ -d "$USER_HOME" ]] || { echo "ERROR: Invalid home directory for $USERNAME" >&2; return 1; }
+    [[ ! -L "$USER_HOME/.ssh" && ! -L "$USER_HOME/.ssh/authorized_keys" ]] || {
+      echo "ERROR: Refusing to use symlinked SSH key paths." >&2; return 1;
+    }
+    if [[ "$COPY_ROOT_AUTH_KEYS" != 1 ]]; then
+      ensure_ssh_access
+    fi
+  fi
 
-  system_update
-  configure_swap
-  configure_locale
+  timed_phase "System update" system_update
+  timed_phase "Swap" configure_swap
+  timed_phase "Locale" configure_locale
 
-  setup_user
+  timed_phase "User setup" setup_user
   write_security_flags
   ensure_ssh_access
 
-  install_tailscale
+  timed_phase "Tailscale package" install_tailscale
 
-  harden_sshd
-  configure_ufw
-  harden_kernel
-  configure_unattended_upgrades
-  configure_fail2ban
+  timed_phase "SSH hardening" harden_sshd
+  timed_phase "UFW" configure_ufw
+  timed_phase "Kernel" harden_kernel
+  timed_phase "Automatic updates" configure_unattended_upgrades
+  timed_phase "fail2ban" configure_fail2ban
 
-  install_dotfiles
+  timed_phase "Dotfiles apply" install_dotfiles
 
   verify
   print_summary
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then main "$@"; fi

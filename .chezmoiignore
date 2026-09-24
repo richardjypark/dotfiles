@@ -59,12 +59,16 @@ specs/*
 logs/*
 
 # Skip dev tools on servers.
-# Role is controlled by CHEZMOI_ROLE=server during apply.
+# Role comes from an explicit override, saved local data, or legacy host fallback.
 # Keep hostname fallback for backward compatibility (legacy; prefer role/profile).
-{{ if or (eq (env "CHEZMOI_ROLE") "server") (eq .chezmoi.hostname "vultr") }}
+{{ $role := includeTemplate "resolved-role" . }}
+{{ $server_node_opt_in := or (stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi-cli.enabled")) (stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi-maintenance-agent.enabled")) (stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "openrouter-agent.enabled")) (stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "hermes-agent.enabled")) }}
+{{ if eq $role "server" }}
 # Project runtimes are not needed on production servers.
+{{ if not $server_node_opt_in }}
 .chezmoiscripts/30-setup-mise.sh
 .config/mise
+{{ end }}
 
 # Bun - not needed on prod
 .chezmoiscripts/27-setup-bun.sh
@@ -81,7 +85,7 @@ logs/*
 
 # Preserve Omarchy defaults while still managing this repo.
 # Enable with: CHEZMOI_PROFILE=omarchy chezmoi apply|update
-{{ $profile := or (index . "profile") (env "CHEZMOI_PROFILE") }}
+{{ $profile := includeTemplate "resolved-profile" . }}
 {{ $force_raw := or (index . "force_zsh_login") (env "CHEZMOI_FORCE_ZSH_LOGIN") }}
 {{ $force_str := lower (printf "%v" $force_raw) }}
 {{ $force_zsh := or (eq $force_str "true") (eq $force_str "1") (eq $force_str "yes") }}
@@ -119,6 +123,12 @@ logs/*
 # Generated managed Pi dependencies are never chezmoi-managed.
 .local/share/pi-cli/node_modules
 .local/share/pi-maintenance-agent/node_modules
+{{ if stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi" "settings.local.json") }}
+.pi/agent/settings.json
+{{ end }}
+{{ if stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi" "keybindings.local.json") }}
+.pi/agent/keybindings.json
+{{ end }}
 
 # OpenRouter Agent is an explicit paid-credit fallback, opt-in per machine.
 # Generated dependencies/builds and repository tests are never chezmoi-managed.

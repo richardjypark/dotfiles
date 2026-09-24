@@ -25,9 +25,9 @@ exclusions, and canonical ownership rules.
 
 ### Bootstrap and Hardening
 
-- Entry points: `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh`
+- Entry points: `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh`, `scripts/setup-personal-cloud-tailscale.sh`
 - Responsibility: first-run machine setup, package bootstrapping, secure server posture
-- Constraints: non-interactive by default, explicit trust gates for remote installers, phased server hardening
+- Constraints: non-interactive by default, explicit trust gates for remote installers, role/profile saved before first apply, remote SSH restrictions staged with timed rollback and new-session confirmation
 
 ### Template Data and Externals
 

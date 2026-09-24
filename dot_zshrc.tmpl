@@ -1,15 +1,15 @@
 # Exit if not running interactively (but allow for testing)
-[[ $- != *i* ]] && [[ -z "$ZSH_TEST_MODE" ]] && return
+[[ $- != *i* ]] && [[ -z "${ZSH_TEST_MODE:-}" ]] && return
 
 # Profile checkpoint helper
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "zshrc start"
+[[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "zshrc start"
 
 # Disable terminal bell (prevents tmux ! indicator and annoying beeps)
 unsetopt BEEP
 
-# Disable Oh My Zsh automatic updates and skip compfix check for speed
+# Disable Oh My Zsh automatic updates. Keep completion permission checks.
 export DISABLE_AUTO_UPDATE=true
-export ZSH_DISABLE_COMPFIX=true
+unset ZSH_DISABLE_COMPFIX
 
 # NOTE: PATH is managed in ~/.config/shell/path.sh (loaded at the end of this file)
 # Only ~/.local/bin is set in ~/.zshenv for non-interactive shells
@@ -23,21 +23,17 @@ ZSH_THEME=""
 # Load zsh fixes before Oh My Zsh initialization
 [[ -f "$HOME/.config/shell/zsh-fix.sh" ]] && source "$HOME/.config/shell/zsh-fix.sh"
 
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "zsh-fix loaded"
+[[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "zsh-fix loaded"
 
 # Configure oh-my-zsh plugins
-zstyle :omz:plugins:ssh-agent identities id_ed25519
-zstyle :omz:plugins:ssh-agent lifetime 1h
-zstyle :omz:plugins:ssh-agent quiet yes
 zstyle :omz:plugins:jj ignore-working-copy yes
 
 plugins=(
 	git
-{{- if and (ne (env "CHEZMOI_ROLE") "server") (ne .chezmoi.hostname "vultr") }}
+{{- if ne (includeTemplate "resolved-role" .) "server" }}
 	terraform
 	ansible
 {{- end }}
-	ssh-agent
 	zsh-autosuggestions
 	zsh-syntax-highlighting
 )
@@ -49,7 +45,7 @@ if [[ -d "$ZSH" ]]; then
 	# Load Oh My Zsh
 	source "$ZSH/oh-my-zsh.sh"
 
-	[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "oh-my-zsh loaded"
+	[[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "oh-my-zsh loaded"
 
 	# Fix zsh-autosuggestions "not enough arguments for -C" on completion widgets
 	# https://github.com/zsh-users/zsh-autosuggestions/issues/825
@@ -104,13 +100,13 @@ for conf in "$HOME/.config/shell/"*.sh; do
 	[ -f "$conf" ] && . "$conf"
 done
 
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "shell configs loaded"
+[[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "shell configs loaded"
 
 # Update project tool paths after shared PATH setup and on directory changes.
 if [[ -n "${DOTFILES_MISE_BIN:-}" ]]; then
     eval "$("$DOTFILES_MISE_BIN" activate zsh)"
 fi
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "mise activated"
+[[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "mise activated"
 
 # Initialize Starship prompt (cached for performance)
 if command -v starship >/dev/null 2>&1; then
@@ -122,7 +118,7 @@ if command -v starship >/dev/null 2>&1; then
     source "$starship_cache"
 fi
 
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "starship init"
+[[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "starship init"
 
 _dotfiles_load_bun_completion() {
     unset -f _dotfiles_load_bun_completion bun
@@ -162,7 +158,7 @@ _dotfiles_load_pnpm_completion() {
 (( $+commands[pnpm] )) && pnpm() { _dotfiles_load_pnpm_completion "$@"; }
 
 # Final profiling checkpoint and display report
-if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
+if [[ -n "${ZSH_PROFILE_STARTUP:-}" ]]; then
     _zsh_profile_end=$(_get_ms)
 
     # Auto-display report if function is available
@@ -175,7 +171,7 @@ fi
 
 # Auto-start Herdr after all shell setup/profiling is complete.
 # Skipped for: SSH sessions, VSCode terminals, Herdr panes, or NOTMUX=1.
-if [[ -z "$HERDR_ENV" ]] && [[ -z "$SSH_TTY" ]] && [[ "$TERM_PROGRAM" != "vscode" ]] && [[ -z "$NOTMUX" ]]; then
+if [[ -z "${HERDR_ENV:-}" ]] && [[ -z "${SSH_TTY:-}" ]] && [[ "${TERM_PROGRAM:-}" != "vscode" ]] && [[ -z "${NOTMUX:-}" ]]; then
     if (( $+commands[herdr] )); then
         exec herdr
     else

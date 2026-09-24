@@ -3,7 +3,8 @@ set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
 # Run on each apply so changes to global mise config are installed.
-# The server role ignores this script. Keep OS package managers as the CLI owner.
+# Servers run this script only when an optional JavaScript tool is enabled.
+RESOLVED_ROLE="{{ includeTemplate "resolved-role" . }}"
 if ! command -v mise >/dev/null 2>&1; then
     case "$(uname -s)" in
         Darwin)
@@ -44,9 +45,20 @@ fi
 
 # Global Node is for repo-managed agents. Projects can override it in mise.toml.
 cd "$HOME"
-mise install
+if [ "$RESOLVED_ROLE" = server ]; then
+    node_version="$(sed -n 's/^node[[:space:]]*=[[:space:]]*"\([0-9.]*\)".*/\1/p' "$HOME/.config/mise/config.toml" | head -1)"
+    if [ -z "$node_version" ]; then
+        eecho "Error: the managed mise config has no pinned Node version."
+        exit 1
+    fi
+    mise install "node@$node_version"
+else
+    mise install
+fi
 mise reshim
-for tool in node npm pnpm yarn; do
+tools=(node npm)
+if [ "$RESOLVED_ROLE" != server ]; then tools+=(pnpm yarn); fi
+for tool in "${tools[@]}"; do
     if ! mise exec -- "$tool" --version >/dev/null 2>&1; then
         eecho "mise could not run the configured $tool version."
         exit 1

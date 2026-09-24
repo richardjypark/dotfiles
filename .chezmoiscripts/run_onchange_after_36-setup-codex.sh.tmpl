@@ -104,7 +104,7 @@ if should_skip_state "$CODEX_STATE"; then
 fi
 
 # Skip on server role to keep server footprint minimal.
-if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
+if [ "{{ includeTemplate "resolved-role" . }}" = "server" ]; then
     vecho "Skipping Codex setup on server role"
     exit 0
 fi

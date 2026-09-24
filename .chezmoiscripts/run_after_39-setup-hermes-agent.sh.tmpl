@@ -81,7 +81,6 @@ add_to_path "$HOME/.local/bin"
 
 if should_skip_state "$HERMES_STATE" && hermes_ready && launcher_ready && config_ready && gateway_state_satisfied && tui_diff_colors_ready && tui_status_ready && tui_git_branch_ready && tui_prebuild_ready; then
     ensure_public_hermes_preferences
-    ensure_hermes_shared_skills_external_dir
     vecho "Hermes Agent already ensured (state tracked)"
     exit 0
 fi
@@ -96,7 +95,6 @@ fi
 write_launcher
 seed_hermes_home
 ensure_public_hermes_preferences
-ensure_hermes_shared_skills_external_dir
 ensure_hermes_tui_diff_color_patch
 ensure_hermes_tui_status_patch
 ensure_hermes_tui_git_branch_patch

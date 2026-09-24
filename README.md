@@ -8,7 +8,7 @@ Dotfiles managed with [chezmoi](https://github.com/twpayne/chezmoi).
 
 ```bash
 sudo pacman -S --noconfirm --needed chezmoi git curl
-chezmoi init --apply richardjypark
+chezmoi init richardjypark
 ```
 
 Run role bootstrap:
@@ -27,14 +27,31 @@ For server hardening (after confirming Tailscale SSH access):
 sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh
 ```
 
+Run that command from a working Tailscale SSH session as the non-root operator.
+Keep it open, start a new Tailscale SSH session, and confirm within five minutes:
+
+```bash
+sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh --confirm
+```
+
+The local timer restores the prior SSH and UFW configuration if confirmation
+does not arrive. For the personal-cloud nftables path, first run
+`scripts/setup-personal-cloud-tailscale.sh`, set the tailnet SSH policy, and
+verify a new Tailscale SSH session. Run it with `--lockdown` from that session,
+then run it with `--confirm` from another new session within five minutes.
+Keep the first session open and do not restart the server before confirmation.
+The rollback timer and its saved files are in `/run` and do not survive a restart.
+
 ### Debian / Ubuntu VPS
 
-Clone and run as root (or with sudo) on a fresh VPS:
+Clone and run as root on a fresh VPS. Set `USERNAME` to the intended non-root
+administrator and install a public key for that user before this command, or
+use `COPY_ROOT_AUTH_KEYS=1` when root already has a usable authorized key.
 
 ```bash
 git clone https://github.com/richardjypark/dotfiles.git ~/.local/share/chezmoi
 cd ~/.local/share/chezmoi
-USERNAME="$USER" DOTFILES_REPO="https://github.com/richardjypark/dotfiles.git" TRUST_ON_FIRST_USE_INSTALLERS=1 bash ./bootstrap-vps.sh
+USERNAME=rich DOTFILES_REPO="https://github.com/richardjypark/dotfiles.git" TRUST_ON_FIRST_USE_INSTALLERS=1 bash ./bootstrap-vps.sh
 ```
 
 ### macOS (workstation)
@@ -45,10 +62,24 @@ chezmoi init --apply richardjypark
 TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply
 ```
 
+Bootstrap saves `role=server` and `profile=standard` in the active local
+chezmoi config before the first apply. Omarchy bootstrap saves the selected
+role and `profile=omarchy`. Later plain applies use those saved values.
+Nonempty `CHEZMOI_ROLE` and `CHEZMOI_PROFILE` values override them for one run;
+`standard` explicitly keeps the regular shell targets on a host with Omarchy.
+
 Workstation project runtimes use mise for Node and Elixir/Erlang; uv still owns
 Python. See [developer platforms](docs/developer-platforms.md) for the
 mixed-monorepo example, package sets, lint checks, and the optional free
-Colima path. Servers skip project runtime setup.
+Colima path. Servers skip project runtime setup by default. A server with an
+enabled JavaScript agent installs the pinned Node runtime without the
+workstation pnpm and yarn installs.
+
+Interactive shells keep a reachable inherited SSH agent, including forwarded
+agents with no loaded keys. macOS uses the session agent when available; Linux
+starts one reusable local OpenSSH agent when needed. Set `DOTFILES_SSH_AGENT=gpg`
+locally only when your GnuPG agent has SSH support configured. Shell startup
+does not create or replace `gpg-agent.conf`.
 
 ### macOS Brave Browser Tor Policy
 
@@ -62,7 +93,7 @@ available if `chezmoi-health-check` reports policy drift.
 | Command | What it does | When to use |
 | --- | --- | --- |
 | `chezmoi update` | Pulls latest dotfiles from upstream and applies them. | Standard sync from repo changes. |
-| `czu` | Resolves one validated source workspace, repairs/fetches `trunk()` through `jj-sync-trunk`, rebases the current change onto `trunk()`, then applies that same selected source. Omarchy hosts default `CHEZMOI_PROFILE=omarchy` when unset. | Daily update when you want the jj-based workflow. Set `CHEZMOI_SOURCE_DIR=/absolute/workspace` to select a non-default source workspace. |
+| `czu` | Resolves one validated source workspace, repairs/fetches `trunk()` through `jj-sync-trunk`, rebases the current change onto `trunk()`, then applies that same selected source. Saved local profile data takes priority over Omarchy host detection. | Daily update when you want the jj-based workflow. Set `CHEZMOI_SOURCE_DIR=/absolute/workspace` to select a non-default source workspace. |
 | `czuf` | Same selected-source/trunk flow as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and `chezmoi apply --refresh-externals --force`. It does not run broad package-manager upgrades or bump source pins. | Full refresh when pinned tools/externals changed or state needs rebuilding. On macOS, use `czm` for one-command app + pin maintenance. |
 | `czl [--system-only \| --bump-pins] [--plan] [--verbose]` | Omarchy/Arch maintenance. No arguments preserve the full workflow: clean-source gate, `czuf`, `pacman -Syu`, atomic `chezmoi-bump --all`, and final forced selected-source apply. `--system-only` skips source-pin mutation but keeps the Arch convergence apply. | Daily Arch maintenance. Use `--plan` for a non-installing preview or `--system-only` when the current JJ change is intentionally dirty. |
 | `czm [--system-only \| --bump-pins] [--plan] [--verbose]` | macOS maintenance. No arguments preserve the full Homebrew + atomic pin-bump workflow. The final selected-source apply runs only when the clean-source bump leaves a JJ diff; Homebrew cleanup runs last and is warning-only. `--system-only` skips source-pin mutation and the final pin apply. | Daily macOS maintenance. Use `--plan` for a non-installing preview or `--system-only` when the current JJ change is intentionally dirty. |
@@ -124,6 +155,14 @@ Shell preview behavior:
 | `CHEZMOI_ROLE` | `workstation` | Full personal workstation toolchain. |
 | `CHEZMOI_ROLE` | `server` | Server-focused setup, skips workstation-only tooling. |
 | `CHEZMOI_PROFILE` | `omarchy` | Skip managed shell/terminal targets and keep local Omarchy files. |
+| `CHEZMOI_PROFILE` | `standard` | Keep standard managed shell/terminal targets. |
+
+| Optional tool | Server default | Opt-in marker | Runtime |
+| --- | --- | --- | --- |
+| Pi CLI | Skip | `~/.config/dotfiles/pi-cli.enabled` on a supported Omarchy host | Pinned Node through mise |
+| Pi maintenance agent | Skip | `~/.config/dotfiles/pi-maintenance-agent.enabled` on Omarchy | Pinned Node through mise |
+| OpenRouter Agent | Skip | `~/.config/dotfiles/openrouter-agent.enabled` | Pinned Node through mise |
+| Hermes TUI | Skip | `~/.config/dotfiles/hermes-agent.enabled` | Pinned Node for the local TUI build |
 
 Examples:
 
@@ -183,6 +222,12 @@ $EDITOR ~/.config/dotfiles/pi/settings.local.json
 ```
 
 If `~/.config/dotfiles/pi/settings.local.json` exists, `chezmoi apply` will prefer it over the tracked `~/.pi/agent/settings.json` for this machine.
+The local settings file must be a JSON object with the managed
+`pi-autoresearch` package pin in its `packages` array. A local keybindings
+override must also be a JSON object. The override writer keeps unchanged
+files and sets changed target files to mode `0600`.
+After you remove a local override, accept chezmoi's prompt to restore the
+managed default, or run a scoped `chezmoi apply --force` for that Pi target.
 
 ### IBKR data platform local dependencies
 
@@ -217,8 +262,8 @@ without the heavier browser, voice, RL, or development extras. Hermes runtime da
 `hermes setup` or `hermes gateway setup` locally after install. For public-repo safety,
 this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensitive
 Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]` and
-`[hermes.delegation]`, and the always-run Hermes setup script reapplies them
-with `hermes config set` on each
+`[hermes.delegation]`, and the always-run Hermes setup script compares and
+applies them in one atomic config update on each
 `chezmoi apply`: `model.provider=openai-codex`, `model.default=gpt-5.6-sol`,
 `model.base_url=https://chatgpt.com/backend-api/codex`,
 `display.show_reasoning=true`, `agent.reasoning_effort=medium`,

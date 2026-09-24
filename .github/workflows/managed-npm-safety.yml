@@ -26,7 +26,14 @@ jobs:
       npm_config_replace_registry_host: always
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Hermes config test dependency
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/hermes-test-venv"
+          "$RUNNER_TEMP/hermes-test-venv/bin/pip" install PyYAML==6.0.3
+          printf '%s\n' "$RUNNER_TEMP/hermes-test-venv/bin" >> "$GITHUB_PATH"
 
       - name: Resolve pinned chezmoi artifact
         id: chezmoi
@@ -82,7 +89,7 @@ jobs:
 
       - name: Set up Node.js
         if: runner.os == 'Linux'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 24.14.0
           cache: npm
@@ -101,7 +108,7 @@ jobs:
 
       - name: Set up Go for actionlint
         if: runner.os == 'Linux'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: '1.25'
 

@@ -16,6 +16,7 @@ Optional flags and env:
 
 Role behavior:
 - `CHEZMOI_ROLE` is exported from bootstrap (`workstation` or `server`).
+- Bootstrap saves that role and `profile=omarchy` in the active local chezmoi config before apply.
 - Server role skips some local-dev tooling during `chezmoi apply/update`.
 
 ## Debian/Ubuntu VPS (root-run flow)
@@ -34,7 +35,8 @@ Security defaults:
 Phased hardening model:
 1. Bootstrap with safe defaults.
 2. Confirm access paths (SSH/Tailscale).
-3. Re-run with stricter flags (for example `DISABLE_ROOT_LOGIN=1`, then `LOCK_SSH_TO_TAILSCALE=1`).
+3. Run the staged post-bootstrap lockdown from a working Tailscale SSH session.
+4. Confirm from a new Tailscale SSH connection within five minutes.
 
 ## Post-bootstrap Lockdown
 
@@ -42,6 +44,7 @@ For server role after Tailscale access is verified:
 
 ```bash
 sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh
+sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh --confirm
 ```
 
 ## Private Inputs (Never Commit)

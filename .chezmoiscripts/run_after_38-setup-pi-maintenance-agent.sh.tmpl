@@ -8,7 +8,7 @@ PI_AGENT_LOCKFILE_HASH="{{ include "dot_local/share/pi-maintenance-agent/package
 PI_AGENT_STATE="pi-maintenance-agent-${EXPECTED_PI_VERSION}-${PI_AGENT_LOCKFILE_HASH}"
 
 is_pi_agent_supported_host() {
-    [ "${CHEZMOI_PROFILE:-}" = "omarchy" ] \
+    [ "{{ includeTemplate "resolved-profile" . }}" = "omarchy" ] \
         || [ -d "$HOME/.config/omarchy/current" ] \
         || [ -d "$HOME/.local/share/omarchy" ] \
         || command -v omarchy-menu >/dev/null 2>&1
