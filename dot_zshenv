@@ -2,7 +2,7 @@
 # This ensures managed tools are available in IDE terminals.
 
 # Shell startup profiling (optional, enable with ZSH_PROFILE_STARTUP=1)
-if [[ -n "$ZSH_PROFILE_STARTUP" ]]; then
+if [[ -n "${ZSH_PROFILE_STARTUP:-}" ]]; then
     # Initialize profiling arrays and start time
     typeset -ga _zsh_profile_times
 
@@ -75,10 +75,14 @@ elif [[ -x /usr/local/bin/mise ]]; then
     DOTFILES_MISE_BIN=/usr/local/bin/mise
 fi
 if [[ -n "$DOTFILES_MISE_BIN" ]]; then
-    eval "$("$DOTFILES_MISE_BIN" activate zsh --shims)"
+    _dotfiles_mise_data_dir="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}"
+    if [[ -d "$_dotfiles_mise_data_dir/shims" ]]; then
+        _dotfiles_path_prepend_once "$_dotfiles_mise_data_dir/shims"
+    fi
+    unset _dotfiles_mise_data_dir
 fi
 
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "mise shims activated"
+[[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "mise shims available"
 
 # Bun
 export BUN_INSTALL="$HOME/.bun"
@@ -93,4 +97,5 @@ unset -f _dotfiles_path_prepend_once
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 
 # Profile zshenv completion
-[[ -n "$ZSH_PROFILE_STARTUP" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "zshenv complete"
+[[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "zshenv complete"
+true

@@ -1,0 +1,12 @@
+{{- $role := or (env "CHEZMOI_ROLE") (index . "role") -}}
+{{- if not $role -}}
+  {{- if eq .chezmoi.hostname "vultr" -}}
+    {{- $role = "server" -}}
+  {{- else -}}
+    {{- $role = "workstation" -}}
+  {{- end -}}
+{{- end -}}
+{{- if not (or (eq $role "server") (eq $role "workstation")) -}}
+  {{- fail "CHEZMOI_ROLE or saved data.role must be server or workstation" -}}
+{{- end -}}
+{{- $role -}}

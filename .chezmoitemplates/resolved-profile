@@ -1,0 +1,12 @@
+{{- $profile := or (env "CHEZMOI_PROFILE") (index . "profile") -}}
+{{- if not $profile -}}
+  {{- if or (stat (joinPath .chezmoi.homeDir ".config" "omarchy" "current")) (stat (joinPath .chezmoi.homeDir ".local" "share" "omarchy")) -}}
+    {{- $profile = "omarchy" -}}
+  {{- else -}}
+    {{- $profile = "standard" -}}
+  {{- end -}}
+{{- end -}}
+{{- if not (or (eq $profile "omarchy") (eq $profile "standard")) -}}
+  {{- fail "CHEZMOI_PROFILE or saved data.profile must be omarchy or standard" -}}
+{{- end -}}
+{{- $profile -}}

@@ -99,6 +99,29 @@ get_toml_section_value() {
     ' "$file"
 }
 
+resolved_chezmoi_role() {
+    if [ -n "${CHEZMOI_ROLE:-}" ]; then printf '%s\n' "$CHEZMOI_ROLE"; return; fi
+    local saved_role=""
+    if command -v python3 >/dev/null 2>&1; then
+        saved_role="$(chezmoi data --format=json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("role", ""))' 2>/dev/null || true)"
+    fi
+    if [ -n "$saved_role" ]; then printf '%s\n' "$saved_role"; return; fi
+    if [ "$(hostname -s)" = vultr ]; then printf 'server\n'; else printf 'workstation\n'; fi
+}
+
+check_private_runtime_path() {
+    local path="$1" label="$2" mode owner
+    [ -e "$path" ] || [ -L "$path" ] || return 0
+    if [ -L "$path" ]; then check_fail "$label is a symlink"; return; fi
+    mode="$(stat -f %Lp "$path" 2>/dev/null || stat -c %a "$path")"
+    owner="$(stat -f %u "$path" 2>/dev/null || stat -c %u "$path")"
+    if [ "$owner" != "$(id -u)" ] || [[ "$mode" != *00 ]]; then
+        check_fail "$label must be owned by this user with no group or other access"
+    else
+        check_pass "$label permissions are private"
+    fi
+}
+
 get_pinned_data_value() {
     local section="$1"
     local key="$2"
@@ -241,7 +264,8 @@ vecho "--- Development Tools ---"
 if command -v mise >/dev/null 2>&1; then
     MISE_NODE_PATH="$(mise which node 2>/dev/null || true)"
     if [ -n "$MISE_NODE_PATH" ] && [ -x "$MISE_NODE_PATH" ]; then
-        export PATH="$(dirname "$MISE_NODE_PATH"):$PATH"
+        PATH="$(dirname "$MISE_NODE_PATH"):$PATH"
+        export PATH
         hash -r 2>/dev/null || true
     fi
 fi
@@ -621,37 +645,77 @@ fi
 vecho ""
 vecho "--- Bootstrap Security Defaults ---"
 
-BOOTSTRAP_FLAGS_FILE="$HOME/.config/bootstrap/security-flags.env"
-if [ -f "$BOOTSTRAP_FLAGS_FILE" ]; then
-    # shellcheck disable=SC1090
-    . "$BOOTSTRAP_FLAGS_FILE"
+BOOTSTRAP_FLAGS_JSON="$HOME/.config/bootstrap/security-flags.json"
+BOOTSTRAP_FLAGS_LEGACY="$HOME/.config/bootstrap/security-flags.env"
+BOOTSTRAP_FLAGS_FILE=""
+if [ -f "$BOOTSTRAP_FLAGS_JSON" ]; then
+    BOOTSTRAP_FLAGS_FILE="$BOOTSTRAP_FLAGS_JSON"
+elif [ -f "$BOOTSTRAP_FLAGS_LEGACY" ]; then
+    BOOTSTRAP_FLAGS_FILE="$BOOTSTRAP_FLAGS_LEGACY"
+fi
 
-    if [ "${ALLOW_PASSWORDLESS_SUDO:-0}" = "1" ]; then
-        check_warn "Bootstrap used ALLOW_PASSWORDLESS_SUDO=1"
+read_bootstrap_flag() {
+    local key="$1"
+    if [ "$BOOTSTRAP_FLAGS_FILE" = "$BOOTSTRAP_FLAGS_JSON" ]; then
+        command -v python3 >/dev/null 2>&1 || return 1
+        python3 - "$BOOTSTRAP_FLAGS_FILE" "$key" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as stream:
+        value = json.load(stream)[sys.argv[2]]
+    if type(value) is not int or value not in (0, 1):
+        raise ValueError("invalid flag")
+except (OSError, ValueError, KeyError, TypeError):
+    sys.exit(1)
+print(value)
+PY
     else
-        check_pass "Passwordless sudo remains disabled by default"
+        awk -F= -v key="$key" '
+            $1 == key && $2 ~ /^[01]$/ && NF == 2 { value = $2; found++ }
+            END { if (found == 1) print value; else exit 1 }
+        ' "$BOOTSTRAP_FLAGS_FILE"
     fi
+}
 
-    if [ "${COPY_ROOT_AUTH_KEYS:-0}" = "1" ]; then
-        check_warn "Bootstrap used COPY_ROOT_AUTH_KEYS=1"
+check_bootstrap_flag() {
+    local key="$1" warning="$2" success="$3" value
+    if ! value="$(read_bootstrap_flag "$key")"; then
+        check_warn "Cannot read bootstrap security flag $key"
+    elif [ "$value" = 1 ]; then
+        check_warn "$warning"
     else
-        check_pass "Root authorized_keys was not copied by default"
+        check_pass "$success"
     fi
+}
 
-    if [ "${TRUST_ON_FIRST_USE_INSTALLERS:-0}" = "1" ]; then
-        check_warn "Bootstrap allowed remote installer scripts (TOFU mode)"
+if [ -n "$BOOTSTRAP_FLAGS_FILE" ]; then
+    if [ "$BOOTSTRAP_FLAGS_FILE" = "$BOOTSTRAP_FLAGS_JSON" ]; then
+        check_bootstrap_flag allow_passwordless_sudo "Bootstrap used ALLOW_PASSWORDLESS_SUDO=1" "Passwordless sudo remains disabled by default"
+        check_bootstrap_flag copy_root_auth_keys "Bootstrap used COPY_ROOT_AUTH_KEYS=1" "Root authorized_keys was not copied by default"
+        check_bootstrap_flag trust_on_first_use_installers "Bootstrap allowed remote installer scripts (TOFU mode)" "Remote installer scripts require explicit trust"
     else
-        check_pass "Remote installer scripts require explicit trust"
+        check_bootstrap_flag ALLOW_PASSWORDLESS_SUDO "Bootstrap used ALLOW_PASSWORDLESS_SUDO=1" "Passwordless sudo remains disabled by default"
+        check_bootstrap_flag COPY_ROOT_AUTH_KEYS "Bootstrap used COPY_ROOT_AUTH_KEYS=1" "Root authorized_keys was not copied by default"
+        check_bootstrap_flag TRUST_ON_FIRST_USE_INSTALLERS "Bootstrap allowed remote installer scripts (TOFU mode)" "Remote installer scripts require explicit trust"
     fi
 else
     if [[ "$OSTYPE" == "darwin"* ]]; then
         check_pass "Bootstrap security flag file not required on macOS"
-    elif [ "${CHEZMOI_ROLE:-workstation}" != "server" ]; then
+    elif [ "$(resolved_chezmoi_role)" != "server" ]; then
         check_pass "Bootstrap security flag file not required for non-server role"
     else
         check_warn "Bootstrap security flag file not found (bootstrap-vps.sh may not have been used)"
     fi
 fi
+
+vecho ""
+vecho "--- Private Runtime Permissions ---"
+check_private_runtime_path "$HOME/.gnupg" "GnuPG directory"
+check_private_runtime_path "$HOME/.hermes" "Hermes runtime directory"
+check_private_runtime_path "$HOME/.hermes/config.yaml" "Hermes configuration"
+check_private_runtime_path "$HOME/.config/dotfiles" "Local dotfiles input directory"
 
 # 8. Browser security policies
 if [[ "$(uname -s)" == "Darwin" ]]; then

@@ -89,7 +89,7 @@ case "$platform" in
         ;;
 esac
 
-if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
+if [ "{{ includeTemplate "resolved-role" . }}" = "server" ]; then
     filtered=()
     for item in "${artifacts[@]}"; do
         case "$item" in

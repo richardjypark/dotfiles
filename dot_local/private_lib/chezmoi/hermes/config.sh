@@ -17,40 +17,23 @@ run_hermes_cli() {
 }
 
 ensure_public_hermes_preferences() {
-    [ -x "$HERMES_BIN" ] || return 0
+    [ -x "$VENV_DIR/bin/python" ] || return 0
     [ -f "$HERMES_HOME_DIR/config.yaml" ] || return 0
 
     # This run_after script runs on every chezmoi apply. Keep public dotfiles
     # from tracking the full Hermes runtime config while still converging
     # stable, non-sensitive preferences from .chezmoidata.toml. API keys and
     # machine-local credentials remain in ~/.hermes/config.yaml or .env.
-    run_quiet run_hermes_cli config set model.provider "$HERMES_MODEL_PROVIDER"
-    run_quiet run_hermes_cli config set model.default "$HERMES_MODEL"
-    run_quiet run_hermes_cli config set model.base_url "$HERMES_MODEL_BASE_URL"
-    run_quiet run_hermes_cli config set model.api_key ""
-    run_quiet run_hermes_cli config set model.api_mode ""
-    run_quiet run_hermes_cli config set display.show_reasoning "$HERMES_SHOW_REASONING"
-    run_quiet run_hermes_cli config set agent.reasoning_effort "$HERMES_REASONING_EFFORT"
-    run_quiet run_hermes_cli config set agent.service_tier "$HERMES_SERVICE_TIER"
-    run_quiet run_hermes_cli config set agent.max_turns "$HERMES_AGENT_MAX_TURNS"
-    run_quiet run_hermes_cli config set goals.max_turns "$HERMES_GOALS_MAX_TURNS"
-    run_quiet run_hermes_cli config set model.context_length "$HERMES_CONTEXT_LENGTH"
-    # Empty delegation values are intentional. They clear stale overrides so
-    # subagents inherit the active parent provider, model, and reasoning level.
-    run_quiet run_hermes_cli config set delegation.provider "$HERMES_DELEGATION_PROVIDER"
-    run_quiet run_hermes_cli config set delegation.model "$HERMES_DELEGATION_MODEL"
-    run_quiet run_hermes_cli config set delegation.reasoning_effort "$HERMES_DELEGATION_REASONING_EFFORT"
-}
-
-ensure_hermes_shared_skills_external_dir() {
-    [ -d "$SHARED_SKILLS_DIR" ] || return 0
-    [ -x "$VENV_DIR/bin/python" ] || return 0
-    [ -f "$HERMES_HOME_DIR/config.yaml" ] || return 0
-
     (
         export HERMES_CONFIG_PATH="$HERMES_HOME_DIR/config.yaml"
-        # shellcheck disable=SC2088 # Preserve a portable tilde entry in Hermes config.
-        export HERMES_SHARED_SKILLS_ENTRY="~/.agents/skills"
+        export HERMES_MODEL_PROVIDER HERMES_MODEL HERMES_MODEL_BASE_URL HERMES_SHOW_REASONING
+        export HERMES_REASONING_EFFORT HERMES_SERVICE_TIER HERMES_AGENT_MAX_TURNS
+        export HERMES_GOALS_MAX_TURNS HERMES_CONTEXT_LENGTH HERMES_DELEGATION_PROVIDER
+        export HERMES_DELEGATION_MODEL HERMES_DELEGATION_REASONING_EFFORT
+        if [ -d "$SHARED_SKILLS_DIR" ]; then
+            # shellcheck disable=SC2088 # Preserve a portable tilde entry in Hermes config.
+            export HERMES_SHARED_SKILLS_ENTRY="~/.agents/skills"
+        fi
         run_quiet "$VENV_DIR/bin/python" "$HERMES_LIB_DIR/config.py"
     )
 }

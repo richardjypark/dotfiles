@@ -122,9 +122,11 @@ is_omarchy_host() {
 }
 
 set_default_chezmoi_profile() {
-    if [ -z "${CHEZMOI_PROFILE:-}" ] && is_omarchy_host; then
-        export CHEZMOI_PROFILE="omarchy"
-    fi
+    [ -z "${CHEZMOI_PROFILE:-}" ] || return 0
+    local saved_profile
+    saved_profile="$(chezmoi data --format=json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("profile", ""))' 2>/dev/null || true)"
+    [ -z "$saved_profile" ] || return 0
+    if is_omarchy_host; then export CHEZMOI_PROFILE=omarchy; fi
 }
 
 parse_cz_maintenance_args() {

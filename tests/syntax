@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+REPO_ROOT="${TEST_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)}"
 . "$REPO_ROOT/tests/lib/shell-files.sh"
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -46,6 +46,7 @@ check_with_shell() {
 check_template() {
     local file="$1"
     local rendered="$TEMP_DIR/rendered.sh"
+    local profile role
 
     if ! command -v chezmoi >/dev/null 2>&1; then
         if [ "${REQUIRE_MANAGED_NPM_TESTS:-0}" = "1" ]; then
@@ -56,17 +57,43 @@ check_template() {
         return
     fi
 
-    if ! render_test_template "$file" "$rendered"; then
+    if [ "$file" = dot_zshrc.tmpl ]; then
+        for profile in standard omarchy; do
+            for role in workstation server; do
+                if ! CHEZMOI_PROFILE="$profile" CHEZMOI_ROLE="$role" render_test_template "$file" "$rendered"; then
+                    fail "$file ($profile/$role rendering failed)"
+                elif zsh -n "$rendered"; then
+                    pass
+                else
+                    fail "$file ($profile/$role rendered shell syntax)"
+                fi
+            done
+        done
+    elif ! render_test_template "$file" "$rendered"; then
         fail "$file (template rendering failed)"
-        return
-    fi
-
-    if bash -n "$rendered"; then
+    elif bash -n "$rendered"; then
         pass
     else
         fail "$file (rendered shell syntax)"
     fi
 }
+
+check_startup_files() {
+    local file
+    for file in dot_zshenv dot_zshrc.tmpl; do
+        if [ ! -f "$REPO_ROOT/$file" ]; then
+            fail "$file (required startup file is missing)"
+        elif ! command -v zsh >/dev/null 2>&1; then
+            skip "$file (zsh is not installed)"
+        elif [ "$file" = dot_zshenv ]; then
+            check_with_shell zsh "$file"
+        else
+            check_template "$file"
+        fi
+    done
+}
+
+check_startup_files
 
 while IFS= read -r file; do
     [ -f "$REPO_ROOT/$file" ] || continue

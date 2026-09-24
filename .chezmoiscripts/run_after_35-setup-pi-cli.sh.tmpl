@@ -114,8 +114,13 @@ link_pi_binary() {
 }
 
 is_pi_cli_supported_host() {
+    if [ "{{ includeTemplate "resolved-role" . }}" = "server" ] \
+        && [ ! -e "$HOME/.config/dotfiles/pi-cli.enabled" ] \
+        && [ ! -e "$HOME/.config/dotfiles/pi-maintenance-agent.enabled" ]; then
+        return 1
+    fi
     [[ "${OSTYPE:-}" == darwin* ]] \
-        || [ "${CHEZMOI_PROFILE:-}" = "omarchy" ] \
+        || [ "{{ includeTemplate "resolved-profile" . }}" = "omarchy" ] \
         || [ -d "$HOME/.config/omarchy/current" ] \
         || [ -d "$HOME/.local/share/omarchy" ] \
         || command -v omarchy-menu >/dev/null 2>&1

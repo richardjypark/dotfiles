@@ -44,8 +44,11 @@ Common env vars:
 - `TRUST_ON_FIRST_USE_INSTALLERS=1`
 - `ALLOW_PASSWORDLESS_SUDO=1` (opt-in)
 - `COPY_ROOT_AUTH_KEYS=1` (opt-in)
-- `LOCK_SSH_TO_TAILSCALE=1` (post-verification hardening)
-- `DISABLE_ROOT_LOGIN=1` (post-verification hardening)
+
+The bootstrap rejects `LOCK_SSH_TO_TAILSCALE=1` and `DISABLE_ROOT_LOGIN=1`.
+Use `scripts/server-lockdown-tailscale.sh` from a working Tailscale SSH session
+for those changes. It stages a five-minute rollback; confirm from another new
+Tailscale SSH connection with `--confirm`.
 
 Bootstrap installs `bat`, then attempts `git-delta`/`delta` and `eza`/`exa` from apt
 repositories when available. Runtime shell config auto-detects command-name variants
@@ -55,9 +58,10 @@ repositories when available. Runtime shell config auto-detects command-name vari
 
 Canonical expansion model:
 
-1. Primary axis: `CHEZMOI_ROLE` (`workstation`, `server`)
-2. Secondary axis: `CHEZMOI_PROFILE` (example: `omarchy`)
-3. Hostname-specific checks: legacy fallback only (new logic should prefer role/profile)
+1. Nonempty process `CHEZMOI_ROLE` and `CHEZMOI_PROFILE` overrides.
+2. Saved `[data]` values in the active local chezmoi config.
+3. Supported host detection for Omarchy, then legacy hostname fallback.
+4. Defaults: `workstation` and `standard`.
 
 Use role/profile conditions in templates/scripts before adding hostname-specific logic.
 
@@ -67,7 +71,7 @@ Use role/profile conditions in templates/scripts before adding hostname-specific
 
 - `czu`/`czuf` resolve one canonical source workspace from `CHEZMOI_SOURCE_DIR`, backward-compatible `CHEZMOI_DIR`, or `chezmoi source-path`. The selected path must be an absolute existing JJ workspace root containing `.chezmoidata.toml`; resolution fails closed instead of silently using `$HOME/.local/share/chezmoi`.
 - `czu`/`czuf` call `jj-sync-trunk --remote origin` for authoritative remote-head detection and durable repo-local `trunk()` repair, then rebase the current change onto `trunk()`. They do not duplicate fetch/default-branch parsing.
-- on Omarchy hosts, if `CHEZMOI_PROFILE` is unset, wrappers default it to `omarchy`
+- on Omarchy hosts, wrappers default to `omarchy` only when the process override and saved profile are empty
 - `czuf` adds `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and applies the same selected source with `--refresh-externals --force`; it does not run broad package-manager upgrades or bump source pins
 - `czl` is the Omarchy/Arch daily maintenance wrapper. No arguments run the compatible full workflow: require a clean current JJ change, run `czuf`, upgrade official Arch packages with `sudo pacman -Syu --noconfirm`, atomically run `chezmoi-bump --all`, and force a final selected-source apply so Arch converges to the stable pins. `--system-only` skips the bump but preserves the final convergence apply.
 - `czm` is the macOS daily maintenance wrapper. No arguments require a clean current JJ change, run `czuf` with `CHEZMOI_MACOS_MAINTENANCE_MODE=1`, perform the existing Homebrew/greedy-cask upgrades, atomically run `chezmoi-bump --all`, and use a post-bump JJ summary to decide whether a final selected-source apply is needed. `--system-only` skips the bump and final pin apply. `brew cleanup` runs last and warns rather than failing an otherwise successful maintenance run.
