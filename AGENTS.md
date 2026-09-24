@@ -17,7 +17,7 @@ Always use ASD-STE100 Simplified Technical English (STE) in all messages to the 
 1. Read `README.md` for bootstrap, role/profile, and workflow context.
 2. Read `ARCHITECTURE.md` when the task spans a subsystem, changes behavior, or needs repo-wide context.
 3. Read `docs/file-layout.md` when the task changes path ownership, rendering, or repository structure.
-4. Load the relevant skill before domain work (`chezmoi-repo-maintainer`, `chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`, `jj-remote-truth-reset`, `deli-auto-research`).
+4. Load the relevant skill before domain work (`chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`, `jj-remote-truth-reset`, `deli-auto-research`).
 5. Read `plans/README.md` when the change is multi-step, high-risk, or likely to span multiple iterations. Treat dated plan files there as local scratch notes, not committed source.
 
 ## First Pass
@@ -66,13 +66,12 @@ Higher-level harness/system instructions still take precedence over this file.
 - The default artifacts for substantial work are:
   - `plans/YYYY-MM-DD-<slug>-research.md` after deep repo inspection
   - `plans/YYYY-MM-DD-<slug>-plan.md` after the research is reviewed
-- Revise the plan from inline notes until the approach is decision-complete, then wait for explicit user approval before implementing.
+- Revise the plan from inline notes until the approach is decision-complete, then implement. Ask for input only when a required decision remains unresolved.
 - Legacy single-file scratch plans remain acceptable for quick local notes, but paired research/plan artifacts are the default for high-impact work.
 - Scratch plans must stay out of Git history.
 
 ## Skill Routing
 
-- `chezmoi-repo-maintainer` — cross-cutting repo work: docs, templates, shell/tmux behavior, agent instructions, or multi-subsystem changes.
 - `chezmoi-script-maintainer` — `.chezmoiscripts/*` setup scripts and helper-driven install logic.
 - `chezmoi-bootstrap-operator` — bootstrap and lockdown paths for Omarchy, VPS, and server hardening.
 - `dotfiles-version-refresh` — version pins, externals, and refresh behavior across versioned tools.

@@ -9,7 +9,7 @@ For substantial work, the canonical Codex workflow is:
 3. Write `plans/YYYY-MM-DD-<slug>-plan.md` with the implementation approach.
 4. Review and annotate the plan.
 5. Revise the plan until it is decision-complete.
-6. Do not implement until the user explicitly approves the plan.
+6. Implement the plan without a separate approval step. Ask for input if a required decision remains unresolved.
 7. During implementation, update the plan status or todo list as work completes.
 
 ## Create A Plan Before Mutating The Repo When
@@ -56,7 +56,7 @@ For substantial work, the canonical Codex workflow is:
 - Add inline notes where assumptions, constraints, or tradeoffs need correction.
 - Send the agent back to the document to address those notes.
 - Repeat until the plan is decision-complete.
-- Use an explicit guard like `don't implement yet` until approval is given.
+- If the user says `don't implement yet`, stop before implementation.
 
 ## Legacy Single-File Plans
 
