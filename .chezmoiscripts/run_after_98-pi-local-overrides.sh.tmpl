@@ -11,7 +11,11 @@ PI_KEYBINDINGS_FILE="$PI_AGENT_DIR/keybindings.json"
 PI_REQUIRED_PACKAGE='{{ index ((((include "dot_pi/agent/settings.json") | fromJson).packages)) 0 }}'
 
 file_mode() {
-    stat -f %Lp "$1" 2>/dev/null || stat -c %a "$1"
+    if [ "$(uname -s)" = Darwin ]; then
+        stat -f %Lp "$1"
+    else
+        stat -c %a "$1"
+    fi
 }
 
 apply_local_override() {

@@ -113,8 +113,13 @@ check_private_runtime_path() {
     local path="$1" label="$2" mode owner
     [ -e "$path" ] || [ -L "$path" ] || return 0
     if [ -L "$path" ]; then check_fail "$label is a symlink"; return; fi
-    mode="$(stat -f %Lp "$path" 2>/dev/null || stat -c %a "$path")"
-    owner="$(stat -f %u "$path" 2>/dev/null || stat -c %u "$path")"
+    if [ "$(uname -s)" = Darwin ]; then
+        mode="$(stat -f %Lp "$path")"
+        owner="$(stat -f %u "$path")"
+    else
+        mode="$(stat -c %a "$path")"
+        owner="$(stat -c %u "$path")"
+    fi
     if [ "$owner" != "$(id -u)" ] || [[ "$mode" != *00 ]]; then
         check_fail "$label must be owned by this user with no group or other access"
     else
