@@ -20,7 +20,7 @@ for bad_file in dot_zshenv dot_zshrc.tmpl; do
         printf '[FAIL] invalid %s passed the syntax suite\n' "$bad_file" >&2
         exit 1
     fi
-    if ! rg -q "\[FAIL\] $bad_file" "$TMP_DIR/result"; then
+    if ! grep -Fq "[FAIL] $bad_file" "$TMP_DIR/result"; then
         cat "$TMP_DIR/result" >&2
         printf '[FAIL] invalid %s was not found by the syntax suite\n' "$bad_file" >&2
         exit 1
