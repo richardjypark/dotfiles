@@ -29,11 +29,11 @@ macos_x86_64_sha256 = "6171582d0b5a98a1005cd9643faebff7936812ec264d7968a39d9cef3
 macos_arm64_sha256 = "51ba42e3d0682616f6eb015045bfe45289b396f03511f9897f645ce8e9272743"
 
 [pinned.codex]
-version = "rust-v0.155.1"
-linux_x86_64_sha256 = "a65b895c6ac1a73629bbe4b864640c86133e94a43b4d67b3103044e1a306d5a2"
-linux_arm64_sha256 = "71857dbc9bea3613410e8a69cfb46b07c0402d6d20fec18843dbaffd757634bd"
-macos_x86_64_sha256 = "be752aebb2ac022c5bfed3fa14f46943d11ddb36a950b553b058794aba22496a"
-macos_arm64_sha256 = "e6e08717da9e35b72332eff753527fe79a9ae876081033c5c6820a8e5f58b943"
+version = "rust-v0.157.0"
+linux_x86_64_sha256 = "042f851ea3fc1083c45157520520944fc790632b53ebc580fc98eaca55862a25"
+linux_arm64_sha256 = "c1c36beab0b4f72779adf53ba9e9e494bf7cbfbe4f3506a08ff67a24f5f00d08"
+macos_x86_64_sha256 = "51cc89d32145c1e5dd4aa9670b88facbeb967ba1470470680ae85376f3e340a0"
+macos_arm64_sha256 = "97809f91cb355e55480cd7a126f9ad24bb7b162222515e30286bcac6fba94acd"
 
 [pinned.uv]
 version = "0.12.17"
@@ -47,10 +47,10 @@ version = "go1.26.2"
 linux_x86_64_sha256 = "990e6b4bbba816dc3ee129eaeaf4b42f17c2800b88a2166c265ac1a200262282"
 
 [pinned.hermes_agent]
-version = "0.21.1"
+version = "0.21.5"
 repo_url = "https://github.com/NousResearch/hermes-agent.git"
 branch = "main"
-ref = "45a6101f36576367359c171cd5820ee76a3d047b"
+ref = "f97608f178d1ffeca59860195ab7da295f7c8e5f"
 extras = ["messaging", "pty", "honcho", "mcp", "acp"]
 
 [hermes.preferences]
