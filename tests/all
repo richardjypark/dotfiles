@@ -2,6 +2,12 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+. "$REPO_ROOT/tests/lib/temp.sh"
+# Stop before any suite runs if a private temporary directory is unavailable,
+# and run the suites from it so no suite depends on the caller's directory.
+new_test_temp_dir TESTS_WORK_DIR
+trap 'remove_test_temp_dir "$TESTS_WORK_DIR"' EXIT
+cd "$TESTS_WORK_DIR" || exit 1
 PASS_COUNT=0
 FAIL_COUNT=0
 SKIP_COUNT=0
@@ -98,8 +104,8 @@ check_pi_maintenance_agent() {
 check_openrouter_agent() {
     (
         set -e
-        build_dir="$(mktemp -d)"
-        trap 'rm -rf "$build_dir"' EXIT
+        new_test_temp_dir build_dir
+        trap 'remove_test_temp_dir "$build_dir"' EXIT
         cd "$REPO_ROOT/dot_local/share/openrouter-agent"
         npm run typecheck
         npm test
@@ -107,6 +113,7 @@ check_openrouter_agent() {
     )
 }
 
+run_suite "temporary directory safety" python3 "$REPO_ROOT/tests/test_temp_safety.py"
 run_suite "shell syntax" "$REPO_ROOT/tests/syntax"
 run_suite "startup syntax discovery" bash "$REPO_ROOT/tests/test-syntax-startup.sh"
 run_suite "zsh startup behavior" python3 "$REPO_ROOT/tests/test_zsh_startup.py"

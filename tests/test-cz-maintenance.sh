@@ -2,6 +2,8 @@
 set -euo pipefail
 
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+. "$SCRIPT_ROOT/tests/lib/temp.sh"
 BUMP_BIN="${SCRIPT_ROOT}/dot_local/bin/executable_chezmoi-bump"
 
 PASS_COUNT=0
@@ -474,7 +476,7 @@ wait_for_progress() {
 test_atomic_rollback_on_inner_failure() {
     local fixture_dir log status
     local MOCK_NEOVIM_LATEST MOCK_PI_LATEST PI_NPM_BEHAVIOR PI_NPM_SLEEP
-    fixture_dir="$(mktemp -d)"
+    new_test_temp_dir fixture_dir
     create_stubs "$fixture_dir"
     render_fixture "$fixture_dir"
 
@@ -501,13 +503,13 @@ test_atomic_rollback_on_inner_failure() {
     assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@earendil-works/pi-coding-agent": "1.0.0"' "Pi package version restored after failure"
     assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_pi/agent/settings.json" '"lastChangelogVersion": "1.0.0"' "Pi settings restored after failure"
 
-    rm -rf "$fixture_dir"
+    remove_test_temp_dir "$fixture_dir"
 }
 
 test_atomic_success_multiple_targets() {
     local fixture_dir log status
     local MOCK_NEOVIM_LATEST MOCK_PI_LATEST PI_NPM_BEHAVIOR PI_NPM_SLEEP
-    fixture_dir="$(mktemp -d)"
+    new_test_temp_dir fixture_dir
     create_stubs "$fixture_dir"
     render_fixture "$fixture_dir"
 
@@ -528,13 +530,13 @@ test_atomic_success_multiple_targets() {
     assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@earendil-works/pi-coding-agent": "2.0.0"' "Pi package updated"
     assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_pi/agent/settings.json" '"lastChangelogVersion": "2.0.0"' "Pi settings updated"
 
-    rm -rf "$fixture_dir"
+    remove_test_temp_dir "$fixture_dir"
 }
 
 test_lock_contention_fails() {
     local fixture_dir log status
     local MOCK_NEOVIM_LATEST MOCK_PI_LATEST PI_NPM_BEHAVIOR PI_NPM_SLEEP
-    fixture_dir="$(mktemp -d)"
+    new_test_temp_dir fixture_dir
     create_stubs "$fixture_dir"
     render_fixture "$fixture_dir"
 
@@ -562,13 +564,13 @@ EOF
     assert_file_contains "$log" "pid=9999999" "Lock contention reports recorded owner"
     assert_toml_section_value "${fixture_dir}/.local/share/chezmoi/.chezmoidata.toml" "pinned.neovim" "version" "1.0.0" "No pin change on lock contention"
 
-    rm -rf "$fixture_dir"
+    remove_test_temp_dir "$fixture_dir"
 }
 
 test_signal_rolls_back() {
     local fixture_dir log pid status
     local MOCK_NEOVIM_LATEST MOCK_PI_LATEST PI_NPM_BEHAVIOR PI_NPM_SLEEP
-    fixture_dir="$(mktemp -d)"
+    new_test_temp_dir fixture_dir
     create_stubs "$fixture_dir"
     render_fixture "$fixture_dir"
 
@@ -610,7 +612,7 @@ test_signal_rolls_back() {
         kill -TERM "$pid" 2>/dev/null || true
         wait "$pid" 2>/dev/null || true
     fi
-    rm -rf "$fixture_dir"
+    remove_test_temp_dir "$fixture_dir"
 
     BUMP_BG_PID=""
 }
@@ -618,7 +620,7 @@ test_signal_rolls_back() {
 test_no_rollback_flag_keeps_outer_atomicity() {
     local fixture_dir log status
     local MOCK_NEOVIM_LATEST MOCK_PI_LATEST PI_NPM_BEHAVIOR PI_NPM_SLEEP
-    fixture_dir="$(mktemp -d)"
+    new_test_temp_dir fixture_dir
     create_stubs "$fixture_dir"
     render_fixture "$fixture_dir"
 
@@ -644,13 +646,13 @@ test_no_rollback_flag_keeps_outer_atomicity() {
     assert_file_contains "${fixture_dir}/.local/share/chezmoi/dot_local/share/pi-cli/package.json" '"@earendil-works/pi-coding-agent": "1.0.0"' "Outer rollback restores Pi with --no-rollback"
     assert_path_absent "${fixture_dir}/.local/state/chezmoi-maintenance/chezmoi-bump" "Outer lock removed with --no-rollback"
 
-    rm -rf "$fixture_dir"
+    remove_test_temp_dir "$fixture_dir"
 }
 
 test_no_update_run_leaves_no_lock() {
     local fixture_dir log status
     local MOCK_NEOVIM_LATEST MOCK_PI_LATEST PI_NPM_BEHAVIOR PI_NPM_SLEEP
-    fixture_dir="$(mktemp -d)"
+    new_test_temp_dir fixture_dir
     create_stubs "$fixture_dir"
     render_fixture "$fixture_dir"
 
@@ -671,7 +673,7 @@ test_no_update_run_leaves_no_lock() {
     assert_path_absent "${fixture_dir}/.local/state/chezmoi-maintenance/chezmoi-bump" "No-update --all leaves no lock"
     assert_toml_section_value "${fixture_dir}/.local/share/chezmoi/.chezmoidata.toml" "pinned.neovim" "version" "1.0.0" "No-update --all leaves source unchanged"
 
-    rm -rf "$fixture_dir"
+    remove_test_temp_dir "$fixture_dir"
 }
 
 run_test() {

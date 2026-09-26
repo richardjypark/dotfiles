@@ -4,6 +4,8 @@ set -uo pipefail
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 . "$SCRIPT_ROOT/dot_local/private_lib/chezmoi-update-helpers.sh"
+# shellcheck disable=SC1091
+. "$SCRIPT_ROOT/tests/lib/temp.sh"
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -36,12 +38,6 @@ expect_not_contains() {
     local file="$1" expected="$2" message="$3"
     [ -f "$file" ] && ! grep -Fq -- "$expected" "$file" && return 0
     fail "$message"
-}
-
-make_temp_dir() {
-    local root
-    root="$(mktemp -d)"
-    (cd "$root" && pwd -P)
 }
 
 make_fixture() {
@@ -108,7 +104,7 @@ with_fixture_env() {
 
 test_explicit_source_and_exports() {
     local root canonical
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -124,7 +120,7 @@ test_explicit_source_and_exports() {
 
 test_chezmoi_dir_compatibility() {
     local root
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -137,7 +133,7 @@ test_chezmoi_dir_compatibility() {
 
 test_untrusted_cached_value_cannot_bypass_validation() {
     local root
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -151,7 +147,7 @@ test_untrusted_cached_value_cannot_bypass_validation() {
 
 test_conflicting_overrides_fail() {
     local root status
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -166,7 +162,7 @@ test_conflicting_overrides_fail() {
 
 test_invalid_paths_fail_closed() {
     local root status
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -192,7 +188,7 @@ test_invalid_paths_fail_closed() {
 
 test_source_path_fallback_and_failure() {
     local root status
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -213,7 +209,7 @@ test_source_path_fallback_and_failure() {
 
 test_prepare_uses_sync_then_trunk_rebase() {
     local root sync_line rebase_line
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -231,7 +227,7 @@ test_prepare_uses_sync_then_trunk_rebase() {
 
 test_prepare_selected_remote() {
     local root
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -245,7 +241,7 @@ test_prepare_selected_remote() {
 
 test_chezmoi_commands_use_selected_source() {
     local root
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -258,7 +254,7 @@ test_chezmoi_commands_use_selected_source() {
 
 test_duplicate_source_argument_is_rejected() {
     local root status
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -273,7 +269,7 @@ test_duplicate_source_argument_is_rejected() {
 
 test_prepare_failures_propagate() {
     local root status
-    root="$(make_temp_dir)"
+    new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
     reset_helper_state
@@ -308,7 +304,7 @@ run_test() {
         fi
     fi
     if [ -n "$TEST_FIXTURE_ROOT" ]; then
-        rm -rf "$TEST_FIXTURE_ROOT"
+        remove_test_temp_dir "$TEST_FIXTURE_ROOT" || FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
 }
 
