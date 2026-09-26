@@ -1,5 +1,6 @@
 [Unit]
 Description=Pi Maintenance Agent
+RefuseManualStart=yes
 After=network-online.target
 Wants=network-online.target
 
@@ -8,7 +9,7 @@ Type=oneshot
 UMask=0077
 EnvironmentFile=-%h/.config/dotfiles/pi-maintenance-agent.env
 WorkingDirectory=%h/.local/share/pi-maintenance-agent
-ExecStart=%h/.local/share/pi-maintenance-agent/bin/run-maintenance.sh
+ExecStart=/usr/bin/false
 Nice=10
 NoNewPrivileges=true
 # Keep OpenSSH isolated from system-wide ssh_config.d includes by routing git

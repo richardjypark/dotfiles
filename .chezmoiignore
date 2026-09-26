@@ -106,10 +106,9 @@ logs/*
 .chezmoiscripts/40-setup-tmux.sh
 {{ end }}
 
-# Pi maintenance agent is opt-in per machine and only supported on Omarchy hosts.
-# Enable on a specific Omarchy host with:
-#   mkdir -p ~/.config/dotfiles
-#   touch ~/.config/dotfiles/pi-maintenance-agent.enabled
+# The Pi maintenance agent is retired. Its inert units still render on Omarchy
+# hosts that kept the old opt-in marker, so apply replaces the old active units.
+# Do not create the marker on new hosts.
 {{ $pi_agent_enabled := stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi-maintenance-agent.enabled") }}
 {{ $omarchy_config := stat (joinPath .chezmoi.homeDir ".config" "omarchy" "current") }}
 {{ $omarchy_share := stat (joinPath .chezmoi.homeDir ".local" "share" "omarchy") }}

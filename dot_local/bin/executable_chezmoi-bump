@@ -20,6 +20,8 @@ CACHE_MAX_AGE=86400  # 24 hours
 
 # --- Globals set by parse_args ---
 MODE="bump"          # check | bump
+AUTOMATIC=false
+AUTO_RESOLVED=()
 DRY_RUN=false
 SKIP_SHA=false
 BUMP_ALL=false
@@ -68,7 +70,7 @@ else
     RED="" GREEN="" YELLOW="" CYAN="" BOLD="" RESET=""
 fi
 
-# --- All 14 dependencies ---
+# --- All 13 dependencies ---
 # Format: name|github_repo_or_source|version_format|sha_strategy|has_4_platforms
 # version_format: raw (no prefix), v (v prefix), bun (bun-v prefix), codex (rust-v prefix)
 # sha_strategy: none, download_compute, sidecar, shasums, checksums_txt, pkgs_tailscale
@@ -145,6 +147,9 @@ latest_cache_lookup() {
 # ============================================================================
 
 parse_args() {
+    if [ "${CHEZMOI_AUTOMATIC_UPDATES:-0}" = "1" ]; then
+        AUTOMATIC=true
+    fi
     while [ $# -gt 0 ]; do
         case "$1" in
             --check|-c)
@@ -161,6 +166,10 @@ parse_args() {
                 ;;
             --all|-a)
                 BUMP_ALL=true
+                shift
+                ;;
+            --automatic)
+                AUTOMATIC=true
                 shift
                 ;;
             --force|-f)
@@ -207,6 +216,30 @@ parse_args() {
     if [ "$MODE" = "bump" ] && [ "$BUMP_ALL" = "false" ] && [ ${#DEPS_TO_BUMP[@]} -eq 0 ]; then
         MODE="check"
     fi
+    if [ "$AUTOMATIC" = "true" ]; then
+        if [ "$BUMP_ALL" != "true" ] || [ "${#DEPS_TO_BUMP[@]}" -ne 0 ] || [ "$SKIP_SHA" != "false" ] || [ "$STRICT" != "true" ] || [ "$ROLLBACK_ON_FAILURE" != "true" ] || [ "${CHEZMOI_NPM_MIN_VERSION_AGE_DAYS:-7}" != "7" ]; then
+            echo "Automatic mode requires --all, seven-day public npm metadata, checksums, strict verification, and rollback." >&2
+            return 2
+        fi
+        local setting registry
+        for setting in CHEZMOI_NPM_REGISTRY NPM_CONFIG_REGISTRY npm_config_registry; do
+            registry="${!setting:-https://registry.npmjs.org}"
+            if [ "${registry%/}" != "https://registry.npmjs.org" ]; then
+                echo "Automatic mode requires seven-day public npm metadata." >&2
+                return 2
+            fi
+        done
+        if [ -n "${CHEZMOI_RELEASE_FIXTURE_DIR:-}" ]; then
+            echo "Automatic mode requires fresh release metadata; fixtures are not allowed." >&2
+            return 2
+        fi
+        if [ "$MODE" = "check" ] && [ -n "$MANIFEST_OUT" ]; then
+            echo "Automatic report mode cannot write a transaction manifest." >&2
+            return 2
+        fi
+        FORCE=true
+        export CHEZMOI_AUTOMATIC_UPDATES=1 CHEZMOI_NPM_MIN_VERSION_AGE_DAYS=7
+    fi
 }
 
 usage() {
@@ -216,6 +249,7 @@ Usage: chezmoi-bump [OPTIONS] [DEPS...]
 Options:
   --check, -c        Report versions for all 13 deps (default if no deps given)
   --all, -a          Bump all deps with available updates
+  --automatic        Strict seven-day routine selection; requires --all
   --dry-run, -n      Show what would change without writing
   --skip-sha         Version-only bump (skip SHA256 artifact downloads)
   --force, -f        Bypass cache, force fresh API queries
@@ -227,6 +261,8 @@ Options:
 
 Examples:
   chezmoi-bump --check             # Report all 13 deps
+  chezmoi-bump --automatic --all --check
+                                  # Report seven-day candidates without downloads
   chezmoi-bump jj uv               # Bump specific deps
   chezmoi-bump --all               # Bump everything outdated
   chezmoi-bump --dry-run jj        # Preview changes for jj
@@ -633,11 +669,45 @@ get_current_version() {
 # Latest version fetching (normalizes to stored format)
 # ============================================================================
 
+resolve_automatic_candidate() {
+    local name="$1" source="$2" current="$3"
+    local args=("$source" "$current")
+    if [ "$name" != "pi" ] && [ "$name" != "fzf" ]; then
+        args+=(--dependency "$name")
+    fi
+    python3 "$CHEZMOI_DIR/dot_local/private_lib/chezmoi/stable-release-eligibility.py" "${args[@]}"
+}
+
 get_latest_version() {
     local dep_name="$1"
     local source="$2"
     local version_format="$3"
     local raw_tag
+
+    if [ "$AUTOMATIC" = "true" ]; then
+        local result state candidate
+        result="$(resolve_automatic_candidate "$dep_name" "$source" "$(get_current_version "$dep_name" "$version_format")")" || return 1
+        IFS=$'\t' read -r state candidate <<EOF
+$result
+EOF
+        [ "$state" = "eligible" ] || return 1
+        if [ "${#AUTO_RESOLVED[@]}" -gt 0 ]; then
+            local expected="" row
+            for row in "${AUTO_RESOLVED[@]}"; do
+                case "$row" in "$dep_name|"*) expected="${row#*|}" ;; esac
+            done
+            [ -n "$expected" ] && [ "$candidate" = "$expected" ] || {
+                echo "Automatic candidate changed during revalidation for ${dep_name}." >&2
+                return 1
+            }
+        fi
+        case "$version_format" in
+            raw) printf '%s\n' "${candidate#v}" ;;
+            v) printf 'v%s\n' "${candidate#v}" ;;
+            bun|codex) printf '%s\n' "$candidate" ;;
+        esac
+        return 0
+    fi
 
     # npm dependency
     if [[ "$source" == npm:* ]]; then
@@ -969,6 +1039,15 @@ fetch_checksums() {
                 fi
                 ;;
         esac
+
+        if [ "$AUTOMATIC" = "true" ] && [ "$sha_strategy" != "download_compute" ] && validate_sha256 "$sha"; then
+            local downloaded_sha
+            downloaded_sha="$(sha256_download_compute "$url")"
+            if [ "$downloaded_sha" != "$sha" ]; then
+                record_installability_error "${dep_name}: checksum mismatch for ${asset}"
+                sha=""
+            fi
+        fi
 
         if [ -z "$sha" ] || ! validate_sha256 "$sha"; then
             record_installability_error "${dep_name}: checksum unavailable for ${asset}"
@@ -2801,10 +2880,10 @@ bump_dep() {
 # ============================================================================
 
 main() {
-    parse_args "$@"
+    parse_args "$@" || return $?
     validate_prerequisites
 
-    if [ "$MODE" = "check" ]; then
+    if [ "$MODE" = "check" ] && [ "$AUTOMATIC" = "false" ]; then
         run_check
         return 0
     fi
@@ -2815,6 +2894,48 @@ main() {
     local skipped=0
     local overall_rc=0
     local deps_list=()
+
+    if [ "$AUTOMATIC" = "true" ]; then
+        local entry name source format current result state candidate
+        for entry in "${ALL_DEPS[@]}"; do
+            name="$(dep_field "$entry" 1)"
+            source="$(dep_field "$entry" 2)"
+            format="$(dep_field "$entry" 3)"
+            current="$(get_current_version "$name" "$format")"
+            if [ -z "$current" ]; then
+                echo "${name}: error: current pin missing" >&2
+                return 1
+            fi
+            if [ "$name" = "claude" ] || [ "$name" = "tailscale" ] || [ "$name" = "codex" ] || [ "$name" = "zsh-syntax-highlighting" ] || [ "$name" = "zsh-autosuggestions" ]; then
+                echo "${name}: unsupported (manual review; release source or bounded scan is not covered)"
+                continue
+            fi
+            result="$(resolve_automatic_candidate "$name" "$source" "$current")" || {
+                echo "${name}: ${result:-error}" >&2
+                return 1
+            }
+            IFS=$'\t' read -r state candidate <<EOF
+$result
+EOF
+            echo "${name}: ${state}${candidate:+ ($candidate)}"
+            if [ "$state" = "eligible" ]; then
+                deps_list+=("$name")
+                AUTO_RESOLVED+=("$name|$candidate")
+            fi
+        done
+        if [ "$MODE" = "check" ]; then
+            echo "Report complete. Artifact contents and lockfiles require transaction validation."
+            return 0
+        fi
+        if [ "${#deps_list[@]}" -eq 0 ]; then
+            return 0
+        fi
+        if [ -n "$MANIFEST_OUT" ] && [ "${#deps_list[@]}" -gt 1 ]; then
+            MANIFEST_MULTI=true
+        fi
+        run_all_dependency_transactions "${deps_list[@]}"
+        return $?
+    fi
 
     if [ "$BUMP_ALL" = "true" ]; then
         # Gather all deps with available updates
@@ -2955,4 +3076,6 @@ EOF
     return 0
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+    main "$@"
+fi

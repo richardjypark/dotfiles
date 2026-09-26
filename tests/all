@@ -13,6 +13,7 @@ FAIL_COUNT=0
 SKIP_COUNT=0
 FAILED_SUITES=""
 REQUIRE_MANAGED_NPM_TESTS="${REQUIRE_MANAGED_NPM_TESTS:-0}"
+REQUIRE_ALL_TESTS="${REQUIRE_ALL_TESTS:-0}"
 
 pass_suite() {
     PASS_COUNT=$((PASS_COUNT + 1))
@@ -107,9 +108,9 @@ check_openrouter_agent() {
         new_test_temp_dir build_dir
         trap 'remove_test_temp_dir "$build_dir"' EXIT
         cd "$REPO_ROOT/dot_local/share/openrouter-agent"
-        npm run typecheck
-        npm test
-        npm run build -- --outDir "$build_dir"
+        npm run typecheck &&
+            npm test &&
+            npm run build -- --outDir "$build_dir"
     )
 }
 
@@ -122,6 +123,7 @@ run_suite "access guard behavior" python3 "$REPO_ROOT/tests/test_access_guards.p
 run_lint_suite "ShellCheck" shellcheck "$REPO_ROOT/tests/lint-shell"
 run_lint_suite "actionlint" actionlint "$REPO_ROOT/tests/lint-actions"
 run_suite "maintenance behavior" bash "$REPO_ROOT/tests/test-cz-maintenance.sh"
+run_suite "safe daily update policy" python3 "$REPO_ROOT/tests/test_safe_daily_updates.py"
 run_suite "update-helper behavior" bash "$REPO_ROOT/tests/test-chezmoi-update-helpers.sh"
 run_suite "mise migration behavior" bash "$REPO_ROOT/tests/test-mise-migration.sh"
 run_suite "setup recovery behavior" python3 "$REPO_ROOT/tests/test_setup_recovery.py"
@@ -151,5 +153,9 @@ printf '\nValidation summary: %s passed, %s failed, %s skipped\n' \
     "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"
 if [ "$FAIL_COUNT" -ne 0 ]; then
     printf 'Failed suites: %s\n' "$FAILED_SUITES"
+    exit 1
+fi
+if [ "$SKIP_COUNT" -ne 0 ] && { [ "$REQUIRE_ALL_TESTS" = "1" ] || [ "$REQUIRE_MANAGED_NPM_TESTS" = "1" ]; }; then
+    printf 'Required validation is incomplete: %s suite(s) skipped\n' "$SKIP_COUNT" >&2
     exit 1
 fi

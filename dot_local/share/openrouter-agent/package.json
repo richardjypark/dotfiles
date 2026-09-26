@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "demo": "tsx src/cli.ts --demo",
     "start": "node dist/src/cli.js",
-    "test": "tsx --test test/*.test.ts",
+    "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

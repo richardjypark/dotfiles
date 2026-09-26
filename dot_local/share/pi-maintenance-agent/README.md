@@ -1,48 +1,36 @@
-# Pi Maintenance Agent
+# Pi Maintenance Agent (retired)
 
-Machine-local scheduled maintenance agent for opted-in hosts.
+This agent is retired. It ran once per day, applied the chezmoi maintenance
+flow, and pushed `master` directly. Only one automatic writer may exist, so
+routine dependency proposals now use the report-only
+`.github/workflows/safe-daily-updates.yml` workflow. Do not opt in new hosts.
 
-It runs once per day at `5:01 PM America/New_York`, executes the non-sudo parts of the existing chezmoi maintenance flow, and uses `pi` to:
-
-- inspect and summarize conflicts
-- attempt one automated conflict repair
-- generate a descriptive jj commit message from the actual diff
-- let the wrapper move the `master` bookmark to `@`
-- let the wrapper push `master`
-- let the wrapper create the next working copy with `jj new master`
+`chezmoi apply` stops and disables `pi-maintenance-agent.timer` and
+`pi-maintenance-agent.service` on Linux hosts with user systemd, even when the
+old marker and runtime files remain. The managed units are inert: the service
+runs `/usr/bin/false`, the timer has no calendar event, and neither unit accepts
+a manual start. `tests/e2e.sh` checks these properties offline.
 
 ## Layout
 
-- `bin/run-maintenance.sh` - main scheduled entrypoint
-- `config/runtime.env.example` - machine-local runtime config example
-- `prompts/publish.md` - read-only commit-message instructions for `pi`
-- `prompts/repair.md` - one-shot repair instructions for `pi`
-- `package.json` / `package-lock.json` - pinned `pi` dependency manifest + committed lockfile
+- `bin/run-maintenance.sh` - retired entrypoint; no managed unit starts it
+- `bin/git-ssh.sh` - former isolated SSH command for the agent's pushes
+- `config/runtime.env.example` - former machine-local runtime config example
+- `prompts/publish.md` - former commit-message instructions for `pi`
+- `prompts/repair.md` - former repair instructions for `pi`
+- `package.json` / `package-lock.json` - pinned `pi` dependency manifest and committed lockfile
+- `tests/e2e.sh` - offline check that the retired units stay inert
 
 ## Runtime Notes
 
-- Source repo: `~/.local/share/chezmoi`
-- Project path: `~/.local/share/pi-maintenance-agent`
-- State/logs: `~/.local/state/pi-maintenance-agent`
-- Session data: `~/.local/state/pi-maintenance-agent/sessions`
+- Project path: `~/.local/share/pi-maintenance-agent` (renders only on Omarchy hosts with the marker)
 - Local machine opt-in marker: `~/.config/dotfiles/pi-maintenance-agent.enabled`
 - Local runtime config: `~/.config/dotfiles/pi-maintenance-agent.env`
 
-## Managed npm Safety
+Apply leaves the marker and runtime config in place. Remove them manually when
+the host no longer needs them.
 
-The managed Pi dependency is installed with:
+## Managed npm Pins
 
-- committed `package-lock.json`
-- `npm ci`
-- `--ignore-scripts`
-- exact pinned versions
-- reinstall-on-state/lockfile drift, even when the top-level `pi` version is unchanged
-- an optional internal npm registry/proxy via `CHEZMOI_NPM_REGISTRY`
-- a default 3-day npm publish-age delay via `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`, enforced across every versioned package in the committed lockfile
-
-The scheduled maintenance flow also defaults to a freeze policy for npm-backed version bumps:
-
-- `chezmoi-bump` runs only the non-npm dependency set by default
-- npm-backed bumps such as Claude Code and Pi are excluded from unattended daily runs
-- if an already-committed managed npm lockfile is still inside the publish-age gate, scheduled maintenance defers that npm setup, applies file changes without scripts, and continues non-npm bump/publish work instead of failing the whole run
-- set `PI_MAINTENANCE_ALLOW_NPM_BUMPS=1` in the machine-local runtime env only if you intentionally want the agent to include npm-backed bumps; when enabled, Pi bumps still resolve only to versions that already satisfy `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`
+Setup no longer installs this package. `chezmoi-bump pi` still regenerates this
+committed lockfile together with the Pi CLI lockfile, so both pins stay equal.

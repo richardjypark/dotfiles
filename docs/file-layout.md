@@ -46,6 +46,7 @@ for the complete naming and execution rules.
 | `dot_local/bin/executable_czu` | `~/.local/bin/czu` | Managed executable |
 | `dot_local/private_lib/chezmoi-helpers.sh` | `~/.local/lib/chezmoi-helpers.sh` | Managed shared script library |
 | `dot_local/private_lib/chezmoi/{core,artifacts,npm}.sh` | `~/.local/lib/chezmoi/` | Managed helper modules |
+| `dot_local/private_lib/chezmoi/stable-release-eligibility.py` | `~/.local/lib/chezmoi/stable-release-eligibility.py` | Managed release eligibility helper |
 | `dot_local/private_lib/chezmoi/hermes/` | `~/.local/lib/chezmoi/hermes/` | Managed Hermes modules |
 | `.chezmoitemplates/setup/helper-hashes.tmpl` | Source-only rendering input | Helper change detection for run-onchange scripts |
 | `.chezmoitemplates/resolved-role`, `.chezmoitemplates/resolved-profile` | Source-only rendering inputs | Shared role and profile selection |
@@ -56,11 +57,11 @@ for the complete naming and execution rules.
 | `scripts/set-chezmoi-local-data.py` | `~/scripts/set-chezmoi-local-data.py` | Saves machine-local role and profile before apply |
 | `bootstrap-vps.sh` | `~/bootstrap-vps.sh` | Managed bootstrap entry point |
 | `dot_local/share/pi-cli/package.json` | `~/.local/share/pi-cli/package.json` | Managed embedded application |
-| `dot_local/share/pi-maintenance-agent/` | `~/.local/share/pi-maintenance-agent/` | Conditional embedded application |
+| `dot_local/share/pi-maintenance-agent/` | `~/.local/share/pi-maintenance-agent/` | Conditional retired application and tests |
 | `dot_local/share/openrouter-agent/` | `~/.local/share/openrouter-agent/` | Conditional embedded application |
 
-The Pi maintenance agent is enabled only on a supported Omarchy host with its
-machine-local marker. The OpenRouter agent is enabled only with its machine-local
+The retired Pi maintenance agent renders only on a supported Omarchy host with
+its machine-local marker. The OpenRouter agent is enabled only with its machine-local
 marker. Their generated dependency trees are never managed. The Pi maintenance
 test is managed with its package because the managed `npm test` command invokes it.
 
@@ -124,8 +125,9 @@ high-risk version-source task; do not delete it as part of layout cleanup.
 ### Embedded applications
 
 - `dot_local/share/pi-cli/`: managed Pi CLI package wrapper.
-- `dot_local/share/pi-maintenance-agent/`: marker- and profile-gated maintenance
-  application.
+- `dot_local/share/pi-maintenance-agent/`: retired maintenance application and
+  offline tests. Rendering remains marker- and profile-gated. The setup script
+  stops the old timer and service independently of those gates.
 - `dot_local/share/openrouter-agent/`: marker-gated paid-reserve application.
 
 Each embedded application keeps its own package manifest and lockfile. Generated
