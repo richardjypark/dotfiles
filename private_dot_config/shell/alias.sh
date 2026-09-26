@@ -64,7 +64,7 @@ alias je='jj edit'                                # edit a revision
 alias jsq='jj squash'                             # like squash merge
 alias jrb='jj rebase'                             # like grb
 alias jf='jj fetch'                               # like gf
-alias jp='jj git push'                            # like gp
+alias jp='jj push'                                # respects repository publication checks
 
 # Chezmoi helper commands are defined in ~/.config/shell/chezmoi.sh
 alias czvc='chezmoi-check-versions'               # Check pinned dependency versions

@@ -21,6 +21,7 @@ examples/
 packages/
 ansible/
 scripts/eval-skill-routing.py
+scripts/check-public-files.py
 
 # Ignore compiled zsh files
 *.zwc

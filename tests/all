@@ -115,6 +115,7 @@ check_openrouter_agent() {
 }
 
 run_suite "temporary directory safety" python3 "$REPO_ROOT/tests/test_temp_safety.py"
+run_suite "publication privacy guards" python3 "$REPO_ROOT/tests/test_publication_guards.py"
 run_suite "shell syntax" "$REPO_ROOT/tests/syntax"
 run_suite "startup syntax discovery" bash "$REPO_ROOT/tests/test-syntax-startup.sh"
 run_suite "zsh startup behavior" python3 "$REPO_ROOT/tests/test_zsh_startup.py"

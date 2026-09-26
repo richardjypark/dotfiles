@@ -102,6 +102,7 @@ available if `chezmoi-health-check` reports policy drift.
 | `czb` | Runs `chezmoi-bump` with fail-closed transaction checks. `chezmoi-bump --all` snapshots all managed pin/lock targets, serializes source mutation with a portable private lock, and restores the invocation-start state if any later dependency or catchable signal fails. | Bump pinned dependency versions safely. Pi resolves to the newest release satisfying `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS`. |
 | `chezmoi-health-check` | Managed helper in `~/.local/bin/chezmoi-health-check`: audits key tool installs, config files, bootstrap security defaults, and agent configuration safety/routing checks. | Run after bootstrap/apply or when debugging local drift. |
 | `dotfiles-secret-scan` | Managed helper in `~/.local/bin/dotfiles-secret-scan`: runs redacted gitleaks scans over full Git history, the current worktree, or staged Git changes. It installs the pinned gitleaks version into the user cache when needed and Go is available. | Check for leaked secrets, personal access tokens, private keys, and credential-like values before publishing dotfiles changes. |
+| `dotfiles-push --bookmark NAME [--remote NAME] [--dry-run]` | Checks private source paths, outgoing commit emails, and secrets before pushing one exact JJ bookmark. | Publish this repository. See [secrets management](docs/secrets-management.md) to activate Git hooks and the repository's guarded `jj push` alias on each machine. |
 | `chezmoi-rerun-script <source-script-path>` | Managed helper in `~/.local/bin/chezmoi-rerun-script`: clears chezmoi's remembered `run_onchange_*` state for the given source script so the next `chezmoi apply` reruns it. | Recover from manual deletions or force a one-off rerun of a bootstrap/setup script after local drift. |
 | `pi-agent-run [--model MODEL] <agent-markdown-file> [task...]` | Managed helper in `~/.local/bin/pi-agent-run`: runs a Pi markdown agent file non-interactively with its declared model and tools, or an override from `--model`/`PI_AGENT_RUN_MODEL`; use `--model default` for Pi's configured default model. | Reuse a Pi agent from another shell-driven CLI or script. |
 | `jj-fast-agent [--model MODEL] [task...]` | Managed wrapper in `~/.local/bin/jj-fast-agent`: runs the shared `jj` Pi agent, defaulting to `openai-codex/gpt-5.3-codex-spark:minimal` but overridable with `--model`, `JJ_FAST_AGENT_MODEL`, `PI_JJ_AGENT_MODEL`, or `JJ_AGENT_MODEL`; use `--model default` to use Pi's configured default model. | Fast jj/git-only delegation from tools that can run shell commands but do not support Pi subagents directly. |
@@ -232,7 +233,7 @@ managed default, or run a scoped `chezmoi apply --force` for that Pi target.
 
 ### IBKR data platform local dependencies
 
-Opt in on a single workstation when developing the `data.tildacapital.com` IBKR access-discovery worker:
+Opt in on a single workstation when developing an IBKR access-discovery worker:
 
 ```bash
 mkdir -p ~/.config/dotfiles

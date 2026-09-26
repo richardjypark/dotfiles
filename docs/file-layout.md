@@ -74,6 +74,7 @@ These paths remain in the source repository and do not render into `$HOME`:
 | `README.md` | `README*` in `.chezmoiignore` |
 | `.github/` | Repo-only CI rule in `.chezmoiignore` |
 | `.githooks/` and `.gitleaksignore` | Repo-only guardrail rules |
+| `scripts/check-public-files.py` | Repo-only publication policy check |
 | `tests/` | Repo-only test rule |
 | `examples/`, `packages/`, and `ansible/` | Repo-only examples and package/Ansible rules |
 | `evals/` and `scripts/eval-skill-routing.py` | Skill-evaluation rules |
