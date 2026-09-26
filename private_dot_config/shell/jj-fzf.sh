@@ -78,7 +78,7 @@ jjbi() {
       --preview-window 'right,60%,border-left' \
       --header 'enter:edit  C-p:push  C-d:delete  C-m:move-here' \
       --bind 'enter:become(jj edit {1})' \
-      --bind 'ctrl-p:become(jj git push -b {1})' \
+      --bind 'ctrl-p:become(jj push -b {1})' \
       --bind 'ctrl-d:become(jj bookmark delete {1})' \
       --bind 'ctrl-m:become(jj bookmark move --to @ {1})'
 }

@@ -40,11 +40,14 @@ private key-loading path and does not require a second credential file.
 
 ## Automated Secret Scanning
 
-This repo carries two layers of gitleaks-based prevention:
+This repo checks both file names and secret values:
 
 1. **CI trigger:** `.github/workflows/secret-scan.yml` scans the full Git
-   history and checked-out worktree on pull requests, pushes to `master`/`main`,
-   a weekly schedule, and manual dispatch. Scanner output is fully redacted.
+   history and checked-out worktree on pull requests, pushes to every branch,
+   a weekly schedule, and manual dispatch. It also rejects tracked ignored
+   files and personal email addresses in new commits. Scanner output is fully
+   redacted. Require the `gitleaks` check from GitHub Actions on the default
+   branch, with no bypass actors in that required-check ruleset.
 2. **Local helper:** `dotfiles-secret-scan` runs the same redacted checks from a
    clone. Before `chezmoi apply` has rendered the helper, run the source script
    directly:
@@ -57,15 +60,57 @@ This repo carries two layers of gitleaks-based prevention:
    dot_local/bin/executable_dotfiles-secret-scan --staged
    ```
 
-Enable the repo-local Git hook in a clone with:
+Enable the Git hooks and the guarded JJ push alias in each clone:
 
 ```bash
 git config core.hooksPath .githooks
+jj config set --repo aliases.push \
+  '["util", "exec", "--", "dotfiles-push"]'
 ```
 
-The hook is a defense-in-depth guard for Git commits. JJ commits do not run Git
-pre-commit hooks, so run `dotfiles-secret-scan --all` before publishing JJ-backed
-changes and rely on the CI trigger as the final gate.
+Run `chezmoi apply` to install `dotfiles-push`, or use the source command before
+the first apply:
+
+```bash
+dot_local/bin/executable_dotfiles-push --bookmark my-change --remote origin
+# After installation and local alias setup:
+jj push --bookmark my-change --remote origin
+```
+
+The publisher accepts one exact bookmark and a configured remote. It checks
+every outgoing commit's tree and author/committer email, then scans all local
+Git history and the worktree. An error stops the push. Fetch the remote before
+publication so the outgoing-commit check uses current remote references.
+`--dry-run` runs the checks and then previews the push.
+
+Git's pre-commit hook checks staged changes. Its pre-push hook checks outgoing
+commit metadata and scans history. Hooks prefer the current source scanner.
+JJ does not run Git hooks: raw `jj git push` bypasses these local checks.
+Use `dotfiles-push` or the repository's `jj push` alias. The `jp` and `jj-fzf`
+shortcuts use that alias. CI runs after data has reached GitHub; it cannot
+prevent the first publication of a secret. Push protection adds an independent
+check for supported secret types.
+
+## Public identity and private source files
+
+The managed Git and JJ defaults use a GitHub no-reply email address. On a
+machine with a repository-local identity override, set the local Git/JJ email
+to the no-reply address from GitHub Settings > Emails as well. New outgoing
+commits must use a GitHub no-reply address for both author and committer.
+Old commit names, emails, timestamps, file contents, and public log copies
+remain public. Changing the current configuration does not remove history.
+
+`.gitignore` covers both raw private files and common chezmoi source names,
+including SSH/cloud credentials, authentication state, and shell history.
+`scripts/check-public-files.py` rejects tracked files that match the ignore
+rules, including files added with `git add -f`. It also checks intermediate
+outgoing commits, so adding a private file and deleting it before pushing
+does not pass the check. Keep intentional public exceptions explicit and narrow.
+
+The `private_` prefix sets owner-only target permissions; it provides no
+encryption or GitHub access control. `.chezmoiignore` controls which target
+files chezmoi manages. Git publication is controlled by Git's index and
+`.gitignore`, with the publication checks above as additional protection.
 
 ## Optional: GPG Encryption with Chezmoi
 
@@ -128,12 +173,10 @@ chezmoi re-add
 4. **Use GPG encryption** only when secrets must travel with the repo
 5. **Prefer environment variables** over files for runtime secrets
 6. **Rotate secrets** if you suspect the GPG key or env file was compromised
-7. **Add sensitive patterns to `.chezmoiignore`** to prevent accidental inclusion:
-   ```
-   *.env
-   *credentials*
-   *secret*
-   ```
+7. **Keep plaintext secrets out of Git's index.** Add raw and chezmoi source
+   names to `.gitignore`. Use `.chezmoiignore` separately for target exclusions.
+   A matching ignore rule does not untrack an existing file. Encrypted source
+   files also need reviewed names; do not force-add an ignored private path.
 
 ## Reference
 

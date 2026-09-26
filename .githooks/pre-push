@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+python3 "$repo_root/scripts/check-public-files.py" --source "$repo_root" --pre-push "$1"
+exec "$repo_root/dot_local/bin/executable_dotfiles-secret-scan" --all --source "$repo_root"

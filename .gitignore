@@ -8,6 +8,7 @@ plans/[0-9]*.md
 
 # Local autoresearch session artifacts
 /autoresearch*
+!/autoresearch.checks.sh
 /deli-auto-research*
 
 # Local Hermes runtime files may include cron scripts, logs, sessions, or credentials.
@@ -26,6 +27,49 @@ plans/[0-9]*.md
 *.pfx
 *credentials*.json
 *secrets*.json
+
+# Chezmoi source names do not retain a target's leading dot. private_ changes
+# local permissions only; every tracked source file is still public on GitHub.
+*dot_env
+*dot_env.*
+*dot_ssh/
+*dot_aws/
+*dot_azure/
+*dot_kube/
+*dot_gnupg/
+.ssh/
+.aws/
+.azure/
+.kube/
+.gnupg/
+**/gcloud/
+*id_rsa
+*id_dsa
+*id_ecdsa
+*id_ed25519
+credentials
+private_credentials
+auth.json
+private_auth.json
+accounts.json
+private_accounts.json
+hosts.yml
+private_hosts.yml
+.npmrc
+*dot_npmrc
+.pypirc
+*dot_pypirc
+.netrc
+*dot_netrc
+.git-credentials
+*dot_git-credentials
+.zsh_history
+*dot_zsh_history
+.bash_history
+*dot_bash_history
+*.local.json
+# This is a reviewed project allowlist, with no private runtime values.
+!/.claude/settings.local.json
 
 # Generated OpenRouter Agent dependencies and build output.
 /dot_local/share/openrouter-agent/node_modules/
