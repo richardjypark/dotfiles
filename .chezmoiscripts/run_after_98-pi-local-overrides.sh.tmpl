@@ -9,6 +9,10 @@ PI_LOCAL_KEYBINDINGS_FILE="$PI_LOCAL_SETTINGS_DIR/keybindings.local.json"
 PI_SETTINGS_FILE="$PI_AGENT_DIR/settings.json"
 PI_KEYBINDINGS_FILE="$PI_AGENT_DIR/keybindings.json"
 PI_REQUIRED_PACKAGE='{{ index ((((include "dot_pi/agent/settings.json") | fromJson).packages)) 0 }}'
+PI_MANAGED_SETTINGS="$(cat <<'PI_MANAGED_SETTINGS_JSON'
+{{ include "dot_pi/agent/settings.json" | trim }}
+PI_MANAGED_SETTINGS_JSON
+)"
 
 file_mode() {
     if [ "$(uname -s)" = Darwin ]; then
@@ -62,5 +66,45 @@ apply_local_override() {
     eecho "Applied local Pi override from: $source_file"
 }
 
+# Pi writes its own keys (for example theme) to settings.json. Without a local
+# override, set only the managed keys and keep all other keys. A missing or
+# empty file gets the managed settings without jq; a merge needs jq, so hosts
+# without jq keep their file and print a warning instead of failing apply.
+merge_managed_settings() {
+    if [ -f "$PI_LOCAL_SETTINGS_FILE" ]; then
+        return 0
+    fi
+
+    local tmp_file
+    mkdir -p "$PI_AGENT_DIR"
+    if [ ! -s "$PI_SETTINGS_FILE" ]; then
+        tmp_file="$(mktemp "$PI_AGENT_DIR/.pi-settings.XXXXXXXX")"
+        printf '%s\n' "$PI_MANAGED_SETTINGS" >"$tmp_file"
+    else
+        if ! command -v jq >/dev/null 2>&1; then
+            eecho "Warning: jq is not installed; skipped merging managed Pi settings."
+            return 0
+        fi
+        if ! jq -e 'type == "object"' "$PI_SETTINGS_FILE" >/dev/null 2>&1; then
+            eecho "Error: Pi settings must contain a JSON object: $PI_SETTINGS_FILE"
+            return 1
+        fi
+        if jq -e --argjson managed "$PI_MANAGED_SETTINGS" '(. * $managed) == .' \
+            "$PI_SETTINGS_FILE" >/dev/null; then
+            return 0
+        fi
+        tmp_file="$(mktemp "$PI_AGENT_DIR/.pi-settings.XXXXXXXX")"
+        if ! jq --argjson managed "$PI_MANAGED_SETTINGS" '. * $managed' \
+            "$PI_SETTINGS_FILE" >"$tmp_file"; then
+            rm -f "$tmp_file"
+            return 1
+        fi
+    fi
+    chmod 600 "$tmp_file"
+    mv -f "$tmp_file" "$PI_SETTINGS_FILE"
+    vecho "Merged managed Pi settings into: $PI_SETTINGS_FILE"
+}
+
 apply_local_override "$PI_LOCAL_SETTINGS_FILE" "$PI_SETTINGS_FILE"
+merge_managed_settings
 apply_local_override "$PI_LOCAL_KEYBINDINGS_FILE" "$PI_KEYBINDINGS_FILE"

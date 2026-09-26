@@ -42,7 +42,7 @@ for the complete naming and execution rules.
 | `dot_zshrc.tmpl` | `~/.zshrc` | Managed rendered shell config |
 | `dot_tmux.conf` | `~/.tmux.conf` | Managed tmux config |
 | `private_dot_config/shell/alias.sh` | `~/.config/shell/alias.sh` | Managed private shell config |
-| `private_dot_config/mise/config.toml` | `~/.config/mise/config.toml` | Managed global runtime defaults |
+| `private_dot_config/mise/modify_config.toml` | `~/.config/mise/config.toml` | Merges managed global runtime defaults; keeps other tools |
 | `dot_local/bin/executable_czu` | `~/.local/bin/czu` | Managed executable |
 | `dot_local/private_lib/chezmoi-helpers.sh` | `~/.local/lib/chezmoi-helpers.sh` | Managed shared script library |
 | `dot_local/private_lib/chezmoi/{core,artifacts,npm}.sh` | `~/.local/lib/chezmoi/` | Managed helper modules |
@@ -52,6 +52,8 @@ for the complete naming and execution rules.
 | `.chezmoitemplates/resolved-role`, `.chezmoitemplates/resolved-profile` | Source-only rendering inputs | Shared role and profile selection |
 | `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl` | Executed during apply; no managed file target | Always-run Hermes setup |
 | `private_dot_codex/AGENTS.md.tmpl` | `~/.codex/AGENTS.md` | Managed Codex context |
+| `private_dot_codex/modify_private_config.toml` | `~/.codex/config.toml` | Merges managed Codex keys; keeps Codex-written state |
+| `dot_pi/agent/settings.json` | `~/.pi/agent/settings.json` (ignored target) | Managed keys merged by `run_after_98-pi-local-overrides`; keeps Pi-written keys |
 | `private_dot_claude/create_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits |
 | `scripts/bootstrap-omarchy.sh` | `~/scripts/bootstrap-omarchy.sh` | Managed bootstrap entry point |
 | `scripts/set-chezmoi-local-data.py` | `~/scripts/set-chezmoi-local-data.py` | Saves machine-local role and profile before apply |

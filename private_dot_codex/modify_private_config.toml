@@ -1,0 +1,75 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+  Merge only the managed keys below into ~/.codex/config.toml. Codex writes
+  its own state to this file (hook trust records, TUI notices), so keep all
+  other keys and print the file unchanged when the managed keys already match.
+  A new file gets the managed text with its comments.
+
+  Safety: at any depth (top level, profiles, sub-tables), remove
+  approval_policy = "never", sandbox_mode = "danger-full-access", and any
+  dangerously_* or bypass_hook_trust key set to true. Codex then uses its
+  safe defaults. For a one-time exception, use a per-run flag such as
+  `codex --sandbox danger-full-access`, not this file.
+
+  To stop managing a key, move its dotted path to $retired so apply also
+  deletes it from existing files. Keys that contain dots are not supported.
+
+  Invalid TOML fails closed: apply stops, names the file, and does not change
+  it, so tool state and any secrets in it stay. To recover, move the file
+  away (for example to config.toml.bad) and run chezmoi apply again.
+  A file that apply changes is written again without its comments.
+*/ -}}
+{{- define "codexRemoveUnsafe" -}}
+{{-   range $key, $value := . -}}
+{{-     if kindIs "map" $value -}}
+{{-       template "codexRemoveUnsafe" $value -}}
+{{-     else if or (and (eq $key "approval_policy") (eq (toString $value) "never"))
+                   (and (eq $key "sandbox_mode") (eq (toString $value) "danger-full-access"))
+                   (and (or (hasPrefix "dangerously_" $key) (eq $key "bypass_hook_trust"))
+                        (eq (toString $value) "true")) -}}
+{{-       $_ := unset $ $key -}}
+{{-     end -}}
+{{-   end -}}
+{{- end -}}
+{{- $retired := list -}}
+{{- $managed := `# Use Sol with medium reasoning for clear, repeatable repo work. Leave context
+# and compaction limits unset so Codex follows the selected model's current
+# catalog metadata instead of stale local overrides.
+model = "gpt-6-sol"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+
+# Trust this repo's source directory so Codex can use the repo-local AGENTS,
+# shared skills, and maintenance helpers without repeated workspace trust
+# prompts on every run.
+# If a specific machine needs stricter confirmation, prefer a machine-local
+# wrapper or per-run override such as:
+#   codex -c 'projects."@SOURCE_DIR@".trust_level="untrusted"'
+# instead of changing the tracked default here.
+[projects."@SOURCE_DIR@"]
+trust_level = "trusted"
+
+[features]
+# Herdr installs a SessionStart hook in ~/.codex/hooks.json to track agent state.
+hooks = true
+# Shell snapshots and multi-agent support are both used by this repo's maintenance flow.
+shell_snapshot = true
+multi_agent = true
+
+[tui]
+status_line = ["model-with-reasoning", "context-remaining", "current-dir", "git-branch", "five-hour-limit", "codex-version", "context-window-size"]
+` | replace "@SOURCE_DIR@" .chezmoi.sourceDir -}}
+{{- if not (.chezmoi.stdin | trim) -}}
+{{-   $managed -}}
+{{- else -}}
+{{-   $config := fromToml .chezmoi.stdin -}}
+{{-   $before := toJson $config -}}
+{{-   range $retired }}{{ $_ := deleteValueAtPath . $config }}{{ end -}}
+{{-   template "codexRemoveUnsafe" $config -}}
+{{-   $merged := mergeOverwrite $config (fromToml $managed) -}}
+{{-   if eq $before (toJson $merged) -}}
+{{-     .chezmoi.stdin -}}
+{{-   else -}}
+{{-     toToml $merged -}}
+{{-   end -}}
+{{- end -}}

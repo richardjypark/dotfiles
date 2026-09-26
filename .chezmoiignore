@@ -123,9 +123,9 @@ logs/*
 # Generated managed Pi dependencies are never chezmoi-managed.
 .local/share/pi-cli/node_modules
 .local/share/pi-maintenance-agent/node_modules
-{{ if stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi" "settings.local.json") }}
+# Pi writes its own keys (for example theme) to settings.json, so
+# run_after_98-pi-local-overrides merges the managed keys instead.
 .pi/agent/settings.json
-{{ end }}
 {{ if stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "pi" "keybindings.local.json") }}
 .pi/agent/keybindings.json
 {{ end }}

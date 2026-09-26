@@ -1,0 +1,45 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+  Merge only the managed tools below into ~/.config/mise/config.toml. Other
+  tools stay, for example `claude = "latest"` from the Omarchy claude wrapper,
+  and the file is printed unchanged when the managed keys already match.
+  A new file gets the managed text with its comments.
+
+  Safety: remove settings.trusted_config_paths and settings.yes = true. Both
+  make mise trust project config files without a prompt, and project config
+  can run code (hooks, tasks, env scripts). Use `mise trust <path>` instead.
+
+  To stop managing a key, move its dotted path to $retired so apply also
+  deletes it from existing files. Keys that contain dots are not supported.
+
+  Invalid TOML fails closed: apply stops, names the file, and does not change
+  it, so tool state and any secrets in it stay. To recover, move the file
+  away (for example to config.toml.bad) and run chezmoi apply again.
+  A file that apply changes is written again without its comments.
+*/ -}}
+{{- $retired := list -}}
+{{- $managed := `# Defaults for managed agent tools. Project mise.toml files override these.
+# Python remains under uv. Elixir and Erlang are selected by each project.
+[tools]
+node = "24.14.0"
+pnpm = "10.30.3"
+yarn = "1.22.22"
+` -}}
+{{- if not (.chezmoi.stdin | trim) -}}
+{{-   $managed -}}
+{{- else -}}
+{{-   $config := fromToml .chezmoi.stdin -}}
+{{-   $before := toJson $config -}}
+{{-   range $retired }}{{ $_ := deleteValueAtPath . $config }}{{ end -}}
+{{-   $settings := get $config "settings" -}}
+{{-   if kindIs "map" $settings -}}
+{{-     $_ := unset $settings "trusted_config_paths" -}}
+{{-     if eq (toString (get $settings "yes")) "true" }}{{ $_ := unset $settings "yes" }}{{ end -}}
+{{-   end -}}
+{{-   $merged := mergeOverwrite $config (fromToml $managed) -}}
+{{-   if eq $before (toJson $merged) -}}
+{{-     .chezmoi.stdin -}}
+{{-   else -}}
+{{-     toToml $merged -}}
+{{-   end -}}
+{{- end -}}
