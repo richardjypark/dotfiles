@@ -23,7 +23,7 @@ class RoleAndOverrideTest(unittest.TestCase):
             source = root / "source"
             home = root / "home"
             home.mkdir()
-            for name in (".chezmoiignore", "dot_zshrc.tmpl", "private_dot_config/ghostty/config",
+            for name in (".chezmoiignore", "dot_zshenv", "dot_zshrc.tmpl", "private_dot_config/ghostty/config",
                          ".chezmoitemplates/resolved-role", ".chezmoitemplates/resolved-profile"):
                 target = source / name
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -38,12 +38,18 @@ class RoleAndOverrideTest(unittest.TestCase):
             ignored = subprocess.run(command + ["ignored"], env=env, check=True,
                                      capture_output=True, text=True).stdout.splitlines()
             self.assertIn(".zshrc", managed)
+            # .zshrc activates mise only when .zshenv sets DOTFILES_MISE_BIN.
+            self.assertIn(".zshenv", managed)
             self.assertIn(".config/ghostty/config", ignored)
             rendered = subprocess.run(command + ["cat", str(home / ".zshrc")], env=env,
                                       check=True, capture_output=True, text=True).stdout
             self.assertIn("exec herdr", rendered)
             self.assertIn('[[ -z "${HERDR_ENV:-}" ]]', rendered)
             self.assertNotIn("exec tmux new-session", rendered)
+            self.assertIn('"$DOTFILES_MISE_BIN" activate zsh', rendered)
+            zshenv = subprocess.run(command + ["cat", str(home / ".zshenv")], env=env,
+                                    check=True, capture_output=True, text=True).stdout
+            self.assertIn("DOTFILES_MISE_BIN=", zshenv)
 
     def test_pi_source_returns_after_local_override_is_removed(self):
         with tempfile.TemporaryDirectory() as directory:

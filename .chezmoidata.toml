@@ -54,11 +54,11 @@ ref = "f97608f178d1ffeca59860195ab7da295f7c8e5f"
 extras = ["messaging", "pty", "honcho", "mcp", "acp"]
 
 [hermes.preferences]
-model_provider = "openai-codex"
-model = "gpt-5.6-sol"
-model_base_url = "https://chatgpt.com/backend-api/codex"
+model_provider = "anthropic"
+model = "claude-opus-5-5"
+model_base_url = "https://api.anthropic.com"
 show_reasoning = true
-reasoning_effort = "medium"
+reasoning_effort = "xhigh"
 service_tier = ""
 agent_max_turns = 1000
 goals_max_turns = 1000
