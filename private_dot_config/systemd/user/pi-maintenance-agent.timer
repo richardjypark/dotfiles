@@ -1,9 +1,10 @@
 [Unit]
-Description=Run Pi Maintenance Agent every day in the evening
+Description=Retired Pi Maintenance Agent timer
+RefuseManualStart=yes
 
 [Timer]
-OnCalendar=*-*-* 17:01 America/New_York
-Persistent=true
+# Keep a valid timer definition without any expiry.
+OnActiveSec=infinity
 Unit=pi-maintenance-agent.service
 
 [Install]

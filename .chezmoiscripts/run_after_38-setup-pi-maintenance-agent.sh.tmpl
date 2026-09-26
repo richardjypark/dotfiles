@@ -2,174 +2,67 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-MARKER_FILE="$HOME/.config/dotfiles/pi-maintenance-agent.enabled"
-EXPECTED_PI_VERSION="{{ index (((include "dot_local/share/pi-maintenance-agent/package.json") | fromJson).dependencies) "@earendil-works/pi-coding-agent" }}"
-PI_AGENT_LOCKFILE_HASH="{{ include "dot_local/share/pi-maintenance-agent/package-lock.json" | sha256sum }}"
-PI_AGENT_STATE="pi-maintenance-agent-${EXPECTED_PI_VERSION}-${PI_AGENT_LOCKFILE_HASH}"
-
-is_pi_agent_supported_host() {
-    [ "{{ includeTemplate "resolved-profile" . }}" = "omarchy" ] \
-        || [ -d "$HOME/.config/omarchy/current" ] \
-        || [ -d "$HOME/.local/share/omarchy" ] \
-        || command -v omarchy-menu >/dev/null 2>&1
-}
-
-if ! is_pi_agent_supported_host; then
-    if [ -n "$PI_AGENT_STATE" ] && state_exists "$PI_AGENT_STATE"; then
-        clear_state "$PI_AGENT_STATE"
-    fi
-    if [ -e "$MARKER_FILE" ]; then
-        vecho "Skipping Pi maintenance agent outside Omarchy hosts/profiles"
-        command -v systemctl >/dev/null 2>&1 \
-            && systemctl --user show-environment >/dev/null 2>&1 \
-            && systemctl --user disable --now "pi-maintenance-agent.timer" >/dev/null 2>&1 \
-            || true
-    fi
+# The direct-push daily writer is retired. Keep this guard before every host,
+# marker, state, and dependency check so an old enabled timer is always stopped.
+command -v systemctl >/dev/null 2>&1 || exit 0
+if ! systemctl --user show-environment >/dev/null 2>&1; then
+    eecho "User systemd is unavailable; Pi timer retirement could not be verified."
     exit 0
 fi
 
-disable_timer_if_present() {
-    command -v systemctl >/dev/null 2>&1 || return 0
-    systemctl --user show-environment >/dev/null 2>&1 || return 0
-    systemctl --user disable --now "pi-maintenance-agent.timer" >/dev/null 2>&1 || true
+unit_present() {
+    local state active
+    state="$(systemctl --user show --property=LoadState --value "$1" 2>/dev/null)" || {
+        [ "$state" = not-found ] || return 2
+    }
+    case "$state" in
+        not-found)
+            active="$(systemctl --user is-active "$1" 2>/dev/null || true)"
+            case "$active" in
+                inactive|failed|unknown) return 1 ;;
+                active|activating|deactivating|reloading) return 0 ;;
+                *) return 2 ;;
+            esac
+            ;;
+        loaded|masked|error|bad-setting) return 0 ;;
+        *) return 2 ;;
+    esac
 }
 
-if [ ! -e "$MARKER_FILE" ]; then
-    vecho "Pi maintenance agent not enabled on this host"
-    disable_timer_if_present
-    exit 0
-fi
-
-ENV_FILE="$HOME/.config/dotfiles/pi-maintenance-agent.env"
-PROJECT_DIR="$HOME/.local/share/pi-maintenance-agent"
-PACKAGE_JSON="$PROJECT_DIR/package.json"
-PACKAGE_LOCK="$PROJECT_DIR/package-lock.json"
-PI_BIN="$PROJECT_DIR/node_modules/.bin/pi"
-SERVICE_UNIT="pi-maintenance-agent.service"
-TIMER_UNIT="pi-maintenance-agent.timer"
-SERVICE_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.service"
-TIMER_UNIT_FILE="$HOME/.config/systemd/user/pi-maintenance-agent.timer"
-TIMER_ENABLE_LINK="$HOME/.config/systemd/user/timers.target.wants/pi-maintenance-agent.timer"
-
-has_user_systemd() {
-    command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
-}
-
-clear_pi_agent_state() {
-    if [ -n "$PI_AGENT_STATE" ] && state_exists "$PI_AGENT_STATE"; then
-        clear_state "$PI_AGENT_STATE"
+retired_units=()
+for unit in pi-maintenance-agent.timer pi-maintenance-agent.service; do
+    unit_rc=0
+    unit_present "$unit" || unit_rc=$?
+    case "$unit_rc" in
+        0) retired_units+=("$unit") ;;
+        1) continue ;;
+        *) eecho "Could not inspect retired unit $unit."; exit 1 ;;
+    esac
+    if [ "$unit" = pi-maintenance-agent.service ]; then
+        systemctl --user stop "$unit" >/dev/null 2>&1 || {
+            eecho "Could not stop the retired Pi maintenance service."
+            exit 1
+        }
     fi
-}
-
-pi_agent_ready() {
-    [ -x "$PI_BIN" ] && [ -f "$ENV_FILE" ] && [ -f "$SERVICE_UNIT_FILE" ] && [ -f "$TIMER_UNIT_FILE" ]
-}
-
-pi_timer_enabled() {
-    if [ -L "$TIMER_ENABLE_LINK" ] && [ "$(readlink -f "$TIMER_ENABLE_LINK" 2>/dev/null || true)" = "$TIMER_UNIT_FILE" ]; then
-        return 0
-    fi
-    has_user_systemd && systemctl --user is-enabled "$TIMER_UNIT" >/dev/null 2>&1
-}
-
-unit_needs_daemon_reload() {
-    if ! has_user_systemd; then
-        return 1
-    fi
-    [ "$(systemctl --user show --property NeedDaemonReload --value "$1" 2>/dev/null || true)" = "yes" ]
-}
-
-installed_pi_version() {
-    if [ ! -x "$PI_BIN" ]; then
-        return 0
-    fi
-    "$PI_BIN" --version 2>&1 | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
-}
-
-PI_AGENT_STATE_CURRENT=0
-if should_skip_state "$PI_AGENT_STATE"; then
-    PI_AGENT_STATE_CURRENT=1
-fi
-
-if [ "$PI_AGENT_STATE_CURRENT" -eq 1 ] \
-    && pi_agent_ready \
-    && pi_timer_enabled \
-    && ! unit_needs_daemon_reload "$SERVICE_UNIT" \
-    && ! unit_needs_daemon_reload "$TIMER_UNIT"; then
-    vecho "Pi maintenance agent already ensured (state tracked)"
-    exit 0
-fi
-
-if [ ! -f "$PACKAGE_JSON" ] || [ ! -f "$PACKAGE_LOCK" ]; then
-    eecho "Error: pi maintenance agent source is missing package.json or package-lock.json at $PROJECT_DIR"
-    eecho "Rerun chezmoi apply after confirming the source files are present."
-    exit 1
-fi
-
-if [ -z "$EXPECTED_PI_VERSION" ]; then
-    eecho "Error: could not determine the pinned pi version from the rendered package.json template data"
-    exit 1
-fi
-
-clear_pi_agent_state
-
-add_to_path "$HOME/.local/bin"
-
-# shellcheck disable=SC2034 # npm helpers use NPM_CMD.
-NPM_CMD=""
-INSTALLED_PI_VERSION="$(installed_pi_version)"
-NEEDS_PI_AGENT_INSTALL=0
-if [ "$PI_AGENT_STATE_CURRENT" -ne 1 ] || [ ! -x "$PI_BIN" ]; then
-    NEEDS_PI_AGENT_INSTALL=1
-fi
-if [ "$INSTALLED_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
-    NEEDS_PI_AGENT_INSTALL=1
-fi
-
-if [ "$NEEDS_PI_AGENT_INSTALL" -eq 1 ]; then
-    if ! NPM_CMD="$(resolve_npm_cmd)"; then
-        eecho "Error: npm is required to install the pi maintenance agent dependency."
-        eecho "Install Node.js/npm first, then rerun chezmoi apply."
+    systemctl --user disable --now "$unit" >/dev/null 2>&1 || {
+        eecho "Could not disable retired unit $unit."
         exit 1
-    fi
+    }
+done
 
-    if ! require_trust_for_remote_installer "npm registry package download"; then
-        exit 1
-    fi
-
-    if ! npm_require_minimum_lockfile_age "$PACKAGE_LOCK"; then
-        exit 1
-    fi
-
-    eecho "Installing pi maintenance agent dependency via committed lockfile..."
-    run_managed_npm_ci "$PROJECT_DIR"
-    INSTALLED_PI_VERSION="$(installed_pi_version)"
+if [ "${#retired_units[@]}" -gt 0 ]; then
+    systemctl --user daemon-reload
+    for unit in "${retired_units[@]}"; do
+        active="$(systemctl --user is-active "$unit" 2>/dev/null || true)"
+        enabled="$(systemctl --user is-enabled "$unit" 2>/dev/null || true)"
+        case "$active" in
+            inactive|failed) ;;
+            *) eecho "Retired unit $unit is still active or its state is unknown."; exit 1 ;;
+        esac
+        case "$enabled" in
+            disabled|masked|static|not-found) ;;
+            *) eecho "Retired unit $unit is still enabled or its state is unknown."; exit 1 ;;
+        esac
+    done
 fi
-
-if [ "$INSTALLED_PI_VERSION" != "$EXPECTED_PI_VERSION" ]; then
-    eecho "Error: expected pi version $EXPECTED_PI_VERSION but found ${INSTALLED_PI_VERSION:-missing}."
-    exit 1
-fi
-
-if ! has_user_systemd; then
-    eecho "Pi maintenance agent files are installed, but user systemd is not available in this session."
-    eecho "Rerun chezmoi apply from a regular user login to enable the timer."
-    exit 0
-fi
-
-systemctl --user daemon-reload
-if [ ! -f "$ENV_FILE" ]; then
-    clear_pi_agent_state
-    eecho "Pi maintenance agent is opted in, but $ENV_FILE is missing."
-    eecho "Copy $PROJECT_DIR/config/runtime.env.example to that path, then rerun chezmoi apply to enable the timer."
-    exit 0
-fi
-
-if [ "$VERBOSE" = "true" ]; then
-    systemctl --user enable --now "$TIMER_UNIT"
-else
-    systemctl --user enable --now "$TIMER_UNIT" >/dev/null 2>&1
-fi
-
-mark_state "$PI_AGENT_STATE"
-vecho "Pi maintenance agent timer ensured: $TIMER_UNIT"
+exit 0
