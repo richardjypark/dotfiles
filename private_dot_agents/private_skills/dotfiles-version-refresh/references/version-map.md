@@ -7,7 +7,7 @@ Use this map to propagate version bumps safely.
 - `.chezmoidata.toml`
   - `python.version`
   - `[pinned.hermes_agent]` `version`, `ref`, `repo_url`, `branch`, and `extras`
-- `private_dot_config/mise/config.toml`
+- `private_dot_config/mise/modify_config.toml`
   - Global Node and package-manager defaults for managed agent tools.
   - Project-specific Erlang, Elixir, Node, and package-manager versions belong in each project's `mise.toml`.
 - `.chezmoiversion.toml`
@@ -23,7 +23,7 @@ Use this map to propagate version bumps safely.
 - `.chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl`
   - Keep version extraction logic compatible with external pin format.
 - `.chezmoiscripts/run_after_30-setup-mise.sh.tmpl`
-  - Keep global agent Node installation aligned with `private_dot_config/mise/config.toml`.
+  - Keep global agent Node installation aligned with `private_dot_config/mise/modify_config.toml`.
 - `.chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl`
   - Keep Python setup aligned with `.chezmoidata.toml`.
 - `.chezmoiscripts/run_onchange_after_29-setup-ibkr-data-deps.sh.tmpl`

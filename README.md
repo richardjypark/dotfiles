@@ -224,12 +224,41 @@ $EDITOR ~/.config/dotfiles/pi/settings.local.json
 ```
 
 If `~/.config/dotfiles/pi/settings.local.json` exists, `chezmoi apply` will prefer it over the tracked `~/.pi/agent/settings.json` for this machine.
+Without it, `chezmoi apply` sets only the tracked keys in `~/.pi/agent/settings.json`
+and keeps keys that Pi writes, such as `theme`. Keys left by a removed local
+override also stay; remove them by hand if you do not want them.
 The local settings file must be a JSON object with the managed
 `pi-autoresearch` package pin in its `packages` array. A local keybindings
 override must also be a JSON object. The override writer keeps unchanged
 files and sets changed target files to mode `0600`.
-After you remove a local override, accept chezmoi's prompt to restore the
-managed default, or run a scoped `chezmoi apply --force` for that Pi target.
+After you remove a local settings override, the next `chezmoi apply` sets the
+tracked keys again. After you remove a local keybindings override, accept
+chezmoi's prompt to restore the managed default, or run a scoped
+`chezmoi apply --force` for that Pi target.
+
+### Partly managed agent configs
+
+Codex, mise, and Pi write their own state to their config files, so
+`chezmoi apply` sets only the tracked keys and keeps all other keys:
+
+| Target | Source | Kept |
+| --- | --- | --- |
+| `~/.codex/config.toml` | `private_dot_codex/modify_private_config.toml` | Hook trust records, TUI notices, other projects |
+| `~/.config/mise/config.toml` | `private_dot_config/mise/modify_config.toml` | Other tools, such as `claude = "latest"` |
+| `~/.pi/agent/settings.json` | `dot_pi/agent/settings.json`, merged by `run_after_98-pi-local-overrides` | Keys such as `theme` (the `packages` list stays managed) |
+
+- A file that already has the tracked values is not written again, and
+  `chezmoi status` stays clean. A new file gets the tracked text with its comments.
+- Safety keys are removed at any depth: Codex `approval_policy = "never"`,
+  `sandbox_mode = "danger-full-access"`, and `dangerously_*` or
+  `bypass_hook_trust` set to `true`; mise `settings.trusted_config_paths` and
+  `settings.yes = true`. For a one-time exception, use a per-run flag such as
+  `codex --sandbox danger-full-access`.
+- To stop managing a Codex or mise key, move its dotted path to `$retired` in
+  the template, so apply also deletes it from existing files.
+- An invalid TOML file stops `chezmoi apply` with an error that names the file
+  and does not change it. Move the file away (for example to
+  `config.toml.bad`) and apply again.
 
 ### IBKR data platform local dependencies
 

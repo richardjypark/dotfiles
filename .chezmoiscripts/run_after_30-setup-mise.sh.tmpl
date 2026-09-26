@@ -46,7 +46,7 @@ fi
 # Global Node is for repo-managed agents. Projects can override it in mise.toml.
 cd "$HOME"
 if [ "$RESOLVED_ROLE" = server ]; then
-    node_version="$(sed -n 's/^node[[:space:]]*=[[:space:]]*"\([0-9.]*\)".*/\1/p' "$HOME/.config/mise/config.toml" | head -1)"
+    node_version="$(sed -n 's/^[[:space:]]*node[[:space:]]*=[[:space:]]*"\([0-9.]*\)".*/\1/p' "$HOME/.config/mise/config.toml" | head -1)"
     if [ -z "$node_version" ]; then
         eecho "Error: the managed mise config has no pinned Node version."
         exit 1
