@@ -16,6 +16,8 @@ personality = "pragmatic"
 trust_level = "trusted"
 
 [features]
+# Herdr installs a SessionStart hook in ~/.codex/hooks.json to track agent state.
+hooks = true
 # Shell snapshots and multi-agent support are both used by this repo's maintenance flow.
 shell_snapshot = true
 multi_agent = true

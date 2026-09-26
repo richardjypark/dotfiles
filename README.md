@@ -154,7 +154,7 @@ Shell preview behavior:
 | --- | --- | --- |
 | `CHEZMOI_ROLE` | `workstation` | Full personal workstation toolchain. |
 | `CHEZMOI_ROLE` | `server` | Server-focused setup, skips workstation-only tooling. |
-| `CHEZMOI_PROFILE` | `omarchy` | Manage `.zshrc` so Ghostty's zsh starts Herdr; keep local Omarchy terminal settings and skip tmux setup. |
+| `CHEZMOI_PROFILE` | `omarchy` | Manage `.zshenv` and `.zshrc` so Ghostty's zsh starts Herdr with mise tools on `PATH`; keep local Omarchy terminal settings and skip tmux setup. |
 | `CHEZMOI_PROFILE` | `standard` | Keep standard managed shell/terminal targets. |
 
 | Optional tool | Server default | Opt-in marker | Runtime |
@@ -264,9 +264,9 @@ this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensit
 Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]` and
 `[hermes.delegation]`, and the always-run Hermes setup script compares and
 applies them in one atomic config update on each
-`chezmoi apply`: `model.provider=openai-codex`, `model.default=gpt-5.6-sol`,
-`model.base_url=https://chatgpt.com/backend-api/codex`,
-`display.show_reasoning=true`, `agent.reasoning_effort=medium`,
+`chezmoi apply`: `model.provider=anthropic`, `model.default=claude-opus-5-5`,
+`model.base_url=https://api.anthropic.com`,
+`display.show_reasoning=true`, `agent.reasoning_effort=xhigh`,
 `agent.service_tier=""` (normal speed), `agent.max_turns=1000`,
 `goals.max_turns=1000`, `model.context_length=500000`, and
 `tui_by_default=true`. Delegation provider, model, and reasoning overrides are
@@ -306,7 +306,7 @@ leaves the local checkout and `~/.hermes/` data in place for manual review/remov
 ### Optional OpenRouter paid-credit reserve agent
 
 `openrouter-agent` is a separate, manually invoked TypeScript TUI for times when the normal Codex
-allowance is unavailable. It does **not** change Hermes' default `openai-codex` route, add an
+allowance is unavailable. It does **not** change Hermes' default `anthropic` route, add an
 automatic provider fallback, or spend OpenRouter credits in the background. Installation is
 disabled by default and is opt-in per machine:
 

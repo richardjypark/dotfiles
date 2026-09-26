@@ -91,10 +91,10 @@ logs/*
 {{ $force_zsh := or (eq $force_str "true") (eq $force_str "1") (eq $force_str "yes") }}
 {{ if eq $profile "omarchy" }}
 # Keep Omarchy's terminal defaults, but manage .zshrc so Ghostty starts Herdr
-# instead of the old tmux setup.
+# instead of the old tmux setup. Manage .zshenv with it: .zshrc activates mise
+# only when .zshenv sets DOTFILES_MISE_BIN, and Node CLIs such as pi need that.
 .config/ghostty/config
 .config/starship.toml
-.zshenv
 .tmux.conf
 
 # Skip shell-stack setup scripts that assume this repo owns defaults
