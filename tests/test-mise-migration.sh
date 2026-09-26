@@ -2,8 +2,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-TEST_DIR="$(mktemp -d)"
-trap 'rm -rf "$TEST_DIR"' EXIT
+. "$REPO_ROOT/tests/lib/temp.sh"
+new_test_temp_dir TEST_DIR
+trap 'remove_test_temp_dir "$TEST_DIR"' EXIT
 export HOME="$TEST_DIR/home"
 export STATE_DIR="$TEST_DIR/state"
 mkdir -p "$HOME" "$TEST_DIR/bin"

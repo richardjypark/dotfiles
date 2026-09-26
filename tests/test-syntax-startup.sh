@@ -2,8 +2,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' EXIT
+. "$REPO_ROOT/tests/lib/temp.sh"
+new_test_temp_dir TMP_DIR
+trap 'remove_test_temp_dir "$TMP_DIR"' EXIT
 
 mkdir -p "$TMP_DIR/tests/lib"
 cp "$REPO_ROOT/tests/lib/shell-files.sh" "$TMP_DIR/tests/lib/shell-files.sh"

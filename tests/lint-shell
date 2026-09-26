@@ -3,8 +3,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 . "$REPO_ROOT/tests/lib/shell-files.sh"
-TEMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TEMP_DIR"' EXIT
+. "$REPO_ROOT/tests/lib/temp.sh"
+new_test_temp_dir TEMP_DIR
+trap 'remove_test_temp_dir "$TEMP_DIR"' EXIT
 
 if ! command -v shellcheck >/dev/null 2>&1; then
     if [ "${REQUIRE_LINT_TOOLS:-0}" = "1" ]; then
