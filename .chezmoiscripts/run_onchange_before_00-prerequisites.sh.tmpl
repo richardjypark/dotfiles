@@ -110,8 +110,8 @@ install_optional_interactive_tools() {
 
 # State tracking with inline fallback validation
 if should_skip_state "prerequisites-setup"; then
-    if is_installed zsh && is_installed git && is_installed curl && chezmoi_meets_pinned_version \
-        && (is_installed bat || is_installed batcat); then
+    if is_installed zsh && is_installed git && is_installed curl && is_installed jq \
+        && chezmoi_meets_pinned_version && (is_installed bat || is_installed batcat); then
         install_optional_interactive_tools
         vecho "All essential prerequisites are already installed"
         exit 0
@@ -121,8 +121,8 @@ fi
 vecho "Checking prerequisites..."
 
 # Fast exit if all essential tools are already available
-if is_installed zsh && is_installed git && is_installed curl && chezmoi_meets_pinned_version \
-    && (is_installed bat || is_installed batcat); then
+if is_installed zsh && is_installed git && is_installed curl && is_installed jq \
+    && chezmoi_meets_pinned_version && (is_installed bat || is_installed batcat); then
     install_optional_interactive_tools
     vecho "All essential prerequisites are already installed"
     mark_state "prerequisites-setup"
@@ -131,9 +131,10 @@ fi
 
 # Only attempt package installations if we have passwordless sudo rights
 if ensure_can_sudo; then
-    # Check if essential packages are missing
+    # Check if essential packages are missing. jq is essential because
+    # apply-time scripts use it, for example the Pi settings merge.
     MISSING_PACKAGES=""
-    for pkg in zsh git curl wget make gcc; do
+    for pkg in zsh git curl wget make gcc jq; do
         if ! is_installed "$pkg"; then
             MISSING_PACKAGES="$MISSING_PACKAGES $pkg"
         fi
@@ -177,10 +178,16 @@ else
             brew install bat || true
         fi
     fi
+    if command -v brew >/dev/null 2>&1 && ! is_installed jq; then
+        eecho "Installing missing package via Homebrew: jq"
+        if ! run_quiet brew install jq; then
+            brew install jq || true
+        fi
+    fi
 
     # Check if any packages are actually missing before warning
     MISSING=""
-    for pkg in zsh git curl wget make gcc; do
+    for pkg in zsh git curl wget make gcc jq; do
         if ! is_installed "$pkg"; then
             MISSING="$MISSING $pkg"
         fi

@@ -54,7 +54,7 @@ for the complete naming and execution rules.
 | `private_dot_codex/AGENTS.md.tmpl` | `~/.codex/AGENTS.md` | Managed Codex context |
 | `private_dot_codex/modify_private_config.toml` | `~/.codex/config.toml` | Merges managed Codex keys; keeps Codex-written state |
 | `dot_pi/agent/settings.json` | `~/.pi/agent/settings.json` (ignored target) | Managed keys merged by `run_after_98-pi-local-overrides`; keeps Pi-written keys |
-| `private_dot_claude/create_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits |
+| `private_dot_claude/modify_private_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits, except unsafe permission settings are reset |
 | `scripts/bootstrap-omarchy.sh` | `~/scripts/bootstrap-omarchy.sh` | Managed bootstrap entry point |
 | `scripts/set-chezmoi-local-data.py` | `~/scripts/set-chezmoi-local-data.py` | Saves machine-local role and profile before apply |
 | `bootstrap-vps.sh` | `~/bootstrap-vps.sh` | Managed bootstrap entry point |

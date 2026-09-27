@@ -30,11 +30,11 @@ class AgentInstructionPolicyTest(unittest.TestCase):
         self.assertIn("Prefer `jj`", agents)
 
     def test_tracked_claude_settings_keep_safety_prompts(self) -> None:
-        settings = json.loads(
-            (REPO_ROOT / "private_dot_claude/create_settings.json").read_text(
-                encoding="utf-8"
-            )
+        template = (REPO_ROOT / "private_dot_claude/modify_private_settings.json").read_text(
+            encoding="utf-8"
         )
+        defaults = template.split("$defaults := `", 1)[1].split("`", 1)[0]
+        settings = json.loads(defaults)
         self.assertIs(settings.get("skipDangerousModePermissionPrompt"), False)
 
     def test_repo_local_claude_allowlist_keeps_sandbox_prompts(self) -> None:

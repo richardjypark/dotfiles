@@ -52,7 +52,8 @@ Tailscale SSH connection with `--confirm`.
 
 Bootstrap installs `bat`, then attempts `git-delta`/`delta` and `eza`/`exa` from apt
 repositories when available. Runtime shell config auto-detects command-name variants
-(`bat`/`batcat`, `eza`/`exa`).
+(`bat`/`batcat`, `eza`/`exa`). The apply-time prerequisites script also installs
+`jq`, which apply-time scripts need, for example the Pi settings merge.
 
 ## Role/Profile Behavior
 

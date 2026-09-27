@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check that modify templates merge managed keys and keep tool-written keys."""
 
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -10,6 +11,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+CLAUDE = "private_dot_claude/modify_private_settings.json"
 # (source, target, managed key path, drift value, tool text, tool key path, tool value)
 CASES = (
     ("private_dot_codex/modify_private_config.toml", ".codex/config.toml",
@@ -73,7 +75,7 @@ class ManagedConfigMergeTest(unittest.TestCase):
                 self.assertEqual(lookup(merged, tool_path), tool_value)
                 self.assertEqual(chezmoi("status"), "")
 
-    def apply_to(self, source_name, target_name, live_text, template_text=None):
+    def apply_to(self, source_name, target_name, live_text, template_text=None, parse=tomllib.loads):
         """Apply one modify template to a live file; return the parsed result and `chezmoi status`."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -94,7 +96,7 @@ class ManagedConfigMergeTest(unittest.TestCase):
             result = target.read_text()
             status = subprocess.run(command + ["status"], env=env, check=True,
                                     capture_output=True, text=True).stdout
-            return tomllib.loads(result), status
+            return parse(result), status
 
     def test_codex_removes_unsafe_values_at_any_depth(self):
         live = """approval_policy = "never"
@@ -165,6 +167,52 @@ claude = "latest"
                 config, status = self.apply_to(source_name, target_name, live, template)
                 self.assertNotIn(path[1], config[path[0]])
                 self.assertEqual(status, "")
+
+    def test_claude_resets_unsafe_settings_and_keeps_the_rest(self):
+        live = json.dumps({
+            "model": "opus",
+            "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "x >/dev/null 2>&1"}]}]},
+            "env": {"EXAMPLE": "keep"},
+            "skipDangerousModePermissionPrompt": True,
+            "enableAllProjectMcpServers": True,
+            "permissions": {"defaultMode": "bypassPermissions",
+                            "allow": ["Bash", "Bash(*)", "Bash(:*)", "Bash(git status)", "Read"]},
+        })
+        settings, status = self.apply_to(CLAUDE, ".claude/settings.json", live, parse=json.loads)
+        self.assertIs(settings["skipDangerousModePermissionPrompt"], False)
+        self.assertNotIn("enableAllProjectMcpServers", settings)
+        self.assertEqual(settings["permissions"], {"allow": ["Bash(git status)", "Read"]})
+        self.assertEqual(settings["hooks"]["SessionStart"][0]["hooks"][0]["command"], "x >/dev/null 2>&1")
+        self.assertEqual(settings["env"], {"EXAMPLE": "keep"})
+        self.assertEqual(settings["model"], "opus")
+        self.assertEqual(status, "")
+
+    def test_claude_keeps_safe_settings_byte_for_byte(self):
+        live = '{"model": "sonnet", "permissions": {"defaultMode": "acceptEdits", "allow": ["Read"]},\n' \
+               ' "skipDangerousModePermissionPrompt": false}\n'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source" / CLAUDE
+            source.parent.mkdir(parents=True)
+            source.write_bytes((ROOT / CLAUDE).read_bytes())
+            target = root / "home/.claude/settings.json"
+            target.parent.mkdir(parents=True)
+            target.write_text(live)
+            target.parent.chmod(0o700)
+            target.chmod(0o600)
+            (root / "config.toml").write_text("[data]\n")
+            command = ["chezmoi", "--source", str(root / "source"), "--destination", str(root / "home"),
+                       "--config", str(root / "config.toml"), "--persistent-state", str(root / "state")]
+            env = {**os.environ, "HOME": str(root / "home")}
+            self.assertEqual(subprocess.run(command + ["status"], env=env, check=True,
+                                            capture_output=True, text=True).stdout, "")
+            subprocess.run(command + ["apply", "--no-tty"], env=env, check=True, capture_output=True)
+            self.assertEqual(target.read_text(), live)
+            target.unlink()
+            subprocess.run(command + ["apply", "--no-tty"], env=env, check=True, capture_output=True)
+            created = json.loads(target.read_text())
+            self.assertIs(created["skipDangerousModePermissionPrompt"], False)
+            self.assertEqual(target.stat().st_mode & 0o777, 0o600)
 
 
 if __name__ == "__main__":
