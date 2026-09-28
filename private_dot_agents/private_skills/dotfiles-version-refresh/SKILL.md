@@ -9,7 +9,8 @@ description: "Update pinned tool versions and external dependency references for
 
 Use this skill when:
 
-- bumping project runtimes, Python, FZF, Hermes Agent, plugin, or archive revisions
+- checking which pinned tools are outdated
+- bumping project runtimes, Python, Go, Hermes Agent, plugin, or archive revisions
 - changing `.chezmoidata.toml`, `.chezmoiversion.toml`, or `.chezmoiexternal.toml.tmpl`
 - adjusting setup logic because a pinned version or refresh policy changed
 
@@ -21,25 +22,25 @@ Use this skill when:
 
 ## Workflow
 
-1. Identify which dependency changes and load the file map in `references/version-map.md`.
-2. Update all affected pin locations:
-   - data/version files (`.chezmoidata.toml`, `.chezmoiversion.toml`)
-   - external fetch definitions (`.chezmoiexternal.toml.tmpl`)
-   - setup scripts that encode version behavior
-3. Update docs when user-visible behavior or commands change:
-   - `~/.local/share/chezmoi/README.md`
-4. Preserve repo policy:
-   - favor pinned, deterministic versions
-   - keep `refreshPeriod` expectations aligned with current policy
-5. For Hermes Agent, keep "latest" deterministic:
-   - update `.chezmoidata.toml` `[pinned.hermes_agent]` to the resolved version and exact commit ref
-   - if the user is responding to Hermes' own "Update available" banner, run `hermes update`, pin the resulting upstream `main` commit, then verify `hermes --version` reports `Up to date`
-   - after `hermes update` or targeted apply, inspect `git -C ~/.local/share/hermes-agent status --short`; the expected dirty files are only the repo-managed local TUI patch files, so clean incidental generated lockfile churn such as root `package-lock.json` before finishing
-   - restart `hermes-gateway.service` when the gateway marker is enabled so the always-on process uses the new checkout
+1. Check what is outdated with `chezmoi-bump --check` (or `czvc`). For the routine policy (stable releases at least seven days old), run `chezmoi-bump --automatic --all --check`.
+2. For the dependencies that `chezmoi-bump --help` lists, use the tool. Do not edit their pins by hand. It updates every pin location and checksum, verifies the result, and rolls back on failure.
+   - preview: `chezmoi-bump --dry-run <dep>`
+   - apply: `chezmoi-bump <dep>` (or `czb <dep>`); `--all` bumps every outdated dependency
+3. For other pins (Hermes Agent, Python, Go, Oh My Zsh, mise Node), edit every location in `references/version-map.md` by hand.
+4. Update `README.md` when user-visible behavior or commands change.
+5. Preserve repo policy: pinned, deterministic versions, and `refreshPeriod` values aligned with the current policy.
+
+## Hermes Agent
+
+- Pin `.chezmoidata.toml` `[pinned.hermes_agent]` to the resolved version and exact commit `ref`.
+- If the user responds to Hermes' own "Update available" banner, run `hermes update`, pin the resulting upstream `main` commit, then verify that `hermes --version` reports `Up to date`.
+- The setup script reverts its own TUI patches before it checks out a new ref, and it refuses to overwrite any other local change. If apply stops with "local changes exist", inspect `git -C ~/.local/share/hermes-agent diff` before you remove anything.
+- After apply, `git -C ~/.local/share/hermes-agent status --short` must show only the managed TUI patch files.
+- Restart `hermes-gateway.service` when the gateway marker is enabled so the always-on process uses the new checkout.
 
 ## References
 
-- `references/version-map.md` for the authoritative file map between pinned values, externals, scripts, and docs
+- `references/version-map.md` for the pins that need manual edits and the scripts that read them
 
 ## Stop and ask
 
@@ -49,14 +50,9 @@ Use this skill when:
 
 ## Validation
 
-Use template rendering + shell parsing for `.tmpl` files:
-
 ```bash
-chezmoi execute-template < .chezmoiexternal.toml.tmpl >/tmp/chezmoiexternal.rendered.toml
-chezmoi execute-template < .chezmoiscripts/run_after_30-setup-mise.sh.tmpl | bash -n
-chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
-chezmoi execute-template < .chezmoiscripts/run_onchange_after_20-setup-fzf.sh.tmpl | bash -n
-chezmoi execute-template < .chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl | bash -n
+chezmoi execute-template < .chezmoiexternal.toml.tmpl | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
+for f in .chezmoiscripts/*.tmpl; do chezmoi execute-template < "$f" | bash -n || echo "FAIL $f"; done
 chezmoi apply --dry-run --refresh-externals
 ```
 

@@ -28,8 +28,6 @@ chezmoi cat "$HOME/.pi/agent/settings.json" \
 chezmoi cat "$HOME/.pi/agent/keybindings.json" \
   | python3 -c 'import sys, json; json.loads(sys.stdin.read())'
 chezmoi cat "$HOME/.zshrc" | zsh -n
-chezmoi cat "$HOME/.agents/skills/chezmoi-repo-maintainer/agents/openai.yaml" \
-  | ruby -e 'require "yaml"; YAML.safe_load(STDIN.read, permitted_classes: [], aliases: true)' >/dev/null
 chezmoi cat "$HOME/.agents/skills/chezmoi-script-maintainer/agents/openai.yaml" \
   | ruby -e 'require "yaml"; YAML.safe_load(STDIN.read, permitted_classes: [], aliases: true)' >/dev/null
 chezmoi cat "$HOME/.agents/skills/chezmoi-bootstrap-operator/agents/openai.yaml" \

@@ -10,7 +10,7 @@ description: "Maintain `.chezmoiscripts/*` setup scripts in this repo. Trigger w
 Use this skill when:
 
 - editing `.chezmoiscripts/run_onchange_*` or `.chezmoiscripts/run_after_*`
-- changing helper-driven install/setup behavior
+- changing helper-driven install/setup behavior in `dot_local/private_lib/`
 - adding or adjusting trust gates, role/profile guards, or state tracking for setup tasks
 
 ## Read first
@@ -22,21 +22,25 @@ Use this skill when:
 ## Workflow
 
 1. Inspect adjacent scripts to match naming and ordering:
-   - `run_onchange_before_*.sh` for prerequisites
-   - `run_onchange_after_*.sh` for most post-apply setup
-   - `run_after_*.sh` for the small set of intentional always-run follow-ups
-2. Reuse existing helpers and guard patterns:
-   - installer trust gate (`TRUST_ON_FIRST_USE_INSTALLERS`)
-   - role gate (`CHEZMOI_ROLE=server`)
-   - optional interactive sudo gate (`CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO`)
-3. Keep changes idempotent:
-   - repeated `chezmoi apply` should avoid re-running expensive work
-4. Update docs when user-visible behavior changes:
-   - `~/.local/share/chezmoi/README.md` for setup, role, or command changes
+   - `run_onchange_before_*` for prerequisites
+   - `run_onchange_after_*` for most post-apply setup
+   - `run_after_*` for the small set of intentional always-run follow-ups
+2. Reuse the shared helpers instead of inline copies (see Required Script Contract).
+3. Keep changes idempotent: repeated `chezmoi apply` should skip expensive work.
+4. Update `~/.local/share/chezmoi/README.md` when setup, role, or command behavior changes.
 
-## References
+## Required Script Contract
 
-- `references/script-patterns.md` for reusable script headers, trust gates, role gates, and file-order conventions
+Follow `references/script-patterns.md`:
+
+- Use `#!/usr/bin/env bash` and `set -euo pipefail`, then source `$HOME/.local/lib/chezmoi-helpers.sh`. It loads `chezmoi/core.sh`, `artifacts.sh`, and `npm.sh`, which set `VERBOSE`, `STATE_DIR`, `vecho`, and `eecho`. Do not define them again.
+- Track one-time work with `state_exists` / `should_skip_state` and `mark_state`.
+- Gate remote installers and downloads with `require_trust_for_remote_installer` or `require_trust_for_remote_download` (`TRUST_ON_FIRST_USE_INSTALLERS=1`).
+- Keep non-interactive defaults; use interactive sudo only behind `CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO`.
+- Prefer fast checks (command exists, version matches) before installers.
+- Put shared logic in `dot_local/private_lib/chezmoi/`; tool-specific modules can use a subdirectory, such as `hermes/`.
+- A `run_onchange_*` script that uses the helpers includes `{{ includeTemplate "setup/helper-hashes.tmpl" . }}`, so helper edits re-trigger it. Add each new shared module to `.chezmoitemplates/setup/helper-hashes.tmpl`. `run_after_*` scripts run on every apply and need no hash.
+- To rerun one remembered `run_onchange_*` script, use `chezmoi-rerun-script <source-script-path>` instead of clearing the whole state directory.
 
 ## Stop and ask
 
@@ -44,28 +48,18 @@ Use this skill when:
 - an installer would become implicitly trusted or interactive by default
 - it is unclear whether the logic belongs in `.chezmoiscripts/*`, bootstrap, or version-pin data
 
-## Required Script Contract
-
-Follow `references/script-patterns.md`. For new scripts:
-
-- Use `#!/usr/bin/env bash` and `set -euo pipefail` unless `sh` compatibility is required.
-- Define `VERBOSE`, `vecho`, and `eecho` with quiet-by-default output.
-- Use `STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"`.
-- Add an early state-file exit when the task is one-time setup.
-- When debugging a single remembered `run_onchange_*` step locally, prefer `chezmoi-rerun-script <source-script-path>` over clearing the entire state directory.
-- Prefer fast checks before installers (for example, command existence + version check).
-- Keep non-interactive defaults; only use interactive sudo when explicitly gated.
-
 ## Validation
 
 ```bash
-bash -n .chezmoiscripts/*.sh
+for f in .chezmoiscripts/*; do
+  case "$f" in
+    *.tmpl) chezmoi execute-template < "$f" | bash -n ;;
+    *) bash -n "$f" ;;
+  esac || echo "FAIL $f"
+done
+bash -n dot_local/private_lib/chezmoi-helpers.sh dot_local/private_lib/chezmoi/*.sh
+python3 tests/test_setup_recovery.py     # setup recovery, Hermes patches
+python3 tests/test_helper_modules.py     # shared helper modules
+python3 tests/test_native_installers.py  # native installer recovery
 chezmoi apply --dry-run
-```
-
-When editing `.tmpl` scripts, validate rendered output:
-
-```bash
-chezmoi execute-template < .chezmoiscripts/run_onchange_after_25-setup-uv.sh.tmpl | bash -n
-chezmoi execute-template < .chezmoiscripts/run_after_30-setup-mise.sh.tmpl | bash -n
 ```

@@ -48,8 +48,8 @@
 3. Sync with remote.
    - Fetch: `jj fetch` (quiet alias for `jj git fetch`; run raw `jj git fetch` when you want rewrite diagnostics)
    - Fetch all remotes: `jj sync`
-   - Push current bookmark: `jj git push` (alias: `jj push`)
-   - Push specific bookmark: `jj git push -b <bookmark>`
+   - Publish this dotfiles repo: `dotfiles-push --bookmark <bookmark> --remote origin` (the repo-local `jj push` alias runs it when the clone has that alias)
+   - Push a bookmark in other repos: `jj git push -b <bookmark>`
 
 ## Advanced Workflows
 
@@ -101,7 +101,7 @@ Publish checklist:
 2. If the bookmark does not exist yet, create it with `jj bookmark create <name>`.
 3. Move an existing publish bookmark to the current change with `jj bookmark move --to @ <name>`.
 4. Ensure the intended bookmark points at the current change (for example `jj log -r '<bookmark>::@'`).
-5. Prefer `jj git push --remote <remote> -b <bookmark>` when the target matters.
+5. In this dotfiles repo, publish with `dotfiles-push --bookmark <bookmark> --remote <remote>`; raw `jj git push` skips its private-path, email, and secret checks. In other repos, prefer `jj git push --remote <remote> -b <bookmark>`.
 6. Verify with `jj log -r '<bookmark>@<remote>' --no-graph` and `jj status`, then stop; do not run post-push cleanup for the normal empty `@`.
 
 `push-all-bookmarks = false` in this repo, so avoid `jj git push --all` unless the user explicitly wants that scope.
@@ -171,7 +171,7 @@ Defined in `private_dot_config/shell/alias.sh` and `private_dot_config/shell/jj-
 - `jsq` → `jj squash`
 - `jrb` → `jj rebase`
 - `jf` → `jj fetch`
-- `jp` → `jj git push`
+- `jp` → `jj push` (in this repo, the guarded `dotfiles-push` alias)
 
 ### Interactive helpers
 

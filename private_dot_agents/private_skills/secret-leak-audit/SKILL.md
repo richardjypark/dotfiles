@@ -48,6 +48,8 @@ A repo-local Git hook is available at `.githooks/pre-commit`. Enable it per clon
 git config core.hooksPath .githooks
 ```
 
+`dotfiles-push` runs the same scans, plus private-path and commit-email checks, before every push from this repo. See `docs/secrets-management.md`.
+
 Keep the GitHub Actions workflow `.github/workflows/secret-scan.yml` enabled; it scans full history and the checked-out worktree on PRs, pushes to `master`/`main`, weekly schedule, and manual dispatch.
 
 ## Audit workflow
