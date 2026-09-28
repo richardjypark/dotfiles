@@ -15,15 +15,17 @@ if state_exists "<task>"; then
 fi
 ```
 
+The helpers provide `VERBOSE`, `STATE_DIR`, `vecho`, `eecho`, `state_exists`, `should_skip_state`, `mark_state`, `add_to_path`, and `run_quiet`.
+
 ## Trust Gate for Remote Installers
 
 ```bash
-if [ "${TRUST_ON_FIRST_USE_INSTALLERS:-0}" != "1" ]; then
-  eecho "Refusing remote installer without explicit trust."
-  eecho "Re-run with TRUST_ON_FIRST_USE_INSTALLERS=1."
+if ! require_trust_for_remote_installer "<tool> installer"; then
   exit 1
 fi
 ```
+
+Use `require_trust_for_remote_download "<source>"` for artifact downloads. Both helpers refuse unless `TRUST_ON_FIRST_USE_INSTALLERS=1`.
 
 ## Role Gate Pattern
 
@@ -34,9 +36,19 @@ if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
 fi
 ```
 
+## Helper Hash Include
+
+Put this line near the top of a `run_onchange_*` template that uses the helpers:
+
+```text
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
+```
+
 ## Existing Files to Reuse
 
-- Shared helper library: `dot_local/private_lib/chezmoi-helpers.sh`
+- Shared helper entry point: `dot_local/private_lib/chezmoi-helpers.sh`
+- Helper modules: `dot_local/private_lib/chezmoi/` (`core.sh`, `artifacts.sh`, `npm.sh`, `hermes/`)
+- Helper hash list: `.chezmoitemplates/setup/helper-hashes.tmpl`
 - Prereq package installs: `.chezmoiscripts/run_onchange_before_00-prerequisites.sh.tmpl`
 - Role-gated tool setup: `.chezmoiscripts/run_onchange_after_36-setup-codex.sh.tmpl`
 - Installer trust gate examples:
