@@ -1,0 +1,4 @@
+interface:
+  display_name: "Secret Leak Audit"
+  short_description: "Audit Git history and the worktree for leaked secrets without exposing them."
+  default_prompt: "Use $secret-leak-audit to scan Git history and the worktree for leaked secrets, tokens, private keys, sensitive filenames, and PII. Never print raw secret values. In the chezmoi dotfiles repo, run dotfiles-secret-scan --all, classify redacted findings, and recommend rotation before any history rewrite."

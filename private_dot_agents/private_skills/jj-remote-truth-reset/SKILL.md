@@ -9,16 +9,11 @@ description: "Reset or repair a bad local Jujutsu repo when a remote default bra
 
 Use this skill when the user says a local jj repo should be reset to a remote branch, the remote branch/default branch is the source of truth, local history is divergent/conflicted, or `trunk()` is pointing at the wrong branch.
 
-This skill is intentionally branch-agnostic. Do not assume `master`, `main`, or `dev`; detect the repo's remote default branch or require an explicit branch from the user.
+This skill is branch-agnostic. Do not assume `master`, `main`, or `dev`; detect the repo's remote default branch or require an explicit branch from the user.
 
 ## Core rule
 
-Do **not** fix per-repo trunk differences by hardcoding a global `trunk()` alias in the chezmoi-managed jj user config.
-
-- Global chezmoi jj config should contain shared aliases/defaults only.
-- Let jj resolve built-in `trunk()` per repo when possible.
-- If one repo needs a correction, set a repo-local override with `jj config set --repo`.
-- Prefer the managed helper `jj-sync-trunk` (or `jj trunk-sync`) so future repos use their detected remote default branch instead of a hardcoded global branch.
+Do **not** fix per-repo trunk differences with a global `trunk()` alias in the chezmoi-managed jj config (`private_dot_config/jj/config.toml`). Let jj resolve `trunk()` per repo, and write a repo-local override only when one repo needs it.
 
 ## Read first
 
@@ -32,63 +27,28 @@ Do **not** fix per-repo trunk differences by hardcoding a global `trunk()` alias
 3. If a mutating command makes things worse, immediately run `jj undo`.
 4. Never use raw destructive Git reset/checkout/restore commands for this workflow.
 
-## Keep `trunk()` aligned for the current repo
+## Fix `trunk()` for the current repo
 
-Run the managed helper in any jj repo. It detects the selected remote's HEAD/default branch, fetches that remote, and writes a repo-local `trunk()` override when jj's built-in/common `trunk()` resolution is missing or not durable:
-
-```bash
-jj-sync-trunk
-# or, through the jj alias:
-jj trunk-sync
-```
-
-Useful checks:
+The managed helper detects the selected remote's default branch, fetches that remote, and writes a repo-local `trunk()` override when jj's own resolution is missing or not durable:
 
 ```bash
-jj-sync-trunk --check       # report mismatch without writing repo config
+jj-sync-trunk               # or: jj trunk-sync
+jj-sync-trunk --check       # report a mismatch without writing repo config
 jj-sync-trunk --dry-run     # show the repo-local config write
-jj-sync-trunk --branch dev  # explicit one-off override when remote HEAD is wrong
+jj-sync-trunk --branch dev  # explicit override when the remote HEAD is wrong
 ```
 
-## Detect the repo-specific source branch manually
-
-Use the remote default branch instead of hardcoding a branch name. This snippet supports explicit overrides via environment variables and otherwise asks Git for the remote HEAD:
+To compare by hand: `jj log -r 'trunk()' --no-graph` and `jj log -r '<branch>@<remote>' --no-graph`. The direct repo-local override is:
 
 ```bash
-remote="${JJ_REMOTE:-origin}"
-branch="${JJ_TRUNK_BRANCH:-}"
-
-jj git fetch --remote "$remote"
-
-if [ -z "$branch" ]; then
-  remote_head_ref=$(git symbolic-ref -q --short "refs/remotes/${remote}/HEAD" || true)
-  if [ -n "$remote_head_ref" ]; then
-    branch="${remote_head_ref#${remote}/}"
-  fi
-fi
-
-if [ -z "$branch" ]; then
-  branch=$(git remote show -n "$remote" 2>/dev/null | awk -F': ' '/HEAD branch/ && $2 != "(unknown)" && $2 != "(not queried)" {print $2; exit}')
-fi
-
-if [ -z "$branch" ]; then
-  echo "Could not infer ${remote}'s default branch. Inspect 'git branch -r' and rerun with JJ_TRUNK_BRANCH=<branch>." >&2
-  exit 1
-fi
-
-source_rev="${branch}@${remote}"
-jj --ignore-working-copy log -r "$source_rev" --no-graph
+jj config set --repo 'revset-aliases."trunk()"' '"<branch>@<remote>"'
 ```
 
-If the detected branch is wrong, stop and ask or rerun with an explicit branch, for example:
-
-```bash
-JJ_REMOTE=origin JJ_TRUNK_BRANCH=dev <command-or-snippet>
-```
+This writes jj's repo-local config (see `jj config path --repo`), not the project repository or the shared chezmoi config.
 
 ## Reset local jj to the remote source of truth
 
-Use this only after the safety checks above. It moves the matching local bookmark to the remote default branch, creates a clean working-copy child from it, and abandons the old local stack that is not reachable from the remote source branch.
+Use this only after the safety checks. It detects the remote default branch (or uses `JJ_TRUNK_BRANCH`), moves the matching local bookmark to it, creates a clean working-copy child, and abandons the old local stack that is not reachable from the remote.
 
 ```bash
 remote="${JJ_REMOTE:-origin}"
@@ -133,7 +93,7 @@ jj bookmark list --all
 git status --short
 ```
 
-Remote bookmark revsets use jj syntax like `dev@origin`, `main@origin`, or `master@origin`; do not use Git-style `origin/dev` in jj revsets.
+If the detected branch is wrong, stop and ask, or rerun with `JJ_TRUNK_BRANCH=<branch>`. Remote bookmark revsets use jj syntax such as `dev@origin`; Git-style `origin/dev` is not valid in jj revsets.
 
 ## Optional full visible-local cleanup
 
@@ -160,55 +120,4 @@ jj --ignore-working-copy log -r "$local_only_revset" --no-graph --template 'comm
 git status --short
 ```
 
-## Fix wrong `trunk()` behavior per repo
-
-First inspect what `trunk()` resolves to and what the remote default branch resolves to:
-
-```bash
-jj log -r 'trunk()' --no-graph
-jj log -r "${branch}@${remote}" --no-graph
-```
-
-If jj cannot infer the right trunk for that repo, prefer the helper:
-
-```bash
-jj-sync-trunk --branch "$branch" --remote "$remote"
-```
-
-Or set the repo-local override directly:
-
-```bash
-jj config set --repo 'revset-aliases."trunk()"' "\"${branch}@${remote}\""
-```
-
-Concrete examples:
-
-```bash
-jj config set --repo 'revset-aliases."trunk()"' '"dev@origin"'
-jj config set --repo 'revset-aliases."trunk()"' '"main@origin"'
-jj config set --repo 'revset-aliases."trunk()"' '"master@origin"'
-```
-
-This writes to jj's repo-local config, not to the project repository and not to the shared chezmoi user config. Use `jj config path --repo` if you need to see the exact file.
-
-## Chezmoi shared config rule
-
-In the chezmoi source repo, the managed jj config should **not** define a global `trunk()` alias. The expected shared shape is:
-
-```toml
-[revset-aliases]
-# Useful revset shortcuts.
-# Do not override trunk() globally; jj covers common trunk names, and
-# jj-sync-trunk writes repo-local overrides when a repo needs one.
-"mine" = "author(exact:'rich')"
-"wip" = "description(glob:'wip*')"
-"stacked" = "trunk()..@"
-```
-
-After changing the chezmoi source, validate and render it:
-
-```bash
-chezmoi diff
-chezmoi apply
-chezmoi status
-```
+After changing the chezmoi-managed jj config, run `chezmoi diff`, `chezmoi apply`, and `chezmoi status`.
