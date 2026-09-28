@@ -197,7 +197,40 @@ ensure_hermes_tui_diff_color_patch() {
     fi
 }
 
+restore_hermes_tui_diff_skin_lines() {
+    # Older setup wrote static colors over the skin-native diff lines. Put the
+    # native lines back only when the result matches the checked-out file.
+    local theme_file="$INSTALL_DIR/$HERMES_TUI_DIFF_THEME_FILE"
+    tui_diff_skin_managed_ready || return 1
+
+    local tmp
+    tmp="$(mktemp "${theme_file}.tmp.XXXXXX")" || return 1
+    if awk \
+        -v added_patch="$HERMES_TUI_DIFF_DARK_PATCH_ADDED" \
+        -v removed_patch="$HERMES_TUI_DIFF_DARK_PATCH_REMOVED" \
+        -v added_word_patch="$HERMES_TUI_DIFF_DARK_PATCH_ADDED_WORD" \
+        -v removed_word_patch="$HERMES_TUI_DIFF_DARK_PATCH_REMOVED_WORD" \
+        -v added_native="$HERMES_TUI_DIFF_SKIN_NATIVE_ADDED" \
+        -v removed_native="$HERMES_TUI_DIFF_SKIN_NATIVE_REMOVED" \
+        -v added_word_native="$HERMES_TUI_DIFF_SKIN_NATIVE_ADDED_WORD" \
+        -v removed_word_native="$HERMES_TUI_DIFF_SKIN_NATIVE_REMOVED_WORD" '
+        $0 == added_patch { print added_native; next }
+        $0 == removed_patch { print removed_native; next }
+        $0 == added_word_patch { print added_word_native; next }
+        $0 == removed_word_patch { print removed_word_native; next }
+        { print }
+    ' "$theme_file" > "$tmp" \
+        && git -C "$INSTALL_DIR" show "HEAD:$HERMES_TUI_DIFF_THEME_FILE" 2>/dev/null | cmp -s - "$tmp"; then
+        mv "$tmp" "$theme_file"
+        return 0
+    fi
+    rm -f "$tmp"
+    return 1
+}
+
 remove_hermes_tui_diff_color_patch() {
+    [ -f "$INSTALL_DIR/$HERMES_TUI_DIFF_THEME_FILE" ] || return 0
+    restore_hermes_tui_diff_skin_lines && return 0
     replace_hermes_tui_diff_color_lines revert
 }
 

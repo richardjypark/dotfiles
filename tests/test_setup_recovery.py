@@ -453,6 +453,58 @@ remove_hermes_tui_status_patch
         self.assertIn("voice ${voiceEnabled ? 'on' : 'off'}", app.read_text())
         self.assertIn('wrap="truncate-end"', chrome.read_text())
 
+    def test_skin_theme_static_colors_revert_to_checkout(self):
+        install = self.home / "hermes"
+        theme = install / "ui-tui/src/theme.ts"
+        theme.parent.mkdir(parents=True)
+        native = "\n".join((
+            "    thinking: c('ui_thinking') ?? derived.thinking,",
+            "    diffAdded: c('diff_added') ?? derived.diffAdded,",
+            "    diffRemoved: c('diff_removed') ?? derived.diffRemoved,",
+            "    diffAddedWord: c('diff_added_word') ?? derived.diffAddedWord,",
+            "    diffRemovedWord: c('diff_removed_word') ?? derived.diffRemovedWord,",
+            "    syntaxString: c('syntax_string') ?? derived.syntaxString,",
+        )) + "\n"
+        theme.write_text(native)
+        git = ["git", "-C", str(install), "-c", "user.name=test", "-c", "user.email=test@example.invalid"]
+        subprocess.run(["git", "init", "-q", str(install)], env=self.env, check=True)
+        subprocess.run(git + ["add", "."], env=self.env, check=True)
+        subprocess.run(git + ["commit", "-qm", "fixture"], env=self.env, check=True)
+        patched = (native
+                   .replace("c('diff_added') ?? derived.diffAdded", "'rgb(31,37,33)'")
+                   .replace("c('diff_removed') ?? derived.diffRemoved", "'rgb(40,33,35)'")
+                   .replace("c('diff_added_word') ?? derived.diffAddedWord", "'rgb(112,143,104)'")
+                   .replace("c('diff_removed_word') ?? derived.diffRemovedWord", "'rgb(166,100,104)'"))
+        self.env.update(
+            INSTALL_DIR=str(install),
+            HERMES_TUI_DIFF_ADDED_BG="rgb(31,37,33)",
+            HERMES_TUI_DIFF_REMOVED_BG="rgb(40,33,35)",
+            HERMES_TUI_DIFF_ADDED_FG="rgb(112,143,104)",
+            HERMES_TUI_DIFF_REMOVED_FG="rgb(166,100,104)",
+        )
+        script = f'''set -euo pipefail
+eecho() {{ echo "$@"; }}
+vecho() {{ :; }}
+set +u
+. "{ROOT}/dot_local/private_lib/chezmoi/hermes/tui.sh"
+set -u
+remove_hermes_tui_diff_color_patch
+'''
+        user_edit = patched.replace("derived.syntaxString", "'user color'")
+        theme.write_text(user_edit)
+        kept = self.run_bash(script)
+        self.assertEqual(kept.returncode, 0, kept.stdout + kept.stderr)
+        self.assertEqual(theme.read_text(), user_edit)
+
+        theme.write_text(patched)
+        reverted = self.run_bash(script)
+        self.assertEqual(reverted.returncode, 0, reverted.stdout + reverted.stderr)
+        self.assertNotIn("Warning:", reverted.stdout)
+        self.assertEqual(theme.read_text(), native)
+        status = subprocess.run(["git", "-C", str(install), "status", "--porcelain"],
+                                env=self.env, capture_output=True, text=True, check=True)
+        self.assertEqual(status.stdout, "")
+
     def test_unknown_tui_status_is_not_partly_rewritten(self):
         app = self.home / "ui-tui/src/app/useMainApp.ts"
         chrome = self.home / "ui-tui/src/components/appChrome.tsx"
