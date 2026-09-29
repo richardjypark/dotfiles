@@ -46,8 +46,8 @@ This repo checks both file names and secret values:
    history and checked-out worktree on pull requests, pushes to every branch,
    a weekly schedule, and manual dispatch. It also rejects tracked ignored
    files and personal email addresses in new commits. Scanner output is fully
-   redacted. Require the `gitleaks` check from GitHub Actions on the default
-   branch, with no bypass actors in that required-check ruleset.
+   redacted. The default branch requires the `gitleaks` check; see
+   [Publishing to master](#publishing-to-master).
 2. **Local helper:** `dotfiles-secret-scan` runs the same redacted checks from a
    clone. Before `chezmoi apply` has rendered the helper, run the source script
    directly:
@@ -90,6 +90,46 @@ Use `dotfiles-push` or the repository's `jj push` alias. The `jp` and `jj-fzf`
 shortcuts use that alias. CI runs after data has reached GitHub; it cannot
 prevent the first publication of a secret. Push protection adds an independent
 check for supported secret types.
+
+## Publishing to master
+
+Every change reaches `master` through a pull request. No actor can bypass the
+rules, including the repository admin:
+
+```bash
+dotfiles-push --bookmark my-change --remote origin
+gh pr create --base master --head my-change --fill
+gh pr merge my-change --auto --merge --delete-branch
+```
+
+GitHub merges the pull request after the required checks pass. The pull
+request, its check runs, and the ruleset log are the audit record, and a
+`bypass` result in that log is always unexpected.
+
+Expected GitHub settings:
+
+- Ruleset "Protect master" (default branch): block deletion and force pushes;
+  require a pull request with 0 approvals and merge commits only; no bypass
+  actors. Merge commits keep the branch commit IDs, so local JJ history stays
+  valid after the merge.
+- Ruleset "Required checks" (default branch): require `gitleaks` and
+  `validation (ubuntu-24.04)` from GitHub Actions, with the branch up to
+  date; no bypass actors.
+- Repository: merge commits only, auto-merge on, delete branch on merge on.
+- Secret scanning: push protection, non-provider patterns, and validity
+  checks on.
+
+If `master` moves before the merge, rebase the change with `jj rebase` and run
+`dotfiles-push` again. If GitHub Actions is down, disable only the "Required
+checks" ruleset, merge, and enable it again; GitHub records the change. Keep
+"Protect master" active at all times.
+
+Check the live rules and recent rule results:
+
+```bash
+gh api 'repos/{owner}/{repo}/rules/branches/master'
+gh api 'repos/{owner}/{repo}/rulesets/rule-suites?ref=refs/heads/master'
+```
 
 ## Public identity and private source files
 
