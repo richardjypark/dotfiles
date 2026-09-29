@@ -100,7 +100,8 @@ install_via_release_binary() (
 
     download_url="https://github.com/starship/starship/releases/download/${PINNED_STARSHIP_VERSION}/${asset_name}"
     cache_file="$CACHE_DIR/starship-${PINNED_STARSHIP_VERSION}-${platform}.tar.gz"
-    temp_dir="$(mktemp -d)" || return 1
+    # macOS mktemp ignores TMPDIR without a template.
+    temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/starship.XXXXXXXX")" || return 1
     trap 'rm -rf "$temp_dir"' EXIT
 
     eecho "Installing Starship from pinned release binary (${PINNED_STARSHIP_VERSION})..."

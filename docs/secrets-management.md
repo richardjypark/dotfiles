@@ -120,8 +120,10 @@ Expected GitHub settings:
   non-provider patterns or validity checks for this repository; the local
   and CI gitleaks scans cover generic secrets.
 
-If `master` moves before the merge, rebase the change with `jj rebase` and run
-`dotfiles-push` again. If GitHub Actions is down, disable only the "Required
+If `gh pr merge --auto` reports that the pull request is not mergeable just
+after a push, GitHub is still computing the merge state; run the command
+again. If `master` moves before the merge, rebase the change with `jj rebase`
+and run `dotfiles-push` again. If GitHub Actions is down, disable only the "Required
 checks" ruleset, merge, and enable it again; GitHub records the change. Keep
 "Protect master" active at all times.
 
