@@ -55,6 +55,7 @@ Higher-level harness/system instructions still take precedence over this file.
 - Never amend commits unless you have explicit written approval.
 - Double-check `git status` or `jj status` before any commit or describe.
 - Before publishing this repository, use `dotfiles-push --bookmark <name> --remote origin` or the source command `dot_local/bin/executable_dotfiles-push`. It checks private paths, outgoing commit emails, and secrets before pushing. Use a GitHub no-reply address for new commits. Raw `jj git push` does not execute Git hooks.
+- Changes reach `master` only through a pull request that merges after the required checks pass. Push a branch, then run `gh pr create --base master --head <name> --fill` and `gh pr merge <name> --auto --merge --delete-branch`. Never bypass or weaken the `master` rulesets; see `docs/secrets-management.md`.
 - Before you run tests, setup scripts, or `chezmoi apply`, save unpublished work outside the repository: describe it as a `jj` change, then run `git bundle create "${TMPDIR:-/tmp}/dotfiles-$(date +%Y%m%d-%H%M%S).bundle" --all`. The `.jj` and `.git` history lives in the working tree, so it cannot restore a deleted working tree.
 - Create and remove test directories only through `tests/lib/temp.sh`. If a test stops because it cannot create a temporary directory, fix the environment; do not work around the check.
 
