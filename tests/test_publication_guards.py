@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMP_HELPER = ROOT / "tests/lib/temp.sh"
 GUARD = ROOT / "scripts/check-public-files.py"
 PUBLISH = ROOT / "dot_local/bin/executable_dotfiles-push"
+SCANNER = ROOT / "dot_local/bin/executable_dotfiles-secret-scan"
 PUBLIC_EMAIL = "test@users.noreply.github.com"
 
 
@@ -130,6 +131,15 @@ esac
         result = self.run_command("sh", ".githooks/pre-commit")
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse((self.temp / "calls").exists())
+
+    def test_scanner_snapshot_uses_tmpdir_and_is_removed(self):
+        tmpdir = self.temp / "scan-tmp"
+        tmpdir.mkdir()
+        self.write_tool("gitleaks", '#!/bin/sh\n[ "$1" = dir ] && echo "$2" >> "$GUARD_TEST_LOG"\nexit 0\n')
+        self.run_ok("bash", str(SCANNER), "--worktree", env={**self.env, "TMPDIR": str(tmpdir)})
+        scanned = (self.temp / "calls").read_text().strip()
+        self.assertTrue(scanned.startswith(f"{tmpdir}/dotfiles-secret-scan."), scanned)
+        self.assertEqual(list(tmpdir.iterdir()), [])
 
     def test_publisher_stops_on_scan_failure(self):
         self.commit_file("public.txt")
