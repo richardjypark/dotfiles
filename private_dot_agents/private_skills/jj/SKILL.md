@@ -30,6 +30,7 @@ Use this skill when the task is primarily about repository history or publishing
 3. Move a bookmark with `jj bookmark move --to @- <bookmark>`. Confirm the bookmark and remote with `jj bookmark list --all` first.
 4. Publish:
    - **This dotfiles repo:** run `dotfiles-push --bookmark <bookmark> --remote <remote>`. It checks private paths, outgoing commit emails, and secrets before it pushes. The `jj push` alias runs the same command only when the clone has the repo-local alias (`jj config list --repo`); otherwise it is raw `jj git push`. Raw `jj git push` skips these checks because jj does not run Git hooks.
+   - **This dotfiles repo, `master`:** GitHub refuses direct pushes to `master`. Create a branch with `jj bookmark create <name> -r @-`, publish it with `dotfiles-push`, then run `gh pr create --base master --head <name> --fill` and `gh pr merge <name> --auto --merge --delete-branch`. GitHub merges it after the required checks pass. After the merge, run `jj git fetch` and `jj rebase -r @ -d master`. Never bypass the `master` rulesets.
    - **Other repos:** run `jj git push --remote <remote> -b <bookmark>`.
 5. Verify with `jj log -r '<bookmark>@<remote>' --no-graph` and `jj status`. Remote bookmark syntax is `master@origin`, not `origin/master` or `@origin`.
 6. After every history-changing command, check `jj log` and `jj status` again. If a rewrite goes wrong, run `jj undo` at once. If you already moved on, use the recovery section in `references/jj-reference.md` before you try another rewrite.
