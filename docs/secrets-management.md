@@ -116,8 +116,9 @@ Expected GitHub settings:
   `validation (ubuntu-24.04)` from GitHub Actions, with the branch up to
   date; no bypass actors.
 - Repository: merge commits only, auto-merge on, delete branch on merge on.
-- Secret scanning: push protection, non-provider patterns, and validity
-  checks on.
+- Secret scanning and push protection on. GitHub does not turn on
+  non-provider patterns or validity checks for this repository; the local
+  and CI gitleaks scans cover generic secrets.
 
 If `master` moves before the merge, rebase the change with `jj rebase` and run
 `dotfiles-push` again. If GitHub Actions is down, disable only the "Required
