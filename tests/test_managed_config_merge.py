@@ -126,7 +126,7 @@ trusted_hash = "sha256:abc"
         self.assertEqual(config["sandbox_workspace_write"], {"dangerously_allow_all_unix_sockets": False})
         self.assertEqual(config["hooks"]["state"]["/tmp/hooks.json:session_start:0:0"]["trusted_hash"],
                          "sha256:abc")
-        self.assertEqual(config["model"], "gpt-6-sol")
+        self.assertEqual(config["model"], "gpt-6.1-sol")
         self.assertEqual(status, "")
 
     def test_codex_keeps_safe_explicit_values(self):
