@@ -44,6 +44,10 @@ for the complete naming and execution rules.
 | `private_dot_config/shell/alias.sh` | `~/.config/shell/alias.sh` | Managed private shell config |
 | `private_dot_config/mise/modify_config.toml` | `~/.config/mise/config.toml` | Merges managed global runtime defaults; keeps other tools |
 | `dot_local/bin/executable_czu` | `~/.local/bin/czu` | Managed executable |
+| `dot_local/bin/executable_dotfiles-update` | `~/.local/bin/dotfiles-update` | Interactive Omarchy and reviewed dotfiles update |
+| `dot_local/bin/executable_dotfiles-update-check` | `~/.local/bin/dotfiles-update-check` | Read-only background update report |
+| `private_dot_config/systemd/user/dotfiles-update-check.{service,timer}` | `~/.config/systemd/user/` | Linux Omarchy workstation check units |
+| `.chezmoiscripts/run_onchange_after_92-setup-update-check.sh.tmpl` | Executed during apply; no managed file target | Enables the workstation check timer |
 | `dot_local/private_lib/chezmoi-helpers.sh` | `~/.local/lib/chezmoi-helpers.sh` | Managed shared script library |
 | `dot_local/private_lib/chezmoi/{core,artifacts,npm}.sh` | `~/.local/lib/chezmoi/` | Managed helper modules |
 | `dot_local/private_lib/chezmoi/stable-release-eligibility.py` | `~/.local/lib/chezmoi/stable-release-eligibility.py` | Managed release eligibility helper |

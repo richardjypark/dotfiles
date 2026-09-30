@@ -105,8 +105,13 @@ maintenance_run sudo -v
 echo "==> Synchronizing and applying current chezmoi source..."
 maintenance_run czuf
 
-echo "==> Updating Arch packages..."
-maintenance_run sudo pacman -Syu --noconfirm
+if command -v omarchy >/dev/null 2>&1; then
+    echo "==> Updating Omarchy and system packages..."
+    maintenance_run omarchy update
+else
+    echo "==> Updating Arch packages..."
+    maintenance_run sudo pacman -Syu --noconfirm
+fi
 
 if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
     echo "==> Updating stable source pins atomically..."

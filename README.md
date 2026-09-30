@@ -95,7 +95,9 @@ available if `chezmoi-health-check` reports policy drift.
 | `chezmoi update` | Pulls latest dotfiles from upstream and applies them. | Standard sync from repo changes. |
 | `czu [--reviewed]` | Resolves one source workspace, syncs and rebases through `jj-sync-trunk`, then applies it. `--reviewed` requires a clean current change and a tree matching the merged remote default, rejects conflicts, and records success only after apply and health checks. Saved local profile data takes priority over Omarchy host detection. | Use `TRUST_ON_FIRST_USE_INSTALLERS=1 czu --reviewed` for merged updates after deployment of the command. Plain `czu` retains local development behavior. Set `CHEZMOI_SOURCE_DIR=/absolute/workspace` to select another source. |
 | `czuf` | Same selected-source/trunk flow as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and `chezmoi apply --refresh-externals --force`. It does not run broad package-manager upgrades or bump source pins. | Full refresh when pinned tools/externals changed or state needs rebuilding. On macOS, use `czm` for one-command app + pin maintenance. |
-| `czl [--system-only \| --bump-pins] [--plan] [--verbose]` | Omarchy/Arch maintenance. No arguments preserve the full workflow: clean-source gate, `czuf`, `pacman -Syu`, atomic `chezmoi-bump --all`, and final forced selected-source apply. `--system-only` skips source-pin mutation but keeps the Arch convergence apply. | Daily Arch maintenance. Use `--plan` for a non-installing preview or `--system-only` when the current JJ change is intentionally dirty. |
+| `czl [--system-only \| --bump-pins] [--plan] [--verbose]` | Omarchy/Arch maintenance. No arguments preserve the full workflow: clean-source gate, `czuf`, `omarchy update` on Omarchy (native pacman on other Arch hosts), atomic `chezmoi-bump --all`, and final forced selected-source apply. `--system-only` skips source-pin mutation but keeps the Arch convergence apply. | Explicit full maintenance. Use `--plan` for a preview or `--system-only` when the current JJ change is intentionally dirty. For routine merged updates on Omarchy, use `dotfiles-update`. |
+| `dotfiles-update` | Saves a private history bundle outside the source repo, runs interactive `omarchy update`, then runs `TRUST_ON_FIRST_USE_INSTALLERS=1 czu --reviewed`. Requires clean source that matches the cached remote trunk before any installation; describes a blank current JJ change for the backup. | One command for Omarchy packages and merged dotfiles. Defer Omarchy's reboot prompt until the command finishes. |
+| `dotfiles-update-check` | Checks the live remote default HEAD, Arch packages, optional AUR packages, and supported seven-day dependency pins. Saves a private report and shows a desktop notification when action is needed or checks fail. Does not install or change source. | Background checks on Linux Omarchy workstations, or a manual update report. |
 | `czm [--system-only \| --bump-pins] [--plan] [--verbose]` | macOS maintenance. No arguments preserve the full Homebrew + atomic pin-bump workflow. The final selected-source apply runs only when the clean-source bump leaves a JJ diff; Homebrew cleanup runs last and is warning-only. `--system-only` skips source-pin mutation and the final pin apply. | Daily macOS maintenance. Use `--plan` for a non-installing preview or `--system-only` when the current JJ change is intentionally dirty. |
 | `czclean` | Managed wrapper command in `~/.local/bin/czclean`: manual storage cleanup helper. Defaults to dry-run; run `czclean --yes` for conservative cache cleanup, add `--claude`, `--claude-history`, `--docker`, `--docker-volumes`, `--chezmoi-cache`, or `--aggressive` only when you intentionally want those extra cleanup scopes. | Reclaim package-manager, temporary, and opt-in tool cache bloat safely. |
 | `czvc` | Managed wrapper command in `~/.local/bin/czvc`: runs `chezmoi-check-versions`, which reports each pinned external as `eligible`, `too_new`, `major_review`, `current`, or `unsupported` under the seven-day stable-release rule, and exits non-zero when API/network errors make results incomplete. | Check pinned versions against upstream releases. |
@@ -119,6 +121,50 @@ Maintenance mode contract:
 - `--plan` performs no fetch/rebase/config write, package installation, tracked-source mutation, or home-directory apply. It may perform network reads and cache writes while checking remote trunk, package updates, and upstream pin versions.
 - `--verbose` exports `VERBOSE=true` and prints command/synchronization details. Unknown or conflicting mode flags exit with status 2.
 - `CHEZMOI_SOURCE_DIR` (or the backward-compatible `CHEZMOI_DIR`) must name an absolute validated JJ workspace root. If unset, wrappers use `chezmoi source-path`; they no longer silently fall back to a conventional directory.
+
+### Background checks on Omarchy
+
+On Linux Omarchy workstations, chezmoi enables the user timer
+`dotfiles-update-check.timer`. It checks a few minutes after login and daily,
+and catches up after the machine has been off. Checks run as your user, with
+no sudo or installation. You do not need to run full maintenance at each login.
+
+When the notification reports updates, run:
+
+```bash
+dotfiles-update
+```
+
+Keep its password and migration prompts visible. If Omarchy offers a reboot,
+defer it until the command finishes. Omarchy can return success after you cancel
+its first prompt; the merged dotfiles step can still run in that case. A real
+update failure stops the command. Local or unmerged source work stops it before
+the system update. Dependency pin candidates require the existing review and
+PR process; this command installs pins already merged into the default branch.
+
+Read the last report or check the timer with:
+
+```bash
+cat "${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi-maintenance/last-update-check.txt"
+systemctl --user list-timers dotfiles-update-check.timer
+journalctl --user -u dotfiles-update-check.service
+```
+
+Native packages and Omarchy's mise updates use Omarchy's policy. The seven-day
+rule applies to the supported source-pin scan. Manual-only pins and incomplete
+checks are named in the report. A missing desktop notification service does not
+prevent the report from being saved.
+
+To stop the checks on this host, run:
+
+```bash
+systemctl --user disable --now dotfiles-update-check.timer
+```
+
+An apply that reruns the timer setup enables checks again on an Omarchy
+workstation. Other roles and profiles skip the timer and disable an existing
+enabled timer. The GitHub publication pilot remains manual; see
+[maintenance automation](docs/maintenance-automation.md).
 
 ### Sync a jj Repo to Its Remote Default Branch
 
