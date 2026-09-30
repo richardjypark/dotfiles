@@ -35,7 +35,7 @@
 {{- $managed := `# Use Sol with medium reasoning for clear, repeatable repo work. Leave context
 # and compaction limits unset so Codex follows the selected model's current
 # catalog metadata instead of stale local overrides.
-model = "gpt-6-sol"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 personality = "pragmatic"
 
