@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# shellcheck disable=SC1091
+. "$HOME/.local/lib/chezmoi-update-helpers.sh"
+
+if [ "$#" -ne 0 ]; then
+    if [ "$#" -eq 1 ] && { [ "$1" = --help ] || [ "$1" = -h ]; }; then
+        printf 'Usage: dotfiles-update\n\n'
+        printf 'Back up clean source history, run Omarchy updates, then apply merged dotfiles.\n'
+        printf 'Run in a terminal. Keep password, migration, and restart prompts visible.\n'
+        printf 'Defer any reboot until this command finishes.\n'
+        exit 0
+    fi
+    printf 'dotfiles-update: unknown argument; use --help\n' >&2
+    exit 2
+fi
+
+if [ "$(id -u)" -eq 0 ]; then
+    printf 'dotfiles-update: run as your normal user, without sudo\n' >&2
+    exit 1
+fi
+for dependency in git python3 omarchy czu; do
+    if ! command -v "$dependency" >/dev/null 2>&1; then
+        printf 'dotfiles-update: required command is missing: %s\n' "$dependency" >&2
+        exit 1
+    fi
+done
+
+resolve_chezmoi_source_dir
+profile="${CHEZMOI_PROFILE:-}"
+if [ -z "$profile" ]; then
+    profile="$(run_chezmoi_with_source data --format=json | python3 -c 'import json,sys; print(json.load(sys.stdin).get("profile", ""))')"
+    if [ -z "$profile" ] && is_omarchy_host; then profile=omarchy; fi
+fi
+if [ "$profile" != omarchy ] || ! is_omarchy_host; then
+    printf 'dotfiles-update: this command requires an Omarchy host and profile\n' >&2
+    exit 1
+fi
+export CHEZMOI_PROFILE="$profile"
+
+# The diff snapshots the current change. Do not rename existing user work.
+require_clean_chezmoi_reviewed_source
+require_merged_chezmoi_source
+description="$(jj --ignore-working-copy -R "$CHEZMOI_SOURCE_DIR_RESOLVED" log -r @ --no-graph --template description)"
+if [[ ! "$description" =~ [^[:space:]] ]]; then
+    jj -R "$CHEZMOI_SOURCE_DIR_RESOLVED" status
+    require_clean_chezmoi_reviewed_source
+    jj --quiet -R "$CHEZMOI_SOURCE_DIR_RESOLVED" describe -m "chore: prepare routine updates"
+fi
+
+backup_base="${TMPDIR:-/tmp}"
+case "$backup_base" in
+    /*) ;;
+    *) printf 'dotfiles-update: TMPDIR must be an absolute directory\n' >&2; exit 1 ;;
+esac
+backup_base="$(cd "$backup_base" && pwd -P)"
+case "$backup_base" in
+    /|"$CHEZMOI_SOURCE_DIR_RESOLVED"|"$CHEZMOI_SOURCE_DIR_RESOLVED"/*)
+        printf 'dotfiles-update: the backup directory must be outside the source repository\n' >&2
+        exit 1
+        ;;
+esac
+backup_dir="$(umask 077; mktemp -d "$backup_base/dotfiles-backup.XXXXXXXX")"
+backup_file="$backup_dir/dotfiles-$(date +%Y%m%d-%H%M%S).bundle"
+if ! (umask 077; git -C "$CHEZMOI_SOURCE_DIR_RESOLVED" bundle create "$backup_file" --all); then
+    printf 'dotfiles-update: history backup failed; no updates started\n' >&2
+    exit 1
+fi
+printf 'History backup: %s\n' "$backup_file"
+printf '\nDefer any Omarchy reboot until this command finishes.\n'
+printf '==> Running Omarchy updates...\n'
+omarchy update
+
+# Omarchy can return zero after cancellation. Do not claim packages changed.
+printf '\n==> Applying merged dotfiles. This also runs if Omarchy was canceled.\n'
+(
+    unset CHEZMOI_FORCE_UPDATE
+    TRUST_ON_FIRST_USE_INSTALLERS=1 czu --reviewed
+)
+printf '\nReviewed dotfiles update completed. Check the Omarchy output for system update results.\n'
+printf 'You can now perform any reboot that Omarchy requested.\n'

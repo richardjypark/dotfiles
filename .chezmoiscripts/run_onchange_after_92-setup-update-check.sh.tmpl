@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
+# Units: {{ include "private_dot_config/systemd/user/dotfiles-update-check.service" | sha256sum }} {{ include "private_dot_config/systemd/user/dotfiles-update-check.timer" | sha256sum }}
+
+RESOLVED_ROLE="{{ includeTemplate "resolved-role" . }}"
+RESOLVED_PROFILE="{{ includeTemplate "resolved-profile" . }}"
+
+if [ "$(uname -s)" != Linux ] || ! command -v systemctl >/dev/null 2>&1; then
+    exit 0
+fi
+if ! systemctl --user show-environment >/dev/null 2>&1; then
+    eecho "User systemd is unavailable. Enable dotfiles-update-check.timer after login."
+    exit 0
+fi
+
+if [ "$RESOLVED_ROLE" != workstation ] || [ "$RESOLVED_PROFILE" != omarchy ]; then
+    if systemctl --user is-enabled dotfiles-update-check.timer >/dev/null 2>&1; then
+        systemctl --user disable --now dotfiles-update-check.timer
+    fi
+    exit 0
+fi
+
+systemctl --user daemon-reload
+systemctl --user enable --now dotfiles-update-check.timer
+vecho "Background update checks are enabled. Run dotfiles-update to install updates."

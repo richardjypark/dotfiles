@@ -1,0 +1,13 @@
+[Unit]
+Description=Check system and dotfiles updates without installing
+After=network-online.target graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/dotfiles-update-check
+WorkingDirectory=%h
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
+TimeoutStartSec=12min
+UMask=0077
+Nice=10
+NoNewPrivileges=true

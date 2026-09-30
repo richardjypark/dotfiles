@@ -89,6 +89,10 @@ logs/*
 # Preserve Omarchy defaults while still managing this repo.
 # Enable with: CHEZMOI_PROFILE=omarchy chezmoi apply|update
 {{ $profile := includeTemplate "resolved-profile" . }}
+{{ if not (and (eq .chezmoi.os "linux") (eq $profile "omarchy") (eq $role "workstation")) }}
+.config/systemd/user/dotfiles-update-check.service
+.config/systemd/user/dotfiles-update-check.timer
+{{ end }}
 {{ $force_raw := or (index . "force_zsh_login") (env "CHEZMOI_FORCE_ZSH_LOGIN") }}
 {{ $force_str := lower (printf "%v" $force_raw) }}
 {{ $force_zsh := or (eq $force_str "true") (eq $force_str "1") (eq $force_str "yes") }}

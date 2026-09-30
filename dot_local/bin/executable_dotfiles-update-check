@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""Report updates without fetching, applying, installing, or changing source pins."""
+
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+COMMAND_TIMEOUT = 120
+PIN_TIMEOUT = 300
+LOCAL_TIMEOUT = 10
+REMOTE_TIMEOUT = 30
+AUR_TIMEOUT = 90
+
+
+class CheckFailure(Exception):
+    pass
+
+
+def run(command, env, timeout=None, binary=False):
+    """Bound the whole command tree, including network clients started by helpers."""
+    if timeout is None:
+        timeout = COMMAND_TIMEOUT
+    try:
+        process = subprocess.Popen(
+            command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=not binary, env=env, start_new_session=True,
+        )
+    except OSError as error:
+        raise CheckFailure(f"Cannot run {command[0]}: {error}") from error
+    try:
+        output, _ = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            process.communicate(timeout=2)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.communicate()
+        raise CheckFailure(f"{command[0]} timed out after {timeout} seconds") from None
+    return process.returncode, output if binary else output.strip()
+
+
+def checked(command, env, timeout=None, binary=False):
+    code, output = run(command, env, timeout, binary)
+    if code:
+        raise CheckFailure(f"{command[0]} exited with status {code}\n{output}")
+    return output
+
+
+def source_path(env):
+    def canonical(value):
+        path = Path(value)
+        if not value or not path.is_absolute() or not path.is_dir():
+            raise CheckFailure(f"Source must be an existing absolute directory: {value}")
+        return path.resolve()
+
+    source = env.get("CHEZMOI_SOURCE_DIR", "")
+    legacy = env.get("CHEZMOI_DIR", "")
+    if source and legacy and canonical(source) != canonical(legacy):
+        raise CheckFailure("CHEZMOI_SOURCE_DIR and CHEZMOI_DIR conflict")
+    path = canonical(source or legacy or checked(["chezmoi", "source-path"], env, LOCAL_TIMEOUT))
+    if not (path / ".chezmoidata.toml").is_file():
+        raise CheckFailure(f"Source is missing .chezmoidata.toml: {path}")
+    root = checked(["jj", "--ignore-working-copy", "-R", str(path), "root"], env, LOCAL_TIMEOUT)
+    if canonical(root) != path:
+        raise CheckFailure(f"Source is not the JJ workspace root: {path}")
+    env["CHEZMOI_SOURCE_DIR"] = env["CHEZMOI_DIR"] = str(path)
+    return path
+
+
+def remote_check(source, env):
+    remote = env.get("CHEZMOI_JJ_REMOTE") or env.get("JJ_REMOTE") or "origin"
+    if remote.startswith("-") or not re.fullmatch(r"[A-Za-z0-9_./-]+", remote):
+        raise CheckFailure("The configured JJ remote must be a remote name")
+    url = checked(["git", "-C", str(source), "remote", "get-url", remote], env, LOCAL_TIMEOUT)
+    fallback_used = False
+    try:
+        output = checked(
+            ["git", "-C", str(source), "ls-remote", "--symref", "--exit-code", remote, "HEAD"],
+            env, REMOTE_TIMEOUT,
+        )
+    except CheckFailure as primary:
+        github = re.fullmatch(r"(?:git@github\.com:|ssh://git@github\.com/)([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)", url)
+        if not github:
+            raise
+        owner, repository = github.groups()
+        repository = repository.removesuffix(".git")
+        public_url = f"https://github.com/{owner}/{repository}.git"
+        try:
+            output = checked(
+                ["git", "-c", "credential.helper=", "-C", str(source), "ls-remote",
+                 "--symref", "--exit-code", public_url, "HEAD"], env, REMOTE_TIMEOUT,
+            )
+        except CheckFailure as fallback:
+            raise CheckFailure(f"Configured remote connection failed:\n{primary}\nPublic HTTPS connection failed:\n{fallback}") from fallback
+        fallback_used = True
+    branch = re.search(r"^ref: refs/heads/(.+)\s+HEAD$", output, re.MULTILINE)
+    head = re.search(r"^([0-9a-f]{40}|[0-9a-f]{64})\s+HEAD$", output, re.MULTILINE)
+    if not branch or not head:
+        raise CheckFailure("Remote HEAD did not identify a default branch and commit")
+    # In a colocated JJ workspace, Git HEAD is the checked-out parent. Comparing
+    # with the empty JJ working commit would report an update on every run.
+    local = checked(["git", "-C", str(source), "rev-parse", "--verify", "HEAD"], env, LOCAL_TIMEOUT)
+    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", local):
+        raise CheckFailure("Cannot identify the local source parent")
+    different = local != head.group(1)
+    status = "Remote source differs from the local parent" if different else "Source parent matches remote HEAD"
+    details = f"{status}: {remote}/{branch.group(1)}\nRemote: {head.group(1)}\nLocal:  {local}"
+    if fallback_used:
+        details += "\nUsed read-only public GitHub HTTPS after the configured SSH connection failed; the remote was not changed."
+    pending = checked(["git", "-C", str(source), "status", "--porcelain", "--untracked-files=normal"], env, LOCAL_TIMEOUT)
+    if pending:
+        details += "\nLocal source has pending changes; save or review them before installing:\n" + pending
+    if different:
+        details += "\nLocal or unmerged source changes can also cause this difference; review before installing."
+    return different or bool(pending), details
+
+
+def native_check(env):
+    code, output = run(["checkupdates", "--nocolor"], env)
+    if code == 2:
+        return False, "No official Arch package updates"
+    if code or not output:
+        raise CheckFailure(f"checkupdates failed or returned an empty update list (status {code})\n{output}")
+    return True, output
+
+
+def aur_check(env):
+    if not shutil.which("yay", path=env.get("PATH")):
+        return False, "Skipped: yay is not installed; AUR packages were not checked"
+    code, output = run(["yay", "-Qua"], env, AUR_TIMEOUT)
+    # Yay returns 1 with no stdout or stderr when the upgrade list is empty.
+    if code == 1 and not output:
+        return False, "No AUR package updates"
+    if code:
+        raise CheckFailure(f"yay exited with status {code}\n{output}")
+    return bool(output), output or "No AUR package updates"
+
+
+def pin_check(source, state, env):
+    # The installed scanner executes this source helper. Do not execute local
+    # helper changes merely because a daily timer fired.
+    helper = "dot_local/private_lib/chezmoi/stable-release-eligibility.py"
+    revision = checked(
+        ["jj", "--ignore-working-copy", "-R", str(source), "log", "-r", "trunk()",
+         "--no-graph", "--template", "commit_id"], env, LOCAL_TIMEOUT,
+    )
+    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", revision):
+        raise CheckFailure("Cannot identify the cached merged trunk for the pin helper")
+    approved = checked(["git", "-C", str(source), "show", f"{revision}:{helper}"], env, LOCAL_TIMEOUT, binary=True)
+    try:
+        if (source / helper).read_bytes() != approved:
+            raise CheckFailure("The source pin helper differs from merged trunk; review and merge the helper change before scanning")
+    except OSError as error:
+        raise CheckFailure(f"Cannot read the merged source pin helper: {error}") from error
+    try:
+        inventory = json.loads(checked(["chezmoi-bump", "--inventory"], env, LOCAL_TIMEOUT))
+        expected = [row["name"] for row in inventory]
+        if not expected or any(not isinstance(name, str) or not name for name in expected) or len(set(expected)) != len(expected):
+            raise ValueError("Incomplete dependency inventory")
+    except (ValueError, TypeError, KeyError) as error:
+        raise CheckFailure(f"Cannot read the complete dependency inventory: {error}") from error
+    descriptor, filename = tempfile.mkstemp(prefix=".pin-check-", suffix=".json", dir=state)
+    os.close(descriptor)
+    report = Path(filename)
+    try:
+        output = checked(
+            ["chezmoi-bump", "--automatic", "--all", "--check", "--report-out", filename],
+            env, PIN_TIMEOUT,
+        )
+        try:
+            data = json.loads(report.read_text())
+            rows = data["dependencies"]
+            allowed = {"eligible", "current", "too_new", "major_review", "review", "manual"}
+            if (data.get("schema") != 1 or not isinstance(rows, list) or not rows
+                    or any(not isinstance(row, dict) or not row.get("name")
+                           or row.get("state") not in allowed for row in rows)):
+                raise ValueError("Incomplete pin report")
+            names = [row["name"] for row in rows]
+            if len(names) != len(expected) or set(names) != set(expected):
+                raise ValueError("Pin report does not cover the dependency inventory exactly once")
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise CheckFailure(f"Cannot read the complete pin report: {error}") from error
+        action = any(row["state"] in {"eligible", "major_review", "review"} for row in rows)
+        manual = [row["name"] for row in rows if row["state"] == "manual"]
+        details = output + "\nPin proposals require review and a merged pull request."
+        if manual:
+            details += "\nManual-only dependencies were not checked: " + ", ".join(manual)
+        return action, details
+    finally:
+        report.unlink(missing_ok=True)
+
+
+def save_report(state, text):
+    descriptor, filename = tempfile.mkstemp(prefix=".update-check-", dir=state)
+    temporary = Path(filename)
+    try:
+        with os.fdopen(descriptor, "w") as stream:
+            stream.write(text)
+        target = state / "last-update-check.txt"
+        temporary.replace(target)
+        return target
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def notify(title, body, env):
+    if shutil.which("notify-send", path=env.get("PATH")):
+        try:
+            checked(["notify-send", "--app-name=Dotfiles updates", title, body], env, 10)
+        except CheckFailure as error:
+            print(f"Notification unavailable: {error}", file=sys.stderr)
+
+
+def main():
+    if sys.argv[1:] in (["--help"], ["-h"]):
+        print("Usage: dotfiles-update-check\nCheck remote source, Arch, AUR and supported seven-day pins.\nWrites a private report; does not install updates. Install with dotfiles-update.")
+        return 0
+    if len(sys.argv) != 1:
+        print("Usage: dotfiles-update-check", file=sys.stderr)
+        return 2
+    os.umask(0o077)
+    env = dict(os.environ)
+    env.update({
+        "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "/usr/bin/false",
+        "SSH_ASKPASS": "/usr/bin/false", "GCM_INTERACTIVE": "Never",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_SSH_COMMAND": "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10",
+        "LC_ALL": "C",
+    })
+    state = Path(env.get("XDG_STATE_HOME") or str(Path.home() / ".local/state")) / "chezmoi-maintenance"
+    try:
+        if not state.is_absolute() or state.is_symlink():
+            raise CheckFailure("Maintenance state must be an absolute directory, not a symlink")
+        state.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if state.stat().st_uid != os.getuid():
+            raise CheckFailure("Maintenance state must belong to the current user")
+        state.chmod(0o700)
+    except (OSError, CheckFailure) as error:
+        print(f"Update check incomplete: {error}", file=sys.stderr)
+        notify("Update check incomplete", "No report was saved. Run dotfiles-update-check in a terminal.", env)
+        return 1
+
+    env["CHECKUPDATES_DB"] = str(state / "arch-check-db")
+    sections = [f"Update check: {datetime.now(timezone.utc).isoformat()}"]
+    failures = []
+    needs_action = False
+    source = None
+    try:
+        source = source_path(env)
+        sections.append(f"Source: {source}")
+    except CheckFailure as error:
+        failures.append("Source validation")
+        sections.append(f"[ERROR] Source validation\n{error}")
+
+    checks = [("Official Arch packages", lambda: native_check(env)), ("AUR packages", lambda: aur_check(env))]
+    if source is not None:
+        checks.insert(0, ("Remote dotfiles HEAD", lambda: remote_check(source, env)))
+        checks.append(("Seven-day supported pin scan", lambda: pin_check(source, state, env)))
+    else:
+        sections.append("Remote HEAD and pin checks were not run because source validation failed.")
+    for name, check in checks:
+        try:
+            action, details = check()
+            needs_action = needs_action or action
+            sections.append(f"[OK] {name}\n{details}")
+        except CheckFailure as error:
+            failures.append(name)
+            sections.append(f"[ERROR] {name}\n{error}")
+
+    if failures:
+        summary = "Check incomplete: " + ", ".join(failures)
+    elif needs_action:
+        summary = "Updates or source-pin review are available."
+    else:
+        summary = "Supported checks complete; no available updates were found. See skipped and manual-only dependencies."
+    sections.append(summary + "\nInstall system and merged dotfiles updates: dotfiles-update\nThis check did not install, apply, fetch, or change source pins.")
+    try:
+        report = save_report(state, "\n\n".join(sections) + "\n")
+    except OSError as error:
+        print(f"Update check incomplete: cannot save report: {error}", file=sys.stderr)
+        notify("Update check incomplete", "No report was saved. Run dotfiles-update-check in a terminal.", env)
+        return 1
+    print(f"{summary}\nReport: {report}")
+    if failures or needs_action:
+        title = "Update check incomplete" if failures else "Updates need attention"
+        notify(title, f"{summary}\nRun: dotfiles-update\nReport: {report}", env)
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
