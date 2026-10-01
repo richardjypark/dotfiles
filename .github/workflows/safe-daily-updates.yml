@@ -1,36 +1,214 @@
-# Stage 1: manual, report only. Add a schedule and publisher only after the
-# retired host timers and branch protection are verified in a later review.
-name: safe-daily-updates-report
+# Pilot: manual dispatch defaults to a report. Add a schedule after a real App
+# PR passes all required checks and the retired Linux writers are inactive.
+name: safe-daily-updates
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish verified patches for manual review
+        type: boolean
+        default: false
+
+concurrency:
+  group: routine-tool-maintenance
+  cancel-in-progress: false
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
-  report:
+  prepare:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 40
+    outputs:
+      mode: ${{ steps.inspect.outputs.mode }}
+      number: ${{ steps.inspect.outputs.number }}
+      head: ${{ steps.inspect.outputs.head }}
+      candidate: ${{ steps.candidate.outputs.candidate }}
     env:
       CHEZMOI_AUTOMATIC_UPDATES: '1'
       CHEZMOI_NPM_MIN_VERSION_AGE_DAYS: '7'
       npm_config_ignore_scripts: 'true'
+      GIT_TERMINAL_PROMPT: '0'
     steps:
       - name: Check out trusted default branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
+      - name: Install verified jj for offline publication tests
+        run: |
+          python3 scripts/check-maintenance-candidate.py install-jj --base "$GITHUB_SHA" \
+            --destination "$RUNNER_TEMP/maintenance-tools"
+          printf '%s\n' "$RUNNER_TEMP/maintenance-tools" >> "$GITHUB_PATH"
       - name: Test offline release policy and timer migration
-        run: python3 tests/test_safe_daily_updates.py
-      - name: Resolve fresh seven-day candidates without source edits
+        run: |
+          python3 tests/test_safe_daily_updates.py
+          python3 tests/test_maintenance_publisher.py
+      - name: Inspect the existing routine pull request
+        id: inspect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          APP_LOGIN: ${{ vars.DOTFILES_MAINTENANCE_APP_SLUG }}[bot]
+        run: |
+          python3 scripts/publish-maintenance-candidate.py inspect \
+            --base "$GITHUB_SHA" --login "$APP_LOGIN" > "$RUNNER_TEMP/maintenance-plan.json"
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          from pathlib import Path
+          plan = json.loads((Path(os.environ['RUNNER_TEMP']) / 'maintenance-plan.json').read_text())
+          for key in ('mode', 'number', 'head'):
+              print(f'{key}={plan[key]}')
+          PY
+      - name: Prepare or report fresh seven-day patch candidates
+        if: steps.inspect.outputs.mode == 'new'
         env:
           CHEZMOI_DIR: ${{ github.workspace }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: bash dot_local/bin/executable_chezmoi-bump --automatic --all --check
-      - name: Show staged policy
+          PUBLISH_REQUESTED: ${{ inputs.publish || vars.DOTFILES_MAINTENANCE_PUBLISH == 'true' }}
         run: |
-          printf '%s\n' 'Report only: no schedule, branch write, PR, or host apply.'
-          printf '%s\n' 'Publication requires retired host timers and verified branch rules.'
+          export CACHE_DIR="$RUNNER_TEMP/maintenance-cache"
+          export XDG_STATE_HOME="$RUNNER_TEMP/maintenance-state"
+          args=(--automatic --all --patch-only --report-out "$RUNNER_TEMP/maintenance-report.json")
+          if [ "$PUBLISH_REQUESTED" = true ]; then
+            args+=(--manifest-out "$RUNNER_TEMP/maintenance-manifest.json")
+          else
+            args+=(--check)
+          fi
+          bash dot_local/bin/executable_chezmoi-bump "${args[@]}"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import html, json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ['RUNNER_TEMP']) / 'maintenance-report.json').read_text())
+          print('| Dependency | Current | Result | Candidate |\n| --- | --- | --- | --- |')
+          for row in report['dependencies']:
+              values = [html.escape(row[key]).replace('|', '\\|') for key in ('name', 'current', 'state', 'candidate')]
+              print('| ' + ' | '.join(values) + ' |')
+          print('\nPi and fzf remain under manual review. Their installation contracts are not covered by this report.')
+          PY
+      - name: Set up Go for the pinned scanner
+        if: steps.inspect.outputs.mode == 'new' && (inputs.publish || vars.DOTFILES_MAINTENANCE_PUBLISH == 'true')
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.25'
+      - name: Build and scan bounded candidate data
+        id: candidate
+        if: steps.inspect.outputs.mode == 'new' && (inputs.publish || vars.DOTFILES_MAINTENANCE_PUBLISH == 'true')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet HEAD --; then
+            printf '%s\n' 'No eligible patch changes. No branch or PR is needed.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 scripts/check-maintenance-candidate.py build --base "$GITHUB_SHA" \
+            --report "$RUNNER_TEMP/maintenance-report.json" --output "$RUNNER_TEMP/maintenance-candidate.json"
+          export GOBIN="$RUNNER_TEMP/maintenance-tools"
+          mkdir -p "$GOBIN"
+          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          PATH="$GOBIN:$PATH" bash dot_local/bin/executable_dotfiles-secret-scan --all
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import base64, os
+          from pathlib import Path
+          data = (Path(os.environ['RUNNER_TEMP']) / 'maintenance-candidate.json').read_bytes()
+          if len(data) > 65536:
+              raise SystemExit('Candidate exceeds the job data limit')
+          print('candidate=' + base64.b64encode(data).decode())
+          PY
+
+  publish:
+    needs: prepare
+    if: >-
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (inputs.publish || vars.DOTFILES_MAINTENANCE_PUBLISH == 'true') &&
+      (needs.prepare.outputs.candidate != '' || needs.prepare.outputs.mode == 'existing')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: dotfiles-maintenance
+    env:
+      GIT_TERMINAL_PROMPT: '0'
+    steps:
+      - name: Check out the same trusted base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Go for the pinned scanner
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.25'
+      - name: Install verified tools before minting a write token
+        run: |
+          python3 scripts/check-maintenance-candidate.py install-jj --base "$GITHUB_SHA" \
+            --destination "$RUNNER_TEMP/maintenance-tools"
+          GOBIN="$RUNNER_TEMP/maintenance-tools" go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          printf '%s\n' "$RUNNER_TEMP/maintenance-tools" >> "$GITHUB_PATH"
+      - name: Copy trusted publication code outside the candidate tree
+        run: |
+          mkdir -p "$RUNNER_TEMP/trusted/scripts" "$RUNNER_TEMP/trusted/dot_local/bin" "$RUNNER_TEMP/trusted/dot_local/private_lib/chezmoi"
+          cp scripts/check-maintenance-candidate.py scripts/publish-maintenance-candidate.py "$RUNNER_TEMP/trusted/scripts/"
+          cp dot_local/bin/executable_chezmoi-bump "$RUNNER_TEMP/trusted/dot_local/bin/"
+          cp dot_local/private_lib/chezmoi/stable-release-eligibility.py "$RUNNER_TEMP/trusted/dot_local/private_lib/chezmoi/"
+      - name: Revalidate with read permissions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MAINTENANCE_CANDIDATE: ${{ needs.prepare.outputs.candidate }}
+          EXISTING_PR: ${{ needs.prepare.outputs.number }}
+          EXPECTED_HEAD: ${{ needs.prepare.outputs.head }}
+          APP_LOGIN: ${{ vars.DOTFILES_MAINTENANCE_APP_SLUG }}[bot]
+        run: |
+          if [ -n "$EXISTING_PR" ]; then
+            python3 "$RUNNER_TEMP/trusted/scripts/publish-maintenance-candidate.py" inspect \
+              --source "$GITHUB_WORKSPACE" --base "$GITHUB_SHA" --login "$APP_LOGIN" > "$RUNNER_TEMP/revalidated-pr.json"
+            python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          plan = json.loads((Path(os.environ['RUNNER_TEMP']) / 'revalidated-pr.json').read_text())
+          if plan['number'] != os.environ['EXISTING_PR'] or plan['head'] != os.environ['EXPECTED_HEAD']:
+              raise SystemExit('Routine PR changed during preparation')
+          PY
+          else
+            python3 "$RUNNER_TEMP/trusted/scripts/check-maintenance-candidate.py" validate \
+              --source "$GITHUB_WORKSPACE" --base "$GITHUB_SHA" --online
+          fi
+      - name: Mint a repository-scoped publication token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.DOTFILES_MAINTENANCE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DOTFILES_MAINTENANCE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Publish through source and history guards
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          MAINTENANCE_CANDIDATE: ${{ needs.prepare.outputs.candidate }}
+          EXISTING_PR: ${{ needs.prepare.outputs.number }}
+          EXPECTED_HEAD: ${{ needs.prepare.outputs.head }}
+          EXPECTED_APP_SLUG: ${{ vars.DOTFILES_MAINTENANCE_APP_SLUG }}
+          ACTUAL_APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          AUTO_MERGE: ${{ vars.DOTFILES_MAINTENANCE_AUTOMERGE == 'true' }}
+        run: |
+          if [ -z "$EXPECTED_APP_SLUG" ] || [ "$EXPECTED_APP_SLUG" != "$ACTUAL_APP_SLUG" ]; then
+            echo "The publication token does not belong to the configured maintenance App." >&2
+            exit 1
+          fi
+          args=(publish --source "$GITHUB_WORKSPACE" --base "$GITHUB_SHA" --login "${EXPECTED_APP_SLUG}[bot]")
+          if [ -n "$EXISTING_PR" ]; then args+=(--existing "$EXISTING_PR" --expected-head "$EXPECTED_HEAD"); fi
+          if [ "$AUTO_MERGE" = true ]; then args+=(--auto-merge); fi
+          python3 "$RUNNER_TEMP/trusted/scripts/publish-maintenance-candidate.py" "${args[@]}" > "$RUNNER_TEMP/publication-result.json"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          from pathlib import Path
+          result = json.loads((Path(os.environ['RUNNER_TEMP']) / 'publication-result.json').read_text())
+          print(f"Publication: {result['mode']}. PR: https://github.com/{os.environ['GITHUB_REPOSITORY']}/pull/{result['number']}")
+          PY
