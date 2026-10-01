@@ -69,7 +69,7 @@ def release_assets(dependency, tag):
     return names[dependency]
 
 
-def select(rows, current, now, days=7, required_assets=(), dependency=None):
+def select(rows, current, now, days=7, required_assets=(), dependency=None, patch_only=False):
     current_version = version(current)
     if current_version is None or days < 0:
         raise ValueError("invalid release policy")
@@ -78,6 +78,7 @@ def select(rows, current, now, days=7, required_assets=(), dependency=None):
     candidates = []
     too_new = False
     incomplete = False
+    review = []
     for row in rows:
         if not isinstance(row, dict):
             raise ValueError("invalid release metadata")
@@ -91,6 +92,9 @@ def select(rows, current, now, days=7, required_assets=(), dependency=None):
         if stamp > now:
             raise ValueError("future release time")
         if parsed <= current_version:
+            continue
+        if patch_only and parsed[:2] != current_version[:2]:
+            review.append((parsed, tag))
             continue
         if stamp > now - timedelta(days=days):
             too_new = True
@@ -109,7 +113,11 @@ def select(rows, current, now, days=7, required_assets=(), dependency=None):
         return risk(current, tag), tag
     if incomplete:
         return "unsupported", "missing required assets"
-    return ("too_new" if too_new else "current"), ""
+    if too_new:
+        return "too_new", ""
+    if review:
+        return "review", max(review)[1]
+    return "current", ""
 
 
 def fetch_json(url):
@@ -179,6 +187,7 @@ def main():
     parser.add_argument("--now")
     parser.add_argument("--asset", action="append", default=[])
     parser.add_argument("--dependency")
+    parser.add_argument("--patch-only", action="store_true")
     args = parser.parse_args()
     if os.environ.get("CHEZMOI_AUTOMATIC_UPDATES") == "1" and (args.now or os.environ.get("CHEZMOI_RELEASE_FIXTURE_DIR")):
         parser.error("automatic mode requires the real clock and fresh release metadata")
@@ -191,7 +200,7 @@ def main():
     now = published(args.now) if args.now else datetime.now(timezone.utc)
     try:
         rows = npm_rows(args.source[4:]) if args.source.startswith("npm:") else github_rows(args.source)
-        state, candidate = select(rows, args.current, now, args.days, args.asset, args.dependency)
+        state, candidate = select(rows, args.current, now, args.days, args.asset, args.dependency, args.patch_only)
     except (OSError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
         print(f"error\t{exc}")
         return 2

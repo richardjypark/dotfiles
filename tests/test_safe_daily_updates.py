@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import tempfile
+from lib.temp import temporary_directory
 import unittest
 import shutil
 import time
@@ -73,7 +73,7 @@ class Selection(unittest.TestCase):
 
     def test_timer_guard_repeats(self):
         script = ROOT / ".chezmoiscripts/run_after_38-setup-pi-maintenance-agent.sh.tmpl"
-        with tempfile.TemporaryDirectory() as directory:
+        with temporary_directory() as directory:
             home = Path(directory)
             helper = home / ".local/lib/chezmoi-helpers.sh"
             helper.parent.mkdir(parents=True)
@@ -122,7 +122,7 @@ elif "is-enabled" in args:
     @unittest.skipUnless(shutil.which("node"), "Node is needed to inspect npm locks")
     def test_npm_transitive_lock_gate(self):
         helper = ROOT / "dot_local/private_lib/chezmoi/npm.sh"
-        with tempfile.TemporaryDirectory() as directory:
+        with temporary_directory() as directory:
             lock = Path(directory) / "package-lock.json"
             lock.write_text(json.dumps({"packages": {"": {}, "node_modules/direct": {"version": "1.0.0"}, "node_modules/direct/node_modules/transitive": {"version": "2.0.0"}}}))
             command = f'source "{helper}"; NPM_CMD="$(command -v npm)"; npm_lockfile_package_specs "{lock}"'
@@ -171,7 +171,7 @@ elif "is-enabled" in args:
 
     def test_npm_cache_ttl_boundary(self):
         helper = ROOT / "dot_local/private_lib/chezmoi/npm.sh"
-        with tempfile.TemporaryDirectory() as directory:
+        with temporary_directory() as directory:
             cache = Path(directory) / "cache.json"
             cache.write_text("{}")
             command = f'source "{helper}"; npm_publish_metadata_cache_is_fresh "{cache}"'
@@ -284,7 +284,7 @@ main --automatic --all --manifest-out /unused-test-manifest
         self.assertIn("Candidate change blocked; outer transaction retained.", result.stdout)
 
     def test_checker_and_resolver_agree_for_fzf(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with temporary_directory() as directory:
             fixture = Path(directory)
             (fixture / "page-1.json").write_text(json.dumps([{"tag_name": "v0.74.5", "published_at": "2024-01-01T00:00:00Z"}]))
             source = fixture / "source"
@@ -322,17 +322,56 @@ refreshPeriod = "168h"
             self.assertEqual(isolated.returncode, 0, isolated.stderr)
             self.assertIn("| fzf | 0.74.5 | v0.74.6 | eligible |", isolated.stdout)
 
-    def test_workflow_is_report_only(self):
+    def test_workflow_defaults_to_manual_report(self):
         workflow = (ROOT / ".github/workflows/safe-daily-updates.yml").read_text()
         self.assertIn("workflow_dispatch:", workflow)
         self.assertNotIn("schedule:", workflow)
-        self.assertNotIn("contents: write", workflow)
-        self.assertNotIn("pull-requests: write", workflow)
+        self.assertNotRegex(workflow, r"(?m)^\s+contents:\s+write$")
+        self.assertNotRegex(workflow, r"(?m)^\s+pull-requests:\s+write$")
         self.assertNotIn("sudo", workflow)
         self.assertIn("if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)", workflow)
         self.assertIn("ref: ${{ github.sha }}", workflow)
-        self.assertIn("--automatic --all --check", workflow)
+        self.assertIn("--automatic --all --patch-only", workflow)
+        self.assertIn("args+=(--check)", workflow)
+        self.assertIn("default: false", workflow)
+        self.assertIn("environment: dotfiles-maintenance", workflow)
         self.assertNotIn("--dry-run", workflow)
+
+    def test_patch_candidate_is_not_hidden_by_major_or_minor(self):
+        rows = [release("v3.0.0", 30), release("v2.5.0", 20), release("v2.4.2", 7)]
+        self.assertEqual(stable.select(rows, "v2.4.1", NOW, patch_only=True), ("eligible", "v2.4.2"))
+        self.assertEqual(stable.select(rows[:2], "v2.4.1", NOW, patch_only=True), ("review", "v3.0.0"))
+        self.assertEqual(stable.select([release("v2.4.2", 6.999)], "v2.4.1", NOW, patch_only=True), ("too_new", ""))
+        self.assertEqual(stable.select([release("v0.13.0", 30), release("v0.12.2", 7)], "v0.12.1", NOW, patch_only=True), ("eligible", "v0.12.2"))
+
+    def test_patch_report_excludes_pi_fzf_and_has_no_transaction(self):
+        bump = ROOT / "dot_local/bin/executable_chezmoi-bump"
+        with temporary_directory() as directory:
+            report = Path(directory) / "report.json"
+            command = f'source "{bump}"; ' + '''
+resolve_automatic_candidate() { printf 'eligible\\t%s\\n' "$3"; }
+run_all_dependency_transactions() { echo UNEXPECTED >&2; return 1; }
+main --automatic --all --patch-only --check --report-out "$1"
+'''
+            result = subprocess.run(["bash", "-c", command, "report-test", str(report)],
+                                    env={**os.environ, "CHEZMOI_DIR": str(ROOT)}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            rows = json.loads(report.read_text())["dependencies"]
+            self.assertEqual({row["name"] for row in rows if row["state"] == "eligible"}, {"neovim", "jj", "uv", "starship", "bun", "chezmoi"})
+            self.assertEqual({row["name"]: row["state"] for row in rows}["pi"], "manual")
+            self.assertEqual({row["name"]: row["state"] for row in rows}["fzf"], "manual")
+            self.assertNotIn("UNEXPECTED", result.stderr)
+
+    def test_supported_missing_assets_fail_report(self):
+        bump = ROOT / "dot_local/bin/executable_chezmoi-bump"
+        command = f'source "{bump}"; ' + '''
+ALL_DEPS=("uv|astral-sh/uv|raw|sidecar|4")
+resolve_automatic_candidate() { printf 'unsupported\\tmissing required assets\\n'; }
+main --automatic --all --patch-only --check
+'''
+        result = subprocess.run(["bash", "-c", command], env={**os.environ, "CHEZMOI_DIR": str(ROOT)}, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("incomplete", result.stderr)
 
 
 if __name__ == "__main__":
