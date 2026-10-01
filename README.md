@@ -93,7 +93,7 @@ available if `chezmoi-health-check` reports policy drift.
 | Command | What it does | When to use |
 | --- | --- | --- |
 | `chezmoi update` | Pulls latest dotfiles from upstream and applies them. | Standard sync from repo changes. |
-| `czu` | Resolves one validated source workspace, repairs/fetches `trunk()` through `jj-sync-trunk`, rebases the current change onto `trunk()`, then applies that same selected source. Saved local profile data takes priority over Omarchy host detection. | Daily update when you want the jj-based workflow. Set `CHEZMOI_SOURCE_DIR=/absolute/workspace` to select a non-default source workspace. |
+| `czu [--reviewed]` | Resolves one source workspace, syncs and rebases through `jj-sync-trunk`, then applies it. `--reviewed` requires a clean current change and a tree matching the merged remote default, rejects conflicts, and records success only after apply and health checks. Saved local profile data takes priority over Omarchy host detection. | Use `TRUST_ON_FIRST_USE_INSTALLERS=1 czu --reviewed` for merged updates after deployment of the command. Plain `czu` retains local development behavior. Set `CHEZMOI_SOURCE_DIR=/absolute/workspace` to select another source. |
 | `czuf` | Same selected-source/trunk flow as `czu`, plus `TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1` and `chezmoi apply --refresh-externals --force`. It does not run broad package-manager upgrades or bump source pins. | Full refresh when pinned tools/externals changed or state needs rebuilding. On macOS, use `czm` for one-command app + pin maintenance. |
 | `czl [--system-only \| --bump-pins] [--plan] [--verbose]` | Omarchy/Arch maintenance. No arguments preserve the full workflow: clean-source gate, `czuf`, `pacman -Syu`, atomic `chezmoi-bump --all`, and final forced selected-source apply. `--system-only` skips source-pin mutation but keeps the Arch convergence apply. | Daily Arch maintenance. Use `--plan` for a non-installing preview or `--system-only` when the current JJ change is intentionally dirty. |
 | `czm [--system-only \| --bump-pins] [--plan] [--verbose]` | macOS maintenance. No arguments preserve the full Homebrew + atomic pin-bump workflow. The final selected-source apply runs only when the clean-source bump leaves a JJ diff; Homebrew cleanup runs last and is warning-only. `--system-only` skips source-pin mutation and the final pin apply. | Daily macOS maintenance. Use `--plan` for a non-installing preview or `--system-only` when the current JJ change is intentionally dirty. |
@@ -113,6 +113,7 @@ Aliases in `~/.config/shell/alias.sh` are convenience shortcuts only.
 Repo-managed `jj fetch` is intentionally quiet (`jj git fetch --quiet`); run raw `jj git fetch` when you want rebase/abandon diagnostics.
 
 Maintenance mode contract:
+- GitHub maintenance is a manual pilot. The default workflow dispatch reports six-tool patch candidates; optional publication uses a scoped App and the protected PR path. See [maintenance automation](docs/maintenance-automation.md) for setup, tests and activation gates.
 - No-argument `czl`/`czm` remains full maintenance for compatibility; `--bump-pins` makes that intent explicit.
 - Full pin-bump mode requires a clean current JJ working-copy change before sudo, package upgrades, or source mutation. `--system-only` permits a dirty current change because it does not run `chezmoi-bump`.
 - `--plan` performs no fetch/rebase/config write, package installation, tracked-source mutation, or home-directory apply. It may perform network reads and cache writes while checking remote trunk, package updates, and upstream pin versions.
@@ -145,6 +146,8 @@ Shell preview behavior:
 
 `chezmoi-bump` safety/debug flags:
 - `--automatic --all` applies the fixed routine policy: only stable releases published at least seven full days ago, with every required platform asset and checksum, strict verification, rollback, and the public npm registry. It reports major and `0.x` minor updates for review instead of applying them, and lists Claude Code, Tailscale, Codex, and the zsh plugins as manual. Add `--check` for a report without downloads or source writes.
+- Add `--patch-only` to automatic mode for the first six-tool group. It selects patches within the current major/minor line before it considers newer release lines. Pi and fzf remain manual in this group. An incomplete supported scan fails.
+- `--inventory` prints dependency contracts as JSON without network access or edits. `--report-out /absolute/path` writes automatic discovery JSON outside the source tree.
 - `--manifest-out <path>` writes the computed transaction manifest (multi-dep runs emit one file per dep).
 - `--no-strict` relaxes post-apply verification (strict is default).
 - `--no-rollback` keeps single-dependency mutations on failure for debugging. `--all` remains invocation-atomic and restores all managed source targets even when this per-dependency debug flag is set.

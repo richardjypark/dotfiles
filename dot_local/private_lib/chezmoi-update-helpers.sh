@@ -200,6 +200,65 @@ chezmoi_source_has_changes() {
     [ -n "$summary" ]
 }
 
+require_clean_chezmoi_reviewed_source() {
+    local summary
+    summary="$(chezmoi_jj_diff_summary)" || return 1
+    if [ -n "$summary" ]; then
+        chezmoi_update_error "--reviewed requires a clean current change; save or split local source work first"
+        return 1
+    fi
+}
+
+require_merged_chezmoi_source() {
+    local repo conflicts summary
+    resolve_chezmoi_source_dir || return $?
+    repo="$CHEZMOI_SOURCE_DIR_RESOLVED"
+    conflicts="$(jj -R "$repo" log -r 'conflicts() & @' --no-graph --template commit_id)" || return 1
+    if [ -n "$conflicts" ]; then
+        chezmoi_update_error "source sync produced a conflict; resolve it before apply"
+        return 1
+    fi
+    summary="$(jj -R "$repo" diff --from 'trunk()' --to @ --summary)" || return 1
+    if [ -n "$summary" ]; then
+        chezmoi_update_error "source contains changes outside the merged remote default branch; reviewed apply stopped"
+        return 1
+    fi
+}
+
+record_reviewed_chezmoi_update() {
+    local revision state_dir
+    if ! command -v chezmoi-health-check >/dev/null 2>&1; then
+        chezmoi_update_error "chezmoi-health-check is required to record a reviewed update"
+        return 1
+    fi
+    chezmoi-health-check || return $?
+    require_merged_chezmoi_source || return $?
+    revision="$(jj -R "$CHEZMOI_SOURCE_DIR_RESOLVED" log -r 'trunk()' --no-graph --template commit_id)" || return 1
+    state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi-maintenance"
+    case "$state_dir" in /*) ;; *) chezmoi_update_error "maintenance state path must be absolute"; return 1 ;; esac
+    (
+        umask 077
+        python3 - "$state_dir" "$revision" <<'PY'
+import json, os, re, sys
+from datetime import datetime, timezone
+from pathlib import Path
+state, revision = Path(sys.argv[1]), sys.argv[2]
+if not re.fullmatch(r'[0-9a-f]{40}', revision):
+    raise SystemExit('Invalid reviewed source revision')
+if state.is_symlink():
+    raise SystemExit('Maintenance state directory cannot be a symlink')
+state.mkdir(parents=True, exist_ok=True, mode=0o700)
+state.chmod(0o700)
+target = state / 'last-reviewed-update.json'
+temporary = state / ('last-reviewed-update.tmp.' + str(os.getpid()))
+with temporary.open('x') as output:
+    json.dump({'schema': 1, 'revision': revision, 'completedAt': datetime.now(timezone.utc).isoformat(), 'health': 'passed'}, output)
+    output.write('\n')
+temporary.replace(target)
+PY
+    )
+}
+
 chezmoi_plan_jj_update() {
     local repo remote
 

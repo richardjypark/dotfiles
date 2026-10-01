@@ -1,0 +1,73 @@
+# pull_request_target uses the base workflow. The candidate is read as Git data;
+# its scripts and dependencies are never executed by this job.
+name: maintenance-policy
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  policy:
+    name: verify-dependency-policy
+    if: github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+      PR_HEAD: ${{ github.event.pull_request.head.sha }}
+      PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+      PR_ACTOR: ${{ github.event.pull_request.user.login }}
+      PR_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      APP_LOGIN: ${{ vars.DOTFILES_MAINTENANCE_APP_SLUG }}[bot]
+    steps:
+      - name: Set the required status on the candidate commit
+        run: |
+          python3 - <<'PY'
+          import os, re
+          if not re.fullmatch('[0-9a-f]{40}', os.environ['PR_HEAD']):
+              raise SystemExit('Invalid candidate commit')
+          PY
+          gh api --hostname github.com "repos/$GITHUB_REPOSITORY/statuses/$PR_HEAD" \
+            --method POST -f state=pending -f context=dependency-policy \
+            -f target_url="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --silent
+      - name: Check out trusted base code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read candidate files and check dependency policy
+        run: |
+          git fetch --no-tags origin "$PR_HEAD"
+          base="$(git merge-base "$GITHUB_SHA" "$PR_HEAD")"
+          args=(diff --base "$base" --head "$PR_HEAD")
+          if [[ "$PR_BRANCH" == maintenance/routine-pins/* || "$PR_ACTOR" == "$APP_LOGIN" ]]; then
+            if [ "$PR_REPOSITORY" != "$GITHUB_REPOSITORY" ] || [ "$PR_ACTOR" != "$APP_LOGIN" ]; then
+              echo "Reserved maintenance branches must come from the configured App in this repository." >&2
+              exit 1
+            fi
+            args+=(--routine --online)
+          fi
+          python3 scripts/check-maintenance-candidate.py "${args[@]}"
+      - name: Record the final candidate status
+        if: always()
+        env:
+          POLICY_RESULT: ${{ job.status }}
+        run: |
+          state=error
+          if [ "$POLICY_RESULT" = success ]; then state=success; fi
+          if [ "$POLICY_RESULT" = failure ]; then state=failure; fi
+          gh api --hostname github.com "repos/$GITHUB_REPOSITORY/statuses/$PR_HEAD" \
+            --method POST -f "state=$state" -f context=dependency-policy \
+            -f target_url="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --silent

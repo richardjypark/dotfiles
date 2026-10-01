@@ -2,7 +2,28 @@
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-update-helpers.sh"
 
-set_default_chezmoi_profile
-chezmoi_prepare_jj_update
+reviewed=false
+apply_args=()
+for arg in "$@"; do
+    if [ "$arg" = --reviewed ]; then
+        if [ "$reviewed" = true ]; then
+            printf 'czu: --reviewed can be used only once\n' >&2
+            exit 2
+        fi
+        reviewed=true
+    else
+        apply_args+=("$arg")
+    fi
+done
+if [ "$reviewed" = true ] && [ "${#apply_args[@]}" -ne 0 ]; then
+    printf 'czu: --reviewed must be used without additional apply arguments\n' >&2
+    exit 2
+fi
 
-run_with_optional_output_sanitizer run_chezmoi_with_source apply "$@"
+set_default_chezmoi_profile
+if [ "$reviewed" = true ]; then require_clean_chezmoi_reviewed_source; fi
+chezmoi_prepare_jj_update
+if [ "$reviewed" = true ]; then require_merged_chezmoi_source; fi
+
+run_with_optional_output_sanitizer run_chezmoi_with_source apply "${apply_args[@]+"${apply_args[@]}"}"
+if [ "$reviewed" = true ]; then record_reviewed_chezmoi_update; fi
