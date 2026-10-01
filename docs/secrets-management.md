@@ -123,9 +123,15 @@ Expected GitHub settings:
 If `gh pr merge --auto` reports that the pull request is not mergeable just
 after a push, GitHub is still computing the merge state; run the command
 again. If `master` moves before the merge, rebase the change with `jj rebase`
-and run `dotfiles-push` again. If GitHub Actions is down, disable only the "Required
-checks" ruleset, merge, and enable it again; GitHub records the change. Keep
-"Protect master" active at all times.
+and run `dotfiles-push` again. If GitHub Actions is down, keep the pull request
+queued and retry after the checks are available. Keep both protection rulesets
+active.
+
+The [maintenance publisher](maintenance-automation.md) uses a scoped GitHub App
+and the same guarded push path. Its pilot defaults to manual review. Automatic
+merge additionally requires macOS validation and the trusted `dependency-policy`
+commit status. Configure those checks after a successful live pilot; do not
+remove current checks to activate the publisher.
 
 Check the live rules and recent rule results:
 

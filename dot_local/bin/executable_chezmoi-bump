@@ -21,6 +21,10 @@ CACHE_MAX_AGE=86400  # 24 hours
 # --- Globals set by parse_args ---
 MODE="bump"          # check | bump
 AUTOMATIC=false
+PATCH_ONLY=false
+INVENTORY=false
+REPORT_OUT=""
+REPORT_ROWS=()
 AUTO_RESOLVED=()
 DRY_RUN=false
 SKIP_SHA=false
@@ -172,6 +176,22 @@ parse_args() {
                 AUTOMATIC=true
                 shift
                 ;;
+            --patch-only)
+                PATCH_ONLY=true
+                shift
+                ;;
+            --inventory)
+                INVENTORY=true
+                shift
+                ;;
+            --report-out)
+                if [ $# -lt 2 ] || [ -z "$2" ]; then
+                    echo "Missing value for --report-out" >&2
+                    return 2
+                fi
+                REPORT_OUT="$2"
+                shift 2
+                ;;
             --force|-f)
                 FORCE=true
                 shift
@@ -213,6 +233,21 @@ parse_args() {
         esac
     done
 
+    if [ "$INVENTORY" = "true" ]; then
+        if [ "$AUTOMATIC" = "true" ] || [ "$BUMP_ALL" = "true" ] || [ "$PATCH_ONLY" = "true" ] || [ -n "$REPORT_OUT$MANIFEST_OUT" ] || [ "${#DEPS_TO_BUMP[@]}" -ne 0 ]; then
+            echo "--inventory cannot be combined with an update operation." >&2
+            return 2
+        fi
+        return 0
+    fi
+    if { [ "$PATCH_ONLY" = "true" ] || [ -n "$REPORT_OUT" ]; } && [ "$AUTOMATIC" != "true" ]; then
+        echo "--patch-only and --report-out require --automatic --all." >&2
+        return 2
+    fi
+    if [ -n "$REPORT_OUT" ] && [[ "$REPORT_OUT" != /* || "$REPORT_OUT" == "$CHEZMOI_DIR/"* ]]; then
+        echo "--report-out must be an absolute path outside the source directory." >&2
+        return 2
+    fi
     if [ "$MODE" = "bump" ] && [ "$BUMP_ALL" = "false" ] && [ ${#DEPS_TO_BUMP[@]} -eq 0 ]; then
         MODE="check"
     fi
@@ -250,6 +285,9 @@ Options:
   --check, -c        Report versions for all 13 deps (default if no deps given)
   --all, -a          Bump all deps with available updates
   --automatic        Strict seven-day routine selection; requires --all
+  --patch-only       Limit automatic changes to patches for six binary tools
+  --inventory        Print dependency contracts as JSON; no network or edits
+  --report-out PATH  Write automatic discovery JSON outside the source tree
   --dry-run, -n      Show what would change without writing
   --skip-sha         Version-only bump (skip SHA256 artifact downloads)
   --force, -f        Bypass cache, force fresh API queries
@@ -675,6 +713,7 @@ resolve_automatic_candidate() {
     if [ "$name" != "pi" ] && [ "$name" != "fzf" ]; then
         args+=(--dependency "$name")
     fi
+    if [ "$PATCH_ONLY" = "true" ]; then args+=(--patch-only); fi
     python3 "$CHEZMOI_DIR/dot_local/private_lib/chezmoi/stable-release-eligibility.py" "${args[@]}"
 }
 
@@ -1172,7 +1211,8 @@ update_toml_key_exact() {
                 sub(/^[^=]+=[[:space:]]*"/, "", line)
                 sub(/".*$/, "", line)
                 if (line == expected) {
-                    printf "%s = \"%s\"\n", key, value
+                    match($0, /^[^=]+=[[:space:]]*"/)
+                    printf "%s%s%s\n", substr($0, 1, RLENGTH), value, substr($0, RLENGTH + length(expected) + 1)
                     replaced++
                     next
                 }
@@ -2879,8 +2919,30 @@ bump_dep() {
 # Main
 # ============================================================================
 
+write_automatic_report() {
+    [ -n "$REPORT_OUT" ] || return 0
+    python3 - "$REPORT_OUT" "${REPORT_ROWS[@]}" <<'PY'
+import json, os, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+path.parent.mkdir(parents=True, exist_ok=True)
+rows = [dict(zip(("name", "source", "current", "state", "candidate"), row.split("|"))) for row in sys.argv[2:]]
+temporary = path.with_name(path.name + ".tmp." + str(os.getpid()))
+temporary.write_text(json.dumps({"schema": 1, "dependencies": rows}, indent=2) + "\n")
+temporary.replace(path)
+PY
+}
+
 main() {
     parse_args "$@" || return $?
+    if [ "$INVENTORY" = "true" ]; then
+        python3 - "${ALL_DEPS[@]}" <<'PY'
+import json, sys
+keys = ("name", "source", "versionFormat", "checksumStrategy", "platforms")
+print(json.dumps([dict(zip(keys, row.split("|"))) for row in sys.argv[1:]]))
+PY
+        return $?
+    fi
     validate_prerequisites
 
     if [ "$MODE" = "check" ] && [ "$AUTOMATIC" = "false" ]; then
@@ -2908,7 +2970,18 @@ main() {
             fi
             if [ "$name" = "claude" ] || [ "$name" = "tailscale" ] || [ "$name" = "codex" ] || [ "$name" = "zsh-syntax-highlighting" ] || [ "$name" = "zsh-autosuggestions" ]; then
                 echo "${name}: unsupported (manual review; release source or bounded scan is not covered)"
+                REPORT_ROWS+=("$name|$source|$current|manual|")
                 continue
+            fi
+            if [ "$PATCH_ONLY" = "true" ]; then
+                case "$name" in
+                    neovim|jj|uv|starship|bun|chezmoi) ;;
+                    *)
+                        echo "${name}: unsupported (manual review; outside the six-tool patch contract)"
+                        REPORT_ROWS+=("$name|$source|$current|manual|")
+                        continue
+                        ;;
+                esac
             fi
             result="$(resolve_automatic_candidate "$name" "$source" "$current")" || {
                 echo "${name}: ${result:-error}" >&2
@@ -2918,11 +2991,17 @@ main() {
 $result
 EOF
             echo "${name}: ${state}${candidate:+ ($candidate)}"
+            REPORT_ROWS+=("$name|$source|$current|$state|$candidate")
+            case "$state" in
+                eligible|current|too_new|major_review|review) ;;
+                *) echo "${name}: supported dependency verification is incomplete" >&2; return 1 ;;
+            esac
             if [ "$state" = "eligible" ]; then
                 deps_list+=("$name")
                 AUTO_RESOLVED+=("$name|$candidate")
             fi
         done
+        write_automatic_report || return $?
         if [ "$MODE" = "check" ]; then
             echo "Report complete. Artifact contents and lockfiles require transaction validation."
             return 0
