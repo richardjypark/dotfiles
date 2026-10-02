@@ -344,6 +344,13 @@ $specs
 EOF
 }
 
+npm_verify_installed_lockfile() {
+    local project_dir="$1" mode="${2:-production}"
+    local args=("$project_dir")
+    [ "$mode" != build ] || args+=(--include-dev)
+    python3 "$CHEZMOI_HELPERS_DIR/chezmoi/npm-lock-install.py" "${args[@]}"
+}
+
 run_managed_npm_ci() {
     local project_dir="$1"
     local mode="${2:-production}"
@@ -368,5 +375,8 @@ run_managed_npm_ci() {
             NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
                 run_quiet "$NPM_CMD" ci --ignore-scripts --no-fund --no-audit --omit=dev
         fi
-    )
+    ) || return $?
+    local args=("$project_dir" --repair)
+    [ "$mode" != build ] || args+=(--include-dev)
+    python3 "$CHEZMOI_HELPERS_DIR/chezmoi/npm-lock-install.py" "${args[@]}"
 }
