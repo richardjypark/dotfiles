@@ -18,9 +18,11 @@ lock integrity repair; fzf needs an immutable source or verified artifact contra
 
 Dependabot separately proposes weekly GitHub Actions and OpenRouter npm
 updates with a seven-day routine cooldown. OpenRouter patch proposals are
-grouped. Other version changes remain separate proposals for review. Pi direct
-versions stay with the coordinated updater. Dependabot alerts and security
-update proposals must also be enabled in GitHub repository settings.
+grouped. Other version changes remain separate proposals for review. The two Pi
+package directories receive security proposals only; their version-update limit
+is zero, so Pi direct versions stay with the coordinated updater. Dependabot
+alerts and security update proposals must also be enabled in GitHub repository
+settings.
 
 ## Source checks and credentials
 
