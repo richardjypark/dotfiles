@@ -15,7 +15,7 @@
     "@openrouter/sdk": "0.13.67",
     "dotenv": "17.4.2",
     "glob": "13.0.6",
-    "zod": "4.4.3"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "26.6.2",
