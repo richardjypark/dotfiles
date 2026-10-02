@@ -47,6 +47,7 @@ for the complete naming and execution rules.
 | `dot_local/private_lib/chezmoi-helpers.sh` | `~/.local/lib/chezmoi-helpers.sh` | Managed shared script library |
 | `dot_local/private_lib/chezmoi/{core,artifacts,npm}.sh` | `~/.local/lib/chezmoi/` | Managed helper modules |
 | `dot_local/private_lib/chezmoi/stable-release-eligibility.py` | `~/.local/lib/chezmoi/stable-release-eligibility.py` | Managed release eligibility helper |
+| `dot_local/private_lib/chezmoi/npm-lock-install.py` | `~/.local/lib/chezmoi/npm-lock-install.py` | Checks installed npm versions and verifies shrinkwrap repairs |
 | `dot_local/private_lib/chezmoi/hermes/` | `~/.local/lib/chezmoi/hermes/` | Managed Hermes modules |
 | `.chezmoitemplates/setup/helper-hashes.tmpl` | Source-only rendering input | Helper change detection for run-onchange scripts |
 | `.chezmoitemplates/resolved-role`, `.chezmoitemplates/resolved-profile` | Source-only rendering inputs | Shared role and profile selection |
