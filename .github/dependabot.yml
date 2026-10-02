@@ -21,3 +21,13 @@ updates:
         update-types: [patch]
     commit-message:
       prefix: chore
+  # Pi versions are coordinated by chezmoi-bump; keep security proposals active.
+  - package-ecosystem: npm
+    directories:
+      - /dot_local/share/pi-cli
+      - /dot_local/share/pi-maintenance-agent
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: chore
