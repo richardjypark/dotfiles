@@ -423,6 +423,13 @@ The scheduled `pi-maintenance-agent` is retired. It applied, committed, and push
 
 Managed npm installs for the Pi CLI use the committed lockfile, `npm ci`, and `--ignore-scripts`. Lockfile or state drift forces a fresh `npm ci` even when the pinned `pi` version is unchanged. `pi-autoresearch` comes from a pinned git commit. Manual runs delay the public npm registry path with `CHEZMOI_NPM_MIN_VERSION_AGE_DAYS=3` and check every versioned package in each committed lockfile; automatic mode fixes the delay at seven days and requires the public registry. `chezmoi-bump pi` regenerates both committed Pi lockfiles against the newest npm version that satisfies the delay.
 
+After installation, the helper checks actual package versions against the lock.
+If a published npm shrinkwrap installs an older transitive dependency, the helper
+replaces it from the exact locked public registry archive after it verifies the
+SHA integrity and package manifest. Downloads still require explicit installer
+trust. A mismatch stops setup before it records success. CI checks the installed
+versions too; a lockfile edit alone is not proof that a security fix was installed.
+
 ## Script Contract
 
 Setup scripts under `.chezmoiscripts/` are expected to:
