@@ -11,7 +11,6 @@ import subprocess
 from lib.temp import temporary_directory
 import unittest
 import shutil
-import time
 import sys
 from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
@@ -174,14 +173,13 @@ elif "is-enabled" in args:
         with temporary_directory() as directory:
             cache = Path(directory) / "cache.json"
             cache.write_text("{}")
-            command = f'source "{helper}"; npm_publish_metadata_cache_is_fresh "{cache}"'
-            now = int(time.time())
-            os.utime(cache, (now - 86399, now - 86399))
-            self.assertEqual(subprocess.run(["bash", "-c", command]).returncode, 0)
-            os.utime(cache, (now - 86401, now - 86401))
-            self.assertNotEqual(subprocess.run(["bash", "-c", command]).returncode, 0)
-            os.utime(cache, (now + 60, now + 60))
-            self.assertNotEqual(subprocess.run(["bash", "-c", command]).returncode, 0)
+            now = 1700000000
+            command = (f'source "{helper}"; date() {{ printf "%s\\n" {now}; }}; '
+                       f'npm_publish_metadata_cache_is_fresh "{cache}"')
+            for age, fresh in ((0, True), (86399, True), (86400, False), (86401, False), (-60, False)):
+                with self.subTest(age=age):
+                    os.utime(cache, (now - age, now - age))
+                    self.assertEqual(subprocess.run(["bash", "-c", command]).returncode == 0, fresh)
 
     def test_automatic_flags_fail_closed(self):
         bump = ROOT / "dot_local/bin/executable_chezmoi-bump"
