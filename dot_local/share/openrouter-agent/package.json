@@ -13,7 +13,7 @@
   "dependencies": {
     "@openrouter/agent": "0.8.0",
     "@openrouter/sdk": "0.13.67",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.3",
     "glob": "13.0.6",
     "zod": "4.4.3"
   },
