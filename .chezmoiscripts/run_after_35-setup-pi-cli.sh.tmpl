@@ -16,7 +16,8 @@ PI_AUTORESEARCH_REPO_MATCH="github.com/davebcn87/pi-autoresearch"
 PI_AUTORESEARCH_STATE="pi-cli-package-pi-autoresearch-${PI_AUTORESEARCH_REF}"
 
 managed_pi_binary_ready() {
-    [ -x "$PI_MANAGED_BIN" ]
+    [ -x "$PI_MANAGED_BIN" ] \
+        && npm_verify_installed_lockfile "$PI_CLI_PROJECT_DIR" >/dev/null 2>&1
 }
 
 current_pi_cmd() {

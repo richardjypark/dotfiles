@@ -89,6 +89,7 @@ run_managed_npm_suite() {
 check_pi_cli() {
     (
         cd "$REPO_ROOT/dot_local/share/pi-cli"
+        python3 "$REPO_ROOT/dot_local/private_lib/chezmoi/npm-lock-install.py" "$PWD" || exit $?
         ./node_modules/.bin/pi --version
     )
 }
@@ -97,6 +98,7 @@ check_pi_maintenance_agent() {
     (
         set -e
         cd "$REPO_ROOT/dot_local/share/pi-maintenance-agent"
+        python3 "$REPO_ROOT/dot_local/private_lib/chezmoi/npm-lock-install.py" "$PWD" || exit $?
         ./node_modules/.bin/pi --version
         npm test
     )
@@ -108,6 +110,7 @@ check_openrouter_agent() {
         new_test_temp_dir build_dir
         trap 'remove_test_temp_dir "$build_dir"' EXIT
         cd "$REPO_ROOT/dot_local/share/openrouter-agent"
+        python3 "$REPO_ROOT/dot_local/private_lib/chezmoi/npm-lock-install.py" "$PWD" --include-dev || exit $?
         npm run typecheck &&
             npm test &&
             npm run build -- --outDir "$build_dir"
@@ -131,6 +134,7 @@ run_suite "update-helper behavior" bash "$REPO_ROOT/tests/test-chezmoi-update-he
 run_suite "mise migration behavior" bash "$REPO_ROOT/tests/test-mise-migration.sh"
 run_suite "setup recovery behavior" python3 "$REPO_ROOT/tests/test_setup_recovery.py"
 run_suite "shared helper modules" python3 "$REPO_ROOT/tests/test_helper_modules.py"
+run_suite "installed npm lock verification" python3 "$REPO_ROOT/tests/test_npm_lock_install.py"
 run_suite "native installer recovery" python3 "$REPO_ROOT/tests/test_native_installers.py"
 run_suite "maintenance wrapper behavior" bash "$REPO_ROOT/tests/test-cz-wrappers.sh"
 run_suite "skill-routing unit tests" python3 "$REPO_ROOT/tests/test_eval_skill_routing.py"
