@@ -131,12 +131,20 @@ jobs:
       - name: Install managed Pi CLI dependencies
         if: runner.os == 'Linux'
         working-directory: dot_local/share/pi-cli
-        run: npm ci --ignore-scripts --no-fund --no-audit --omit=dev
+        run: |
+          source "$GITHUB_WORKSPACE/dot_local/private_lib/chezmoi-helpers.sh"
+          NPM_CMD="$(command -v npm)"
+          export NPM_CMD
+          TRUST_ON_FIRST_USE_INSTALLERS=1 run_managed_npm_ci "$PWD"
 
       - name: Install managed Pi maintenance agent dependencies
         if: runner.os == 'Linux'
         working-directory: dot_local/share/pi-maintenance-agent
-        run: npm ci --ignore-scripts --no-fund --no-audit --omit=dev
+        run: |
+          source "$GITHUB_WORKSPACE/dot_local/private_lib/chezmoi-helpers.sh"
+          NPM_CMD="$(command -v npm)"
+          export NPM_CMD
+          TRUST_ON_FIRST_USE_INSTALLERS=1 run_managed_npm_ci "$PWD"
 
       - name: Install OpenRouter agent dependencies
         if: runner.os == 'Linux'
