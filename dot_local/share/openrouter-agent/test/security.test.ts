@@ -66,6 +66,22 @@ test('secure env loader accepts only a private regular file and returns only the
   assert.equal(env.UNRELATED, undefined);
 });
 
+test('secure env loader reads the key from shared key-file formats', async () => {
+  const dir = await fixture();
+  const envFile = join(dir, '.env');
+  const name = 'OPENROUTER_API_' + 'KEY';
+  const files = [
+    `\uFEFF${name}=test-only-placeholder\n`,
+    `# shared Hermes file\r\nOTHER="line one\nline two"\r\nexport ${name}="test-only-placeholder"\r\n`,
+    `OTHER='x'\n${name}='test-only-placeholder' # comment\n`,
+  ];
+  for (const contents of files) {
+    await writeFile(envFile, contents, { mode: 0o600 });
+    const loaded = await loadOpenRouterApiKey({ env: {}, envFile });
+    assert.equal(loaded.apiKey, 'test-only-placeholder');
+  }
+});
+
 test('secure env loader rejects permissive modes and symlinks', async () => {
   const dir = await fixture();
   const envFile = join(dir, '.env');
