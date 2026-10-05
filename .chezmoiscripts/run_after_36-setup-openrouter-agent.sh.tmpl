@@ -141,8 +141,8 @@ if [ "$NEEDS_BUILD" -eq 1 ]; then
         exit 1
     fi
     NODE_CMD="$(resolve_node_cmd || true)"
-    if [ -z "$NODE_CMD" ] || [ "$($NODE_CMD -p 'Number(process.versions.node.split(".")[0])')" -lt 22 ]; then
-        eecho "Error: OpenRouter Agent requires Node.js 22 or newer."
+    if [ -z "$NODE_CMD" ] || [ "$($NODE_CMD -p 'Number(process.versions.node.split(".")[0])')" -lt 24 ]; then
+        eecho "Error: OpenRouter Agent requires Node.js 24 or newer."
         exit 1
     fi
     if ! require_trust_for_remote_installer "OpenRouter Agent npm dependencies"; then
