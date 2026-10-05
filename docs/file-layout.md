@@ -83,7 +83,7 @@ These paths remain in the source repository and do not render into `$HOME`:
 | `.githooks/` and `.gitleaksignore` | Repo-only guardrail rules |
 | `scripts/check-public-files.py` | Repo-only publication policy check |
 | `scripts/check-maintenance-candidate.py`, `scripts/publish-maintenance-candidate.py` | Repo-only maintenance preparation, verification and publication |
-| `scripts/check-npm-lock-changes.py` | Repo-only npm lockfile policy check for pull requests |
+| `scripts/check-package-lock-changes.py` | Repo-only npm lockfile policy check for pull requests |
 | `tests/` | Repo-only test rule |
 | `examples/`, `packages/`, and `ansible/` | Repo-only examples and package/Ansible rules |
 | `evals/` and `scripts/eval-skill-routing.py` | Skill-evaluation rules |

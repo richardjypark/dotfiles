@@ -16,8 +16,8 @@ import unittest
 from lib.temp import temporary_directory
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts/check-npm-lock-changes.py"
-SPEC = importlib.util.spec_from_file_location("npm_lock_changes", SCRIPT)
+SCRIPT = ROOT / "scripts/check-package-lock-changes.py"
+SPEC = importlib.util.spec_from_file_location("package_lock_changes", SCRIPT)
 checker = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(checker)
 NOW = datetime(2026, 10, 5, 12, tzinfo=timezone.utc)
