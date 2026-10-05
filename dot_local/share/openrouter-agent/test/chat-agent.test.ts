@@ -3,7 +3,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { OpenRouter } from '@openrouter/sdk';
+import { HTTPClient, OpenRouter } from '@openrouter/sdk';
 
 import { OpenRouterAgent, type AgentEvent, type AgentRunOptions } from '../src/agent.js';
 import { ChatCompletionsAgent } from '../src/chat-agent.js';
@@ -50,6 +50,29 @@ function stream(...chunks: Array<Record<string, unknown>>) {
   return (async function* () {
     for (const chunk of chunks) yield chunk;
   })();
+}
+
+function responsesReply(id: string, output: Array<Record<string, unknown>>) {
+  return {
+    id,
+    object: 'response',
+    created_at: 1,
+    completed_at: 2,
+    status: 'completed',
+    model: 'openai/gpt-5.6-luna',
+    output,
+    error: null,
+    incomplete_details: null,
+    instructions: null,
+    metadata: null,
+    frequency_penalty: null,
+    presence_penalty: null,
+    temperature: null,
+    top_p: null,
+    parallel_tool_calls: false,
+    tool_choice: 'auto',
+    tools: [],
+  };
 }
 
 test('Chat transport streams output and sends managed routing controls', async () => {
@@ -368,4 +391,68 @@ test('Responses failure is not retried through Chat Completions', async () => {
 
   await assert.rejects(agent.run([{ role: 'user', content: 'hello' }], options()));
   assert.equal(chatCalls, 0);
+});
+
+// @openrouter/agent 0.8.0 ran this call without approval: the stop rule ended the loop
+// before the approval gate. 0.11.0 gates the final-response path.
+test('Responses transport gates a tool call that arrives on the step-limit turn', async () => {
+  const call = (id: string, path: string) => responsesReply(`resp-${id}`, [{
+    type: 'function_call',
+    id: `fc-${id}`,
+    call_id: `call-${id}`,
+    name: 'file_write',
+    arguments: JSON.stringify({ path, content: 'no' }),
+    status: 'completed',
+  }]);
+  const replies = [
+    call('first', 'approved.txt'),
+    call('limit', 'gated.txt'),
+    responsesReply('resp-final', [{
+      type: 'message',
+      id: 'msg-final',
+      role: 'assistant',
+      status: 'completed',
+      content: [{ type: 'output_text', text: 'done', annotations: [] }],
+    }]),
+  ];
+  const client = new OpenRouter({
+    apiKey: 'test-only-placeholder',
+    retryConfig: { strategy: 'none' },
+    httpClient: new HTTPClient({
+      fetcher: async () => {
+        const reply = replies.shift();
+        return new Response(JSON.stringify(reply ?? {}), {
+          status: reply ? 200 : 500,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    }),
+  });
+  const workspace = await mkdtemp(join(tmpdir(), 'openrouter-chat-'));
+  const agent = new OpenRouterAgent(
+    config({
+      model: 'openai/gpt-5.6-luna',
+      transport: 'responses',
+      allowProviderFallbacks: false,
+      maxSteps: 1,
+    }),
+    'test-only-placeholder',
+    workspace,
+    client,
+  );
+  const approvals: unknown[] = [];
+
+  await agent.run(
+    [{ role: 'user', content: 'write two files' }],
+    options({
+      approve: async (request) => {
+        approvals.push(request.arguments.path);
+        return request.arguments.path === 'approved.txt';
+      },
+    }),
+  );
+
+  assert.deepEqual(approvals, ['approved.txt', 'gated.txt']);
+  assert.equal(await readFile(join(workspace, 'approved.txt'), 'utf8'), 'no');
+  await assert.rejects(readFile(join(workspace, 'gated.txt')), /ENOENT/);
 });
