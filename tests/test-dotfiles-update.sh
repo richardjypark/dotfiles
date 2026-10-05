@@ -104,6 +104,7 @@ reset_case() {
     unset UPDATE_CZU_STATUS UPDATE_CANCELED UPDATE_USER_ID UPDATE_SAVED_PROFILE
     unset CHEZMOI_SOURCE_DIR CHEZMOI_DIR CHEZMOI_PROFILE CHEZMOI_FORCE_UPDATE
     export TMPDIR="$UPDATE_TEST_ROOT/backups"
+    export OMARCHY_PATH=/usr/share/omarchy
 }
 
 run_update() {
@@ -147,6 +148,16 @@ run_update
 [ "$UPDATE_STATUS" -ne 0 ]
 assert_no_updates 'conflicted source stops before backup and updates'
 printf '[PASS] Conflicted source stops before backup and updates\n'
+
+reset_case
+unset OMARCHY_PATH
+export UPDATE_DESCRIPTION=""
+run_update
+[ "$UPDATE_STATUS" -ne 0 ]
+assert_no_updates 'missing Omarchy environment stops before backup and updates'
+if grep -q ' describe ' "$UPDATE_CALL_LOG"; then exit 1; fi
+assert_contains "$UPDATE_TEST_ROOT/output" 'OMARCHY_PATH is not set' 'missing Omarchy environment is explained'
+printf '[PASS] Missing Omarchy environment stops before any change\n'
 
 reset_case
 export UPDATE_DESCRIPTION=""

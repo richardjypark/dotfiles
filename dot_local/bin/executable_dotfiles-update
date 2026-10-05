@@ -38,6 +38,13 @@ if [ "$profile" != omarchy ] || ! is_omarchy_host; then
 fi
 export CHEZMOI_PROFILE="$profile"
 
+# Omarchy update steps read OMARCHY_PATH. Stop before the first change without it.
+if [ -z "${OMARCHY_PATH:-}" ]; then
+    printf 'dotfiles-update: OMARCHY_PATH is not set, so the Omarchy update would fail; nothing was changed\n' >&2
+    printf 'Start a new shell that loads the Omarchy environment, then retry.\n' >&2
+    exit 1
+fi
+
 # The diff snapshots the current change. Do not rename existing user work.
 require_clean_chezmoi_reviewed_source
 require_merged_chezmoi_source
