@@ -17,12 +17,30 @@ releases are reported for review. Pi and fzf remain manual: Pi needs verified
 lock integrity repair; fzf needs an immutable source or verified artifact contract.
 
 Dependabot separately proposes weekly GitHub Actions and OpenRouter npm
-updates with a seven-day routine cooldown. OpenRouter patch proposals are
-grouped. Other version changes remain separate proposals for review. The two Pi
-package directories receive security proposals only; their version-update limit
-is zero, so Pi direct versions stay with the coordinated updater. Dependabot
-alerts and security update proposals must also be enabled in GitHub repository
-settings.
+updates with a seven-day routine cooldown. All GitHub Actions updates share one
+proposal. In the OpenRouter agent, the `@openrouter/*` packages share one group
+because the agent and SDK versions must move together. All other minor and
+patch updates share a second group. Each other major update remains a separate
+proposal for review. Dependabot ignores `@openrouter/sdk` majors: every
+`@openrouter/agent` release up to 0.11.0 requires SDK `^0.13.7`, and an SDK
+major alone installs a second SDK copy that fails the type check. Remove that
+rule when an agent release accepts the new SDK major. Dependabot also ignores
+`@types/node` majors; change that major only with the Node runtime major.
+
+The two Pi package directories get no version proposals; their limit is zero,
+so Pi direct versions stay with the coordinated updater. Dependabot still
+reports Pi alerts and tries security proposals. A proposal fails with
+`security_update_not_possible` when the vulnerable package is inside the
+published Pi shrinkwrap. Then repair both Pi lockfiles by hand: set the
+version, resolved archive and integrity of the nested entry to the fixed
+release. `npm-lock-install.py` installs that exact archive over the shrinkwrap
+version, and the Linux managed npm suites check the installed versions.
+Dependabot alerts and security update proposals must also be enabled in GitHub
+repository settings.
+
+When a Dependabot pull request is behind the base branch, comment
+`@dependabot rebase`. Do not use the update-branch button. After another
+account pushes to the branch, Dependabot stops its automatic rebases.
 
 ## Source checks and credentials
 

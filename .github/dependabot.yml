@@ -7,6 +7,11 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns: ['*']
+    commit-message:
+      prefix: chore(ci)
   - package-ecosystem: npm
     directory: /dot_local/share/openrouter-agent
     schedule:
@@ -15,10 +20,21 @@ updates:
       default-days: 7
     versioning-strategy: increase
     open-pull-requests-limit: 3
+    ignore:
+      # Every @openrouter/agent release up to 0.11.0 requires @openrouter/sdk
+      # ^0.13.7. Remove this rule when an agent release accepts the new major.
+      - dependency-name: '@openrouter/sdk'
+        update-types: ['version-update:semver-major']
+      # Change the Node types major only with the Node runtime major.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
-      application-patches:
+      # The agent and SDK versions must move together.
+      openrouter:
+        patterns: ['@openrouter/*']
+      application-non-major:
         patterns: ['*']
-        update-types: [patch]
+        update-types: [minor, patch]
     commit-message:
       prefix: chore
   # Pi versions are coordinated by chezmoi-bump; keep security proposals active.
