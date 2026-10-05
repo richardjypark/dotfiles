@@ -115,6 +115,8 @@ reset_test_state() {
     export HOMEBREW_NO_AUTO_UPDATE=""
     export EXPECT_VERBOSE="0"
     export SHASUM_MODE="incremental"
+    export OMARCHY_UPDATE_STATUS="0"
+    unset WRAPPER_TOOL_PATH
 }
 
 create_fixture() {
@@ -285,6 +287,14 @@ exit 0
 EOF
     chmod +x "$root/bin/pacman"
 
+    cat > "$root/bin/omarchy" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'CMD|omarchy|args=%s\n' "$*" >> "${TEST_CALL_LOG:?}"
+exit "${OMARCHY_UPDATE_STATUS:-0}"
+EOF
+    chmod +x "$root/bin/omarchy"
+
     cat > "$root/bin/checkupdates" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -382,7 +392,7 @@ run_wrapper() {
 
     if (
         export HOME="$fixture"
-        export PATH="$fixture/bin:$ORIGINAL_PATH"
+        export PATH="$fixture/bin:${WRAPPER_TOOL_PATH:-$ORIGINAL_PATH}"
         export OSTYPE="$ostype"
         export TEST_CALL_LOG="$LAST_CALLS"
         export STUB_JJ_DIFF_INDEX="$fixture/jj-diff-index"
@@ -425,7 +435,8 @@ assert_czl_full_sequence() {
     assert_contains "$calls" "diff -r @ --summary" "czl checks JJ clean state before mutation"
     assert_contains "$calls" "CMD|sudo|args=-v" "czl refreshes sudo credentials"
     assert_contains "$calls" "CMD|czuf|args=" "czl runs czuf"
-    assert_contains "$calls" "CMD|pacman|args=-Syu --noconfirm" "czl updates pacman"
+    assert_contains "$calls" "CMD|omarchy|args=update" "czl uses the full Omarchy update path"
+    assert_not_contains "$calls" "CMD|pacman|args=-Syu" "czl avoids direct pacman upgrades on Omarchy"
     assert_contains "$calls" "CMD|chezmoi-bump|args=--all --force" "czl runs pinned bump"
     assert_contains "$calls" "CMD|chezmoi|args=--source $source apply --refresh-externals --force" "czl applies selected source through chezmoi"
     assert_contains "$calls" "CHEZMOI_DIR=$source" "bumped/selected source exported"
@@ -582,9 +593,44 @@ test_czl_system_only_allows_dirty_and_applies() {
     run_wrapper "$fixture" czl "linux-gnu" --system-only
     assert_eq "$LAST_STATUS" "0" "czl --system-only is allowed on dirty source"
     assert_contains "$LAST_CALLS" "CMD|czuf|args=" "system-only path still converges externals"
-    assert_contains "$LAST_CALLS" "CMD|pacman|args=-Syu --noconfirm" "system-only still performs pacman sync"
+    assert_contains "$LAST_CALLS" "CMD|omarchy|args=update" "system-only still runs the Omarchy update"
     assert_not_contains "$LAST_CALLS" "CMD|chezmoi-bump|args=--all --force" "system-only skips pinned-bump"
     assert_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply --refresh-externals --force" "system-only still runs forced selected-source apply"
+}
+
+test_czl_omarchy_failure_stops_followup() {
+    local fixture
+    new_test_temp_dir fixture
+    TEST_FIXTURE_ROOT="$fixture"
+    create_fixture "$fixture"
+    reset_test_state
+    export CZL_PACMAN_LOCK="$fixture/no-lock"
+    export OMARCHY_UPDATE_STATUS=23
+
+    run_wrapper "$fixture" czl "linux-gnu" --system-only
+    assert_eq "$LAST_STATUS" "23" "Omarchy failure preserves its status"
+    assert_not_contains "$LAST_CALLS" "CMD|pacman|args=-Syu" "failed Omarchy update does not fall back to pacman"
+    assert_not_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply" "failed Omarchy update stops the final apply"
+}
+
+test_czl_plain_arch_fallback() {
+    local fixture tool
+    new_test_temp_dir fixture
+    TEST_FIXTURE_ROOT="$fixture"
+    create_fixture "$fixture"
+    reset_test_state
+    export CZL_PACMAN_LOCK="$fixture/no-lock"
+    # Keep host Omarchy commands out of this plain-Arch fixture.
+    rm "$fixture/bin/omarchy"
+    for tool in bash cat python3; do
+        ln -s "$(command -v "$tool")" "$fixture/bin/$tool"
+    done
+    export WRAPPER_TOOL_PATH="$fixture/bin"
+
+    run_wrapper "$fixture" czl "linux-gnu" --system-only
+    assert_eq "$LAST_STATUS" "0" "plain Arch maintenance still succeeds"
+    assert_contains "$LAST_CALLS" "CMD|pacman|args=-Syu --noconfirm" "plain Arch keeps its native updater"
+    assert_not_contains "$LAST_CALLS" "CMD|omarchy|" "plain Arch does not call Omarchy"
 }
 
 test_czl_plan_mode_nonmutating() {
@@ -796,6 +842,8 @@ run_test "czl no-arg and --bump-pins" test_czl_full_noarg_and_bump_pins
 run_test "czl unknown/conflicting flags" test_czl_conflicting_and_unknown_flags
 run_test "czl dirty source rejects before mutation" test_czl_full_rejects_dirty_source
 run_test "czl system-only allows dirty and still applies" test_czl_system_only_allows_dirty_and_applies
+run_test "czl Omarchy failure stops follow-up" test_czl_omarchy_failure_stops_followup
+run_test "czl plain Arch fallback" test_czl_plain_arch_fallback
 run_test "czl --plan non-mutating" test_czl_plan_mode_nonmutating
 run_test "czl --plan checkupdates statuses" test_czl_plan_handles_checkupdates_statuses
 run_test "czl --plan pacman query statuses" test_czl_plan_handles_pacman_query_statuses

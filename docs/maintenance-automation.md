@@ -3,6 +3,26 @@
 GitHub prepares repository tool updates. Each machine installs merged source
 through chezmoi. Native package updates remain a separate host operation.
 
+## Background host checks
+
+Linux Omarchy workstations use `dotfiles-update-check.timer` for read-only
+checks after login and daily. The service checks the live remote default HEAD,
+Arch packages, optional AUR packages, and supported seven-day source pins. It
+saves a private report under
+`${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi-maintenance/last-update-check.txt`.
+It reports incomplete checks as failures and sends a desktop notification when
+action is needed. It does not fetch/rebase, apply home files, bump pins, or
+install packages.
+
+The user starts installation with `dotfiles-update` in a terminal. The command
+requires clean source matching the cached trunk, describes a blank current JJ
+change without replacing an existing message, saves an external
+history bundle, runs `omarchy update`, then runs trusted `czu --reviewed`.
+Defer an Omarchy reboot until the command finishes. If Omarchy's first prompt
+is canceled, it can still return success and allow the dotfiles step to run.
+An update error stops the command. This host check does not activate the GitHub
+publication schedule or replace the pin proposal and PR checks below.
+
 ## Current delivery
 
 The workflow `safe-daily-updates` has a manual pilot. Its default dispatch

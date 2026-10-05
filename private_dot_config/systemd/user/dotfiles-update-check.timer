@@ -1,0 +1,12 @@
+[Unit]
+Description=Check system and dotfiles updates after login and daily
+
+[Timer]
+OnStartupSec=5min
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=5min
+Unit=dotfiles-update-check.service
+
+[Install]
+WantedBy=timers.target
