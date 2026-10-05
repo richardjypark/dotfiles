@@ -24,6 +24,7 @@ scripts/eval-skill-routing.py
 scripts/check-public-files.py
 scripts/check-maintenance-candidate.py
 scripts/publish-maintenance-candidate.py
+scripts/check-npm-lock-changes.py
 
 # Ignore compiled zsh files
 *.zwc
