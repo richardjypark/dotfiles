@@ -13,12 +13,12 @@
   "dependencies": {
     "@openrouter/agent": "0.11.0",
     "@openrouter/sdk": "0.13.67",
-    "dotenv": "18.0.3",
+    "dotenv": "18.0.4",
     "glob": "13.0.6",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@types/node": "26.6.2",
+    "@types/node": "26.6.3",
     "tsx": "4.23.15",
     "typescript": "7.0.2"
   },
