@@ -61,3 +61,8 @@ error severity, and actionlint on GitHub workflows. Local runs report a skip
 when a lint tool is absent. CI sets `REQUIRE_LINT_TOOLS=1`, so a missing tool
 fails validation. ShellCheck warning-level cleanup is separate from this
 first gate because existing scripts have warning debt.
+
+Tests can use `rg`. CI installs ripgrep on Linux and macOS, and workstation
+bootstrap installs it locally. A check that text is absent must accept only
+status 1 from `rg`. Status 2 is an error, and status 127 means that `rg` is
+missing; `if rg -q ...; then exit 1; fi` passes in both cases.
