@@ -60,6 +60,8 @@ jobs:
             args+=(--routine --online)
           fi
           python3 scripts/check-maintenance-candidate.py "${args[@]}"
+          python3 scripts/check-npm-lock-changes.py --base "$base" --head "$PR_HEAD" \
+            --online --summary "$GITHUB_STEP_SUMMARY"
       - name: Record the final candidate status
         if: always()
         env:
