@@ -111,9 +111,9 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y shellcheck zsh ripgrep
 
-      - name: Install ShellCheck and actionlint on macOS
+      - name: Install shell test tools on macOS
         if: runner.os == 'macOS'
-        run: brew install shellcheck actionlint
+        run: brew install shellcheck actionlint ripgrep
 
       - name: Set up Go for actionlint
         if: runner.os == 'Linux'
