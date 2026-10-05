@@ -22,6 +22,14 @@ if [[ -n "${ZSH_PROFILE_STARTUP:-}" ]]; then
     _zsh_profile_checkpoint "zshenv start"
 fi
 
+# Omarchy sets OMARCHY_PATH for its desktop session and bash shells, but not for
+# zsh. A zsh started elsewhere, such as in a Herdr server that began over SSH,
+# misses it and `omarchy update` fails. Load Omarchy's bootstrap only then. It
+# runs before the PATH setup below, so that setup keeps its order.
+if [[ -z "${OMARCHY_PATH:-}" && -r /usr/share/omarchy/default/bash/env-bootstrap ]]; then
+    emulate sh -c '. /usr/share/omarchy/default/bash/env-bootstrap'
+fi
+
 # PATH Management Strategy:
 # - ~/.zshenv (this file): Sets only ~/.local/bin for ALL shells (interactive + non-interactive)
 #   This ensures IDE terminals and scripts can find tools like jj, uv, node, npm, etc.
