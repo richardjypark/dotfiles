@@ -2,7 +2,7 @@ import { constants } from 'node:fs';
 import { lstat, open, type FileHandle } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { parse } from 'dotenv';
+import { parseEnv } from 'node:util';
 
 export const DEFAULT_OPT_IN_MARKER = join(
   homedir(),
@@ -98,7 +98,8 @@ export async function loadOpenRouterApiKey(options: {
   const envFile = options.envFile ?? DEFAULT_ENV_FILE;
   try {
     const contents = await readPrivateRegularFile(envFile);
-    const parsed = parse(contents);
+    // Strip a leading byte-order mark; parseEnv would keep it in the first key.
+    const parsed = parseEnv(contents.toString('utf8').replace(/^\uFEFF/, ''));
     const apiKey = parsed.OPENROUTER_API_KEY?.trim();
     if (!apiKey) {
       throw new Error(`${envFile} does not define a non-empty OPENROUTER_API_KEY`);
