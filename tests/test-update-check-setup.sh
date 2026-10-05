@@ -36,21 +36,21 @@ run_setup() {
 }
 
 run_setup workstation omarchy
-rg -q -- '--user enable --now dotfiles-update-check.timer' "$fixture/calls"
+grep -Fq -- '--user enable --now dotfiles-update-check.timer' "$fixture/calls"
 run_setup workstation omarchy
-rg -q -- '--user enable --now dotfiles-update-check.timer' "$fixture/calls"
+grep -Fq -- '--user enable --now dotfiles-update-check.timer' "$fixture/calls"
 printf '[PASS] repeated workstation setup enables the check timer\n'
 
 for settings in 'server omarchy' 'workstation standard'; do
     read -r role profile <<< "$settings"
     TEST_ENABLED_STATUS=0 run_setup "$role" "$profile"
-    rg -q -- '--user disable --now dotfiles-update-check.timer' "$fixture/calls"
-    if rg -q -- '--user enable --now' "$fixture/calls"; then exit 1; fi
+    grep -Fq -- '--user disable --now dotfiles-update-check.timer' "$fixture/calls"
+    if grep -Fq -- '--user enable --now' "$fixture/calls"; then exit 1; fi
 done
 printf '[PASS] server and standard profiles disable an existing timer\n'
 
 TEST_MANAGER_STATUS=1 run_setup workstation omarchy
-if rg -q -- '--user enable --now' "$fixture/calls"; then exit 1; fi
+if grep -Fq -- '--user enable --now' "$fixture/calls"; then exit 1; fi
 printf '[PASS] an unavailable user manager does not enable the timer\n'
 
 TEST_OS=Darwin run_setup workstation omarchy
@@ -63,9 +63,9 @@ for settings in 'workstation omarchy' 'server omarchy' 'workstation standard'; d
         chezmoi --source "$REPO_ROOT" execute-template < "$REPO_ROOT/.chezmoiignore" \
         > "$fixture/ignore"
     if [ "$role/$profile/$(uname -s)" = workstation/omarchy/Linux ]; then
-        if rg -q '^\.config/systemd/user/dotfiles-update-check\.timer$' "$fixture/ignore"; then exit 1; fi
+        if grep -q '^\.config/systemd/user/dotfiles-update-check\.timer$' "$fixture/ignore"; then exit 1; fi
     else
-        rg -q '^\.config/systemd/user/dotfiles-update-check\.timer$' "$fixture/ignore"
+        grep -q '^\.config/systemd/user/dotfiles-update-check\.timer$' "$fixture/ignore"
     fi
 done
 printf '[PASS] timer targets use the Linux Omarchy workstation path gate\n'
