@@ -113,7 +113,7 @@ run_update() {
 }
 
 assert_contains() {
-    if ! rg -q -F -- "$2" "$1"; then
+    if ! grep -Fq -- "$2" "$1"; then
         printf '[FAIL] %s\n' "$3" >&2
         cat "$UPDATE_TEST_ROOT/output" >&2
         exit 1
@@ -121,7 +121,7 @@ assert_contains() {
 }
 
 assert_no_updates() {
-    if rg -q '^(git|omarchy|czu) ' "$UPDATE_CALL_LOG"; then
+    if grep -Eq '^(git|omarchy|czu) ' "$UPDATE_CALL_LOG"; then
         printf '[FAIL] %s\n' "$1" >&2
         exit 1
     fi
@@ -174,7 +174,7 @@ reset_case
 export UPDATE_BACKUP_STATUS=17
 run_update
 [ "$UPDATE_STATUS" -ne 0 ]
-if rg -q '^(omarchy|czu) ' "$UPDATE_CALL_LOG"; then exit 1; fi
+if grep -Eq '^(omarchy|czu) ' "$UPDATE_CALL_LOG"; then exit 1; fi
 assert_contains "$UPDATE_TEST_ROOT/output" 'history backup failed' 'backup error is clear'
 printf '[PASS] Backup failure stops updates\n'
 
@@ -182,7 +182,7 @@ reset_case
 export UPDATE_OMARCHY_STATUS=23
 run_update
 [ "$UPDATE_STATUS" -eq 23 ]
-if rg -q '^czu ' "$UPDATE_CALL_LOG"; then exit 1; fi
+if grep -q '^czu ' "$UPDATE_CALL_LOG"; then exit 1; fi
 printf '[PASS] Omarchy failure stops reviewed apply and keeps its status\n'
 
 reset_case
@@ -220,7 +220,7 @@ reset_case
 export UPDATE_CZU_STATUS=31
 run_update
 [ "$UPDATE_STATUS" -eq 31 ]
-if rg -q -F 'Reviewed dotfiles update completed' "$UPDATE_TEST_ROOT/output"; then exit 1; fi
+if grep -Fq 'Reviewed dotfiles update completed' "$UPDATE_TEST_ROOT/output"; then exit 1; fi
 printf '[PASS] Reviewed apply failure is returned without a completion message\n'
 
 reset_case
