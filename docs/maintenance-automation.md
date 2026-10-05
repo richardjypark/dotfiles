@@ -97,7 +97,7 @@ release age and upstream artifact hashes. Other PRs retain tool integrity and
 version consistency checks without the routine age or patch restriction.
 
 For every PR, the policy also checks each changed entry in an npm lockfile with
-`scripts/check-npm-lock-changes.py`. The entry must name the exact public
+`scripts/check-package-lock-changes.py`. The entry must name the exact public
 registry tarball and a SHA-256 or SHA-512 integrity. The registry must report
 the same integrity and tarball, and the release must be at least three days
 old, the host default. A security fix younger than that fails the status until
