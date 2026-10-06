@@ -95,7 +95,7 @@ jobs:
         if: steps.inspect.outputs.mode == 'new' && (inputs.publish || vars.DOTFILES_MAINTENANCE_PUBLISH == 'true')
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.25'
+          go-version: '1.26'
       - name: Build and scan bounded candidate data
         id: candidate
         if: steps.inspect.outputs.mode == 'new' && (inputs.publish || vars.DOTFILES_MAINTENANCE_PUBLISH == 'true')
@@ -142,7 +142,7 @@ jobs:
       - name: Set up Go for the pinned scanner
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.25'
+          go-version: '1.26'
       - name: Install verified tools before minting a write token
         run: |
           python3 scripts/check-maintenance-candidate.py install-jj --base "$GITHUB_SHA" \

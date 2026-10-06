@@ -16,6 +16,9 @@ Use this map to propagate version bumps safely.
   - Oh My Zsh archive commit URL
 - `private_dot_config/mise/modify_config.toml`
   - Global Node and package-manager defaults for managed agent tools.
+- `.github/workflows/*.yml`
+  - `go-version` follows the `[pinned.go]` minor line, and `node-version` follows the mise Node pin. `tests/test_ci_versions.py` checks both.
+  - gitleaks, actionlint and PyYAML have no updater. Edit every location together; `dot_local/bin/executable_dotfiles-secret-scan` holds the local gitleaks default.
   - Project-specific Erlang, Elixir, Node, and package-manager versions belong in each project's `mise.toml`.
 
 ## Script Touchpoints
