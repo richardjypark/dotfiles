@@ -12,6 +12,20 @@ updates:
         patterns: ['*']
     commit-message:
       prefix: chore(ci)
+  # gitleaks and actionlint for CI. tools.go keeps them direct requirements,
+  # because Dependabot does not update Go tool directives.
+  - package-ecosystem: gomod
+    directory: /.github/tools
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
+    groups:
+      ci-tools:
+        patterns: ['*']
+    commit-message:
+      prefix: chore(ci)
   - package-ecosystem: npm
     directory: /dot_local/share/openrouter-agent
     schedule:
