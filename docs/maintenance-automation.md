@@ -38,7 +38,9 @@ lock integrity repair; fzf needs an immutable source or verified artifact contra
 
 Dependabot separately proposes weekly GitHub Actions and OpenRouter npm
 updates with a seven-day routine cooldown. All GitHub Actions updates share one
-proposal. In the OpenRouter agent, the `@openrouter/*` packages share one group
+proposal. The CI tools gitleaks and actionlint, which the workflows build from
+`.github/tools/go.mod`, share one more. In the OpenRouter agent, the
+`@openrouter/*` packages share one group
 because the agent and SDK versions must move together. All other minor and
 patch updates share a second group. Each other major update remains a separate
 proposal for review. Dependabot ignores `@openrouter/sdk` majors: every
