@@ -15,7 +15,7 @@ action is needed. It does not fetch/rebase, apply home files, bump pins, or
 install packages.
 
 The user starts installation with `dotfiles-update` in a terminal. The command
-requires clean source matching the cached trunk, describes a blank current JJ
+requires `OMARCHY_PATH` and clean source matching the cached trunk, describes a blank current JJ
 change without replacing an existing message, saves an external
 history bundle, runs `omarchy update`, then runs trusted `czu --reviewed`.
 Defer an Omarchy reboot until the command finishes. If Omarchy's first prompt
