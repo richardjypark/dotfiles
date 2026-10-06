@@ -125,7 +125,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           mkdir -p "$RUNNER_TEMP/actionlint-bin"
-          GOBIN="$RUNNER_TEMP/actionlint-bin" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          (cd .github/tools && GOBIN="$RUNNER_TEMP/actionlint-bin" go install github.com/rhysd/actionlint/cmd/actionlint)
           printf '%s\n' "$RUNNER_TEMP/actionlint-bin" >> "$GITHUB_PATH"
 
       - name: Install managed Pi CLI dependencies

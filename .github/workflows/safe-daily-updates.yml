@@ -110,7 +110,7 @@ jobs:
             --report "$RUNNER_TEMP/maintenance-report.json" --output "$RUNNER_TEMP/maintenance-candidate.json"
           export GOBIN="$RUNNER_TEMP/maintenance-tools"
           mkdir -p "$GOBIN"
-          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          (cd .github/tools && go install github.com/zricethezav/gitleaks/v8)
           PATH="$GOBIN:$PATH" bash dot_local/bin/executable_dotfiles-secret-scan --all
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import base64, os
@@ -147,7 +147,7 @@ jobs:
         run: |
           python3 scripts/check-maintenance-candidate.py install-jj --base "$GITHUB_SHA" \
             --destination "$RUNNER_TEMP/maintenance-tools"
-          GOBIN="$RUNNER_TEMP/maintenance-tools" go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          (cd .github/tools && GOBIN="$RUNNER_TEMP/maintenance-tools" go install github.com/zricethezav/gitleaks/v8)
           printf '%s\n' "$RUNNER_TEMP/maintenance-tools" >> "$GITHUB_PATH"
       - name: Copy trusted publication code outside the candidate tree
         run: |
