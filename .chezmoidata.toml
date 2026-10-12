@@ -43,8 +43,8 @@ macos_x86_64_sha256 = "960da44cb4b73685206ddd250b19e0a117fa41095710c1038f081f5cb
 macos_arm64_sha256 = "50487ae565ccd96e499056b4674d438f4c53170202617b4c759defe0c6a1b544"
 
 [pinned.go]
-version = "go1.26.8"
-linux_x86_64_sha256 = "d0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b"
+version = "go1.26.9"
+linux_x86_64_sha256 = "42d158b4d8f7b61ac0a830567c940a86098fb7aac52e467a5ebec03ef5cc2f8d"
 
 [pinned.hermes_agent]
 version = "0.21.5"
