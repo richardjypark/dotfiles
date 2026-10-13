@@ -190,10 +190,24 @@ esac
         self.env["PATH"] = f"{other}:{self.env['PATH']}"
         result = self.run_bash(self.claude)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("0.0.1 is below pinned", result.stdout)
+        self.assertFalse((self.home / "install-called").exists())
         self.assertEqual((self.bin / "claude").resolve(), old)
         self.assertFalse(list(self.state.glob("claude-code-*.done")))
 
         self.env.update(TRUST_ON_FIRST_USE_INSTALLERS="1", CHEZMOI_FORCE_UPDATE="1")
+        result = self.run_bash(self.claude)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((self.home / "install-called").exists())
+        self.assertEqual((self.bin / "claude").resolve(), self.prefix / "bin/claude")
+        self.assertEqual(len(list(self.state.glob("claude-code-*.done"))), 1)
+
+    def test_trusted_update_without_force_upgrades_stale_link(self):
+        # dotfiles-update runs a trusted reviewed apply without force update.
+        old = self.home / ".local/share/mise/installs/node/old/bin/claude"
+        executable(old, '#!/bin/sh\necho "0.0.1 (Claude Code)"\n')
+        (self.bin / "claude").symlink_to(old)
+        self.env["TRUST_ON_FIRST_USE_INSTALLERS"] = "1"
         result = self.run_bash(self.claude)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue((self.home / "install-called").exists())
