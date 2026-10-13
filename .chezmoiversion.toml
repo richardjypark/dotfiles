@@ -1,14 +1,14 @@
 [versions]
 fzf = "0.74.4"
-neovim = "v0.12.5"
-jj = "v0.45.1"
-codex = "rust-v0.160.1"
-uv = "0.12.23"
+neovim = "v0.12.6"
+jj = "v0.46.0"
+codex = "rust-v0.162.1"
+uv = "0.13.0"
 go = "go1.26.9"
 starship = "v1.26.0"
-bun = "bun-v1.4.2"
-tailscale = "1.102.5"
-claude_code_npm = "2.1.290"
+bun = "bun-v1.4.3"
+tailscale = "1.104.1"
+claude_code_npm = "2.1.296"
 
 [update_schedule]
 check_interval = "168h" # Weekly

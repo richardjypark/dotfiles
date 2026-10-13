@@ -22,8 +22,10 @@ claude_link_points_to_nvm() {
 
 claude_installed_version() {
     local output
+    # Check the managed link by default, not the first claude on PATH. Another
+    # copy, such as Omarchy's mise claude@latest, can hide a stale link.
     # A broken launcher is repairable. Do not let its exit status abort setup.
-    if ! output="$("${1:-claude}" --version 2>/dev/null)"; then
+    if ! output="$("${1:-$CLAUDE_LINK_BIN}" --version 2>/dev/null)"; then
         return 0
     fi
     printf '%s\n' "$output" | awk 'NR==1{print $1}'
@@ -47,7 +49,7 @@ add_to_path "$HOME/.local/bin"
 
 vecho "Setting up Claude Code..."
 
-# Fast exit if claude is already installed and working (but mark state)
+# Fast exit if the managed claude is already installed and working (but mark state)
 installed_version="$(claude_installed_version)"
 if claude_link_points_to_nvm; then
     # Keep the old link until the new npm installation succeeds.
@@ -155,7 +157,7 @@ fi
 # Verify installation
 installed_version="$(claude_installed_version)"
 if [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
-    eecho "Claude Code installed successfully: $(claude --version 2>/dev/null)"
+    eecho "Claude Code installed successfully: $("$CLAUDE_LINK_BIN" --version 2>/dev/null)"
     mark_state "$CLAUDE_STATE"
 else
     eecho "Error: expected Claude Code $PINNED_CLAUDE_NPM_VERSION but found ${installed_version:-missing}. Leaving state unset so it can retry."
