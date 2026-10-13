@@ -87,6 +87,23 @@ Higher-level harness/system instructions still take precedence over this file.
 - `secret-leak-audit` — redacted audits for leaked secrets, tokens, keys, and PII in history and the worktree; use before commits that touch credentials, CI, or bootstrap.
 - `grill-me` — stress-test a plan or design one question at a time before building.
 
+General-purpose skills vendored from upstream (provenance and refresh rules: `docs/tooling-and-skills.md`):
+
+- `grill-with-docs` — grill a plan and record `GLOSSARY.md` terms and ADRs as decisions settle.
+- `domain-modeling` — challenge and sharpen domain terms; edit `GLOSSARY.md` and ADRs.
+- `codebase-design` — deep-module vocabulary for interfaces, seams, and testability.
+- `improve-codebase-architecture` — find deepening opportunities and present them as an HTML report.
+- `tdd` — test-first red-green loop at agreed seams, one vertical slice at a time.
+- `diagnosing-bugs` — build a red-capable feedback loop before hypothesizing about a hard bug.
+- `blast-radius` — find what a change breaks beyond the diff and prove its safety fact.
+- `prototype` — throwaway logic or UI prototype that answers one design question.
+- `handoff` — compact the session into a redacted handoff document for the next agent.
+- `teach` — multi-session teaching workspace with mission, lessons, and learning records.
+- `technical-writing` — Diátaxis, Google style, STE, and Global English rules for docs, PRs, and commits.
+- `unslop` — remove AI writing patterns from text.
+- `create-verification-skill` / `maintain-verification-skill` — generate, then audit, a project-local skill that drives the real app.
+- `anatomy` — interactive isometric SVG explainer figures; pinned external, workstation role only.
+
 ## Chezmoi Rules
 
 - Edit source files in this repo, then verify: `chezmoi diff` → `chezmoi apply` → `chezmoi status`.

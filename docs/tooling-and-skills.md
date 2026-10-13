@@ -113,6 +113,22 @@ For cross-cutting work, the canonical references can still live in repo-root doc
 - `plans/README.md`
 - `AGENTS.md`
 
+### Third-Party Skills
+
+Vendored skills are copies of upstream MIT-licensed skills that live in the shared tree like any other skill:
+
+- Each `SKILL.md` frontmatter has `license: MIT` and `metadata.upstream` with the upstream `name` and `url`, plus the vendored `commit`. The older `grill-me` port has no recorded commit.
+- Each folder has `LICENSE.txt` with the upstream copyright notice.
+- Local edits stay small: rename references to match local skill names (upstream `grilling` is local `grill-me`), make Cursor-only paths client-neutral, and remove references to skills that are not vendored.
+- To refresh one, diff the upstream folder between the recorded `commit` and the new commit, apply the change, keep the local edits, and update `commit`.
+
+Current upstream sources:
+
+- `mattpocock/skills`: `grill-me`, `grill-with-docs`, `domain-modeling`, `codebase-design`, `improve-codebase-architecture`, `tdd`, `diagnosing-bugs`, `prototype`, `handoff`, `teach`.
+- `cursor/plugins` `pstack`: `unslop`, `blast-radius`, `technical-writing`, `create-verification-skill`, `maintain-verification-skill`.
+
+Large skills with bundled examples or tooling install as pinned chezmoi externals instead of repo copies. `anatomy` (wheresryan22/anatomy, about 12 MB) installs at `~/.agents/skills/anatomy` from a commit-pinned archive in `.chezmoiexternal.toml.tmpl`, on the workstation role only, because it needs Node.js and Chrome. Its gallery publish step runs `git` and `gh` and reads local Claude Code session logs for time and token counts. It runs only after the user approves a dry-run plan.
+
 ## Future Machine Combination Pattern
 
 Use this pattern for maintainability:

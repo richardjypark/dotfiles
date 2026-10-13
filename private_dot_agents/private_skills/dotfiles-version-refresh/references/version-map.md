@@ -14,6 +14,7 @@ Use this map to propagate version bumps safely.
   - `[pinned.hermes_agent]` `version`, `ref`, `repo_url`, `branch`, and `extras`
 - `.chezmoiexternal.toml.tmpl`
   - Oh My Zsh archive commit URL
+  - `anatomy` skill archive commit URL (wheresryan22/anatomy release commit). Review the upstream diff for new network calls, scripts, and publish behavior before you bump it. The v1.1.0 pin was added on 2026-10-12, before the seven-day age, as an approved exception.
 - `private_dot_config/mise/modify_config.toml`
   - Global Node and package-manager defaults for managed agent tools.
   - Project-specific Erlang, Elixir, Node, and package-manager versions belong in each project's `mise.toml`.
