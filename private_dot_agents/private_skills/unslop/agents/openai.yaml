@@ -1,0 +1,4 @@
+interface:
+  display_name: "Unslop"
+  short_description: "Cut AI tells from writing."
+  default_prompt: "Use $unslop to rewrite this text without AI writing patterns while keeping its meaning."

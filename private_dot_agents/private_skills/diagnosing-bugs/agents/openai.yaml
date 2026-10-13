@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagnosing Bugs"
+  short_description: "Feedback-loop-first diagnosis for hard bugs."
+  default_prompt: "Use $diagnosing-bugs to build a red-capable feedback loop for this bug before forming hypotheses."

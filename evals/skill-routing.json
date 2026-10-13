@@ -1,6 +1,11 @@
 {
   "cases": [
     {
+      "id": "change-impact-beyond-diff",
+      "request": "What could this one-line cache eviction change break elsewhere beyond the diff? Prove the fact it is safe because of by running code.",
+      "expected_skill": "blast-radius"
+    },
+    {
       "id": "brave-tor-policy-opt-out",
       "request": "Add a machine-local flag that can disable the managed com.brave.Browser TorDisabled=true policy so Brave onion browsing works again on one Mac.",
       "expected_skill": "brave-tor-policy-hardening"
@@ -16,9 +21,29 @@
       "expected_skill": "chezmoi-script-maintainer"
     },
     {
+      "id": "deep-module-interface",
+      "request": "Help me decide where the seam goes for this cache module so its interface stays small and deep and it is testable through that interface.",
+      "expected_skill": "codebase-design"
+    },
+    {
+      "id": "generate-verify-skill",
+      "request": "Generate a project-local skill that launches this web app, drives its features the way a user does, and captures screenshot evidence.",
+      "expected_skill": "create-verification-skill"
+    },
+    {
       "id": "unattended-long-research",
       "request": "Set up an unattended week-long research project with durable Hermes Kanban tasks, independent verifier workers, stall pivots, and watchdog recovery.",
       "expected_skill": "deli-auto-research"
+    },
+    {
+      "id": "intermittent-failure-debug",
+      "request": "Debug why checkout intermittently throws a timeout in production; build a reproduction loop that goes red before guessing at a cause.",
+      "expected_skill": "diagnosing-bugs"
+    },
+    {
+      "id": "sharpen-domain-terms",
+      "request": "Challenge whether we mean Customer or User when we say account, and update GLOSSARY.md once the term is resolved.",
+      "expected_skill": "domain-modeling"
     },
     {
       "id": "refresh-version-pin",
@@ -29,6 +54,21 @@
       "id": "stress-test-plan",
       "request": "Stress-test my deployment design relentlessly, asking exactly one decision question at a time and recommending an answer for each.",
       "expected_skill": "grill-me"
+    },
+    {
+      "id": "grill-and-record-glossary",
+      "request": "Grill me on my billing redesign and write each resolved term into GLOSSARY.md and any hard-to-reverse decision into an ADR as we go.",
+      "expected_skill": "grill-with-docs"
+    },
+    {
+      "id": "session-handoff-doc",
+      "request": "Compact this conversation into a handoff document so a fresh agent session can continue the work tomorrow.",
+      "expected_skill": "handoff"
+    },
+    {
+      "id": "architecture-deepening-report",
+      "request": "Scan this codebase for shallow modules worth deepening, show the candidates in a visual HTML report, and let me pick one to explore.",
+      "expected_skill": "improve-codebase-architecture"
     },
     {
       "id": "routine-jj-publish",
@@ -46,9 +86,39 @@
       "expected_skill": "karpathy-guidelines"
     },
     {
+      "id": "audit-verify-skill",
+      "request": "Audit our existing verify-app skill and its feature map against the source and a live run, and ship one PR of proven corrections.",
+      "expected_skill": "maintain-verification-skill"
+    },
+    {
+      "id": "throwaway-state-prototype",
+      "request": "Build a throwaway single-file HTML prototype so I can click through whether this order state machine feels right.",
+      "expected_skill": "prototype"
+    },
+    {
       "id": "full-history-secret-audit",
       "request": "Audit the full Git history and current worktree for exposed PATs, private keys, credential files, and PII without printing raw secrets.",
       "expected_skill": "secret-leak-audit"
+    },
+    {
+      "id": "red-green-feature",
+      "request": "Build the new discount rule test-first with a red-green loop, one vertical slice at a time.",
+      "expected_skill": "tdd"
+    },
+    {
+      "id": "multi-session-lessons",
+      "request": "Teach me Rust ownership over several sessions, keeping a mission, lessons, and learning records in this directory.",
+      "expected_skill": "teach"
+    },
+    {
+      "id": "diataxis-doc-review",
+      "request": "Review this how-to guide for Diataxis mode, Google developer style, and Simplified Technical English sentence rules.",
+      "expected_skill": "technical-writing"
+    },
+    {
+      "id": "remove-ai-tells",
+      "request": "Rewrite this launch announcement to remove AI writing tells such as delve, em dashes, and rule-of-three lists.",
+      "expected_skill": "unslop"
     },
     {
       "id": "no-repo-skill",

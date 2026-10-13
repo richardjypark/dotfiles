@@ -1,0 +1,4 @@
+interface:
+  display_name: "Technical Writing"
+  short_description: "Layered standard for docs, PRs, and commits."
+  default_prompt: "Use $technical-writing to write or review this doc with Diataxis, Google style, STE, and Global English rules."
