@@ -37,6 +37,12 @@ claude_binary_ready() {
     [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"
 }
 
+# Replace an older managed copy only when the caller allows the npm download.
+# Trusted reviewed updates (dotfiles-update) do not set force update.
+claude_upgrade_allowed() {
+    is_force_update || [ "$TRUST_ON_FIRST_USE_INSTALLERS" = "1" ]
+}
+
 if should_skip_state "$CLAUDE_STATE"; then
     if ! claude_link_points_to_nvm && claude_binary_ready; then
         vecho "Claude Code setup already completed (state tracked)"
@@ -61,15 +67,15 @@ if [ -n "$installed_version" ]; then
         mark_state "$CLAUDE_STATE"
         exit 0
     fi
-    if ! is_force_update; then
+    if ! claude_upgrade_allowed; then
         vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; checking for an already-installed pinned npm binary before skipping."
     fi
 fi
 
 NPM_CMD=""
 if ! NPM_CMD="$(resolve_npm_cmd)"; then
-    if ! is_force_update && [ -n "$installed_version" ]; then
-        vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."
+    if ! claude_upgrade_allowed && [ -n "$installed_version" ]; then
+        eecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."
         exit 0
     fi
     eecho "Error: npm is required to install Claude Code without remote installer scripts."
@@ -128,8 +134,8 @@ if link_claude_binary; then
     exit 0
 fi
 
-if ! is_force_update && [ -n "$installed_version" ]; then
-    vecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."
+if ! claude_upgrade_allowed && [ -n "$installed_version" ]; then
+    eecho "Claude Code $installed_version is below pinned $PINNED_CLAUDE_NPM_VERSION; rerun with czuf or TRUST_ON_FIRST_USE_INSTALLERS=1 to upgrade."
     exit 0
 fi
 
