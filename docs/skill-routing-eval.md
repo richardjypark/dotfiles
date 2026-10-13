@@ -44,26 +44,29 @@ requests are sent to Hermes.
 The fixture contains:
 
 ```text
-10 current skills x 1 representative request
+24 current skills x 1 representative request
                          +
                1 unrelated request
                          =
-                    11 cases
+                    25 cases
 ```
 
 The unrelated request should produce `none`. This catches the simplest failure
 where the model tries to use a repo skill for every possible question.
 
+The eval reads only the source tree. It does not cover `anatomy`, because
+`.chezmoiexternal.toml.tmpl` installs that skill as a pinned archive.
+
 All cases are sent in one model call:
 
 ```text
-Current skill catalog + 11 requests
+Current skill catalog + 25 requests
                   |
                   v
           One Hermes call
                   |
                   v
-   11 selected skill names or none
+   25 selected skill names or none
                   |
                   v
  Exact-match accuracy + batch wall time
