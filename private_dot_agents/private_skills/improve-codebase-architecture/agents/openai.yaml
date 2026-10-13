@@ -1,0 +1,4 @@
+interface:
+  display_name: "Improve Codebase Architecture"
+  short_description: "Find deepening opportunities and report them as HTML."
+  default_prompt: "Use $improve-codebase-architecture to scan this codebase for deepening opportunities, write the HTML report, and ask which candidate to explore."

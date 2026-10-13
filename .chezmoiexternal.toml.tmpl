@@ -34,3 +34,15 @@ exact = true
 refreshPeriod = "168h"
 clone.args = ["--depth=1", "--branch", "v0.74.4"]
 pull.args = ["--ff-only"]
+{{- if ne (includeTemplate "resolved-role" .) "server" }}
+
+[".agents/skills/anatomy"]
+type = "archive"
+# Shared agent skill; needs Node.js and Chrome, so servers skip it.
+# Pinned to the v1.1.0 release commit. Update flow: review the upstream diff, then bump the commit.
+url = "https://github.com/wheresryan22/anatomy/archive/be2fa9b47a7e4b05dec468be9ffc42e830c2101c.tar.gz"
+exact = true
+stripComponents = 1
+refreshPeriod = "168h"
+exclude = ["*/.gitattributes", "*/.github", "*/.gitignore", "*/evals", "*/tests", "*/scripts/*.test.mjs"]
+{{- end }}
