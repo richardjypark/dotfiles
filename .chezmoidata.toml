@@ -115,4 +115,4 @@ macos_x86_64_sha256 = "0ec1869c60752644863bc4690878a290455f0d35c6e9b200ca4a822b3
 macos_arm64_sha256 = "19a8d9778d90476cc2f0463be69e9d82e2b91ba7b2361dbfc5348f243b1ba731"
 
 [pinned.claude]
-npm_version = "2.1.300"
+npm_version = "2.1.301"
