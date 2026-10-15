@@ -44,7 +44,7 @@ if [ "$CZ_MAINTENANCE_PLAN" = "true" ]; then
 
     echo "==> [plan] Checking outdated Homebrew formulae and casks without auto-update..."
     HOMEBREW_NO_AUTO_UPDATE=1 maintenance_run brew outdated --formula
-    HOMEBREW_NO_AUTO_UPDATE=1 maintenance_run brew outdated --cask
+    HOMEBREW_NO_AUTO_UPDATE=1 maintenance_run brew outdated --cask --greedy
 
     if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
         echo "==> [plan] Checking stable-pin updates without mutating source..."
@@ -71,10 +71,12 @@ fi
 echo "==> Synchronizing and applying current chezmoi source..."
 CHEZMOI_MACOS_MAINTENANCE_MODE=1 maintenance_run czuf
 
-echo "==> Updating Homebrew formulae and casks..."
+echo "==> Updating Homebrew casks and formulae..."
 maintenance_run brew update
-maintenance_run brew upgrade
-maintenance_run brew upgrade --cask --greedy
+# --yes skips Homebrew's default confirmation; it does not answer sudo or macOS prompts.
+# Casks run first so pkg installers start sooner after the sudo refresh above.
+maintenance_run brew upgrade --cask --greedy --yes
+maintenance_run brew upgrade --formula --yes
 
 if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
     echo "==> Updating stable source pins atomically..."
@@ -83,9 +85,10 @@ if [ "$CZ_MAINTENANCE_SYSTEM_ONLY" = "false" ]; then
     source_change_status=0
     if chezmoi_source_has_changes; then
         echo "==> Re-applying changed stable pins..."
+        # Externals are cached by URL, so a bumped pin downloads without a forced refresh.
         TRUST_ON_FIRST_USE_INSTALLERS=1 CHEZMOI_FORCE_UPDATE=1 BREW_CLEANUP=false \
             run_with_optional_output_sanitizer \
-            run_chezmoi_with_source apply --refresh-externals --force
+            run_chezmoi_with_source apply --force
     else
         source_change_status=$?
         if [ "$source_change_status" -gt 1 ]; then

@@ -452,8 +452,10 @@ assert_czm_full_shape() {
     assert_contains "$calls" "CMD|czuf|args=" "czm runs czuf"
     assert_contains "$calls" "CHEZMOI_MACOS_MAINTENANCE_MODE=1" "czm sets mac maintenance mode for czuf"
     assert_contains "$calls" "CMD|brew|args=update" "czm checks brew update"
-    assert_contains "$calls" "CMD|brew|args=upgrade" "czm performs brew upgrade"
-    assert_contains "$calls" "CMD|brew|args=upgrade --cask --greedy" "czm upgrades greedy casks"
+    assert_contains "$calls" "CMD|brew|args=upgrade --cask --greedy --yes|" "czm upgrades greedy casks without a confirmation prompt"
+    assert_contains "$calls" "CMD|brew|args=upgrade --formula --yes|" "czm upgrades formulae without a confirmation prompt"
+    assert_order "$calls" "CMD|brew|args=update" "CMD|brew|args=upgrade --cask --greedy --yes|" "czm updates Homebrew before cask upgrades"
+    assert_order "$calls" "CMD|brew|args=upgrade --cask --greedy --yes|" "CMD|brew|args=upgrade --formula --yes|" "czm upgrades casks before formulae"
     assert_contains "$calls" "CMD|chezmoi-bump|args=--all --force" "czm runs pinned bump"
     assert_contains "$calls" "CHEZMOI_DIR=$source" "bumped/selected source exported"
 }
@@ -495,7 +497,7 @@ assert_plan_darwin_calls() {
     assert_contains "$calls" " diff" "darwin plan asks for chezmoi diff"
     assert_contains "$calls" "CMD|chezmoi-bump|args=--dry-run --all --force" "darwin plan runs dry-run bump"
     assert_contains "$calls" "CMD|brew|args=outdated --formula|HOMEBREW_NO_AUTO_UPDATE=1" "darwin plan calls brew outdated formula"
-    assert_contains "$calls" "CMD|brew|args=outdated --cask|HOMEBREW_NO_AUTO_UPDATE=1" "darwin plan calls brew outdated cask"
+    assert_contains "$calls" "CMD|brew|args=outdated --cask --greedy|HOMEBREW_NO_AUTO_UPDATE=1" "darwin plan reports the greedy casks that full mode upgrades"
 
     if grep -E "CMD\|chezmoi-bump\|" "$calls" | grep -Ev "--dry-run" >/dev/null 2>&1; then
         fail "darwin plan never invokes non-dry-run chezmoi-bump"
@@ -508,7 +510,7 @@ assert_plan_darwin_calls() {
     assert_not_contains "$calls" "CMD|brew|args=update" "darwin plan does not run brew update"
     assert_not_contains "$calls" "CMD|brew|args=upgrade" "darwin plan does not run brew upgrade"
     assert_not_contains "$calls" "CMD|brew|args=cleanup" "darwin plan does not run brew cleanup"
-    assert_not_contains "$calls" " apply --refresh-externals --force" "darwin plan does not apply pins"
+    assert_not_contains "$calls" " apply --" "darwin plan does not apply pins"
 }
 
 run_test() {
@@ -732,7 +734,7 @@ test_czm_full_rejects_dirty_source() {
     assert_not_contains "$LAST_CALLS" "CMD|brew|args=update" "dirty source failure skips brew update"
     assert_not_contains "$LAST_CALLS" "CMD|brew|args=upgrade" "dirty source failure skips brew upgrade"
     assert_not_contains "$LAST_CALLS" "CMD|chezmoi-bump|args=--all --force" "dirty source failure skips bump"
-    assert_not_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply --refresh-externals --force" "dirty source failure skips final apply"
+    assert_not_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply" "dirty source failure skips final apply"
 }
 
 test_czm_system_only_allows_dirty_and_skips_bump() {
@@ -746,7 +748,7 @@ test_czm_system_only_allows_dirty_and_skips_bump() {
     run_wrapper "$fixture" czm "darwin" --system-only
     assert_eq "$LAST_STATUS" "0" "czm --system-only is allowed on dirty source"
     assert_not_contains "$LAST_CALLS" "CMD|chezmoi-bump|args=--all --force" "czm system-only skips bump"
-    assert_not_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply --refresh-externals --force" "czm system-only skips final apply"
+    assert_not_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply" "czm system-only skips final apply"
     assert_contains "$LAST_CALLS" "CMD|brew|args=update" "system-only still performs brew update"
     assert_contains "$LAST_CALLS" "CMD|brew|args=upgrade" "system-only still performs brew upgrade"
 }
@@ -773,7 +775,7 @@ test_czm_plan_system_only_skips_bump() {
     run_wrapper "$fixture" czm "darwin" --plan --system-only
     assert_eq "$LAST_STATUS" "0" "czm --plan --system-only succeeds"
     assert_not_contains "$LAST_CALLS" "CMD|chezmoi-bump|args=--dry-run --all --force" "system-only disables bump in plan"
-    assert_not_contains "$LAST_CALLS" " apply --refresh-externals --force" "plan system-only stays non-mutating"
+    assert_not_contains "$LAST_CALLS" " apply --" "plan system-only stays non-mutating"
 }
 
 test_czm_no_change_skips_apply_without_shasum() {
@@ -787,7 +789,7 @@ test_czm_no_change_skips_apply_without_shasum() {
     run_wrapper "$fixture" czm "darwin"
     assert_eq "$LAST_STATUS" "0" "czm no-change full run exits successfully"
     assert_not_contains "$LAST_CALLS" "CMD|shasum" "no shasum-based fingerprinting"
-    assert_not_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply --refresh-externals --force" "unchanged bump skips final apply"
+    assert_not_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply" "unchanged bump skips final apply"
     assert_call_count_ge "$LAST_CALLS" "diff -r @ --summary" "2" "czm checks JJ summary after full bump pass"
 }
 
@@ -804,7 +806,8 @@ test_czm_changed_summary_triggers_selected_apply() {
     assert_not_contains "$LAST_CALLS" "CMD|shasum" "changed run uses jj summary, not shasum"
     assert_contains "$LAST_CALLS" "diff -r @ --summary" "czm checks JJ summary during full maintenance"
     assert_call_count_ge "$LAST_CALLS" "diff -r @ --summary" "2" "czm checks pre and post-bump JJ summaries"
-    assert_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply --refresh-externals --force" "changed jj summary triggers selected-source apply"
+    assert_contains "$LAST_CALLS" "CMD|chezmoi|args=--source $LAST_SOURCE apply --force" "changed jj summary triggers selected-source apply"
+    assert_not_contains "$LAST_CALLS" "apply --refresh-externals" "czm final apply uses URL-keyed external cache without forced refresh"
 }
 
 test_czm_cleanup_warning_nonfatal() {
