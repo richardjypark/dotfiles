@@ -3,9 +3,9 @@
 
 hl.config({
   input = {
-    -- Dvorak is the first layout. Alt + Shift switches to US.
+    -- US is the first layout. Alt + Shift switches to Dvorak.
     kb_layout = "us,us",
-    kb_variant = "dvorak,",
+    kb_variant = ",dvorak",
     kb_options = "caps:escape,grp:alt_shift_toggle",
 
     repeat_rate = 40,
