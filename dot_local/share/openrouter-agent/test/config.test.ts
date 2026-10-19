@@ -6,9 +6,9 @@ import { loadConfig } from '../src/config.js';
 
 test('managed defaults keep OpenRouter explicit, bounded, and privacy constrained', async () => {
   const config = await loadConfig({});
-  assert.equal(config.model, 'openai/gpt-5.6-luna');
-  assert.equal(config.transport, 'responses');
-  assert.equal(config.allowProviderFallbacks, false);
+  assert.equal(config.model, 'anthropic/claude-haiku-5.5');
+  assert.equal(config.transport, 'chat-completions');
+  assert.equal(config.allowProviderFallbacks, true);
   assert.equal(config.maxSteps, 24);
   assert.equal(config.maxOutputTokens, 4096);
   assert.equal(config.maxCostUsd, 0.25);
