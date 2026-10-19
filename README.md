@@ -357,9 +357,9 @@ this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensit
 Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]` and
 `[hermes.delegation]`, and the always-run Hermes setup script compares and
 applies them in one atomic config update on each
-`chezmoi apply`: `model.provider=anthropic`, `model.default=claude-opus-5-5`,
+`chezmoi apply`: `model.provider=anthropic`, `model.default=claude-haiku-5-5`,
 `model.base_url=https://api.anthropic.com`,
-`display.show_reasoning=true`, `agent.reasoning_effort=xhigh`,
+`display.show_reasoning=true`, `agent.reasoning_effort=max`,
 `agent.service_tier=""` (normal speed), `agent.max_turns=1000`,
 `goals.max_turns=1000`, `model.context_length=500000`, and
 `tui_by_default=true`. Delegation provider, model, and reasoning overrides are
@@ -434,12 +434,14 @@ not symlinks; the credential must be exactly mode `0600`.
 Use a dedicated OpenRouter key with an expiry and conservative account spending limit. The managed
 defaults stop one agent turn when it reaches 24 steps or USD 0.25 in reported cost, do not
 automatically retry ambiguous paid failures, request `data_collection=deny`, require routed
-providers to support request parameters, and use `openai/gpt-5.6-luna` over the Responses API.
-When Luna is unavailable or undesirable, explicitly select the checked-in Kimi K3 profile for one
-process; it uses Chat Completions and permits endpoint fallback only among providers serving that
-same model:
+providers to support request parameters, and use `anthropic/claude-haiku-5.5` over Chat
+Completions. Endpoint fallback is permitted only among providers serving that same model. The
+agent does not send a reasoning effort setting. For one process, you can explicitly select the
+checked-in Luna profile (Responses API, no fallback) or Kimi K3 profile (Chat Completions, same-model
+fallback):
 
 ```bash
+OPENROUTER_AGENT_MODEL=openai/gpt-5.6-luna openrouter-agent
 OPENROUTER_AGENT_MODEL=moonshotai/kimi-k3 openrouter-agent
 ```
 
