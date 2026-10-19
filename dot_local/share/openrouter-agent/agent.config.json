@@ -1,7 +1,11 @@
 {
   "name": "OpenRouter Reserve Agent",
-  "model": "openai/gpt-5.6-luna",
+  "model": "anthropic/claude-haiku-5.5",
   "modelProfiles": {
+    "anthropic/claude-haiku-5.5": {
+      "transport": "chat-completions",
+      "allowProviderFallbacks": true
+    },
     "openai/gpt-5.6-luna": {
       "transport": "responses",
       "allowProviderFallbacks": false

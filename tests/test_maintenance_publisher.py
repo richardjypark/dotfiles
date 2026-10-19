@@ -143,7 +143,7 @@ class CandidateTests(Fixture):
     def test_unrelated_changes_and_nonpatch_updates_are_rejected(self):
         for edit in (lambda text: text + b"\n# unrelated comment\n",
                      lambda text: text.replace(b'name = "rich"', b'name = "other"'),
-                     lambda text: text.replace(b'reasoning_effort = "xhigh"', b'reasoning_effort = "low"'),
+                     lambda text: text.replace(b'reasoning_effort = "max"', b'reasoning_effort = "low"'),
                      lambda text: text.replace(self.new.encode(), b"v9.0.0")):
             with self.subTest(edit=edit):
                 after = self.after()
