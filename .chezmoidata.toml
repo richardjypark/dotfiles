@@ -29,11 +29,11 @@ macos_x86_64_sha256 = "10d941de276c7c5074ef5d395312813b4575f4ce92cb9c0b05738efb9
 macos_arm64_sha256 = "43daa37ce0f9716cdf6fb65a29cbcae74a3160aef048cf3cb3d166d41cb4ab58"
 
 [pinned.codex]
-version = "rust-v0.162.1"
-linux_x86_64_sha256 = "a676f5722aae0d86cbe3764332f08eab1fdd89dc0a300b3ad4ffbf48611fa3e3"
-linux_arm64_sha256 = "53a9ce0b94beb27a63fdeb2f7704d95199e17b3898aa33b60461a1a93ac0d88b"
-macos_x86_64_sha256 = "894ac20afe819d4fa2a4be8cd27c54fd606338b86036e8ed9b6c9978c2dc7aed"
-macos_arm64_sha256 = "88e37ccddf5a0f4ea9dc1be13c66a2a94f9c2d1a04f3ace9053d71b3939e885d"
+version = "rust-v0.163.0"
+linux_x86_64_sha256 = "582646c6bf0561eb0de540f7fc85b9121b0091a826bc6e96830b7f1722122182"
+linux_arm64_sha256 = "9d8ecf2d19d3e184877983902d6c85de48b3888dcb72c382a8a0c975845927fb"
+macos_x86_64_sha256 = "0c182d6194da7003943678dc87866b54b3dee719edaf8d092f304affbc6b57d1"
+macos_arm64_sha256 = "b0344fc2e41f15e0071147e5869008047b8ff4bf2c4a8897975d3bae3f103b34"
 
 [pinned.uv]
 version = "0.13.1"
@@ -89,11 +89,11 @@ patch_version = "hide-voice-off-v3-wide-cwd-v1"
 patch_version = "jj-workspace-bookmark-v1"
 
 [pinned.starship]
-version = "v1.26.0"
-linux_x86_64_sha256 = "b7c232b0e8249d8e55a40beb79c5c43a7d370f3f9408bd215deb0170daeaadf3"
-linux_arm64_sha256 = "dc30189378d2f2e287384e8a692d3f95ad1df64cf0e8c36aa9201516028aed6b"
-macos_x86_64_sha256 = "5548f406a4b6f5695903bdea83f77ce47ec12c8c0e62dabd33122d8f133e4207"
-macos_arm64_sha256 = "c40b27b11f580411e068f2fa6c1be7830a387c0bc47a94d1d37f32b054c5361d"
+version = "v1.27.0"
+linux_x86_64_sha256 = "10c8eb4cb3b761d9bf59ea828444c2dab36c900b7d69a69e08814b286969df89"
+linux_arm64_sha256 = "341f5cbf24699fa0b27ec88965ad25f862ea09e15d35a543fd6ffdff1d2aa00d"
+macos_x86_64_sha256 = "344e4d38787e0aa86dd522ae5462e6fb6da1227691f81a79ffed480a4563ccb3"
+macos_arm64_sha256 = "5362da8cb2928f98f3ce0ffda697cf0f8de70081db000dae316d6d3a404f6cf0"
 
 [pinned.bun]
 version = "bun-v1.4.3"
@@ -108,11 +108,11 @@ linux_x86_64_sha256 = "108d1d96ecf410d305571e173516f27038f870919a9b89c914a167c6d
 linux_arm64_sha256 = "f60294374967f3dfd8cf57bbbd474d6cfce32d123e3a8ddeab82a87940daa806"
 
 [pinned.chezmoi]
-version = "2.73.1"
-linux_x86_64_sha256 = "a3f958acb7d0e5d53fa43c2eec9bc8ae3b4fba8bcbfdce29a8881ca3ffc20a53"
-linux_arm64_sha256 = "e60275b27f505ae2086bfb87b144eacf7377a89803120f6bd933d1852a93b0c6"
-macos_x86_64_sha256 = "0ec1869c60752644863bc4690878a290455f0d35c6e9b200ca4a822b35d2be54"
-macos_arm64_sha256 = "19a8d9778d90476cc2f0463be69e9d82e2b91ba7b2361dbfc5348f243b1ba731"
+version = "2.73.2"
+linux_x86_64_sha256 = "4d7bd8072f15373d5f5c801209bac218527452c8e54f9ae46ba6c5bd4a6eca41"
+linux_arm64_sha256 = "db92b343a32cade0b1d4ff5e30da54c5156f7a580349281e583a5402c57c7bcf"
+macos_x86_64_sha256 = "c6c3e2a8eb3126c33cef454ad354e580d91290b92003c7bf21608d1e73832fc6"
+macos_arm64_sha256 = "b41f5a51700a7dc0b7c2ae02652d42824ee112d3d97cb2f3c725d53e8d9f6b32"
 
 [pinned.claude]
-npm_version = "2.1.301"
+npm_version = "2.1.303"
