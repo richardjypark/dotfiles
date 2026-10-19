@@ -67,7 +67,7 @@ async function doctor(): Promise<void> {
 
 function demo(): void {
   const renderer = new TuiRenderer();
-  printBanner('OpenRouter Agent', 'openai/gpt-5.6-luna', process.cwd());
+  printBanner('OpenRouter Agent', 'anthropic/claude-haiku-5.5', process.cwd());
   renderer.handle({ type: 'text', delta: 'I can inspect this workspace and stream an answer.\n' });
   renderer.handle({ type: 'tool_call', name: 'file_read', callId: 'demo-1', args: { path: 'README.md' } });
   renderer.handle({ type: 'tool_result', name: 'file_read', callId: 'demo-1', output: 'README.md read safely' });
