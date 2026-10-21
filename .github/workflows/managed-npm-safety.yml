@@ -100,7 +100,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.21.0
+          node-version: 24.22.1
           cache: npm
           cache-dependency-path: |
             dot_local/share/pi-cli/package-lock.json

@@ -21,7 +21,7 @@
 {{- $managed := `# Defaults for managed agent tools. Project mise.toml files override these.
 # Python remains under uv. Elixir and Erlang are selected by each project.
 [tools]
-node = "24.21.0"
+node = "24.22.1"
 pnpm = "10.34.5"
 yarn = "1.22.22"
 ` -}}
