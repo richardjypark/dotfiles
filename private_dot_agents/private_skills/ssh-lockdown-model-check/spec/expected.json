@@ -1,8 +1,8 @@
 {
   "covered": {
-    "sync_commit": "49c77cb03b1da87ea7286c230643e2e1f64c3bfb",
+    "sync_commit": "6e4b041bf78806938ae31637cde32b5576dc053f",
     "sha256": {
-      "scripts/server-lockdown-tailscale.sh": "6ee02acef5ea4364e329f4c66b88f695c6aed08b7215c97b218270ea51195202"
+      "scripts/server-lockdown-tailscale.sh": "e82d68c73cc0221db1d99d8301b6f3321703e94f75a4d58474b792f8df2c0cbd"
     }
   },
   "scenarios": {
@@ -22,37 +22,19 @@
         "UnconfirmedRestores": "pass"
       }
     },
-    "TimerStillLoaded": {
-      "findings": [
-        "F1"
-      ],
-      "rules": {
-        "ConfirmedMeansLocked": "violated",
-        "SettledConsistent": "violated",
-        "NoLockout": "violated",
-        "UnconfirmedRestores": "pass"
-      }
-    },
     "Interrupted": {
-      "findings": [
-        "F2"
-      ],
       "rules": {
         "ConfirmedMeansLocked": "pass",
-        "SettledConsistent": "violated",
-        "NoLockout": "violated",
-        "UnconfirmedRestores": "violated"
+        "SettledConsistent": "pass",
+        "NoLockout": "pass",
+        "UnconfirmedRestores": "pass"
       }
     }
-  },
-  "findings": {
-    "F1": "--confirm can remove the state directory while rollback.sh runs (L186 during L121-L134), if systemctl stop succeeds on a fired timer. See SKILL.md.",
-    "F2": "rollback_now stops the timer (L144) before rollback.sh restores (L145); an interrupt between them leaves the lockdown files with no rollback. See SKILL.md."
   },
   "mutants": [
     {
       "id": "timer-start-failure-ignored",
-      "mirrors": "L137-L140: `systemd-run ... || true`, so the run continues without a rollback timer",
+      "mirrors": "L144-L147: `systemd-run ... || true`, so the run continues without a rollback timer",
       "scenario": "Baseline",
       "rule": "UnconfirmedRestores",
       "old": "\\/ /\\ stateDir' = FALSE /\\ run' = \"failed\" /\\ UNCHANGED timer",
@@ -60,7 +42,7 @@
     },
     {
       "id": "rollback-forgets-prior-dropin",
-      "mirrors": "L121-L125 replaced by `rm -f \"$DROPIN\"`",
+      "mirrors": "L128-L132 replaced by `rm -f \"$DROPIN\"`",
       "scenario": "Baseline",
       "rule": "SettledConsistent",
       "old": "/\\ dropin' = IF stateDir THEN PriorDropin ELSE \"none\"",
@@ -68,19 +50,43 @@
     },
     {
       "id": "rollback-skips-ufw-files",
-      "mirrors": "L126 deleted, so rollback.sh keeps the lockdown UFW files",
+      "mirrors": "L133 deleted, so rollback.sh keeps the lockdown UFW files",
       "scenario": "Baseline",
       "rule": "NoLockout",
-      "old": "THEN /\\ ufwDisk' = \"prior\" /\\ rb' = [rb EXCEPT ![r] = \"reload\"]",
-      "new": "THEN /\\ UNCHANGED ufwDisk /\\ rb' = [rb EXCEPT ![r] = \"reload\"]"
+      "old": "THEN /\\ ufwDisk' = \"prior\" /\\ rb' = [rb EXCEPT ![r] = \"reload\"] /\\ UNCHANGED lock",
+      "new": "THEN /\\ UNCHANGED <<ufwDisk, lock>> /\\ rb' = [rb EXCEPT ![r] = \"reload\"]"
     },
     {
       "id": "confirm-skips-asserts",
-      "mirrors": "L182-L184 deleted, so --confirm stops the timer without checking the policy",
+      "mirrors": "L200-L202 deleted, so --confirm stops the timer without checking the policy",
       "scenario": "Baseline",
       "rule": "ConfirmedMeansLocked",
-      "old": "/\\ confirm' = IF stateDir THEN \"sshd\" ELSE \"failed\"",
-      "new": "/\\ confirm' = IF stateDir THEN \"stop\" ELSE \"failed\""
+      "old": "IF stateDir THEN confirm' = \"sshd\"",
+      "new": "IF stateDir THEN confirm' = \"stop\""
+    },
+    {
+      "id": "confirm-without-lock",
+      "mirrors": "L189-L190 deleted, so --confirm can run while rollback.sh restores (F1)",
+      "scenario": "Baseline",
+      "rule": "ConfirmedMeansLocked",
+      "old": "\\/ /\\ lock = \"free\" /\\ lock' = \"confirm\" /\\ confirm' = \"state\"",
+      "new": "\\/ /\\ UNCHANGED lock /\\ confirm' = \"state\""
+    },
+    {
+      "id": "rollback-without-lock",
+      "mirrors": "L124-L126 deleted, so rollback.sh restores while --confirm removes the state (F1)",
+      "scenario": "Baseline",
+      "rule": "ConfirmedMeansLocked",
+      "old": "    /\\ lock = \"free\"                         \\* L124-L125: exec 9> ...; flock 9\n    /\\ IF stateDir                           \\* L126: [[ -d \"$STATE_DIR\" ]] || exit 0\n         THEN /\\ lock' = r /\\ rb' = [rb EXCEPT ![r] = \"status\"]",
+      "new": "    /\\ IF TRUE\n         THEN /\\ UNCHANGED lock /\\ rb' = [rb EXCEPT ![r] = \"status\"]"
+    },
+    {
+      "id": "rollback-now-stops-timer-first",
+      "mirrors": "L156 moved before L155, so an interrupt during the restore leaves no timer (F2)",
+      "scenario": "Interrupted",
+      "rule": "UnconfirmedRestores",
+      "old": "/\\ timer' = timer ",
+      "new": "/\\ timer' = IF timer = \"armed\" THEN \"stopped\" ELSE timer "
     }
   ]
 }
