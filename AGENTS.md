@@ -86,6 +86,8 @@ Higher-level harness/system instructions still take precedence over this file.
 - `deli-auto-research` — unattended, long-horizon research/engineering orchestration with Hermes Kanban, bounded worker cards, independent verification, stall-aware pivots, and watchdogs.
 - `secret-leak-audit` — redacted audits for leaked secrets, tokens, keys, and PII in history and the worktree; use before commits that touch credentials, CI, or bootstrap.
 - `grill-me` — stress-test a plan or design one question at a time before building.
+- `verify-dotfiles` — render the source into a scratch home, drive zsh and tmux as a user does, and keep evidence of a change.
+- `ssh-lockdown-model-check` — TLA+ model check of the SSH lockdown rollback in `scripts/server-lockdown-tailscale.sh`; run it before and after changes to that script.
 
 General-purpose skills vendored from upstream (provenance and refresh rules: `docs/tooling-and-skills.md`):
 

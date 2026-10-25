@@ -1,0 +1,4 @@
+interface:
+  display_name: "SSH Lockdown Model Check"
+  short_description: "Model-check the SSH lockdown rollback with TLA+."
+  default_prompt: "Use $ssh-lockdown-model-check before and after a change to scripts/server-lockdown-tailscale.sh. Run scripts/check-ssh-lockdown run and mutants, update the model from the code when covered lines change, and report any CHANGED result with its trace."

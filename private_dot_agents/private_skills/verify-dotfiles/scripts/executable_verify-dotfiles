@@ -1,0 +1,341 @@
+#!/usr/bin/env bash
+# Render this chezmoi source into a scratch home and drive it as a user does.
+# Every run lives in a directory made by tests/lib/temp.sh. Evidence lives in a
+# separate directory that cleanup never removes.
+set -euo pipefail
+
+TMUX_SESSION=verify
+PANE_COLS=160
+PANE_ROWS=45
+
+usage() {
+    cat <<'USAGE'
+Usage: verify-dotfiles [--source DIR] COMMAND [ARGS]
+
+Commands:
+  launch [--role workstation|server] [--profile standard|omarchy] [--cache DIR]
+        Render the source into a new scratch home with setup scripts excluded.
+        Prints RUN=<run dir> and EVIDENCE=<evidence dir>.
+  doctor RUN
+        Read-only check that RUN is ours, converged, and from the current source.
+  chezmoi RUN NAME SUBCOMMAND [ARGS]
+        Run chezmoi on this run's home, config, and state. SUBCOMMAND is one of
+        apply, diff, status, verify, managed, ignored, cat, data. Setup scripts
+        never run. Saves NAME.cmd, NAME.out, NAME.err, and NAME.exit.
+  shell RUN NAME COMMAND
+        Run COMMAND in an interactive login zsh of the scratch home. Saves
+        NAME.cmd, NAME.out, NAME.err, and NAME.exit in the evidence dir.
+  tmux RUN start
+  tmux RUN send TEXT          Type TEXT into the pane, then press Enter.
+  tmux RUN wait TEXT [SECS]   Wait until the pane shows TEXT (default 20 s).
+  tmux RUN capture NAME       Save the pane and host badge as NAME.pane.txt.
+  tmux RUN stop
+        Drive an interactive zsh in a private tmux server that loads the
+        scratch ~/.tmux.conf.
+  cleanup RUN
+        Stop this run's tmux server and remove RUN. Keeps the evidence.
+  list
+        Show runs that still exist.
+
+The source is --source DIR, else $VERIFY_DOTFILES_SOURCE, else
+`chezmoi source-path`.
+USAGE
+}
+
+die() { printf 'verify-dotfiles: %s\n' "$*" >&2; exit 1; }
+
+resolve_source() {
+    local source="${SOURCE_ARG:-${VERIFY_DOTFILES_SOURCE:-}}"
+    if [ -z "$source" ]; then
+        source="$(chezmoi source-path 2>/dev/null)" || die "set --source; chezmoi source-path failed"
+    fi
+    source="$(cd "$source" 2>/dev/null && pwd -P)" || die "source is not a directory: $source"
+    [ -f "$source/.chezmoiignore" ] && [ -f "$source/tests/lib/temp.sh" ] ||
+        die "not a dotfiles source checkout: $source"
+    SOURCE="$source"
+    # shellcheck source=/dev/null
+    . "$SOURCE/tests/lib/temp.sh"
+}
+
+source_revision() {
+    if [ -d "$SOURCE/.jj" ] && command -v jj >/dev/null 2>&1; then
+        jj -R "$SOURCE" log -r @ --no-graph -T 'commit_id.short(12)' 2>/dev/null && return
+    fi
+    git -C "$SOURCE" rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown'
+}
+
+# load_run RUN: accept only a run directory that launch created in this
+# temporary base, then load its recorded settings.
+load_run() {
+    local run="${1:-}" name
+    [ -n "$run" ] || die "missing RUN argument"
+    name="${run#"$TEST_TEMP_BASE"/chezmoi-test.}"
+    if [ "$name" = "$run" ] || [ -z "$name" ] || [[ "$name" == */* ]]; then
+        die "not a run directory in $TEST_TEMP_BASE: $run (use the same sandbox mode as launch)"
+    fi
+    [ -f "$run/run.env" ] || die "no run.env in $run"
+    # shellcheck source=/dev/null
+    . "$run/run.env"
+    [ "$VERIFY_RUN_DIR" = "$run" ] || die "run.env does not belong to $run"
+    HOME_DIR="$VERIFY_RUN_DIR/home"
+    SOCKET="$VERIFY_RUN_DIR/tmux.sock"
+}
+
+chezmoi_run() {
+    local refresh=()
+    [ "${VERIFY_CACHE_SHARED:-0}" = 1 ] && refresh=(--refresh-externals=never)
+    env -u CHEZMOI_ROLE -u CHEZMOI_PROFILE -u CHEZMOI_FORCE_ZSH_LOGIN HOME="$HOME_DIR" \
+        chezmoi --source "$VERIFY_SOURCE" --destination "$HOME_DIR" \
+        --config "$VERIFY_RUN_DIR/config.toml" \
+        --persistent-state "$VERIFY_RUN_DIR/state.boltdb" \
+        --cache "$VERIFY_CACHE_DIR" "$@" ${refresh[@]+"${refresh[@]}"}
+}
+
+# Keep PATH entries outside the real home so the scratch shell cannot run
+# commands that only the real home provides.
+scratch_path() {
+    local entry out="$HOME_DIR/.local/bin" old="${PATH:-}"
+    while [ -n "$old" ]; do
+        entry="${old%%:*}"
+        if [ "$entry" = "$old" ]; then old=""; else old="${old#*:}"; fi
+        case "$entry" in
+            ""|"$REAL_HOME"|"$REAL_HOME"/*) continue ;;
+        esac
+        out="$out:$entry"
+    done
+    printf '%s' "$out"
+}
+
+scratch_env() {
+    env -i HOME="$HOME_DIR" USER="${USER:-$(id -un)}" LOGNAME="${LOGNAME:-${USER:-$(id -un)}}" \
+        TERM=xterm-256color LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}" \
+        PATH="$(scratch_path)" SHELL="$ZSH_BIN" NOTMUX=1 "$@"
+}
+
+cmd_launch() {
+    local role=workstation profile=standard cache=""
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --role) role="${2:-}"; shift 2 ;;
+            --profile) profile="${2:-}"; shift 2 ;;
+            --cache) cache="${2:-}"; shift 2 ;;
+            *) die "unknown launch option: $1" ;;
+        esac
+    done
+    case "$role" in workstation|server) ;; *) die "role must be workstation or server" ;; esac
+    case "$profile" in standard|omarchy) ;; *) die "profile must be standard or omarchy" ;; esac
+
+    local run evidence
+    new_test_temp_dir run
+    evidence="$TEST_TEMP_BASE/verify-dotfiles-evidence/${run##*/chezmoi-test.}"
+    mkdir -p "$run/home" "$evidence"
+    if [ -n "$cache" ]; then
+        mkdir -p "$cache"
+        cache="$(cd "$cache" && pwd -P)"
+    fi
+    {
+        printf 'VERIFY_RUN_DIR=%q\n' "$run"
+        printf 'VERIFY_EVIDENCE_DIR=%q\n' "$evidence"
+        printf 'VERIFY_SOURCE=%q\n' "$SOURCE"
+        printf 'VERIFY_SOURCE_REV=%q\n' "$(source_revision)"
+        printf 'VERIFY_ROLE=%q\n' "$role"
+        printf 'VERIFY_PROFILE=%q\n' "$profile"
+        printf 'VERIFY_CACHE_DIR=%q\n' "${cache:-$run/cache}"
+        printf 'VERIFY_CACHE_SHARED=%q\n' "$([ -n "$cache" ] && echo 1 || echo 0)"
+    } > "$run/run.env"
+    printf '[git]\nautoCommit = false\nautoPush = false\n[data]\nrole = "%s"\nprofile = "%s"\n' \
+        "$role" "$profile" > "$run/config.toml"
+    load_run "$run"
+    cp "$run/run.env" "$evidence/run.env"
+
+    printf 'Rendering %s (%s, %s) into %s\n' "$SOURCE" "$role" "$profile" "$HOME_DIR" >&2
+    if ! chezmoi_run apply --no-tty --exclude=scripts > "$evidence/launch.log" 2>&1; then
+        tail -n 20 "$evidence/launch.log" >&2
+        die "render failed; log: $evidence/launch.log; remove the run with: verify-dotfiles cleanup $run"
+    fi
+    chezmoi_run status --exclude=scripts > "$evidence/launch-status.txt" 2>&1 ||
+        die "chezmoi status failed after render; see $evidence/launch-status.txt"
+    [ ! -s "$evidence/launch-status.txt" ] ||
+        die "render did not converge; see $evidence/launch-status.txt"
+    printf 'READY %s files\n' "$(find "$HOME_DIR" -type f | wc -l | tr -d ' ')" >&2
+    printf 'RUN=%s\nEVIDENCE=%s\n' "$run" "$evidence"
+}
+
+cmd_doctor() {
+    load_run "${1:-}"
+    local failures=0 file current
+    check() {
+        if "$@" >/dev/null 2>&1; then printf 'ok   %s\n' "$LABEL"
+        else printf 'FAIL %s\n' "$LABEL"; failures=$((failures + 1)); fi
+    }
+    printf 'run      %s\nrole     %s / %s\nsource   %s @ %s\nevidence %s\n' \
+        "$VERIFY_RUN_DIR" "$VERIFY_ROLE" "$VERIFY_PROFILE" "$VERIFY_SOURCE" \
+        "$VERIFY_SOURCE_REV" "$VERIFY_EVIDENCE_DIR"
+    for file in .zshenv .zshrc .gitconfig .config/shell/alias.sh .agents/skills; do
+        LABEL="rendered ~/$file"; check test -e "$HOME_DIR/$file"
+    done
+    LABEL="zsh -n ~/.zshenv ~/.zshrc"; check "$ZSH_BIN" -n "$HOME_DIR/.zshenv" "$HOME_DIR/.zshrc"
+    if current="$(chezmoi_run status --exclude=scripts 2>&1)" && [ -z "$current" ]; then
+        printf 'ok   chezmoi status is clean\n'
+    else
+        printf 'FAIL chezmoi status is clean\n%s\n' "$current"
+        failures=$((failures + 1))
+    fi
+    SOURCE="$VERIFY_SOURCE"
+    current="$(source_revision)"
+    if [ "$current" = "$VERIFY_SOURCE_REV" ]; then
+        printf 'ok   source unchanged since launch\n'
+    else
+        printf 'FAIL source changed since launch (%s -> %s); launch a new run\n' "$VERIFY_SOURCE_REV" "$current"
+        failures=$((failures + 1))
+    fi
+    if [ -S "$SOCKET" ]; then
+        LABEL="tmux session $TMUX_SESSION on $SOCKET"; check tmux -S "$SOCKET" has-session -t "$TMUX_SESSION"
+    else
+        printf 'info no tmux server for this run\n'
+    fi
+    [ "$failures" -eq 0 ] || { printf '%s check(s) failed\n' "$failures"; return 1; }
+    printf 'doctor: run is ready\n'
+}
+
+check_name() {
+    [[ "${1:-}" =~ ^[A-Za-z0-9._-]+$ ]] || die "NAME may use only letters, digits, '.', '_', '-'"
+}
+
+report() {
+    local name="$1" status="$2" out="$VERIFY_EVIDENCE_DIR/$1"
+    printf '%s\n' "$status" > "$out.exit"
+    printf -- '--- %s (exit %s) ---\n' "$name" "$status"
+    cat "$out.out"
+    if [ -s "$out.err" ]; then printf -- '--- stderr ---\n'; cat "$out.err"; fi
+    return "$status"
+}
+
+cmd_chezmoi() {
+    load_run "${1:-}"
+    local name="${2:-}" subcommand="${3:-}" status=0 args=()
+    check_name "$name"
+    shift 3 || die "usage: chezmoi RUN NAME SUBCOMMAND [ARGS]"
+    case "$subcommand" in
+        apply|diff|status|verify) args=("$subcommand" --no-tty --exclude=scripts) ;;
+        managed|ignored|cat|data) args=("$subcommand") ;;
+        *) die "chezmoi subcommand not allowed here: $subcommand" ;;
+    esac
+    printf 'chezmoi %s\n' "${args[*]} $*" > "$VERIFY_EVIDENCE_DIR/$name.cmd"
+    chezmoi_run "${args[@]}" "$@" > "$VERIFY_EVIDENCE_DIR/$name.out" \
+        2> "$VERIFY_EVIDENCE_DIR/$name.err" < /dev/null || status=$?
+    report "$name" "$status"
+}
+
+cmd_shell() {
+    load_run "${1:-}"
+    local name="${2:-}" command="${3:-}" status=0
+    check_name "$name"
+    [ -n "$command" ] || die "usage: shell RUN NAME COMMAND"
+    printf '%s\n' "$command" > "$VERIFY_EVIDENCE_DIR/$name.cmd"
+    (cd "$HOME_DIR" && scratch_env "$ZSH_BIN" -ilc "$command") > "$VERIFY_EVIDENCE_DIR/$name.out" \
+        2> "$VERIFY_EVIDENCE_DIR/$name.err" < /dev/null || status=$?
+    report "$name" "$status"
+}
+
+pane_text() { tmux -S "$SOCKET" capture-pane -p -J -t "$TMUX_SESSION"; }
+
+wait_for_text() {
+    local text="$1" seconds="${2:-20}" tries
+    tries=$((seconds * 4))
+    while [ "$tries" -gt 0 ]; do
+        pane_text 2>/dev/null | grep -Fq -- "$text" && return 0
+        sleep 0.25
+        tries=$((tries - 1))
+    done
+    printf 'verify-dotfiles: pane did not show %s within %ss. Pane:\n' "$text" "$seconds" >&2
+    pane_text >&2 || true
+    return 1
+}
+
+cmd_tmux() {
+    load_run "${1:-}"
+    local action="${2:-}"
+    case "$action" in
+        start)
+            [ ! -S "$SOCKET" ] || die "tmux server already exists for this run: $SOCKET"
+            (cd "$HOME_DIR" && scratch_env tmux -S "$SOCKET" -f "$HOME_DIR/.tmux.conf" \
+                new-session -d -s "$TMUX_SESSION" -x "$PANE_COLS" -y "$PANE_ROWS" "$ZSH_BIN -il") ||
+                die "tmux could not start (inside a sandbox, run outside it)"
+            tmux -S "$SOCKET" send-keys -t "$TMUX_SESSION" -l 'print -r -- VERIFY_""READY'
+            tmux -S "$SOCKET" send-keys -t "$TMUX_SESSION" Enter
+            wait_for_text VERIFY_READY 30
+            printf 'tmux ready: tmux -S %s attach -t %s\n' "$SOCKET" "$TMUX_SESSION"
+            ;;
+        send)
+            [ -n "${3:-}" ] || die "usage: tmux RUN send TEXT"
+            tmux -S "$SOCKET" send-keys -t "$TMUX_SESSION" -l "$3"
+            tmux -S "$SOCKET" send-keys -t "$TMUX_SESSION" Enter
+            ;;
+        wait)
+            [ -n "${3:-}" ] || die "usage: tmux RUN wait TEXT [SECS]"
+            wait_for_text "$3" "${4:-20}"
+            ;;
+        capture)
+            local name="${3:-}" out
+            check_name "$name"
+            out="$VERIFY_EVIDENCE_DIR/$name.pane.txt"
+            {
+                pane_text
+                printf -- '--- @dotfiles_status_host (pane) ---\n'
+                tmux -S "$SOCKET" show-options -pqv -t "$TMUX_SESSION" @dotfiles_status_host || true
+                printf -- '--- status-right (expanded) ---\n'
+                tmux -S "$SOCKET" display-message -p -t "$TMUX_SESSION" '#{E:status-right}'
+            } > "$out"
+            printf 'saved %s\n' "$out"
+            ;;
+        stop)
+            [ -S "$SOCKET" ] || { printf 'no tmux server for this run\n'; return 0; }
+            tmux -S "$SOCKET" kill-server
+            ;;
+        *) die "usage: tmux RUN start|send|wait|capture|stop" ;;
+    esac
+}
+
+cmd_cleanup() {
+    load_run "${1:-}"
+    if [ -S "$SOCKET" ]; then
+        tmux -S "$SOCKET" kill-server 2>/dev/null || true
+    fi
+    remove_test_temp_dir "$VERIFY_RUN_DIR"
+    [ -d "$VERIFY_EVIDENCE_DIR" ] || die "evidence dir is missing: $VERIFY_EVIDENCE_DIR"
+    printf 'removed %s\nevidence kept in %s\n' "$VERIFY_RUN_DIR" "$VERIFY_EVIDENCE_DIR"
+}
+
+cmd_list() {
+    local run
+    for run in "$TEST_TEMP_BASE"/chezmoi-test.*; do
+        [ -f "$run/run.env" ] || continue
+        printf '%s\n' "$run"
+    done
+}
+
+SOURCE_ARG=""
+if [ "${1:-}" = --source ]; then
+    SOURCE_ARG="${2:-}"
+    shift 2
+fi
+case "${1:-}" in
+    ""|-h|--help) usage; exit 0 ;;
+esac
+command -v chezmoi >/dev/null 2>&1 || die "chezmoi is not on PATH"
+ZSH_BIN="$(command -v zsh)" || die "zsh is not on PATH"
+REAL_HOME="$HOME"
+resolve_source
+COMMAND="$1"
+shift
+case "$COMMAND" in
+    launch) cmd_launch "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    chezmoi) cmd_chezmoi "$@" ;;
+    shell) cmd_shell "$@" ;;
+    tmux) cmd_tmux "$@" ;;
+    cleanup) cmd_cleanup "$@" ;;
+    list) cmd_list ;;
+    *) usage >&2; exit 2 ;;
+esac
