@@ -35,7 +35,10 @@ sudo ~/.local/share/chezmoi/scripts/server-lockdown-tailscale.sh --confirm
 ```
 
 The local timer restores the prior SSH and UFW configuration if confirmation
-does not arrive. For the personal-cloud nftables path, first run
+does not arrive. If the timer fires while `--confirm` runs, the two take turns
+on one lock: a confirmation that gets the lock first keeps the lockdown, and a
+rollback that gets it first makes `--confirm` report that no lockdown is
+pending. For the personal-cloud nftables path, first run
 `scripts/setup-personal-cloud-tailscale.sh`, set the tailnet SSH policy, and
 verify a new Tailscale SSH session. Run it with `--lockdown` from that session,
 then run it with `--confirm` from another new session within five minutes.

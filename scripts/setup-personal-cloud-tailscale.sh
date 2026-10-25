@@ -9,6 +9,7 @@ NF_RULES=/etc/nftables.d/dotfiles-ssh.nft
 NF_RUNNER=/usr/local/sbin/dotfiles-ssh-nft-apply
 NF_UNIT=/etc/systemd/system/dotfiles-ssh-firewall.service
 STATE_DIR=/run/dotfiles-personal-cloud-lockdown
+LOCK_FILE=/run/dotfiles-personal-cloud-lockdown.lock
 
 log() { printf '%s\n' "$*"; }
 err() { printf 'ERROR: %s\n' "$*" >&2; }
@@ -134,6 +135,13 @@ prepare_rollback() {
 #!/usr/bin/env bash
 set -euo pipefail
 state=/run/dotfiles-personal-cloud-lockdown
+# --confirm holds this lock while it checks and removes the state directory.
+# A rollback that starts after a confirmation has nothing to restore.
+exec 9> /run/dotfiles-personal-cloud-lockdown.lock
+flock 9
+[[ -d "$state" ]] || exit 0
+table_state="$(cat "$state/table-state")"
+unit_prior_state="$(cat "$state/unit-prior-state")"
 restore() {
   if [[ -f "$state/$2" ]]; then cp -p "$state/$2" "$1"; else rm -f "$1"; fi
 }
@@ -143,7 +151,7 @@ restore /usr/local/sbin/dotfiles-ssh-nft-apply runner
 systemctl disable --now dotfiles-ssh-firewall.service >/dev/null 2>&1 || true
 restore /etc/systemd/system/dotfiles-ssh-firewall.service unit
 systemctl daemon-reload
-if [[ "$(cat "$state/table-state")" = absent ]]; then
+if [[ "$table_state" = absent ]]; then
   nft delete table inet dotfiles_ssh 2>/dev/null || true
 else
   batch="$(mktemp)"
@@ -153,7 +161,7 @@ else
   rm -f "$batch"
 fi
 if [[ -f "$state/unit" ]]; then
-  if [[ "$(cat "$state/unit-prior-state")" = enabled ]]; then
+  if [[ "$unit_prior_state" = enabled ]]; then
     systemctl enable dotfiles-ssh-firewall.service
   fi
   systemctl restart dotfiles-ssh-firewall.service
@@ -167,6 +175,15 @@ SCRIPT
     rm -rf "$STATE_DIR"
     return 1
   fi
+}
+
+rollback_now() {
+  local unit
+  unit="$(cat "$STATE_DIR/unit-name")"
+  # Keep the timer armed until the restore ends. If this run stops first,
+  # the timer still restores the prior configuration.
+  /bin/bash "$STATE_DIR/rollback.sh"
+  systemctl stop "$unit.timer" >/dev/null 2>&1 || true
 }
 
 write_owned_firewall() {
@@ -232,12 +249,22 @@ SSHD
 }
 
 confirm_lockdown() {
-  [[ -d "$STATE_DIR" ]] || { err "No pending lockdown was found."; return 1; }
+  local unit
+  # rollback.sh takes the same lock, so the timer cannot restore while this
+  # run checks the lockdown and then cancels the rollback.
+  exec 9> "$LOCK_FILE"
+  flock -w 30 9 || { err "A rollback is in progress. Check SSH and nftables, then run --lockdown again."; return 1; }
+  [[ -d "$STATE_DIR" ]] || {
+    err "No pending lockdown was found. If the rollback timer fired, the prior configuration is back."; return 1;
+  }
   [[ "$SSH_CONNECTION" != "$(cat "$STATE_DIR/initial-session")" ]] || {
     err "Confirm from a new SSH connection."; return 1;
   }
   assert_access
-  systemctl stop "$(cat "$STATE_DIR/unit-name").timer"
+  unit="$(cat "$STATE_DIR/unit-name")"
+  # A timer that already fired cannot be stopped. Its rollback.sh waits for
+  # the lock and then finds no state directory.
+  systemctl stop "$unit.timer" >/dev/null 2>&1 || true
   rm -rf "$STATE_DIR"
   log "Public SSH restriction confirmed from a new Tailscale SSH connection."
 }
@@ -251,7 +278,7 @@ main() {
     log "Tailscale SSH is enabled. Set the tailnet SSH policy, then connect in a new Tailscale SSH session and run --lockdown."
     return
   fi
-  for command_name in systemd-run tailscale sshd nft ip ss; do require_cmd "$command_name"; done
+  for command_name in systemd-run tailscale sshd nft ip ss flock; do require_cmd "$command_name"; done
   ip link show tailscale0 >/dev/null 2>&1 && tailscale status --self >/dev/null 2>&1 || {
     err "Tailscale is not ready."; return 1;
   }
@@ -260,8 +287,7 @@ main() {
   prepare_rollback
   if ! { write_ssh_dropin && write_owned_firewall && assert_access; }; then
     err "Lockdown failed. Restoring the prior SSH and nftables configuration."
-    systemctl stop "$(cat "$STATE_DIR/unit-name").timer" >/dev/null 2>&1 || true
-    /bin/bash "$STATE_DIR/rollback.sh"
+    rollback_now
     return 1
   fi
   log "Lockdown staged. Open a new Tailscale SSH session and run --confirm within five minutes."
