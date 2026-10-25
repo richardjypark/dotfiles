@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -47,6 +48,52 @@ class HelperModulesTest(unittest.TestCase):
         self.assertEqual(result.returncode, 23)
         self.assertIn("fixture-failure", result.stderr)
         self.assertEqual(result.stdout, "")
+
+    def fake_npm(self):
+        npm = self.home / "npm"
+        npm.write_text('#!/bin/sh\necho "$*" >> "$NPM_LOG"\n'
+                       'set -- $NPM_RESULTS\nshift $(( $(wc -l < "$NPM_LOG") ))\n'
+                       '[ "${1:-0}" -ne 0 ] || printf "%s\\n" "${NPM_STDOUT:-}"\n'
+                       'exit "${1:-0}"\n')
+        npm.chmod(0o755)
+        self.env["PATH"] = f"{Path(sys.executable).parent}:{self.env['PATH']}"
+        return npm
+
+    def run_fake_npm(self, name, results, code):
+        log = self.home / f"npm-{name}.log"
+        self.env.update(NPM_LOG=str(log), NPM_RESULTS=f"x {results}")
+        return self.bash(code), log.read_text().splitlines()
+
+    def test_managed_npm_ci_retries_one_macos_abort(self):
+        npm = self.fake_npm()
+        project = self.home / "project"
+        project.mkdir()
+        (project / "package-lock.json").write_text('{"packages": {"": {}}}\n')
+        args = {"production": "ci --ignore-scripts --no-fund --no-audit --omit=dev",
+                "build": "ci --include=dev --ignore-scripts --no-fund --no-audit"}
+        cases = (("darwin24", "production", "134 0", 0, 2),
+                 ("darwin24", "production", "134 134", 134, 2),
+                 ("darwin24", "production", "1 0", 1, 1),
+                 ("darwin24", "build", "134 0", 0, 2),
+                 ("linux-gnu", "production", "134 0", 134, 1))
+        for ostype, mode, results, status, calls in cases:
+            with self.subTest(ostype=ostype, mode=mode, results=results):
+                result, log = self.run_fake_npm(
+                    f"{ostype}-{mode}-{results.replace(' ', '-')}", results,
+                    f'OSTYPE={ostype}; NPM_CMD="{npm}" run_managed_npm_ci "{project}" {mode}')
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertEqual(log, [args[mode]] * calls)
+
+    def test_npm_publish_metadata_retries_macos_abort(self):
+        npm = self.fake_npm()
+        metadata = '{"1.0.0":"2020-01-01T00:00:00.000Z"}'
+        self.env.update(NPM_STDOUT=metadata, XDG_CACHE_HOME=str(self.home / "cache"))
+        result, log = self.run_fake_npm(
+            "view", "134 0",
+            f'OSTYPE=darwin24; NPM_CMD="{npm}" npm_query_publish_metadata_json fixture-package')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, metadata + "\n")
+        self.assertEqual(log, ["view fixture-package time --json"] * 2)
 
     def test_failed_candidate_preserves_old_binary(self):
         old = self.home / "old"

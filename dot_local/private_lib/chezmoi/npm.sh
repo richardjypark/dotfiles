@@ -151,7 +151,7 @@ fetch(`https://registry.npmjs.org/${encodeURIComponent(process.argv[1])}`, {
 }).catch(() => process.exit(1))
 ' "$package")" || return 1
     else
-        metadata="$(NPM_CONFIG_REGISTRY="$(npm_registry_url)" "$NPM_CMD" view "$package" time --json 2>/dev/null)" || return 1
+        metadata="$(NPM_CONFIG_REGISTRY="$(npm_registry_url)" npm_retry_abort "$NPM_CMD" view "$package" time --json 2>/dev/null)" || return 1
     fi
     if [ -z "$metadata" ]; then
         return 1
@@ -351,9 +351,24 @@ npm_verify_installed_lockfile() {
     python3 "$CHEZMOI_HELPERS_DIR/chezmoi/npm-lock-install.py" "${args[@]}"
 }
 
+# macOS LaunchServices can give a reused PID a stale app entry; node then aborts
+# (exit 134) while npm sets process.title. A second process gets a new PID.
+# The notice goes to stderr so captured npm output stays clean.
+npm_retry_abort() {
+    local status
+    "$@" && return 0
+    status=$?
+    if [ "$status" -ne 134 ] || [[ "${OSTYPE:-}" != darwin* ]]; then
+        return "$status"
+    fi
+    eecho "npm aborted (exit 134); retrying once..." >&2
+    "$@"
+}
+
 run_managed_npm_ci() {
     local project_dir="$1"
     local mode="${2:-production}"
+    local ci_args
 
     if [ ! -f "$project_dir/package-lock.json" ]; then
         eecho "Error: missing committed npm lockfile at $project_dir/package-lock.json"
@@ -361,20 +376,15 @@ run_managed_npm_ci() {
     fi
 
     case "$mode" in
-        production|build) ;;
+        production) ci_args=(--ignore-scripts --no-fund --no-audit --omit=dev) ;;
+        build) ci_args=(--include=dev --ignore-scripts --no-fund --no-audit) ;;
         *) eecho "Error: unsupported managed npm mode: $mode"; return 1 ;;
     esac
     (
         cd "$project_dir" || exit 1
-        if [ "$mode" = "build" ]; then
-            NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
-            NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
-                run_quiet "$NPM_CMD" ci --include=dev --ignore-scripts --no-fund --no-audit
-        else
-            NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
-            NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
-                run_quiet "$NPM_CMD" ci --ignore-scripts --no-fund --no-audit --omit=dev
-        fi
+        NPM_CONFIG_REGISTRY="$(npm_registry_url)" \
+        NPM_CONFIG_REPLACE_REGISTRY_HOST=always \
+            npm_retry_abort run_quiet "$NPM_CMD" ci "${ci_args[@]}"
     ) || return $?
     local args=("$project_dir" --repair)
     [ "$mode" != build ] || args+=(--include-dev)
