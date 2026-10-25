@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""Model-check the SSH lockdown rollback in scripts/server-lockdown-tailscale.sh.
+
+Runs TLC once per scenario and rule in spec/expected.json and compares each
+result with the recorded expectation. Logs stay in the results directory.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+
+SKILL_DIR = Path(__file__).resolve().parent.parent
+SPEC_DIR = SKILL_DIR / "spec"
+SPEC_NAME = "SshLockdown"
+EXPECTED = SPEC_DIR / "expected.json"
+
+TLC_VERSION = "1.7.4"
+TLC_URL = f"https://github.com/tlaplus/tlaplus/releases/download/v{TLC_VERSION}/tla2tools.jar"
+TLC_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+
+INVARIANTS = {"ConfirmedMeansLocked", "SettledConsistent", "NoLockout"}
+PROPERTIES = {"UnconfirmedRestores"}
+
+
+def fail(message: str, code: int = 2) -> None:
+    print(f"check-ssh-lockdown: {message}", file=sys.stderr)
+    sys.exit(code)
+
+
+def temp_base() -> Path:
+    base = Path(os.environ.get("TMPDIR") or "/tmp").resolve()
+    if not base.is_dir() or base == Path("/"):
+        fail(f"TMPDIR is not a usable directory: {base}")
+    return base
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def tlc_jar(explicit: str | None) -> Path:
+    if explicit:
+        jar = Path(explicit).resolve()
+        if sha256(jar) != TLC_SHA256:
+            fail(f"{jar} is not tla2tools.jar v{TLC_VERSION} (SHA-256 mismatch)")
+        return jar
+    cache_root = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    for directory in (cache_root / "ssh-lockdown-model-check", temp_base() / "ssh-lockdown-model-check"):
+        jar = directory / f"tla2tools-{TLC_VERSION}.jar"
+        if jar.is_file() and sha256(jar) == TLC_SHA256:
+            return jar
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            partial = directory / f".tla2tools-{TLC_VERSION}.part"
+            print(f"Downloading {TLC_URL}", file=sys.stderr)
+            with urllib.request.urlopen(TLC_URL, timeout=60) as response, partial.open("wb") as out:
+                shutil.copyfileobj(response, out)
+        except PermissionError:
+            continue
+        except OSError as exc:
+            fail(f"cannot download TLC: {exc}")
+        if sha256(partial) != TLC_SHA256:
+            partial.unlink()
+            fail("downloaded tla2tools.jar has the wrong SHA-256; not using it")
+        partial.replace(jar)
+        return jar
+    fail("no writable cache directory for tla2tools.jar; pass --jar")
+    raise AssertionError
+
+
+def find_source(explicit: str | None) -> Path | None:
+    candidate = explicit or os.environ.get("SSH_LOCKDOWN_SOURCE")
+    if not candidate:
+        try:
+            candidate = subprocess.run(["chezmoi", "source-path"], capture_output=True,
+                                       text=True, check=True).stdout.strip()
+        except (OSError, subprocess.CalledProcessError):
+            return None
+    source = Path(candidate).resolve()
+    return source if (source / "scripts/server-lockdown-tailscale.sh").is_file() else None
+
+
+def check_sync(expected: dict, source: Path | None) -> bool:
+    if source is None:
+        print("WARNING: no source checkout found (pass --source); covered code not compared", file=sys.stderr)
+        return False
+    in_sync = True
+    for relative, recorded in expected["covered"]["sha256"].items():
+        current = sha256(source / relative)
+        if current != recorded:
+            in_sync = False
+            print(f"WARNING: {relative} changed since sync commit "
+                  f"{expected['covered']['sync_commit'][:12]}; review the model before you trust a pass",
+                  file=sys.stderr)
+    return in_sync
+
+
+def run_tlc(jar: Path, spec_text: str, scenario: str, rule: str, log: Path) -> str:
+    constants = (SPEC_DIR / f"{scenario}.cfg").read_text(encoding="utf-8")
+    kind = "INVARIANT" if rule in INVARIANTS else "PROPERTY"
+    config = f"{constants}\nSPECIFICATION Spec\nINVARIANT TypeOK\n{kind} {rule}\n"
+    with tempfile.TemporaryDirectory(prefix="ssh-lockdown-tlc.", dir=temp_base()) as work_name:
+        work = Path(work_name)
+        (work / f"{SPEC_NAME}.tla").write_text(spec_text, encoding="utf-8")
+        (work / "MC.cfg").write_text(config, encoding="utf-8")
+        command = ["java", f"-Djava.io.tmpdir={work}", "-XX:+UseParallelGC", "-cp", str(jar),
+                   "tlc2.TLC", "-deadlock", "-workers", "1", "-metadir", str(work / "states"),
+                   "-config", "MC.cfg", f"{SPEC_NAME}.tla"]
+        result = subprocess.run(command, cwd=work, capture_output=True, text=True)
+    output = result.stdout + result.stderr
+    log.write_text(f"$ {' '.join(command)}\n--- MC.cfg ---\n{config}--- output ---\n{output}", encoding="utf-8")
+    if "Model checking completed. No error has been found." in output:
+        return "pass"
+    match = re.search(r"Error: Invariant (\w+) is violated", output)
+    if match:
+        return "violated" if match.group(1) == rule else f"violated:{match.group(1)}"
+    if "Error: Temporal properties were violated." in output:
+        return "violated"
+    if "Listen failed on port" in output:
+        fail(f"TLC cannot open its local RMI port (sandbox?). Run outside the sandbox. Log: {log}")
+    return "error"
+
+
+def results_dir() -> Path:
+    directory = temp_base() / "ssh-lockdown-model-check" / "results" / time.strftime("%Y%m%d-%H%M%S")
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def command_run(args: argparse.Namespace, expected: dict) -> int:
+    jar = tlc_jar(args.jar)
+    in_sync = check_sync(expected, find_source(args.source))
+    spec_text = (SPEC_DIR / f"{SPEC_NAME}.tla").read_text(encoding="utf-8")
+    scenarios = args.scenarios or list(expected["scenarios"])
+    out = results_dir()
+    mismatches = 0
+    print(f"{'scenario':<18} {'rule':<22} {'expected':<10} {'actual':<10} result")
+    for scenario in scenarios:
+        if scenario not in expected["scenarios"]:
+            fail(f"unknown scenario: {scenario}")
+        for rule, want in expected["scenarios"][scenario]["rules"].items():
+            actual = run_tlc(jar, spec_text, scenario, rule, out / f"{scenario}-{rule}.log")
+            status = "ok" if actual == want else "CHANGED"
+            mismatches += status != "ok"
+            print(f"{scenario:<18} {rule:<22} {want:<10} {actual:<10} {status}")
+    print(f"logs: {out}")
+    if mismatches:
+        print(f"{mismatches} result(s) differ from spec/expected.json. Read the logs; a new violation "
+              "is a finding or a model error until you show which.")
+        return 1
+    if not in_sync:
+        print("results match spec/expected.json, but the covered code changed since the sync commit. "
+              "Update the model from the code, then the sync record (SKILL.md, step 7).")
+        return 3
+    print("all results match spec/expected.json")
+    return 0
+
+
+def command_mutants(args: argparse.Namespace, expected: dict) -> int:
+    jar = tlc_jar(args.jar)
+    spec_text = (SPEC_DIR / f"{SPEC_NAME}.tla").read_text(encoding="utf-8")
+    out = results_dir()
+    survived = 0
+    for mutant in expected["mutants"]:
+        count = spec_text.count(mutant["old"])
+        if count != 1:
+            print(f"{mutant['id']:<34} STALE: the model text occurs {count} times; update the mutant")
+            survived += 1
+            continue
+        mutated = spec_text.replace(mutant["old"], mutant["new"])
+        actual = run_tlc(jar, mutated, mutant["scenario"], mutant["rule"],
+                         out / f"mutant-{mutant['id']}.log")
+        status = "killed" if actual == "violated" else f"SURVIVED ({actual})"
+        survived += not status.startswith("killed")
+        print(f"{mutant['id']:<34} {mutant['rule']:<22} {status}")
+    print(f"logs: {out}")
+    return 1 if survived else 0
+
+
+def command_trace(args: argparse.Namespace, expected: dict) -> int:
+    jar = tlc_jar(args.jar)
+    spec_text = (SPEC_DIR / f"{SPEC_NAME}.tla").read_text(encoding="utf-8")
+    log = results_dir() / f"{args.scenario}-{args.rule}.log"
+    actual = run_tlc(jar, spec_text, args.scenario, args.rule, log)
+    print(log.read_text(encoding="utf-8"))
+    print(f"result: {actual}; log: {log}")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--jar", help="use this tla2tools.jar (must match the pinned SHA-256)")
+    parser.add_argument("--source", help="dotfiles source checkout (default: chezmoi source-path)")
+    sub = parser.add_subparsers(dest="command", required=True)
+    run = sub.add_parser("run", help="check scenarios against spec/expected.json")
+    run.add_argument("scenarios", nargs="*")
+    sub.add_parser("mutants", help="prove that each rule can fail")
+    trace = sub.add_parser("trace", help="print the full TLC output for one scenario and rule")
+    trace.add_argument("scenario")
+    trace.add_argument("rule", choices=sorted(INVARIANTS | PROPERTIES))
+    sub.add_parser("fetch", help="download and check the pinned TLC jar")
+    args = parser.parse_args()
+    expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
+    if shutil.which("java") is None:
+        fail("java is not on PATH (TLC needs Java 11 or later)")
+    if args.command == "fetch":
+        print(tlc_jar(args.jar))
+        return 0
+    return {"run": command_run, "mutants": command_mutants, "trace": command_trace}[args.command](args, expected)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
