@@ -1,0 +1,86 @@
+{
+  "covered": {
+    "sync_commit": "49c77cb03b1da87ea7286c230643e2e1f64c3bfb",
+    "sha256": {
+      "scripts/server-lockdown-tailscale.sh": "6ee02acef5ea4364e329f4c66b88f695c6aed08b7215c97b218270ea51195202"
+    }
+  },
+  "scenarios": {
+    "Baseline": {
+      "rules": {
+        "ConfirmedMeansLocked": "pass",
+        "SettledConsistent": "pass",
+        "NoLockout": "pass",
+        "UnconfirmedRestores": "pass"
+      }
+    },
+    "FirstLockdown": {
+      "rules": {
+        "ConfirmedMeansLocked": "pass",
+        "SettledConsistent": "pass",
+        "NoLockout": "pass",
+        "UnconfirmedRestores": "pass"
+      }
+    },
+    "TimerStillLoaded": {
+      "findings": [
+        "F1"
+      ],
+      "rules": {
+        "ConfirmedMeansLocked": "violated",
+        "SettledConsistent": "violated",
+        "NoLockout": "violated",
+        "UnconfirmedRestores": "pass"
+      }
+    },
+    "Interrupted": {
+      "findings": [
+        "F2"
+      ],
+      "rules": {
+        "ConfirmedMeansLocked": "pass",
+        "SettledConsistent": "violated",
+        "NoLockout": "violated",
+        "UnconfirmedRestores": "violated"
+      }
+    }
+  },
+  "findings": {
+    "F1": "--confirm can remove the state directory while rollback.sh runs (L186 during L121-L134), if systemctl stop succeeds on a fired timer. See SKILL.md.",
+    "F2": "rollback_now stops the timer (L144) before rollback.sh restores (L145); an interrupt between them leaves the lockdown files with no rollback. See SKILL.md."
+  },
+  "mutants": [
+    {
+      "id": "timer-start-failure-ignored",
+      "mirrors": "L137-L140: `systemd-run ... || true`, so the run continues without a rollback timer",
+      "scenario": "Baseline",
+      "rule": "UnconfirmedRestores",
+      "old": "\\/ /\\ stateDir' = FALSE /\\ run' = \"failed\" /\\ UNCHANGED timer",
+      "new": "\\/ /\\ run' = \"armed\" /\\ UNCHANGED <<stateDir, timer>>"
+    },
+    {
+      "id": "rollback-forgets-prior-dropin",
+      "mirrors": "L121-L125 replaced by `rm -f \"$DROPIN\"`",
+      "scenario": "Baseline",
+      "rule": "SettledConsistent",
+      "old": "/\\ dropin' = IF stateDir THEN PriorDropin ELSE \"none\"",
+      "new": "/\\ dropin' = \"none\""
+    },
+    {
+      "id": "rollback-skips-ufw-files",
+      "mirrors": "L126 deleted, so rollback.sh keeps the lockdown UFW files",
+      "scenario": "Baseline",
+      "rule": "NoLockout",
+      "old": "THEN /\\ ufwDisk' = \"prior\" /\\ rb' = [rb EXCEPT ![r] = \"reload\"]",
+      "new": "THEN /\\ UNCHANGED ufwDisk /\\ rb' = [rb EXCEPT ![r] = \"reload\"]"
+    },
+    {
+      "id": "confirm-skips-asserts",
+      "mirrors": "L182-L184 deleted, so --confirm stops the timer without checking the policy",
+      "scenario": "Baseline",
+      "rule": "ConfirmedMeansLocked",
+      "old": "/\\ confirm' = IF stateDir THEN \"sshd\" ELSE \"failed\"",
+      "new": "/\\ confirm' = IF stateDir THEN \"stop\" ELSE \"failed\""
+    }
+  ]
+}

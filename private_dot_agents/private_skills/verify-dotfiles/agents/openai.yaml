@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Dotfiles"
+  short_description: "Drive the rendered dotfiles in a scratch home and keep proof."
+  default_prompt: "Use $verify-dotfiles to prove a dotfiles change as a user sees it. Launch a scratch run with scripts/verify-dotfiles, run doctor, follow the matching recipe in features/, keep the evidence, and clean up the run."
