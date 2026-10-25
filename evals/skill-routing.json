@@ -101,6 +101,11 @@
       "expected_skill": "secret-leak-audit"
     },
     {
+      "id": "lockdown-confirm-race-check",
+      "request": "Before I change how --confirm cancels the rollback timer in server-lockdown-tailscale.sh, check every order of the lockdown run, the timer, and confirm with the TLA+ model.",
+      "expected_skill": "ssh-lockdown-model-check"
+    },
+    {
       "id": "red-green-feature",
       "request": "Build the new discount rule test-first with a red-green loop, one vertical slice at a time.",
       "expected_skill": "tdd"
@@ -119,6 +124,11 @@
       "id": "remove-ai-tells",
       "request": "Rewrite this launch announcement to remove AI writing tells such as delve, em dashes, and rule-of-three lists.",
       "expected_skill": "unslop"
+    },
+    {
+      "id": "scratch-home-tmux-badge",
+      "request": "Render my dotfiles change into a scratch home, start zsh in a private tmux pane, and capture proof that the SSH host badge appears.",
+      "expected_skill": "verify-dotfiles"
     },
     {
       "id": "no-repo-skill",
