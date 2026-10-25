@@ -5,6 +5,7 @@ set -euo pipefail
 SSH_PORT="${SSH_PORT:-22}"
 DROPIN=/etc/ssh/sshd_config.d/90-tailscale-lockdown.conf
 STATE_DIR=/run/dotfiles-ssh-lockdown
+LOCK_FILE=/run/dotfiles-ssh-lockdown.lock
 ROLLBACK_UNIT_PREFIX=dotfiles-ssh-rollback
 
 log() { printf '%s\n' "$*"; }
@@ -118,13 +119,19 @@ prepare_rollback() {
 set -euo pipefail
 DROPIN=/etc/ssh/sshd_config.d/90-tailscale-lockdown.conf
 STATE_DIR=/run/dotfiles-ssh-lockdown
+# --confirm holds this lock while it checks and removes the state directory.
+# A rollback that starts after a confirmation has nothing to restore.
+exec 9> /run/dotfiles-ssh-lockdown.lock
+flock 9
+[[ -d "$STATE_DIR" ]] || exit 0
+prior_status="$(cat "$STATE_DIR/ufw-prior-status")"
 if [[ -f "$STATE_DIR/dropin" ]]; then
   cp -p "$STATE_DIR/dropin" "$DROPIN"
 else
   rm -f "$DROPIN"
 fi
 cp -a "$STATE_DIR/ufw/." /etc/ufw/
-if [[ "$(cat "$STATE_DIR/ufw-prior-status")" = active ]]; then
+if [[ "$prior_status" = active ]]; then
   ufw reload
 else
   ufw disable
@@ -141,8 +148,12 @@ SCRIPT
 }
 
 rollback_now() {
-  systemctl stop "$(cat "$STATE_DIR/unit").timer" >/dev/null 2>&1 || true
+  local unit
+  unit="$(cat "$STATE_DIR/unit")"
+  # Keep the timer armed until the restore ends. If this run stops first,
+  # the timer still restores the prior configuration.
   /bin/bash "$STATE_DIR/rollback.sh"
+  systemctl stop "$unit.timer" >/dev/null 2>&1 || true
 }
 
 apply_lockdown() {
@@ -172,7 +183,14 @@ EOF
 }
 
 confirm_lockdown() {
-  [[ -d "$STATE_DIR" ]] || { err "No pending lockdown was found."; return 1; }
+  local unit
+  # rollback.sh takes the same lock, so the timer cannot restore while this
+  # run checks the lockdown and then cancels the rollback.
+  exec 9> "$LOCK_FILE"
+  flock -w 30 9 || { err "A rollback is in progress. Check SSH and UFW, then stage the lockdown again."; return 1; }
+  [[ -d "$STATE_DIR" ]] || {
+    err "No pending lockdown was found. If the rollback timer fired, the prior configuration is back."; return 1;
+  }
   [[ "$SSH_PORT" = "$(cat "$STATE_DIR/port")" ]] || {
     err "Use SSH_PORT=$(cat "$STATE_DIR/port") for confirmation."; return 1;
   }
@@ -182,7 +200,10 @@ confirm_lockdown() {
   assert_sshd_policy
   assert_listener
   assert_ufw_policy
-  systemctl stop "$(cat "$STATE_DIR/unit").timer"
+  unit="$(cat "$STATE_DIR/unit")"
+  # A timer that already fired cannot be stopped. Its rollback.sh waits for
+  # the lock and then finds no state directory.
+  systemctl stop "$unit.timer" >/dev/null 2>&1 || true
   rm -rf "$STATE_DIR"
   log "Lockdown confirmed from a new Tailscale SSH connection."
 }
@@ -194,7 +215,7 @@ main() {
     *) usage; return 2 ;;
   esac
   [[ "$EUID" -eq 0 ]] || { err "Run as root with sudo."; return 1; }
-  for command_name in sshd systemctl systemd-run tailscale ip ss ufw; do
+  for command_name in sshd systemctl systemd-run tailscale ip ss ufw flock; do
     require_cmd "$command_name"
   done
   validate_session
