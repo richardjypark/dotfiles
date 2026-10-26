@@ -64,6 +64,14 @@ When a Dependabot pull request is behind the base branch, comment
 `@dependabot rebase`. Do not use the update-branch button. After another
 account pushes to the branch, Dependabot stops its automatic rebases.
 
+The `close-outdated-prs` workflow runs each day. It closes a pull request when
+the base branch already contains all of its changes. It also closes a pull
+request that has had no activity for 30 days. It does not close an inactive
+Dependabot pull request. When such a pull request closes, Dependabot skips that
+version, and a security update can stop. To keep a pull request open, add the
+`keep-open` label. A manual dispatch only reports, unless you set `close` to
+true.
+
 ## Source checks and credentials
 
 Preparation uses read permissions. The existing updater performs its atomic

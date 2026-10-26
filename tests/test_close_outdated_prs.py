@@ -3,6 +3,7 @@
 
 from datetime import datetime, timedelta, timezone
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -33,10 +34,11 @@ def commit(work, name, text):
     return git(work, "rev-parse", "HEAD")
 
 
-def pr(number, head, days_old=1, labels=()):
+def pr(number, head, days_old=1, labels=(), author="octocat"):
     stamp = (NOW - timedelta(days=days_old)).isoformat().replace("+00:00", "Z")
     return {"number": number, "title": f"PR {number}", "head": {"sha": head}, "base": {"ref": "master"},
-            "updated_at": stamp, "labels": [{"name": label} for label in labels], "state": "open"}
+            "updated_at": stamp, "labels": [{"name": label} for label in labels], "state": "open",
+            "user": {"login": author}}
 
 
 class ReviewTest(unittest.TestCase):
@@ -60,17 +62,30 @@ class ReviewTest(unittest.TestCase):
             git(tmp, "clone", "--quiet", origin, source)
 
             prs = [pr(1, landed), pr(2, landed, labels=[cleanup.KEEP_LABEL]), pr(3, fresh),
-                   pr(4, fresh, days_old=30), pr(5, conflict), pr(6, conflict, days_old=45)]
+                   pr(4, fresh, days_old=30), pr(5, conflict), pr(6, conflict, days_old=45),
+                   pr(7, fresh, days_old=45, author=cleanup.DEPENDABOT), pr(8, landed, author=cleanup.DEPENDABOT)]
             rows = cleanup.review(source, "owner/repo", prs, NOW, 30, apply=False)
 
         self.assertEqual([result for _, _, result in rows],
                          ["would close: superseded", "kept", "kept", "would close: inactive",
-                          "kept", "would close: inactive"])
+                          "kept", "would close: inactive", "kept", "would close: superseded"])
 
     def test_no_open_pull_requests_needs_no_fetch(self):
         with mock.patch.object(cleanup, "fetch", side_effect=AssertionError("unexpected fetch")):
             self.assertEqual(cleanup.review(".", "owner/repo", [], NOW, 30, apply=True), [])
         self.assertIn("No open pull requests.", cleanup.summary([], apply=True))
+
+
+class OpenPullRequestsTest(unittest.TestCase):
+    def open_prs(self, *heads):
+        pages = json.dumps([[pr(number, head) for number, head in enumerate(heads, 1)]])
+        with mock.patch.object(cleanup, "run", return_value=pages):
+            return cleanup.open_prs("owner/repo")
+
+    def test_head_commits_must_be_full_object_ids(self):
+        self.assertEqual([row["head"]["sha"] for row in self.open_prs("a" * 40)], ["a" * 40])
+        with self.assertRaisesRegex(SystemExit, "#2 has an invalid head commit"):
+            self.open_prs("a" * 40, "--upload-pack=touch x")
 
 
 class CloseTest(unittest.TestCase):
