@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Close open pull requests that their base branch supersedes or that have no recent activity.
-
-Pull request heads are read as Git data. This script never checks out or runs pull request code.
-"""
+"""Close open pull requests that their base branch supersedes or that have no recent activity."""
 
 import argparse
 from datetime import datetime, timedelta, timezone
@@ -15,6 +12,7 @@ import subprocess
 KEEP_LABEL = "keep-open"
 DEPENDABOT = "dependabot[bot]"
 BASE_REFS = "refs/outdated-prs/base/"
+MERGE_TREE_CONFLICT = 1
 REASONS = {
     "superseded": "The `{base}` branch already contains every change in this pull request.",
     "inactive": "This pull request has had no activity for {days} days.",
@@ -53,14 +51,15 @@ def fetch(source, prs):
 
 
 def superseded(source, base, head):
-    """Return True when a merge of head into base leaves the base tree unchanged."""
     merge = subprocess.run(["git", "merge-tree", "--write-tree", base, head], cwd=source,
                            capture_output=True, text=True, check=False)
-    if merge.returncode == 1:
-        return False  # A conflict means the head still changes lines differently from base.
+    if merge.returncode == MERGE_TREE_CONFLICT:
+        return False
     if merge.returncode:
         raise SystemExit(f"git merge-tree failed: {merge.stderr.strip()}")
-    return merge.stdout.split()[0] == run("git", "rev-parse", f"{base}^{{tree}}", cwd=source).strip()
+    merged_tree = merge.stdout.split()[0]
+    base_tree = run("git", "rev-parse", f"{base}^{{tree}}", cwd=source).strip()
+    return merged_tree == base_tree
 
 
 def reason(source, pr, now, stale_days):
@@ -117,7 +116,7 @@ def summary(rows, apply):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY"))
     parser.add_argument("--source", default=".")
     parser.add_argument("--stale-days", type=int, default=30)
