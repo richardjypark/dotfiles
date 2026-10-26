@@ -51,8 +51,8 @@ def fetch(source, prs):
 
 
 def superseded(source, base, head):
-    merge = subprocess.run(["git", "merge-tree", "--write-tree", base, head], cwd=source,
-                           capture_output=True, text=True, check=False)
+    merge = subprocess.run(["git", "merge-tree", "--write-tree", "--allow-unrelated-histories", base, head],
+                           cwd=source, capture_output=True, text=True, check=False)
     if merge.returncode == MERGE_TREE_CONFLICT:
         return False
     if merge.returncode:
