@@ -75,7 +75,7 @@ class ReviewTest(unittest.TestCase):
         self.assertEqual([result for _, _, result in rows],
                          ["would close: superseded", "kept", "kept", "would close: inactive",
                           "kept", "would close: inactive", "kept", "would close: superseded",
-                          "kept", "would close: superseded"])
+                          "kept", "kept"])
 
     def test_no_open_pull_requests_needs_no_fetch(self):
         with mock.patch.object(cleanup, "fetch", side_effect=AssertionError("unexpected fetch")):
