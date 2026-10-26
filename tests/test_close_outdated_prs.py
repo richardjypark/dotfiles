@@ -54,21 +54,28 @@ class ReviewTest(unittest.TestCase):
             fresh = commit(work, "c.txt", "new\n")
             git(work, "checkout", "--quiet", "-b", "conflict", start)
             conflict = commit(work, "a.txt", "three\n")
+            git(work, "switch", "--quiet", "--orphan", "unrelated")
+            unrelated = commit(work, "d.txt", "other\n")
+            git(work, "switch", "--quiet", "--orphan", "copied")
+            copied = commit(work, "b.txt", "later\n")
             git(work, "checkout", "--quiet", "-B", "master", start)
             commit(work, "b.txt", "later\n")
             relanded = commit(work, "a.txt", "two\n")
             self.assertNotEqual(relanded, landed)
-            git(work, "push", "--quiet", "origin", "master", "fresh", "conflict", f"{landed}:refs/heads/landed")
+            git(work, "push", "--quiet", "origin", "master", "fresh", "conflict", "unrelated", "copied",
+                f"{landed}:refs/heads/landed")
             git(tmp, "clone", "--quiet", origin, source)
 
             prs = [pr(1, landed), pr(2, landed, labels=[cleanup.KEEP_LABEL]), pr(3, fresh),
                    pr(4, fresh, days_old=30), pr(5, conflict), pr(6, conflict, days_old=45),
-                   pr(7, fresh, days_old=45, author=cleanup.DEPENDABOT), pr(8, landed, author=cleanup.DEPENDABOT)]
+                   pr(7, fresh, days_old=45, author=cleanup.DEPENDABOT), pr(8, landed, author=cleanup.DEPENDABOT),
+                   pr(9, unrelated), pr(10, copied)]
             rows = cleanup.review(source, "owner/repo", prs, NOW, 30, apply=False)
 
         self.assertEqual([result for _, _, result in rows],
                          ["would close: superseded", "kept", "kept", "would close: inactive",
-                          "kept", "would close: inactive", "kept", "would close: superseded"])
+                          "kept", "would close: inactive", "kept", "would close: superseded",
+                          "kept", "would close: superseded"])
 
     def test_no_open_pull_requests_needs_no_fetch(self):
         with mock.patch.object(cleanup, "fetch", side_effect=AssertionError("unexpected fetch")):
