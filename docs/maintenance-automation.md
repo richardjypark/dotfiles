@@ -52,12 +52,16 @@ rule when an agent release accepts the new SDK major. Dependabot also ignores
 The two Pi package directories get no version proposals; their limit is zero,
 so Pi direct versions stay with the coordinated updater. Dependabot still
 reports Pi alerts and tries security proposals. A proposal fails with
-`security_update_not_possible` when the vulnerable package is inside the
-published Pi shrinkwrap. Then repair both Pi lockfiles by hand: set the
-version, resolved archive and integrity of the nested entry to the fixed
-release. `npm-lock-install.py` installs that exact archive over the shrinkwrap
-version, and the Linux managed npm suites check the installed versions.
-Dependabot alerts and security update proposals must also be enabled in GitHub
+`security_update_not_possible` when Pi controls the vulnerable package version.
+Pi 0.87 published an npm shrinkwrap. Pi 1.3 has no shrinkwrap, but its
+`package.json` sets exact versions, such as `undici` 8.10.2. In both cases,
+repair both Pi lockfiles by hand: set the version, resolved archive and
+integrity of the nested entry to the fixed release. With an exact version,
+`npm ci` installs the locked archive, and `npm ls` reports it as invalid. With
+a shrinkwrap, `npm-lock-install.py` installs that exact archive over the
+shrinkwrap version. The Linux managed npm suites check the installed versions.
+A Pi update can bring back the old version, so check the alerts after each Pi
+update. Dependabot alerts and security update proposals must also be enabled in GitHub
 repository settings.
 
 When a Dependabot pull request is behind the base branch, comment
