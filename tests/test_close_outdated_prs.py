@@ -46,7 +46,6 @@ class ReviewTest(unittest.TestCase):
         with temporary_directory() as tmp, mock.patch.dict(os.environ, GIT_ENV):
             origin, work, source = (str(Path(tmp, name)) for name in ("origin.git", "work", "source"))
             git(tmp, "init", "--quiet", "--bare", "-b", "master", origin)
-            git(origin, "config", "uploadpack.allowAnySHA1InWant", "true")  # GitHub serves PR heads by SHA.
             git(tmp, "init", "--quiet", "-b", "master", work)
             git(work, "remote", "add", "origin", origin)
             start = commit(work, "a.txt", "one\n")
@@ -56,8 +55,9 @@ class ReviewTest(unittest.TestCase):
             git(work, "checkout", "--quiet", "-b", "conflict", start)
             conflict = commit(work, "a.txt", "three\n")
             git(work, "checkout", "--quiet", "-B", "master", start)
-            commit(work, "a.txt", "two\n")  # The same change lands through another commit.
             commit(work, "b.txt", "later\n")
+            relanded = commit(work, "a.txt", "two\n")
+            self.assertNotEqual(relanded, landed)
             git(work, "push", "--quiet", "origin", "master", "fresh", "conflict", f"{landed}:refs/heads/landed")
             git(tmp, "clone", "--quiet", origin, source)
 
