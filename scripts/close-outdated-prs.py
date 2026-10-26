@@ -13,6 +13,7 @@ KEEP_LABEL = "keep-open"
 DEPENDABOT = "dependabot[bot]"
 BASE_REFS = "refs/outdated-prs/base/"
 MERGE_TREE_CONFLICT = 1
+NO_MERGE_BASE = 1
 REASONS = {
     "superseded": "The `{base}` branch already contains every change in this pull request.",
     "inactive": "This pull request has had no activity for {days} days.",
@@ -51,6 +52,9 @@ def fetch(source, prs):
 
 
 def superseded(source, base, head):
+    common = subprocess.run(["git", "merge-base", base, head], cwd=source, capture_output=True, check=False)
+    if common.returncode == NO_MERGE_BASE:
+        return False  # Against an empty merge base, a tree comparison cannot show that the head deletes a file.
     merge = subprocess.run(["git", "merge-tree", "--write-tree", base, head], cwd=source,
                            capture_output=True, text=True, check=False)
     if merge.returncode == MERGE_TREE_CONFLICT:
