@@ -1,7 +1,4 @@
-# Closes open pull requests that the base branch already contains or that have
-# had no activity for 30 days. Inactive Dependabot pull requests stay open. It
-# reads pull request heads as Git data and runs no pull request code. Add the
-# keep-open label to keep a pull request open.
+# This job reads pull request heads as Git data and never runs pull request code.
 name: close-outdated-prs
 
 on:
