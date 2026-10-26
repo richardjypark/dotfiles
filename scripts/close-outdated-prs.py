@@ -9,9 +9,11 @@ from datetime import datetime, timedelta, timezone
 import html
 import json
 import os
+import re
 import subprocess
 
 KEEP_LABEL = "keep-open"
+DEPENDABOT = "dependabot[bot]"
 BASE_REFS = "refs/outdated-prs/base/"
 REASONS = {
     "superseded": "The `{base}` branch already contains every change in this pull request.",
@@ -36,7 +38,11 @@ def api(path, method="GET", fields=None):
 def open_prs(repository):
     pages = run("gh", "api", "--hostname", "github.com", "--paginate", "--slurp",
                 f"repos/{repository}/pulls?state=open&per_page=100")
-    return [pr for page in json.loads(pages) for pr in page]
+    prs = [pr for page in json.loads(pages) for pr in page]
+    for pr in prs:
+        if not re.fullmatch(r"[0-9a-f]{40}", pr["head"]["sha"]):
+            raise SystemExit(f"pull request #{pr['number']} has an invalid head commit")
+    return prs
 
 
 def fetch(source, prs):
@@ -62,6 +68,8 @@ def reason(source, pr, now, stale_days):
         return None
     if superseded(source, BASE_REFS + pr["base"]["ref"], pr["head"]["sha"]):
         return "superseded"
+    if pr["user"]["login"] == DEPENDABOT:
+        return None  # Dependabot skips a version after its unmerged PR closes, which can drop a security fix.
     if now - datetime.fromisoformat(pr["updated_at"]) >= timedelta(days=stale_days):
         return "inactive"
     return None
