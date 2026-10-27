@@ -156,24 +156,25 @@ install_uv_via_homebrew() {
     return 1
 }
 
-ensure_uv_on_path_from_homebrew() {
+homebrew_uv_path() {
     local brew_cmd="$1"
     local brew_prefix=""
 
-    if is_installed uv; then
-        return 0
-    fi
-
     brew_prefix="$("$brew_cmd" --prefix 2>/dev/null || true)"
     if [ -n "$brew_prefix" ] && [ -x "$brew_prefix/bin/uv" ]; then
-        ln -sf "$brew_prefix/bin/uv" "$UV_DIR/uv"
-    fi
-
-    if is_installed uv; then
+        printf '%s\n' "$brew_prefix/bin/uv"
         return 0
     fi
-
     return 1
+}
+
+# Ask Homebrew's binary itself: an older pinned copy in $UV_DIR comes first in PATH.
+homebrew_uv_version() {
+    local uv_path="$1"
+    local line=""
+
+    line="$("$uv_path" --version 2>/dev/null | awk 'NR==1{print $2; exit}')"
+    normalize_version_token "$line"
 }
 
 # Check if uv is already installed
@@ -214,14 +215,20 @@ if [ "$UV_NEEDS_INSTALL" = "true" ]; then
                         exit 1
                     fi
                 else
-                    # Make Homebrew's uv visible to non-login shells before version validation.
-                    if ! ensure_uv_on_path_from_homebrew "$brew_cmd"; then
-                        eecho "Homebrew reported success, but uv is not available on PATH."
+                    HOMEBREW_UV="$(homebrew_uv_path "$brew_cmd" || true)"
+                    HOMEBREW_UV_VERSION=""
+                    if [ -n "$HOMEBREW_UV" ]; then
+                        HOMEBREW_UV_VERSION="$(homebrew_uv_version "$HOMEBREW_UV")"
+                    else
+                        eecho "Homebrew reported success, but its uv binary was not found."
                     fi
 
-                    INSTALLED_UV_VERSION="$(current_uv_version)"
-                    if [ -z "$INSTALLED_UV_VERSION" ] || ! version_ge "$INSTALLED_UV_VERSION" "$PINNED_UV_CLEAN"; then
-                        eecho "Homebrew uv version (${INSTALLED_UV_VERSION:-unknown}) is below pinned target $PINNED_UV_CLEAN; falling back to pinned uv release binary."
+                    if [ -n "$HOMEBREW_UV_VERSION" ] && version_ge "$HOMEBREW_UV_VERSION" "$PINNED_UV_CLEAN"; then
+                        # Link Homebrew's uv into $UV_DIR; this replaces an older pinned copy there.
+                        ln -sf "$HOMEBREW_UV" "$UV_DIR/uv"
+                        hash -r 2>/dev/null || true
+                    else
+                        eecho "Homebrew uv version (${HOMEBREW_UV_VERSION:-unknown}) is below pinned target $PINNED_UV_CLEAN; falling back to pinned uv release binary."
                         if ! install_uv_from_pinned_release "$platform"; then
                             exit 1
                         fi
