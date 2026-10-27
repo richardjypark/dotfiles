@@ -61,7 +61,7 @@ case "$1" in
     -v) echo 11.9.0 ;;
     prefix) echo "$TEST_PREFIX" ;;
     install)
-        touch "$HOME/install-called"
+        printf '%s\n' "$*" > "$HOME/install-called"
         if [ "$TEST_INSTALL_FAIL" = 1 ]; then
             echo 'fixture npm install error' >&2
             exit 1
@@ -91,6 +91,8 @@ esac
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual((self.bin / "claude").resolve(), self.prefix / "bin/claude")
         self.assertEqual(len(list(self.state.glob("claude-code-*.done"))), 1)
+        # The postinstall links the native binary; approve it before npm enforces allowScripts.
+        self.assertIn("--allow-scripts=@anthropic-ai/claude-code", (self.home / "install-called").read_text())
         (self.home / "install-called").unlink()
         result = self.run_bash(self.claude)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

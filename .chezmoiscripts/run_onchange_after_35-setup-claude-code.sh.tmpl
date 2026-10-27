@@ -149,7 +149,8 @@ if ! require_trust_for_remote_installer "npm registry package download"; then
     exit 1
 fi
 
-if ! "$NPM_CMD" install -g "@anthropic-ai/claude-code@${PINNED_CLAUDE_NPM_VERSION}"; then
+# The postinstall links the native claude binary; approve only this package's scripts.
+if ! "$NPM_CMD" install -g --allow-scripts=@anthropic-ai/claude-code "@anthropic-ai/claude-code@${PINNED_CLAUDE_NPM_VERSION}"; then
     eecho "Error: Claude Code npm installation failed. Leaving state unset so setup can retry."
     exit 1
 fi
