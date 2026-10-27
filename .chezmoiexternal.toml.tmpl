@@ -33,7 +33,8 @@ url = "https://github.com/junegunn/fzf.git"
 exact = true
 refreshPeriod = "168h"
 clone.args = ["--depth=1", "--branch", "v0.74.5"]
-pull.args = ["--ff-only"]
+# Pull the pinned tag, not the default branch; a newer pinned tag fast-forwards.
+pull.args = ["--ff-only", "--quiet", "origin", "refs/tags/v0.74.5"]
 {{- if ne (includeTemplate "resolved-role" .) "server" }}
 
 [".agents/skills/anatomy"]

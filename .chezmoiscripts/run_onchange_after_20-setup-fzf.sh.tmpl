@@ -10,6 +10,25 @@ FZF_TARGET="$FZF_BIN_PATH/fzf"
 PINNED_FZF_VERSION="{{ ((include ".chezmoiversion.toml") | fromToml).versions.fzf }}"
 FZF_STATE="fzf-setup-${PINNED_FZF_VERSION}"
 
+# Earlier external pulls followed master, so a checkout can be ahead of the
+# pinned tag. Return it to the tag when the tag is local; this needs no network.
+align_fzf_repo_to_local_tag() {
+    local target_tag tag_commit
+
+    if [ -z "$PINNED_FZF_VERSION" ] || [ ! -d "$FZF_REPO_PATH/.git" ] || ! is_installed git; then
+        return 0
+    fi
+    target_tag="v${PINNED_FZF_VERSION#v}"
+    tag_commit="$(git -C "$FZF_REPO_PATH" rev-parse -q --verify "refs/tags/${target_tag}^{commit}" 2>/dev/null)" || return 0
+    if [ "$(git -C "$FZF_REPO_PATH" rev-parse HEAD 2>/dev/null)" != "$tag_commit" ]; then
+        git -C "$FZF_REPO_PATH" checkout -f --quiet "$target_tag" >/dev/null 2>&1 \
+            && eecho "Moved the fzf checkout back to pinned tag ${target_tag}"
+    fi
+    return 0
+}
+
+align_fzf_repo_to_local_tag
+
 # State tracking with version validation fallback
 if should_skip_state "$FZF_STATE"; then
     if is_installed fzf; then
