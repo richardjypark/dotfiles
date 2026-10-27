@@ -9,7 +9,11 @@ SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 PASS_COUNT=0
 FAIL_COUNT=0
+SKIP_COUNT=0
 TEST_FIXTURE_ROOT=""
+# Fixtures replace PATH, so find the real tools before any test runs.
+REAL_JJ="$(command -v jj 2>/dev/null || true)"
+REAL_GIT="$(command -v git 2>/dev/null || true)"
 
 pass() {
     PASS_COUNT=$((PASS_COUNT + 1))
@@ -208,7 +212,7 @@ test_source_path_fallback_and_failure() {
 }
 
 test_prepare_uses_sync_then_trunk_rebase() {
-    local root sync_line rebase_line
+    local root snapshot_line sync_line rebase_line update_line
     new_test_temp_dir root
     TEST_FIXTURE_ROOT="$root"
     make_fixture "$root"
@@ -217,12 +221,18 @@ test_prepare_uses_sync_then_trunk_rebase() {
     export CHEZMOI_SOURCE_DIR="$root/repo"
 
     chezmoi_prepare_jj_update || return 1
+    expect_contains "$root/calls.log" "jj cwd=$root/repo args=--quiet -R $root/repo util snapshot" "prepare snapshots local edits" || return 1
     expect_contains "$root/calls.log" "jj-sync-trunk cwd=$root/repo args=--remote origin" "prepare invokes jj-sync-trunk in selected repo" || return 1
-    expect_contains "$root/calls.log" "jj cwd=$root/repo args=--quiet -R $root/repo rebase -d trunk()" "prepare quietly rebases onto trunk()" || return 1
+    expect_contains "$root/calls.log" "jj cwd=$root/repo args=--quiet --ignore-working-copy -R $root/repo rebase -d trunk()" "prepare quietly rebases onto trunk() without touching files" || return 1
+    expect_contains "$root/calls.log" "jj cwd=$root/repo args=--quiet -R $root/repo workspace update-stale" "prepare then updates the files" || return 1
     expect_not_contains "$root/calls.log" "git fetch" "prepare does not duplicate fetch" || return 1
+    snapshot_line="$(grep -n ' util snapshot' "$root/calls.log" | cut -d: -f1)"
     sync_line="$(grep -n 'jj-sync-trunk' "$root/calls.log" | cut -d: -f1)"
     rebase_line="$(grep -n ' rebase ' "$root/calls.log" | cut -d: -f1)"
+    update_line="$(grep -n ' update-stale' "$root/calls.log" | cut -d: -f1)"
+    [ "$snapshot_line" -lt "$sync_line" ] || { fail "snapshot runs before sync"; return 1; }
     [ "$sync_line" -lt "$rebase_line" ] || { fail "sync runs before rebase"; return 1; }
+    [ "$rebase_line" -lt "$update_line" ] || { fail "rebase runs before the file update"; return 1; }
 }
 
 test_prepare_selected_remote() {
@@ -290,13 +300,79 @@ test_prepare_failures_propagate() {
     expect_eq "$status" "8" "rebase failure status propagates" || return 1
 }
 
+# A remote that rewrites trunk history makes the fetch move @ onto root().
+# Real jj must keep the tracked files on disk and keep ignored files out of @,
+# with and without the managed snapshot.auto-update-stale setting.
+check_prepare_after_trunk_rewrite() {
+    local case_dir="$1" auto_update_stale="$2" repo changes label="auto-update-stale=$2"
+    mkdir -p "$case_dir"
+    export JJ_CONFIG="$case_dir/jj.toml"
+    printf '[user]\nname = "Test"\nemail = "test@example.com"\n[snapshot]\nauto-update-stale = %s\n' \
+        "$auto_update_stale" > "$JJ_CONFIG"
+
+    git init -q --bare "$case_dir/remote.git" || return 1
+    git init -q "$case_dir/seed" || return 1
+    printf 'ignored/\n' > "$case_dir/seed/.gitignore"
+    printf 'tracked\n' > "$case_dir/seed/tracked.txt"
+    : > "$case_dir/seed/.chezmoidata.toml"
+    git -C "$case_dir/seed" add -A && git -C "$case_dir/seed" commit -qm first || return 1
+    git -C "$case_dir/seed" push -q "file://$case_dir/remote.git" master || return 1
+    jj git clone --quiet --colocate "file://$case_dir/remote.git" "$case_dir/repo" 2>/dev/null || return 1
+    repo="$case_dir/repo"
+    jj --quiet -R "$repo" new 'master@origin' || return 1
+    mkdir "$repo/ignored" && printf 'local\n' > "$repo/ignored/cache.txt"
+    printf 'edited\n' > "$repo/tracked.txt"
+
+    git -C "$case_dir/seed" checkout -q --orphan rewritten && git -C "$case_dir/seed" commit -qm rewritten || return 1
+    git -C "$case_dir/seed" push -q -f "file://$case_dir/remote.git" rewritten:master || return 1
+
+    reset_helper_state
+    export CHEZMOI_SOURCE_DIR="$repo"
+    if ! chezmoi_prepare_jj_update >"$case_dir/out" 2>"$case_dir/err"; then
+        cat "$case_dir/err"
+        fail "$label: prepare succeeds after a trunk rewrite"
+        return 1
+    fi
+    changes="$(cd "$repo" && jj diff -r @ --summary)"
+    expect_eq "$changes" "M tracked.txt" "$label: only the local edit stays in @" || return 1
+    expect_eq "$(jj -R "$repo" log -r '@- & trunk()' --no-graph -T '"on-trunk"')" "on-trunk" \
+        "$label: @ moves onto the rewritten trunk" || return 1
+    [ -f "$repo/.gitignore" ] || { fail "$label: .gitignore stays on disk"; return 1; }
+    expect_contains "$case_dir/err" "history was rewritten" "$label: prepare warns about the rewritten trunk" || return 1
+}
+
+test_prepare_survives_rewritten_trunk() {
+    local root
+    if [ -z "$REAL_JJ" ] || [ -z "$REAL_GIT" ]; then
+        printf 'jj and git are required\n'
+        return 77
+    fi
+    new_test_temp_dir root
+    TEST_FIXTURE_ROOT="$root"
+    reset_helper_state
+    mkdir -p "$root/bin"
+    ln -s "$SCRIPT_ROOT/dot_local/bin/executable_jj-sync-trunk" "$root/bin/jj-sync-trunk"
+    export HOME="$root"
+    export PATH="$root/bin:${REAL_JJ%/*}:${REAL_GIT%/*}:/usr/bin:/bin"
+    export GIT_CONFIG_GLOBAL="$root/gitconfig"
+    printf '[user]\n\tname = Test\n\temail = test@example.com\n[init]\n\tdefaultBranch = master\n' > "$GIT_CONFIG_GLOBAL"
+
+    check_prepare_after_trunk_rewrite "$root/stale-on" true || return 1
+    check_prepare_after_trunk_rewrite "$root/stale-off" false || return 1
+}
+
 run_test() {
-    local name="$1" fn="$2" before_failures
+    local name="$1" fn="$2" before_failures status
     printf '[TEST] %s\n' "$name"
     TEST_FIXTURE_ROOT=""
     before_failures="$FAIL_COUNT"
-    if "$fn"; then
+    status=0
+    "$fn" || status=$?
+    if [ "$status" -eq 0 ]; then
         pass "$name"
+    elif [ "$status" -eq 77 ]; then
+        SKIP_COUNT=$((SKIP_COUNT + 1))
+        printf '[SKIP] %s\n' "$name"
     else
         if [ "$FAIL_COUNT" -eq "$before_failures" ]; then
             FAIL_COUNT=$((FAIL_COUNT + 1))
@@ -319,6 +395,8 @@ run_test "selected remote" test_prepare_selected_remote
 run_test "chezmoi commands use selected source" test_chezmoi_commands_use_selected_source
 run_test "duplicate source argument" test_duplicate_source_argument_is_rejected
 run_test "failure propagation" test_prepare_failures_propagate
+run_test "rewritten trunk" test_prepare_survives_rewritten_trunk
 
-printf '\nTests passed: %s\nFailures: %s\n' "$PASS_COUNT" "$FAIL_COUNT"
-[ "$FAIL_COUNT" -eq 0 ]
+printf '\nTests passed: %s\nFailures: %s\nSkipped: %s\n' "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"
+[ "$FAIL_COUNT" -eq 0 ] || exit 1
+[ "$SKIP_COUNT" -eq 0 ] || exit 77
