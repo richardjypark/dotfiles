@@ -27,6 +27,13 @@ current_tailscale_version() {
     normalize_version_token "$line"
 }
 
+# `tailscale status` fails when this machine is logged out or tailscaled is stopped.
+print_tailscale_login_note() {
+    if ! tailscale status --peers=false >/dev/null 2>&1; then
+        eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
+    fi
+}
+
 tailscale_brew_cask_token() {
     if ! is_installed brew; then
         return 1
@@ -239,13 +246,13 @@ if is_installed tailscale && [ -n "$INSTALLED_TAILSCALE_VERSION" ] && version_ge
         echo "Tailscale installed successfully"
         tailscale version 2>/dev/null | head -1 || true
     fi
-    eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
+    print_tailscale_login_note
     clear_state "$TAILSCALE_PACKAGE_MANAGER_STATE"
     mark_state "$TAILSCALE_STATE"
 elif is_installed tailscale && [ -n "$INSTALLED_TAILSCALE_VERSION" ] && [ "$ALLOW_VERSION_LAG" = "true" ]; then
     eecho "Warning: Package manager installed Tailscale $INSTALLED_TAILSCALE_VERSION, below preferred $PINNED_TAILSCALE_VERSION."
     eecho "Continuing because package manager channels can lag pinned artifact releases."
-    eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
+    print_tailscale_login_note
     clear_state "$TAILSCALE_STATE"
     mark_state "$TAILSCALE_PACKAGE_MANAGER_STATE"
 else
