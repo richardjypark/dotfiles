@@ -310,6 +310,7 @@ EOF
 [".local/share/fzf"]
 refreshPeriod = "168h"
 files = ["--branch", "v1.0.0"]
+pull.args = ["--ff-only", "--quiet", "origin", "refs/tags/v1.0.0"]
 
 [".local/share/zsh-syntax-highlighting"]
 refreshPeriod = "168h"
@@ -676,6 +677,29 @@ test_no_update_run_leaves_no_lock() {
     remove_test_temp_dir "$fixture_dir"
 }
 
+test_fzf_bump_moves_clone_and_pull_tags() {
+    local fixture_dir log status external
+    local MOCK_FZF_LATEST
+    new_test_temp_dir fixture_dir
+    create_stubs "$fixture_dir"
+    render_fixture "$fixture_dir"
+
+    MOCK_FZF_LATEST="2.0.0"
+    log="${fixture_dir}/run.log"
+    if run_bump "$fixture_dir" "$log" fzf --skip-sha; then
+        status=0
+    else
+        status=$?
+    fi
+
+    external="${fixture_dir}/.local/share/chezmoi/.chezmoiexternal.toml.tmpl"
+    assert_eq "$status" "0" "fzf bump should succeed"
+    assert_file_contains "$external" '"--branch", "v2.0.0"' "fzf clone tag updated"
+    assert_file_contains "$external" '"refs/tags/v2.0.0"' "fzf pull tag updated"
+
+    remove_test_temp_dir "$fixture_dir"
+}
+
 run_test() {
     local name="$1"
     local fn="$2"
@@ -695,6 +719,7 @@ run_test "atomic --all reports lock contention" test_lock_contention_fails
 run_test "atomic --all restores on catchable signal" test_signal_rolls_back
 run_test "outer atomicity overrides per-dependency --no-rollback" test_no_rollback_flag_keeps_outer_atomicity
 run_test "no-update --all leaves no lock" test_no_update_run_leaves_no_lock
+run_test "fzf bump moves clone and pull tags" test_fzf_bump_moves_clone_and_pull_tags
 
 log ""
 log "Tests run: ${PASS_COUNT}/$((PASS_COUNT + FAIL_COUNT))"

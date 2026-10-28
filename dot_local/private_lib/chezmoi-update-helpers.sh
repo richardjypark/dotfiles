@@ -291,14 +291,30 @@ chezmoi_prepare_jj_update() {
         return 1
     fi
 
-    if [ "${VERBOSE:-false}" = "true" ]; then
+    local quiet=--quiet
+    [ "${VERBOSE:-false}" = "true" ] && quiet=""
+
+    # jj-sync-trunk fetches with --ignore-working-copy, so record local edits first.
+    (cd "$repo" && jj ${quiet:+"$quiet"} -R "$repo" util snapshot) || return $?
+
+    if [ -n "$quiet" ]; then
+        (cd "$repo" && jj-sync-trunk --remote "$remote" >/dev/null) || return $?
+    else
         (cd "$repo" && jj-sync-trunk --remote "$remote") || return $?
-        (cd "$repo" && jj -R "$repo" rebase -d 'trunk()') || return $?
-        return
     fi
 
-    (cd "$repo" && jj-sync-trunk --remote "$remote" >/dev/null) || return $?
-    (cd "$repo" && jj --quiet -R "$repo" rebase -d 'trunk()') || return $?
+    # A rewritten remote trunk shares only root() with @: the fetch abandoned
+    # the old trunk commits and moved @ onto root().
+    if [ -n "$(jj --ignore-working-copy -R "$repo" log --no-graph -r 'heads(::@ & ::trunk()) & root()' -T 'commit_id' 2>/dev/null)" ]; then
+        chezmoi_update_error "warning: trunk history was rewritten on $remote; moving the working-copy change onto the new trunk. Old local copies can remain; see the jj-remote-truth-reset skill."
+    fi
+
+    # Rebase first, then update the files. A rebase that updates the files
+    # itself first checks out the empty root() tree after a rewrite: that
+    # deletes every tracked file, .gitignore too, and the next snapshot then
+    # adds every ignored file to @.
+    (cd "$repo" && jj ${quiet:+"$quiet"} --ignore-working-copy -R "$repo" rebase -d 'trunk()') || return $?
+    (cd "$repo" && jj ${quiet:+"$quiet"} -R "$repo" workspace update-stale) || return $?
 }
 
 sanitize_terminal_noise() {
