@@ -1840,6 +1840,11 @@ build_dep_manifest() {
                 "\"--branch\", \"v${current#v}\"" \
                 "\"--branch\", \"v${latest#v}\"" \
                 "$(display_repo_path "$external_file") fzf --branch"
+            tx_add_literal_op \
+                "$external_file" \
+                "\"refs/tags/v${current#v}\"" \
+                "\"refs/tags/v${latest#v}\"" \
+                "$(display_repo_path "$external_file") fzf pull tag"
             ;;
         zsh-syntax-highlighting)
             tx_add_literal_op \
