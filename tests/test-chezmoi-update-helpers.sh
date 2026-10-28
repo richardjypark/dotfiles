@@ -351,7 +351,10 @@ test_prepare_survives_rewritten_trunk() {
     TEST_FIXTURE_ROOT="$root"
     reset_helper_state
     mkdir -p "$root/bin"
-    ln -s "$SCRIPT_ROOT/dot_local/bin/executable_jj-sync-trunk" "$root/bin/jj-sync-trunk"
+    # Git keeps source scripts at mode 644, so run this one through bash.
+    printf '#!/usr/bin/env bash\nexec bash %q "$@"\n' \
+        "$SCRIPT_ROOT/dot_local/bin/executable_jj-sync-trunk" > "$root/bin/jj-sync-trunk"
+    chmod +x "$root/bin/jj-sync-trunk"
     export HOME="$root"
     export PATH="$root/bin:${REAL_JJ%/*}:${REAL_GIT%/*}:/usr/bin:/bin"
     export GIT_CONFIG_GLOBAL="$root/gitconfig"
