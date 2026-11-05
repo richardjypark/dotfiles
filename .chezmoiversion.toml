@@ -1,7 +1,7 @@
 [versions]
 fzf = "0.74.5"
 neovim = "v0.12.6"
-jj = "v0.46.0"
+jj = "v0.47.1"
 codex = "rust-v0.166.0"
 uv = "0.13.7"
 go = "go1.26.10"
