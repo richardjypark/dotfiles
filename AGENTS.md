@@ -101,6 +101,7 @@ General-purpose skills vendored from upstream (provenance and refresh rules: `do
 - `prototype` — throwaway logic or UI prototype that answers one design question.
 - `handoff` — compact the session into a redacted handoff document for the next agent.
 - `teach` — multi-session teaching workspace with mission, lessons, and learning records.
+- `socratic-tutor` — one-session Socratic tutoring: diagnostic, 0-5 skill map, one question at a time, spaced review, and a final assessment.
 - `technical-writing` — Diátaxis, Google style, STE, and Global English rules for docs, PRs, and commits.
 - `unslop` — remove AI writing patterns from text.
 - `create-verification-skill` / `maintain-verification-skill` — generate, then audit, a project-local skill that drives the real app.
