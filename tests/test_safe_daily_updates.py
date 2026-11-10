@@ -226,6 +226,38 @@ elif "is-enabled" in args:
                     with self.assertRaises(ValueError):
                         handler.redirect_request(sent, None, 302, "Found", {}, newurl)
 
+    def test_bump_uses_gh_token_without_argv_or_export(self):
+        bump = ROOT / "dot_local/bin/executable_chezmoi-bump"
+        with temporary_directory() as directory:
+            fake = Path(directory)
+            log = fake / "curl.log"
+            (fake / "gh").write_text('#!/bin/sh\n[ "$*" = "auth token --hostname github.com" ] && echo gh-test-value\n')
+            (fake / "curl").write_text(
+                '#!/bin/sh\n{ echo "ARGV:$*"; echo "ENV:${GITHUB_TOKEN:-}"; '
+                'case " $* " in *" -K - "*) echo "CONFIG:$(cat)";; esac; } >> "$CURL_LOG"\necho "{}"\n')
+            for tool in ("gh", "curl"):
+                (fake / tool).chmod(0o755)
+            command = f'source "{bump}"; load_github_token; _curl_gh https://api.github.com/x >/dev/null'
+            base = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "CHEZMOI_BUMP_GH_AUTH")}
+            base.update(PATH=f"{fake}:{os.environ['PATH']}", CURL_LOG=str(log), CHEZMOI_DIR=str(ROOT))
+            for overrides, expected in (({}, "gh-test-value"),
+                                        ({"GITHUB_TOKEN": "env-test-value"}, "env-test-value"),
+                                        ({"CHEZMOI_BUMP_GH_AUTH": "0"}, None)):
+                with self.subTest(overrides=overrides):
+                    log.write_text("")
+                    result = subprocess.run(["bash", "-c", command], env={**base, **overrides},
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    sent = log.read_text()
+                    argv = next(line for line in sent.splitlines() if line.startswith("ARGV:"))
+                    self.assertNotIn("test-value", argv)
+                    if expected is None:
+                        self.assertNotIn("CONFIG:", sent)
+                    else:
+                        self.assertIn(f'CONFIG:header = "Authorization: Bearer {expected}"', sent)
+                    if "GITHUB_TOKEN" not in overrides:
+                        self.assertIn("ENV:\n", sent)
+
     def test_npm_requires_current_version_metadata(self):
         metadata = {"versions": {"1.0.0": {}}, "time": {"1.0.0": "2026-01-01T00:00:00Z", "2.0.0": "2026-01-01T00:00:00Z"}}
         with patch.object(stable, "fetch_json", return_value=metadata):
