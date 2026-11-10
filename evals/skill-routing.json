@@ -116,6 +116,11 @@
       "expected_skill": "teach"
     },
     {
+      "id": "socratic-drill-to-mastery",
+      "request": "Quiz me on SQL window functions one question at a time until I reach mastery, and show my skill map as I level up.",
+      "expected_skill": "socratic-tutor"
+    },
+    {
       "id": "diataxis-doc-review",
       "request": "Review this how-to guide for Diataxis mode, Google developer style, and Simplified Technical English sentence rules.",
       "expected_skill": "technical-writing"

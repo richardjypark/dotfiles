@@ -336,6 +336,21 @@ validate_prerequisites() {
 # GitHub / npm API helpers
 # ============================================================================
 
+# Use the gh CLI login when GITHUB_TOKEN is unset. The token is not exported;
+# only _curl_gh and the release-eligibility helper receive it.
+# Set CHEZMOI_BUMP_GH_AUTH=0 to disable the lookup.
+load_github_token() {
+    local token=""
+    if [ -n "${GITHUB_TOKEN:-}" ] || [ "${CHEZMOI_BUMP_GH_AUTH:-1}" = "0" ]; then
+        return 0
+    fi
+    command -v gh >/dev/null 2>&1 || return 0
+    token="$(gh auth token --hostname github.com 2>/dev/null)" || token=""
+    if [ -n "$token" ]; then
+        GITHUB_TOKEN="$token"
+    fi
+}
+
 _curl_gh() {
     local url="$1"
     local -a headers=(
@@ -343,7 +358,10 @@ _curl_gh() {
         -H "User-Agent: chezmoi-bump"
     )
     if [ -n "${GITHUB_TOKEN:-}" ]; then
-        headers+=(-H "Authorization: Bearer $GITHUB_TOKEN")
+        # Send the header through a stdin config so the token is not in argv (ps).
+        printf 'header = "Authorization: Bearer %s"\n' "$GITHUB_TOKEN" |
+            curl -fsSL --retry 2 -K - "${headers[@]}" "$url" 2>/dev/null || true
+        return 0
     fi
     curl -fsSL --retry 2 "${headers[@]}" "$url" 2>/dev/null || true
 }
@@ -397,7 +415,7 @@ github_latest_tag() {
     # Detect rate limit
     if printf '%s' "$response" | grep -q '"rate limit"' 2>/dev/null ||
        printf '%s' "$response" | grep -q '"API rate limit exceeded"' 2>/dev/null; then
-        echo "${YELLOW}Warning: GitHub API rate limit hit. Set GITHUB_TOKEN for 5000 req/hr.${RESET}" >&2
+        echo "${YELLOW}Warning: GitHub API rate limit hit. Run 'gh auth login' or set GITHUB_TOKEN for 5000 req/hr.${RESET}" >&2
         echo ""
         return 0
     fi
@@ -714,7 +732,8 @@ resolve_automatic_candidate() {
         args+=(--dependency "$name")
     fi
     if [ "$PATCH_ONLY" = "true" ]; then args+=(--patch-only); fi
-    python3 "$CHEZMOI_DIR/dot_local/private_lib/chezmoi/stable-release-eligibility.py" "${args[@]}"
+    GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
+        python3 "$CHEZMOI_DIR/dot_local/private_lib/chezmoi/stable-release-eligibility.py" "${args[@]}"
 }
 
 get_latest_version() {
@@ -2281,7 +2300,7 @@ run_check() {
 
     if [ "$api_error_count" -gt 0 ]; then
         output+=$'\n'$'\n'"Check incomplete: ${api_error_count} dependency check(s) failed due to API/network errors."
-        output+=$'\n'"Tip: set GITHUB_TOKEN to increase GitHub API rate limits, then re-run with --force."
+        output+=$'\n'"Tip: run 'gh auth login' or set GITHUB_TOKEN to increase GitHub API rate limits, then re-run with --force."
     elif [ "$has_update" = "false" ]; then
         output+=$'\n'$'\n'"All dependencies are up to date."
     fi
@@ -2949,6 +2968,7 @@ PY
         return $?
     fi
     validate_prerequisites
+    load_github_token
 
     if [ "$MODE" = "check" ] && [ "$AUTOMATIC" = "false" ]; then
         run_check

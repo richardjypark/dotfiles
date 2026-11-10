@@ -126,6 +126,7 @@ Current upstream sources:
 
 - `mattpocock/skills`: `grill-me`, `grill-with-docs`, `domain-modeling`, `codebase-design`, `improve-codebase-architecture`, `tdd`, `diagnosing-bugs`, `prototype`, `handoff`, `teach`.
 - `cursor/plugins` `pstack`: `unslop`, `blast-radius`, `technical-writing`, `create-verification-skill`, `maintain-verification-skill`.
+- `janestreet/agent_skills`: `socratic-tutor`.
 
 Large skills with bundled examples or tooling install as pinned chezmoi externals instead of repo copies. `anatomy` (wheresryan22/anatomy, about 12 MB) installs at `~/.agents/skills/anatomy` from a commit-pinned archive in `.chezmoiexternal.toml.tmpl`, on the workstation role only, because it needs Node.js and Chrome. Its gallery publish step runs `git` and `gh` and reads local Claude Code session logs for time and token counts. It runs only after the user approves a dry-run plan.
 
