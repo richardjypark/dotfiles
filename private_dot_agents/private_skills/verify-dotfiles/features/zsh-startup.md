@@ -1,6 +1,6 @@
 # Interactive zsh startup
 
-A new terminal starts an interactive login zsh that loads the managed shell stack with no error output. Managed commands and aliases are ready, the managed tool paths come first on `PATH`, and the shell starts Herdr unless the user opts out.
+A new terminal starts an interactive login zsh that loads the managed shell stack with no error output. Managed commands and aliases are ready, the managed tool paths come first on `PATH`, and on Linux the shell starts Herdr unless the user opts out. On macOS the shell does not start Herdr, because the user runs Rex as the terminal multiplexer.
 
 ## Sub-features
 
@@ -28,7 +28,7 @@ Preconditions:
 
 ## Gotchas
 
-- Never unset `NOTMUX` in a run. `private_dot_config/shell/path.sh` adds `/opt/homebrew/bin` again, so a stub `herdr` earlier on `PATH` does not win, and the real `herdr` starts with the scratch home. Without a terminal it stops with `cannot attach without a usable terminal`; in a pane it takes over the pane. The auto-start branch itself is not covered here.
+- Never unset `NOTMUX` in a run. This applies to Linux runs; the macOS render has no Herdr auto-start. `private_dot_config/shell/path.sh` adds `/opt/homebrew/bin` again, so a stub `herdr` earlier on `PATH` does not win, and the real `herdr` starts with the scratch home. Without a terminal it stops with `cannot attach without a usable terminal`; in a pane it takes over the pane. The auto-start branch itself is not covered here.
 - On macOS, `/etc/zprofile` runs `path_helper` in login shells and moves `/etc/paths` entries before Homebrew. The repo does not manage `~/.zprofile`, so in a scratch home `git` resolves to `/usr/bin/git`. Compare with the real home before you call this a regression.
 - The helper drops `PATH` entries under the real home, so tools that only the real home has (for example `uv`, `chezmoi`, mise-managed Node) are absent in the scratch shell. Their completions and caches are skipped.
 - `zsh -ilc` has no terminal, so ZLE widgets and key bindings do not load. Use the tmux pane for anything that needs them.

@@ -18,6 +18,31 @@ OVERRIDE = ROOT / ".chezmoiscripts/run_after_98-pi-local-overrides.sh.tmpl"
 
 
 class RoleAndOverrideTest(unittest.TestCase):
+    def render_zshrc(self, os_name):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            home = root / "home"
+            home.mkdir()
+            for name in ("dot_zshrc.tmpl", ".chezmoitemplates/resolved-role"):
+                target = source / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / name).read_bytes())
+            config = root / "config.toml"
+            config.write_text('[data]\nrole = "workstation"\nprofile = "standard"\n')
+            command = ["chezmoi", "--source", str(source), "--destination", str(home),
+                       "--config", str(config),
+                       "--override-data", json.dumps({"chezmoi": {"os": os_name}})]
+            env = {**os.environ, "HOME": str(home)}
+            return subprocess.run(command + ["cat", str(home / ".zshrc")], env=env,
+                                  check=True, capture_output=True, text=True).stdout
+
+    def test_macos_zshrc_does_not_start_herdr(self):
+        # On macOS the user runs Rex as the terminal multiplexer.
+        rendered = self.render_zshrc("darwin")
+        self.assertNotIn("exec herdr", rendered)
+        self.assertIn("exec herdr", self.render_zshrc("linux"))
+
     def test_omarchy_uses_managed_zshrc_with_herdr(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -32,7 +57,8 @@ class RoleAndOverrideTest(unittest.TestCase):
             config = root / "config.toml"
             config.write_text('[data]\nrole = "workstation"\nprofile = "omarchy"\n')
             command = ["chezmoi", "--source", str(source), "--destination", str(home),
-                       "--config", str(config)]
+                       "--config", str(config),
+                       "--override-data", json.dumps({"chezmoi": {"os": "linux"}})]
             env = {**os.environ, "HOME": str(home)}
             managed = subprocess.run(command + ["managed"], env=env, check=True,
                                      capture_output=True, text=True).stdout.splitlines()
