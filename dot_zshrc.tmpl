@@ -169,8 +169,11 @@ if [[ -n "${ZSH_PROFILE_STARTUP:-}" ]]; then
     fi
 fi
 
+{{- if ne .chezmoi.os "darwin" }}
+
 # Auto-start Herdr after all shell setup/profiling is complete.
 # Skipped for: SSH sessions, VSCode terminals, Herdr panes, or NOTMUX=1.
+# Not rendered on macOS: there the terminal multiplexer is Rex, not Herdr.
 if [[ -z "${HERDR_ENV:-}" ]] && [[ -z "${SSH_TTY:-}" ]] && [[ "${TERM_PROGRAM:-}" != "vscode" ]] && [[ -z "${NOTMUX:-}" ]]; then
     if (( $+commands[herdr] )); then
         exec herdr
@@ -178,3 +181,4 @@ if [[ -z "${HERDR_ENV:-}" ]] && [[ -z "${SSH_TTY:-}" ]] && [[ "${TERM_PROGRAM:-}
         print -u2 'herdr is not installed; continuing without a terminal multiplexer.'
     fi
 fi
+{{- end }}
