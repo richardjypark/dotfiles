@@ -6,10 +6,14 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
-import yaml
+try:
+    import yaml
+except ModuleNotFoundError:  # CI installs PyYAML; a local python3 can lack it.
+    yaml = None
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -205,6 +209,8 @@ class RoleAndOverrideTest(unittest.TestCase):
 
             for suffix, content in ((".json", '{"git":{"autoPush":false},"data":{"other":"keep"}}'),
                                     (".yaml", 'git:\n  autoPush: false\ndata:\n  other: keep\n')):
+                if suffix == ".yaml" and yaml is None:
+                    continue
                 structured = home / f"active{suffix}"
                 structured.write_text(content)
                 env["TEST_CONFIG_PATH"] = str(structured)
@@ -212,6 +218,8 @@ class RoleAndOverrideTest(unittest.TestCase):
                 parsed = json.loads(structured.read_text()) if suffix == ".json" else yaml.safe_load(structured.read_text())
                 self.assertEqual(parsed["data"], {"other": "keep", "role": "server", "profile": "omarchy"})
                 self.assertFalse(parsed["git"]["autoPush"])
+            if yaml is None:
+                self.skipTest("PyYAML is not installed; the YAML config case did not run")
 
     def test_pi_override_valid_invalid_and_unchanged(self):
         rendered = subprocess.run(["chezmoi", "--source", str(ROOT), "execute-template"],
@@ -325,4 +333,8 @@ class RoleAndOverrideTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # Exit 77 tells tests/all that a test was skipped; a skip is not a pass.
+    program = unittest.main(exit=False)
+    if not program.result.wasSuccessful():
+        sys.exit(1)
+    sys.exit(77 if program.result.skipped else 0)
