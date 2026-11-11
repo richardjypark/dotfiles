@@ -175,9 +175,10 @@ fi
 {{- if ne .chezmoi.os "darwin" }}
 
 # Auto-start Herdr after all shell setup/profiling is complete.
-# Skipped for: SSH sessions, VSCode terminals, Herdr panes, or NOTMUX=1.
+# Skipped for: SSH sessions, VSCode terminals, Herdr panes, Rex terminals, or NOTMUX=1.
+# Rex terminals (remote clients included) set REX_SESSION; Herdr inside Rex breaks the clipboard.
 # Not rendered on macOS: there the terminal multiplexer is Rex, not Herdr.
-if [[ -z "${HERDR_ENV:-}" ]] && [[ -z "${SSH_TTY:-}" ]] && [[ "${TERM_PROGRAM:-}" != "vscode" ]] && [[ -z "${NOTMUX:-}" ]]; then
+if [[ -z "${HERDR_ENV:-}" ]] && [[ -z "${REX_SESSION:-}" ]] && [[ -z "${SSH_TTY:-}" ]] && [[ "${TERM_PROGRAM:-}" != "vscode" ]] && [[ -z "${NOTMUX:-}" ]]; then
     if (( $+commands[herdr] )); then
         exec herdr
     else
