@@ -169,6 +169,37 @@ esac
         self.assertFalse(any(path.startswith("tests/") for path in managed))
         self.assertFalse(any(path.startswith(".chezmoitemplates/") for path in managed))
 
+    def test_rerun_script_works_without_flags_on_system_bash(self):
+        # macOS /bin/bash is 3.2, where an empty "${array[@]}" fails under `set -u`.
+        script = ROOT / "dot_local/bin/executable_chezmoi-rerun-script"
+        with tempfile.TemporaryDirectory() as directory:
+            stub_dir = Path(directory)
+            calls = stub_dir / "calls"
+            stub = stub_dir / "chezmoi"
+            stub.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$CALLS"\n'
+                            'case "$*" in *target-path*) echo /home/target.sh ;; esac\n')
+            stub.chmod(0o755)
+            env = {**os.environ, "PATH": f"{stub_dir}:/usr/bin:/bin", "CALLS": str(calls)}
+            cases = (
+                (["script.sh"],
+                 ["target-path --source-path script.sh",
+                  "state delete --bucket=entryState --key /home/target.sh"]),
+                (["-S", "/src", "-D", "/dest", "script.sh"],
+                 ["-S /src -D /dest target-path --source-path /src/script.sh",
+                  "-S /src -D /dest state delete --bucket=entryState --key /home/target.sh"]),
+            )
+            for arguments, expected in cases:
+                with self.subTest(arguments=arguments):
+                    calls.write_text("")
+                    result = subprocess.run(["/bin/bash", str(script), *arguments], env=env,
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(calls.read_text().splitlines(), expected)
+            result = subprocess.run(["/bin/bash", str(script), "-S"], env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("-S requires a value", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
