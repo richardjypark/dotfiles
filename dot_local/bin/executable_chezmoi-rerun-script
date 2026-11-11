@@ -21,10 +21,18 @@ SOURCE_SCRIPT=""
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -S|--source)
+            if [ "$#" -lt 2 ]; then
+                echo "Error: $1 requires a value" >&2
+                exit 1
+            fi
             SOURCE_DIR="$2"
             shift 2
             ;;
         -D|--destination)
+            if [ "$#" -lt 2 ]; then
+                echo "Error: $1 requires a value" >&2
+                exit 1
+            fi
             DEST_DIR="$2"
             shift 2
             ;;
@@ -71,8 +79,9 @@ if [[ "$SOURCE_SCRIPT" != /* ]] && [ -n "$SOURCE_DIR" ]; then
     SOURCE_SCRIPT="$SOURCE_DIR/$SOURCE_SCRIPT"
 fi
 
-target_path="$(chezmoi "${chezmoi_args[@]}" target-path --source-path "$SOURCE_SCRIPT")"
-chezmoi "${chezmoi_args[@]}" state delete --bucket=entryState --key "$target_path" >/dev/null 2>&1 || true
+# The ${array[@]+...} form keeps an empty array safe under `set -u` in bash 3.2 (macOS).
+target_path="$(chezmoi ${chezmoi_args[@]+"${chezmoi_args[@]}"} target-path --source-path "$SOURCE_SCRIPT")"
+chezmoi ${chezmoi_args[@]+"${chezmoi_args[@]}"} state delete --bucket=entryState --key "$target_path" >/dev/null 2>&1 || true
 
 printf 'Cleared run_onchange state for %s\n' "$SOURCE_SCRIPT"
 printf 'Next chezmoi apply will rerun: %s\n' "$target_path"
