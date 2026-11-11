@@ -95,7 +95,9 @@ fi
 # ZLE error fixes are handled by zsh-fix.sh loaded earlier
 
 # Load additional shell configurations from your config directory.
-for conf in "$HOME/.config/shell/"*.sh; do
+# (N) lets an empty or missing directory match nothing; without it zsh stops
+# reading this file with "no matches found".
+for conf in "$HOME/.config/shell/"*.sh(N); do
 	[[ "$conf" == *"/zsh-fix.sh" ]] && continue
 	[ -f "$conf" ] && . "$conf"
 done
@@ -108,14 +110,29 @@ if [[ -n "${DOTFILES_MISE_BIN:-}" ]]; then
 fi
 [[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "mise activated"
 
-# Initialize Starship prompt (cached for performance)
-if command -v starship >/dev/null 2>&1; then
-    local starship_cache="$HOME/.cache/starship-init.zsh"
-    if [[ ! -f "$starship_cache" ]] || [[ "$(command -v starship)" -nt "$starship_cache" ]]; then
-        mkdir -p "$HOME/.cache"
-        starship init zsh > "$starship_cache"
+# _dotfiles_cached_init CACHE_FILE COMMAND [ARG...]: source the cached output
+# of COMMAND. Regenerate the cache when it is missing, empty, or older than
+# the command binary. The cache is replaced only after COMMAND succeeds, so a
+# failed or interrupted run cannot leave an empty or partial file.
+_dotfiles_cached_init() {
+    local cache="$1" tmp="$1.$$.tmp" bin
+    shift
+    bin="${commands[$1]:-}"
+    [[ -n "$bin" ]] || return 127
+    if [[ ! -s "$cache" ]] || [[ "$bin" -nt "$cache" ]]; then
+        mkdir -p "${cache:h}"
+        if "$bin" "${@:2}" >| "$tmp" && [[ -s "$tmp" ]]; then
+            mv -f "$tmp" "$cache"
+        else
+            rm -f "$tmp"
+        fi
     fi
-    source "$starship_cache"
+    [[ -s "$cache" ]] && source "$cache"
+}
+
+# Initialize Starship prompt (cached for performance)
+if (( $+commands[starship] )); then
+    _dotfiles_cached_init "$HOME/.cache/starship-init.zsh" starship init zsh
 fi
 
 [[ -n "${ZSH_PROFILE_STARTUP:-}" ]] && typeset -f _zsh_profile_checkpoint >/dev/null && _zsh_profile_checkpoint "starship init"
@@ -129,30 +146,16 @@ _dotfiles_load_bun_completion() {
 
 _dotfiles_load_uv_completion() {
     unset -f _dotfiles_load_uv_completion uv
-    local uv_comp="$HOME/.cache/uv-completion.zsh"
-    local uv_bin
-
-    uv_bin="$(command -v uv 2>/dev/null)" || return 127
-    if [[ ! -f "$uv_comp" ]] || [[ "$uv_bin" -nt "$uv_comp" ]]; then
-        mkdir -p "$HOME/.cache"
-        command uv generate-shell-completion zsh > "$uv_comp"
-    fi
-    source "$uv_comp"
+    (( $+commands[uv] )) || return 127
+    _dotfiles_cached_init "$HOME/.cache/uv-completion.zsh" uv generate-shell-completion zsh
     command uv "$@"
 }
 (( $+commands[uv] )) && uv() { _dotfiles_load_uv_completion "$@"; }
 
 _dotfiles_load_pnpm_completion() {
     unset -f _dotfiles_load_pnpm_completion pnpm
-    local pnpm_comp="$HOME/.cache/pnpm-completion.zsh"
-    local pnpm_bin
-
-    pnpm_bin="$(command -v pnpm 2>/dev/null)" || return 127
-    if [[ ! -f "$pnpm_comp" ]] || [[ "$pnpm_bin" -nt "$pnpm_comp" ]]; then
-        mkdir -p "$HOME/.cache"
-        command pnpm completion zsh > "$pnpm_comp"
-    fi
-    source "$pnpm_comp"
+    (( $+commands[pnpm] )) || return 127
+    _dotfiles_cached_init "$HOME/.cache/pnpm-completion.zsh" pnpm completion zsh
     command pnpm "$@"
 }
 (( $+commands[pnpm] )) && pnpm() { _dotfiles_load_pnpm_completion "$@"; }

@@ -5,12 +5,16 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
+try:
+    import yaml
+except ModuleNotFoundError:  # CI installs PyYAML; a local python3 can lack it.
+    yaml = None
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +50,7 @@ class HermesDelegationDefaultsTest(unittest.TestCase):
         )
 
     @unittest.skipUnless(shutil.which("chezmoi"), "chezmoi is required to render templates")
+    @unittest.skipIf(yaml is None, "PyYAML is not installed")
     def test_rendered_setup_actively_clears_delegation_overrides(self) -> None:
         rendered = subprocess.run(
             ["chezmoi", "--source", str(REPO_ROOT), "execute-template"],
@@ -113,4 +118,8 @@ class HermesDelegationDefaultsTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # Exit 77 tells tests/all that a test was skipped; a skip is not a pass.
+    program = unittest.main(exit=False)
+    if not program.result.wasSuccessful():
+        sys.exit(1)
+    sys.exit(77 if program.result.skipped else 0)
