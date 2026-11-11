@@ -43,6 +43,11 @@ class RoleAndOverrideTest(unittest.TestCase):
         self.assertNotIn("exec herdr", rendered)
         self.assertIn("exec herdr", self.render_zshrc("linux"))
 
+    def test_linux_zshrc_does_not_start_herdr_inside_rex(self):
+        # A Rex terminal on Linux must stay in zsh. Herdr inside Rex breaks the clipboard.
+        rendered = self.render_zshrc("linux")
+        self.assertIn('[[ -z "${REX_SESSION:-}" ]]', rendered)
+
     def test_omarchy_uses_managed_zshrc_with_herdr(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
