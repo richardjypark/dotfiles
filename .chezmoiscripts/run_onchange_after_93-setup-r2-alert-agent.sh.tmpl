@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+# Units: {{ include "private_dot_config/systemd/user/r2-alert-agent.service" | sha256sum }} {{ include "private_dot_config/systemd/user/r2-alert-agent.timer" | sha256sum }}
+# Opt-in marker present at render time: {{ if stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "r2-alert-agent.enabled") }}yes{{ else }}no{{ end }}
+
+MARKER="$HOME/.config/dotfiles/r2-alert-agent.enabled"
+
+if [ "$(uname -s)" != Linux ] || ! command -v systemctl >/dev/null 2>&1; then
+    exit 0
+fi
+if ! systemctl --user show-environment >/dev/null 2>&1; then
+    eecho "User systemd is unavailable. Enable r2-alert-agent.timer after login."
+    exit 0
+fi
+
+if [ ! -e "$MARKER" ]; then
+    if systemctl --user is-enabled r2-alert-agent.timer >/dev/null 2>&1; then
+        systemctl --user disable --now r2-alert-agent.timer
+    fi
+    exit 0
+fi
+
+systemctl --user daemon-reload
+systemctl --user enable --now r2-alert-agent.timer
+vecho "r2 alert agent timer is enabled. Mode is set in ~/.config/r2-alert-agent/config.json."

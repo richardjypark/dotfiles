@@ -128,6 +128,17 @@ logs/*
 .local/share/pi-maintenance-agent
 {{ end }}
 
+# r2-next alert agent (r2-monorepo docs/operations/alert-agent.md): Omarchy
+# only, and only after the owner creates ~/.config/dotfiles/r2-alert-agent.enabled
+# once the SSH key, Telegram bot, and Claude token exist.
+{{ $r2_alert_agent_enabled := stat (joinPath .chezmoi.homeDir ".config" "dotfiles" "r2-alert-agent.enabled") }}
+{{ if not (and $r2_alert_agent_enabled $pi_agent_supported) }}
+.local/bin/r2-alert-agent
+.config/r2-alert-agent
+.config/systemd/user/r2-alert-agent.service
+.config/systemd/user/r2-alert-agent.timer
+{{ end }}
+
 # Generated managed Pi dependencies are never chezmoi-managed.
 .local/share/pi-cli/node_modules
 .local/share/pi-maintenance-agent/node_modules

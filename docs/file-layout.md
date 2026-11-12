@@ -48,6 +48,10 @@ for the complete naming and execution rules.
 | `dot_local/bin/executable_dotfiles-update-check` | `~/.local/bin/dotfiles-update-check` | Read-only background update report |
 | `private_dot_config/systemd/user/dotfiles-update-check.{service,timer}` | `~/.config/systemd/user/` | Linux Omarchy workstation check units |
 | `.chezmoiscripts/run_onchange_after_92-setup-update-check.sh.tmpl` | Executed during apply; no managed file target | Enables the workstation check timer |
+| `dot_local/bin/executable_r2-alert-agent` | `~/.local/bin/r2-alert-agent` | Production alert poller: fixed repairs, triage notes; opt-in marker `~/.config/dotfiles/r2-alert-agent.enabled`, Omarchy only |
+| `private_dot_config/r2-alert-agent/{config.json,system-prompt.txt}` | `~/.config/r2-alert-agent/` | Poller settings and model prompt; host values stay in the unmanaged `local.json`, secrets in the unmanaged `credentials.env` (0600) |
+| `private_dot_config/systemd/user/r2-alert-agent.{service,timer}` | `~/.config/systemd/user/` | 120 s oneshot poll units |
+| `.chezmoiscripts/run_onchange_after_93-setup-r2-alert-agent.sh.tmpl` | Executed during apply; no managed file target | Enables the poll timer only while the opt-in marker exists |
 | `dot_local/private_lib/chezmoi-helpers.sh` | `~/.local/lib/chezmoi-helpers.sh` | Managed shared script library |
 | `dot_local/private_lib/chezmoi/{core,artifacts,npm}.sh` | `~/.local/lib/chezmoi/` | Managed helper modules |
 | `dot_local/private_lib/chezmoi/stable-release-eligibility.py` | `~/.local/lib/chezmoi/stable-release-eligibility.py` | Managed release eligibility helper |
