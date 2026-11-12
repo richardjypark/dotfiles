@@ -1,0 +1,24 @@
+[Unit]
+Description=Production alert agent poll
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=%h/.config/r2-alert-agent/credentials.env
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/r2-alert-agent
+# One poll: collect 45 s, a repair up to 300 s, a model call up to 120 s.
+TimeoutStartSec=600
+# The poller gives the model call its own clean environment. Keep API keys
+# out of this unit too: on the Pro plan an API key means extra spend.
+UnsetEnvironment=ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
+UMask=0077
+Nice=10
+MemoryMax=768M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
+LockPersonality=true

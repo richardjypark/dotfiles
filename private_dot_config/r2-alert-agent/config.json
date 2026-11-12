@@ -1,0 +1,15 @@
+{
+  "_comment": "Host values (ssh_target, ssh_alias, host_label, own_domains) live in the unmanaged local.json next to this file.",
+  "mode": "observe",
+  "ssh_key": "~/.ssh/r2_alert_agent_ed25519",
+  "known_hosts": "~/.ssh/known_hosts",
+  "claude_bin": "~/.local/share/mise/installs/claude/2.1.322/claude",
+  "model": "claude-haiku-5-5",
+  "calls_per_hour": 4,
+  "calls_per_day": 20,
+  "five_hour_stop": 0.8,
+  "seven_day_stop": 0.9,
+  "unreachable_after": 3,
+  "fault_stays_seconds": 600,
+  "bundle_max_bytes": 12000
+}
