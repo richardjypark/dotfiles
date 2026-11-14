@@ -119,7 +119,7 @@ Vendored skills are copies of upstream MIT-licensed skills that live in the shar
 
 - Each `SKILL.md` frontmatter has `license: MIT` and `metadata.upstream` with the upstream `name` and `url`, plus the vendored `commit`. The older `grill-me` port has no recorded commit.
 - Each folder has `LICENSE.txt` with the upstream copyright notice.
-- Local edits stay small: rename references to match local skill names (upstream `grilling` is local `grill-me`), make Cursor-only paths client-neutral, and remove references to skills that are not vendored.
+- Local edits stay small: rename references to match local skill names (upstream `grilling` is local `grill-me`), make Cursor-only paths and client-only tool names (such as Claude's Skill tool) client-neutral, and remove references to skills that are not vendored.
 - To refresh one, diff the upstream folder between the recorded `commit` and the new commit, apply the change, keep the local edits, and update `commit`.
 
 Current upstream sources:

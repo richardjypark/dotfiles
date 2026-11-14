@@ -102,5 +102,23 @@ class ModernWebGuidancePinTest(unittest.TestCase):
                          render(".chezmoiignore", "workstation").splitlines())
 
 
+class ClientNeutralSkillTextTest(unittest.TestCase):
+    """Claude, Codex, Pi, and Hermes all load the shared skill tree."""
+
+    # Tool names that exist in only one client. Write "load the `<name>` skill"
+    # or describe the action instead.
+    CLIENT_ONLY = re.compile(r"\b(Skill tool|AskUserQuestion|TodoWrite|Task tool|ExitPlanMode)\b")
+
+    def test_shared_skills_name_no_client_only_tools(self) -> None:
+        root = REPO_ROOT / "private_dot_agents/private_skills"
+        hits = [
+            f"{path.relative_to(REPO_ROOT)}:{number}: {match.group(1)}"
+            for path in sorted(root.rglob("*.md"))
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+            for match in [self.CLIENT_ONLY.search(line)] if match
+        ]
+        self.assertEqual(hits, [], "Use client-neutral wording, such as: load the `grill-me` skill.")
+
+
 if __name__ == "__main__":
     unittest.main()
