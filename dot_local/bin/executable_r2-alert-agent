@@ -10,11 +10,15 @@ One run is one poll. A systemd user timer starts it every 120 s.
 - A fixed table maps an alert to a tier A repair. No model selects or starts a
   repair. Mode `observe` only reports what it would run; `act` runs it; `off`
   only posts.
-- The model (one `claude -p` call, no tools) writes a short summary for an
-  incident with no fixed repair that is still active after
-  `summary_delay_seconds`, and at once for a repair that did not help. It is
-  optional: the fixed fields are posted first, and every model failure
-  becomes "summary skipped: <reason>".
+- Alertmanager already sends each page to Telegram, so the agent posts only
+  what it adds: a repair (or, in observe mode, the repair it would run), a
+  tier B command, or one triage note for a page (notify=telegram) with no
+  fixed repair that is still active after `summary_delay_seconds`. The note
+  carries the fixed fields. An alert that does not page gets no post and no
+  model call.
+- The model (one `claude -p` call, no tools) writes the triage note, and a
+  note at once for a repair that did not help. It is optional: every model
+  failure becomes "summary skipped: <reason>".
 - Each model decision (call, skip, or not needed) goes to calls.jsonl in the
   state directory (mode 0600) with the input bundle, the note, and the token
   use, so the notes can be reviewed later.
@@ -86,7 +90,8 @@ TIER_B = {
     "BackupFreshnessCritical": "ssh {host} \"sudo systemctl list-timers --all | grep -E 'pg-backup|glazeprompt-backup|restic'\", then start the stale backup unit (not between 04:15 and 05:05 UTC)",
     "HostFailedUnits": "ssh {host} 'systemctl --failed --no-pager', then fix and run: ssh {host} 'sudo systemctl reset-failed <unit>'",
 }
-IGNORED = {"Watchdog"}
+# R2AgentPollerStale is about this poller: after a gap it would only report itself.
+IGNORED = {"Watchdog", "R2AgentPollerStale"}
 WORD = re.compile(r"[a-z0-9][a-z0-9-]{0,47}\Z")
 AUTH_ERROR = re.compile(r"(?i)login expired|token revoked|oauth|401|authenticat|not logged in|invalid api key")
 LIMIT_ERROR = re.compile(r"(?i)hit your (session|weekly) limit|usage limit|rate.?limit")
@@ -365,7 +370,9 @@ class Agent:
                 self.post(f"{label}: repair {incident['repair']['name']} for {incident['alertname']} was interrupted. "
                           "The agent does not run it again. Check the host audit log.")
             if incident.pop("summary_started", None) is not None:
-                self.post(f"{label} triage note (model, unchecked):\nsummary skipped: the agent stopped during the model call")
+                lines = [incident.pop("line")] if "line" in incident else []
+                self.post(f"{label} triage note (model, unchecked):\n"
+                          + "\n".join(lines + ["summary skipped: the agent stopped during the model call"]))
         if st.pop("unreachable_notified", False):
             self.post(f"{label} reachable again after {st['failures']} failed polls.")
         st["failures"] = 0
@@ -374,7 +381,6 @@ class Agent:
                   and not a.get("silenced") and (a.get("labels") or {}).get("alertname") not in IGNORED]
         seen = set()
         new_lines, summarize, results, to_repair = [], [], [], []
-        delayed = False
         repairs_on = cfg["mode"] == "act" and not (CONFIG_DIR / "disabled").exists()
         for alert in active:
             key = f"{alert.get('fingerprint')}@{alert.get('startsAt')}"
@@ -396,13 +402,17 @@ class Agent:
                 elif repair:
                     line += f"\n  Running: {' '.join(repair)}."
                     to_repair.append((alert, incident, repair))
-                else:
-                    if name in TIER_B:
-                        line += f"\n  You run it: {TIER_B[name].format(host=cfg['ssh_alias'])}"
-                    # A short incident clears before the delay and costs no model call.
+                elif name in TIER_B:
+                    line += f"\n  You run it: {TIER_B[name].format(host=cfg['ssh_alias'])}"
+                elif labels.get("notify") == "telegram":
+                    # Alertmanager sent the page. A short incident clears before the delay: no post, no call.
+                    incident["line"] = line
                     incident["summary_due"] = self.now + cfg["summary_delay_seconds"]
-                    delayed = delayed or cfg["summary_delay_seconds"] > 0
-                new_lines.append(line)
+                    line = ""
+                else:
+                    line = ""
+                if line:
+                    new_lines.append(line)
             elif (incident.get("repair", {}).get("result") == "repaired" and not incident.get("stays")
                   and self.now - incident["repair"]["time"] >= cfg["fault_stays_seconds"]):
                 incident["stays"] = True
@@ -413,11 +423,7 @@ class Agent:
                 summarize.append(alert)
         # Fixed fields first: a slow repair or model call cannot delay the notice.
         if new_lines:
-            notice = f"{label}: {len(new_lines)} new alert(s)\n" + "\n".join(new_lines)
-            if delayed:
-                minutes = max(1, round(cfg["summary_delay_seconds"] / 60))
-                notice += f"\nA model note follows if an alert is still active after {minutes} min."
-            self.post(notice)
+            self.post(f"{label}: {len(new_lines)} new alert(s)\n" + "\n".join(new_lines))
             self.flush()
         for alert, incident, repair in to_repair:
             incident["repair"] = {"name": " ".join(repair), "time": self.now, "result": "interrupted"}
@@ -435,9 +441,10 @@ class Agent:
                 incident.pop("summary_due", None)
                 incident["summary_started"] = self.now
             text = self.summarize(self.bundle(summarize + results, report), names)
+            lines = [incident.pop("line") for incident in started if "line" in incident]
             for incident in started:
                 incident.pop("summary_started", None)
-            self.post(f"{label} triage note (model, unchecked):\n{text}")
+            self.post(f"{label} triage note (model, unchecked):\n" + "\n".join(lines + [text]))
         for key, incident in list(st["incidents"].items()):
             if key in seen:
                 continue
