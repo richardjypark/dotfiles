@@ -10,14 +10,24 @@ One run is one poll. A systemd user timer starts it every 120 s.
 - A fixed table maps an alert to a tier A repair. No model selects or starts a
   repair. Mode `observe` only reports what it would run; `act` runs it; `off`
   only posts.
-- The model (one `claude -p` call, no tools) writes a short summary for an
-  incident with no fixed repair that is still active after
-  `summary_delay_seconds`, and at once for a repair that did not help. It is
-  optional: the fixed fields are posted first, and every model failure
-  becomes "summary skipped: <reason>".
+- Alertmanager already sends each page to Telegram, so the agent posts only
+  what it adds: a repair (or, in observe mode, the repair it would run), a
+  tier B command, or one triage note for a page (notify=telegram) with no
+  fixed repair that is still active after `summary_delay_seconds`. The note
+  carries the fixed fields. An alert that does not page gets no post and no
+  model call.
+- The model (one `claude -p` call, no tools) writes the triage note, and a
+  note at once for a repair that did not help. It is optional: every model
+  failure becomes "summary skipped: <reason>".
 - Each model decision (call, skip, or not needed) goes to calls.jsonl in the
   state directory (mode 0600) with the input bundle, the note, and the token
   use, so the notes can be reviewed later.
+- State is saved before each send, repair, and model call, and on SIGTERM.
+  After a kill the next poll repeats at most the one message that was in
+  flight. It never repeats a repair or a model call.
+- A failed collect is an outage after `unreachable_after` polls, except
+  inside a planned reboot that `collect` reported earlier: from 10 min before
+  it until `planned_reboot_grace_seconds` after it.
 - Usage: `r2-alert-agent` (poll once), `r2-alert-agent act <repair> <target>`
   (run a tier A repair by hand with the same key and guards).
 """
@@ -28,6 +38,7 @@ import fcntl
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -55,6 +66,7 @@ DEFAULTS = {
     "five_hour_stop": 0.8,
     "seven_day_stop": 0.9,
     "unreachable_after": 3,
+    "planned_reboot_grace_seconds": 900,
     "fault_stays_seconds": 600,
     "bundle_max_bytes": 12000,
     "summary_delay_seconds": 300,
@@ -82,7 +94,8 @@ TIER_B = {
     "BackupFreshnessCritical": "ssh {host} \"sudo systemctl list-timers --all | grep -E 'pg-backup|glazeprompt-backup|restic'\", then start the stale backup unit (not between 04:15 and 05:05 UTC)",
     "HostFailedUnits": "ssh {host} 'systemctl --failed --no-pager', then fix and run: ssh {host} 'sudo systemctl reset-failed <unit>'",
 }
-IGNORED = {"Watchdog"}
+# R2AgentPollerStale is about this poller: after a gap it would only report itself.
+IGNORED = {"Watchdog", "R2AgentPollerStale"}
 WORD = re.compile(r"[a-z0-9][a-z0-9-]{0,47}\Z")
 AUTH_ERROR = re.compile(r"(?i)login expired|token revoked|oauth|401|authenticat|not logged in|invalid api key")
 LIMIT_ERROR = re.compile(r"(?i)hit your (session|weekly) limit|usage limit|rate.?limit")
@@ -202,11 +215,16 @@ class Agent:
         self.state["outbox"].append(clean(text, self.cfg["own_domains"], 4000))
         del self.state["outbox"][:-20]
 
+    def checkpoint(self) -> None:
+        save_json(STATE_DIR / "state.json", self.state)
+
     def flush(self) -> None:
+        self.checkpoint()
         while self.state["outbox"]:
             if not self.send(self.state["outbox"][0]):
                 return
             self.state["outbox"].pop(0)
+            self.checkpoint()
 
     # Model -------------------------------------------------------------------
 
@@ -262,6 +280,7 @@ class Agent:
                 "--safe-mode", "--no-session-persistence", "--permission-prompts", "none",
                 "--max-budget-usd", "0.05", "--output-format", "stream-json", "--verbose"]
         self.state["calls"].append(self.now)
+        self.checkpoint()
         started = time.monotonic()
         code, out, err = self.run(argv, stdin=bundle, timeout=120, env=env)
         duration = round(time.monotonic() - started, 1)
@@ -343,20 +362,37 @@ class Agent:
         if report is None:
             st["failures"] += 1
             log(f"collect failed ({st['failures']}): {error}")
-            if st["failures"] == cfg["unreachable_after"]:
+            planned = st.get("planned_shutdown")
+            if planned and planned - 600 <= self.now <= planned + cfg["planned_reboot_grace_seconds"]:
+                log("planned reboot window: no unreachable post")
+            elif st["failures"] >= cfg["unreachable_after"] and not st.get("unreachable_notified"):
                 self.post(f"{label} unreachable from the agent host: {st['failures']} failed polls. Last error: {error}")
                 st["unreachable_notified"] = True
             self.flush()
             return 1
+        for incident in st["incidents"].values():
+            # Written before the action, replaced after it: here it means a kill stopped the last poll.
+            if incident.get("repair", {}).get("result") == "interrupted":
+                incident["repair"]["result"] = "unknown"
+                self.post(f"{label}: repair {incident['repair']['name']} for {incident['alertname']} was interrupted. "
+                          "The agent does not run it again. Check the host audit log.")
+            if incident.pop("summary_started", None) is not None:
+                lines = [incident.pop("line")] if "line" in incident else []
+                self.post(f"{label} triage note (model, unchecked):\n"
+                          + "\n".join(lines + ["summary skipped: the agent stopped during the model call"]))
         if st.pop("unreachable_notified", False):
             self.post(f"{label} reachable again after {st['failures']} failed polls.")
         st["failures"] = 0
+        planned = report.get("planned_shutdown") or {}
+        if planned.get("time"):
+            st["planned_shutdown"] = float(planned["time"])
+        else:
+            st.pop("planned_shutdown", None)
         apps = report.get("apps") or {}
         active = [a for a in report["alerts"] if a.get("state") == "active" and not a.get("inhibited")
                   and not a.get("silenced") and (a.get("labels") or {}).get("alertname") not in IGNORED]
         seen = set()
         new_lines, summarize, results, to_repair = [], [], [], []
-        delayed = False
         repairs_on = cfg["mode"] == "act" and not (CONFIG_DIR / "disabled").exists()
         for alert in active:
             key = f"{alert.get('fingerprint')}@{alert.get('startsAt')}"
@@ -378,13 +414,17 @@ class Agent:
                 elif repair:
                     line += f"\n  Running: {' '.join(repair)}."
                     to_repair.append((alert, incident, repair))
-                else:
-                    if name in TIER_B:
-                        line += f"\n  You run it: {TIER_B[name].format(host=cfg['ssh_alias'])}"
-                    # A short incident clears before the delay and costs no model call.
+                elif name in TIER_B:
+                    line += f"\n  You run it: {TIER_B[name].format(host=cfg['ssh_alias'])}"
+                elif labels.get("notify") == "telegram":
+                    # Alertmanager sent the page. A short incident clears before the delay: no post, no call.
+                    incident["line"] = line
                     incident["summary_due"] = self.now + cfg["summary_delay_seconds"]
-                    delayed = delayed or cfg["summary_delay_seconds"] > 0
-                new_lines.append(line)
+                    line = ""
+                else:
+                    line = ""
+                if line:
+                    new_lines.append(line)
             elif (incident.get("repair", {}).get("result") == "repaired" and not incident.get("stays")
                   and self.now - incident["repair"]["time"] >= cfg["fault_stays_seconds"]):
                 incident["stays"] = True
@@ -392,17 +432,14 @@ class Agent:
                           f"{incident['repair']['name']}. The agent stops here for this incident.")
                 results.append(alert)
             if incident.get("summary_due") is not None and self.now >= incident["summary_due"]:
-                del incident["summary_due"]
                 summarize.append(alert)
         # Fixed fields first: a slow repair or model call cannot delay the notice.
         if new_lines:
-            notice = f"{label}: {len(new_lines)} new alert(s)\n" + "\n".join(new_lines)
-            if delayed:
-                minutes = max(1, round(cfg["summary_delay_seconds"] / 60))
-                notice += f"\nA model note follows if an alert is still active after {minutes} min."
-            self.post(notice)
+            self.post(f"{label}: {len(new_lines)} new alert(s)\n" + "\n".join(new_lines))
             self.flush()
         for alert, incident, repair in to_repair:
+            incident["repair"] = {"name": " ".join(repair), "time": self.now, "result": "interrupted"}
+            self.checkpoint()
             result = self.act(*repair)
             incident["repair"] = {"name": " ".join(repair), "time": self.now, **result}
             detail = result.get("reason") or result.get("detail") or result.get("fault") or ""
@@ -411,8 +448,15 @@ class Agent:
                 results.append(alert)
         if summarize or results:
             names = [(a.get("labels") or {}).get("alertname", "?") for a in summarize + results]
+            started = [st["incidents"][f"{a.get('fingerprint')}@{a.get('startsAt')}"] for a in summarize + results]
+            for incident in started:
+                incident.pop("summary_due", None)
+                incident["summary_started"] = self.now
             text = self.summarize(self.bundle(summarize + results, report), names)
-            self.post(f"{label} triage note (model, unchecked):\n{text}")
+            lines = [incident.pop("line") for incident in started if "line" in incident]
+            for incident in started:
+                incident.pop("summary_started", None)
+            self.post(f"{label} triage note (model, unchecked):\n" + "\n".join(lines + [text]))
         for key, incident in list(st["incidents"].items()):
             if key in seen:
                 continue
@@ -431,6 +475,7 @@ class Agent:
 
 def main(argv: list[str]) -> int:
     STATE_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
+    signal.signal(signal.SIGTERM, stop_on_sigterm)
     with open(STATE_DIR / "lock", "w", encoding="utf-8") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -438,6 +483,12 @@ def main(argv: list[str]) -> int:
             log("another run holds the lock; exit")
             return 0
         return run_locked(argv)
+
+
+def stop_on_sigterm(signum, frame):
+    # systemd stops the unit with SIGTERM. SystemExit runs the finally blocks, so the
+    # state is saved and subprocess.run kills its child.
+    raise SystemExit(128 + signum)
 
 
 def run_locked(argv: list[str]) -> int:
