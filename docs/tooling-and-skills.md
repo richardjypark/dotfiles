@@ -4,12 +4,12 @@
 
 - `AGENTS.md` — short control-plane rules for agents: safety, work sizing, skill routing, and validation.
 - `ARCHITECTURE.md` — stable mental model of repo subsystems, invariants, and change routing.
-- `plans/README.md` — canonical Codex planning workflow, including local research/plan artifacts, annotation, and progress tracking.
+- `plans/README.md` — canonical planning workflow, including local research/plan artifacts, annotation, and progress tracking.
 - `README.md` and `docs/` — user-facing workflows and subsystem-specific deep dives.
 
-## Codex Planning Workflow
+## Planning Workflow
 
-Codex is the canonical planning workflow owner for this repo's high-impact work. The expected loop is:
+Claude Code is the canonical planning workflow owner for this repo's high-impact work. The expected loop is:
 
 1. Deep-read the relevant subsystem.
 2. Write a local `*-research.md` artifact.
@@ -18,7 +18,7 @@ Codex is the canonical planning workflow owner for this repo's high-impact work.
 5. Revise until the plan is decision-complete.
 6. Implement against that plan and keep the plan status current.
 
-Claude support remains compatible, but shared planning conventions should point back to the same `plans/README.md` contract instead of duplicating a separate Claude-first process.
+Other agents (Codex, Pi, Hermes Agent) follow the same `plans/README.md` contract instead of a separate process.
 
 ## Local Update Commands
 
@@ -39,8 +39,8 @@ uv remains the Python owner.
 - `dotfiles-push`: managed publisher for one explicit JJ bookmark. It checks private source paths, outgoing commit emails, and secrets before pushing. Each clone can use it through a repo-local `jj push` alias; see `docs/secrets-management.md`.
 - `chezmoi-rerun-script`: managed `~/.local/bin/chezmoi-rerun-script` command that clears remembered `run_onchange_*` state for a given source script so the next apply reruns it.
 - `pi-agent-run`: managed `~/.local/bin/pi-agent-run` command that executes a Pi markdown agent file non-interactively with its declared model and tools. Use `--model MODEL` or `PI_AGENT_RUN_MODEL=MODEL` to override the declared model; use `default`/`settings` to fall back to Pi's configured default model. Use it when another CLI can run shell commands but does not support Pi's native subagent extension model.
-- `jj-fast-agent`: managed `~/.local/bin/jj-fast-agent` wrapper around the shared `~/.pi/agent/agents/jj.md` agent. It defaults to `openai-codex/gpt-5.3-codex-spark:minimal`, but can be run with `--model MODEL` or overridden with `JJ_FAST_AGENT_MODEL`, `PI_JJ_AGENT_MODEL`, or `JJ_AGENT_MODEL`; use `--model default` to use Pi's configured default model. This is the tool-agnostic fallback path for the `jj` skill outside Pi.
-- The Pi-specific Spark route is separate from Hermes delegation and can be unavailable for some Codex subscriptions. Use `jj-fast-agent --model default` or a machine-local Pi model override when the account does not support Spark.
+- `jj-fast-agent`: managed `~/.local/bin/jj-fast-agent` wrapper around the shared `~/.pi/agent/agents/jj.md` agent. It defaults to `anthropic/claude-haiku-5-5:minimal`, but can be run with `--model MODEL` or overridden with `JJ_FAST_AGENT_MODEL`, `PI_JJ_AGENT_MODEL`, or `JJ_AGENT_MODEL`; use `--model default` to use Pi's configured default model. This is the tool-agnostic fallback path for the `jj` skill outside Pi.
+- The jj agent's Haiku route is separate from Hermes delegation. Use `jj-fast-agent --model default` or a machine-local Pi model override to run it on another model.
 - `jj-sync-trunk`: managed `~/.local/bin/jj-sync-trunk` helper, also exposed as `jj trunk-sync`, that detects the current repo's remote default branch and writes a repo-local `trunk()` override when jj's built-in/common trunk resolution is missing or not durable. This keeps dev/main/master projects scalable without hardcoding a global branch in chezmoi jj config.
 - `dot_pi/agent/extensions/jj-fast-command.ts` overrides `/skill:jj` (and adds `/jj`) inside Pi so explicit jj requests go straight to the fast helper instead of paying an extra routing LLM turn. The slash commands accept `/jj --model MODEL <task>` and `/skill:jj --model MODEL <task>` for subscription/model compatibility.
 - Nested Pi helpers still need outbound provider network access from the invoking shell. Fully sandboxed Codex runs can block that path; if so, use a Codex shell mode that permits network access or run the helper directly outside the sandbox.
@@ -60,7 +60,7 @@ Command definitions live under:
 
 ## Agent Skills In This Repo
 
-Skills are shared from one repo-managed tree so Pi, Hermes Agent, Codex CLI, Claude Code, and other Agent Skills-compatible clients can follow the same conventions. Codex is the canonical planning path, but the skill folders themselves should follow a tool-agnostic structure:
+Skills are shared from one repo-managed tree so Pi, Hermes Agent, Codex CLI, Claude Code, and other Agent Skills-compatible clients can follow the same conventions. Claude Code is the canonical planning path, but the skill folders themselves should follow a tool-agnostic structure:
 
 ```text
 my-skill/
