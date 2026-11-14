@@ -25,6 +25,9 @@ One run is one poll. A systemd user timer starts it every 120 s.
 - State is saved before each send, repair, and model call, and on SIGTERM.
   After a kill the next poll repeats at most the one message that was in
   flight. It never repeats a repair or a model call.
+- A failed collect is an outage after `unreachable_after` polls, except
+  inside a planned reboot that `collect` reported earlier: from 10 min before
+  it until `planned_reboot_grace_seconds` after it.
 - Usage: `r2-alert-agent` (poll once), `r2-alert-agent act <repair> <target>`
   (run a tier A repair by hand with the same key and guards).
 """
@@ -63,6 +66,7 @@ DEFAULTS = {
     "five_hour_stop": 0.8,
     "seven_day_stop": 0.9,
     "unreachable_after": 3,
+    "planned_reboot_grace_seconds": 900,
     "fault_stays_seconds": 600,
     "bundle_max_bytes": 12000,
     "summary_delay_seconds": 300,
@@ -358,7 +362,10 @@ class Agent:
         if report is None:
             st["failures"] += 1
             log(f"collect failed ({st['failures']}): {error}")
-            if st["failures"] == cfg["unreachable_after"]:
+            planned = st.get("planned_shutdown")
+            if planned and planned - 600 <= self.now <= planned + cfg["planned_reboot_grace_seconds"]:
+                log("planned reboot window: no unreachable post")
+            elif st["failures"] >= cfg["unreachable_after"] and not st.get("unreachable_notified"):
                 self.post(f"{label} unreachable from the agent host: {st['failures']} failed polls. Last error: {error}")
                 st["unreachable_notified"] = True
             self.flush()
@@ -376,6 +383,11 @@ class Agent:
         if st.pop("unreachable_notified", False):
             self.post(f"{label} reachable again after {st['failures']} failed polls.")
         st["failures"] = 0
+        planned = report.get("planned_shutdown") or {}
+        if planned.get("time"):
+            st["planned_shutdown"] = float(planned["time"])
+        else:
+            st.pop("planned_shutdown", None)
         apps = report.get("apps") or {}
         active = [a for a in report["alerts"] if a.get("state") == "active" and not a.get("inhibited")
                   and not a.get("silenced") and (a.get("labels") or {}).get("alertname") not in IGNORED]
