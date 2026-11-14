@@ -38,7 +38,10 @@ def load_agent():
 agent_module = load_agent()
 
 
-def alert(name, fingerprint=None, severity="warning", **labels):
+def alert(name, fingerprint=None, severity="warning", notify="telegram", **labels):
+    """An active alert. notify=None is an alert that Alertmanager does not page (quiet or digest)."""
+    if notify:
+        labels["notify"] = notify
     return {"fingerprint": fingerprint or f"fp-{name}", "startsAt": "2026-11-11T10:00:00Z",
             "labels": {"alertname": name, "severity": severity, **labels},
             "annotations": {"summary": f"{name} summary", "description": f"{name} description"},
@@ -172,7 +175,7 @@ class PollerTest(unittest.TestCase):
         for _ in range(3):
             self.poll()
         self.assertEqual(len(self.host.model_calls()), 1)
-        self.assertEqual(len(self.sent), 2)
+        self.assertEqual(len(self.sent), 1)
         self.host.alerts[0]["startsAt"] = "2026-11-12T10:00:00Z"
         self.poll()
         self.assertEqual(len(self.host.model_calls()), 2, "a new startsAt is a new incident")
@@ -181,13 +184,25 @@ class PollerTest(unittest.TestCase):
         self.host.alerts = [alert(f"Storm{i}") for i in range(10)]
         self.poll()
         self.assertEqual(len(self.host.model_calls()), 1)
-        self.assertEqual(len(self.sent), 2)
-        self.assertTrue(self.sent[0].startswith("prod: 10 new alert(s)"))
+        self.assertEqual(len(self.sent), 1)
+        self.assertTrue(self.sent[0].startswith("prod triage note (model, unchecked):"))
+        self.assertEqual(self.sent[0].count("• Storm"), 10)
 
     def test_skips_watchdog_inhibited_and_silenced_alerts(self):
         inhibited, silenced = alert("A"), alert("B")
         inhibited["inhibited"], silenced["silenced"] = True, True
         self.host.alerts = [alert("Watchdog", severity="none"), inhibited, silenced]
+        self.poll()
+        self.assertEqual((self.sent, self.host.model_calls()), ([], []))
+
+    def test_an_alert_that_does_not_page_gets_no_post_and_no_call(self):
+        self.host.alerts = [alert("SustainedCpuUsageWarning", notify=None)]
+        self.poll()
+        self.poll(advance=900)
+        self.assertEqual((self.sent, self.host.model_calls()), ([], []))
+
+    def test_the_agent_ignores_its_own_stale_alert(self):
+        self.host.alerts = [alert("R2AgentPollerStale", notify=None), alert("R2AgentPollerStale", fingerprint="fp-2")]
         self.poll()
         self.assertEqual((self.sent, self.host.model_calls()), ([], []))
 
@@ -240,12 +255,12 @@ class PollerTest(unittest.TestCase):
         self.poll()
         self.assertEqual(len(self.host.model_calls()), 2)
 
-    def test_model_failure_never_blocks_the_notice(self):
+    def test_model_failure_still_posts_the_fixed_fields(self):
         self.host.model = (124, "", "timeout after 120s")
         self.host.alerts = [alert("New")]
         self.poll()
-        self.assertTrue(self.sent[0].startswith("prod: 1 new alert(s)"))
-        self.assertEqual(self.sent[1], "prod triage note (model, unchecked):\nsummary skipped: timeout after 120s")
+        self.assertEqual(self.sent, ["prod triage note (model, unchecked):\n• New (warning)\n  New summary\n"
+                                     "summary skipped: timeout after 120s"])
         self.claude.unlink()
         self.host.alerts = [alert("Next")]
         self.poll()
@@ -300,28 +315,31 @@ class PollerTest(unittest.TestCase):
         self.telegram_up = False
         self.host.alerts = [alert("New")]
         self.poll()
+        self.host.alerts.append(alert("CaddyDown", severity="critical"))
+        self.poll()
         self.assertEqual(len(self.state["outbox"]), 2)
         self.telegram_up = True
         self.poll()
         self.assertEqual(len(self.sent), 2)
-        self.assertTrue(self.sent[0].startswith("prod: 1 new alert(s)"))
+        self.assertTrue(self.sent[0].startswith("prod triage note (model, unchecked):"))
+        self.assertTrue(self.sent[1].startswith("prod: 1 new alert(s)"))
         self.assertEqual(self.state["outbox"], [])
 
     def calls_log(self):
         path = self.tmp / "calls.jsonl"
         return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
-    def test_short_incident_gets_the_notice_but_no_model_call(self):
+    def test_short_page_gets_no_post_and_no_model_call(self):
+        """Replay of 2026-11-14: the page fired 09:12:45-09:18:45 UTC and Alertmanager sent it once."""
         self.config["summary_delay_seconds"] = 300
-        self.host.alerts = [alert("HostPublicDnsResolutionFailed", severity="critical", notify="telegram")]
-        self.poll()
-        self.assertEqual(len(self.sent), 1, "the notice does not wait for the delay")
-        self.assertIn("A model note follows if an alert is still active after 5 min.", self.sent[0])
-        self.poll()
+        self.host.alerts = [alert("HostPublicDnsResolutionFailed", severity="critical")]
+        for advance in (0, 130, 130):
+            self.poll(advance=advance)
         self.host.alerts = []
-        self.poll()
+        self.poll(advance=130)
         self.assertEqual(self.host.model_calls(), [])
-        self.assertEqual(len(self.sent), 1)
+        self.assertLessEqual(len(self.sent), 1, "agent posts never exceed the one Alertmanager page")
+        self.assertEqual(self.sent, [])
         self.assertEqual([(r["alerts"], r["result"]) for r in self.calls_log()],
                          [(["HostPublicDnsResolutionFailed"], "not_needed")])
 
@@ -398,10 +416,8 @@ class PollerTest(unittest.TestCase):
         self.poll()
         self.poll()
         self.assertEqual(len(host.model_calls()), 1, "the call is recorded before it starts")
-        self.assertEqual(len(self.sent), 2)
-        self.assertTrue(self.sent[0].startswith("prod: 1 new alert(s)"))
-        self.assertEqual(self.sent[1], "prod triage note (model, unchecked):\n"
-                                       "summary skipped: the agent stopped during the model call")
+        self.assertEqual(self.sent, ["prod triage note (model, unchecked):\n• UnitMemoryAtLimit (warning)\n"
+                                     "  UnitMemoryAtLimit summary\nsummary skipped: the agent stopped during the model call"])
 
     def test_a_kill_during_a_repair_never_repeats_it(self):
         self.config["mode"] = "act"
@@ -454,11 +470,11 @@ class PollerTest(unittest.TestCase):
         self.poll()
         self.assertEqual(len(self.host.model_calls()), 1)
         self.assertEqual([t.split("\n")[0] for t in self.sent],
-                         ["prod: 1 new alert(s)", "prod triage note (model, unchecked):",
-                          "prod triage note (model, unchecked):"], "Telegram may have the message: send it again")
+                         ["prod triage note (model, unchecked):", "prod triage note (model, unchecked):"],
+                         "Telegram may have the message: send it again")
 
     def test_a_kill_during_the_notice_send_keeps_the_model_note_due(self):
-        self.host.alerts = [alert("UnitMemoryAtLimit")]
+        self.host.alerts = [alert("CaddyDown", severity="critical"), alert("UnitMemoryAtLimit")]
 
         def killing_send(text):
             self.send(text)
