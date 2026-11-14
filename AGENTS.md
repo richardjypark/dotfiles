@@ -70,7 +70,8 @@ Drop a row when its mistake can no longer happen.
 | --- | --- |
 | Create and remove shell-test directories only through `tests/lib/temp.sh` | `tests/test_temp_safety.py` (failed `mktemp`, removal guard, no raw `rm -rf`) |
 | A `run_onchange_*` script that sources `chezmoi-helpers.sh` includes `setup/helper-hashes.tmpl`; the template lists every module the entry point loads | `tests/test_helper_modules.py` (`SetupScriptContractTest`) |
-| A setup-script test must not read the host's mise, nvm, npm, or chezmoi state | `SetupFixture` in `tests/test_setup_recovery.py`; its guard test fails on a leak |
+| A setup-script test must not read the host's mise, nvm, npm, or chezmoi state | `SetupFixture` in `tests/test_setup_recovery.py` only; other test files that copy `os.environ` are not covered |
+| Third-party skills run pinned code only: no `npx`, `@latest`, or unpinned downloads at use time | `ModernWebGuidancePinTest` in `tests/test_agent_instructions.py` (modern-web-guidance only) |
 | Keep dangerous-mode and permission-prompt bypasses out of tracked Claude settings | `private_dot_claude/modify_private_settings.json` resets them on apply; `tests/test_agent_instructions.py` |
 | No private paths, secrets, or personal emails in published history | `dotfiles-push`, the git hook, and `tests/test_publication_guards.py`; the `secret-scan` workflow in CI |
 | Changes reach `master` only through a pull request with passing checks | GitHub rulesets (`docs/secrets-management.md`); CI runs `./tests/all` |
@@ -125,6 +126,7 @@ General-purpose skills vendored from upstream (provenance and refresh rules: `do
 - `unslop` — remove AI writing patterns from text.
 - `create-verification-skill` / `maintain-verification-skill` — generate, then audit, a project-local skill that drives the real app.
 - `anatomy` — interactive isometric SVG explainer figures; pinned external, workstation role only.
+- `modern-web-guidance` — modern HTML, CSS, and client-side JS guidance from a pinned offline copy; workstation role only.
 
 ## Chezmoi Rules
 

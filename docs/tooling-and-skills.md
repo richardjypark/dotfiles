@@ -130,6 +130,8 @@ Current upstream sources:
 
 Large skills with bundled examples or tooling install as pinned chezmoi externals instead of repo copies. `anatomy` (wheresryan22/anatomy, about 12 MB) installs at `~/.agents/skills/anatomy` from a commit-pinned archive in `.chezmoiexternal.toml.tmpl`, on the workstation role only, because it needs Node.js and Chrome. Its gallery publish step runs `git` and `gh` and reads local Claude Code session logs for time and token counts. It runs only after the user approves a dry-run plan.
 
+`modern-web-guidance` (GoogleChrome, Apache-2.0) splits in two. The skill text is vendored in `private_dot_agents/private_skills/modern-web-guidance/` with small local edits listed in its frontmatter. The guides, search index, and CLI install at `~/.local/share/modern-web-guidance` from the checksum-pinned npm tarball in `.chezmoiexternal.toml.tmpl`, on the workstation role only. Upstream runs `npx -y modern-web-guidance@latest` on each call, which downloads a new release about every 1.6 days; the local skill runs the pinned copy with `node` and `DISABLE_TELEMETRY=1`, with no network. Do not install the upstream Claude Code plugin as well: it adds a second, unpinned copy. To update, diff the upstream `SKILL.md` and CLI, then bump `npm-version` in the skill, the tarball URL, and the checksum together; `tests/test_agent_instructions.py` checks that they agree.
+
 ## Future Machine Combination Pattern
 
 Use this pattern for maintainability:

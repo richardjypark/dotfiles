@@ -46,4 +46,19 @@ exact = true
 stripComponents = 1
 refreshPeriod = "168h"
 exclude = ["*/.gitattributes", "*/.github", "*/.gitignore", "*/evals", "*/tests", "*/scripts/*.test.mjs"]
+
+[".local/share/modern-web-guidance"]
+type = "archive"
+# Guides, search index, and CLI for the shared modern-web-guidance skill.
+# The skill runs this pinned copy with node, so no agent runs `npx …@latest`.
+# The npm tarball has no dependencies and no install scripts; needs Node.js 22+.
+# Pinned 2026-11-14 to 1.0.0 (published 2026-11-10) after a manual code review,
+# an exception to the seven-day gate. Update flow: diff the upstream SKILL.md
+# and CLI, bump the version here and in the skill's metadata, update the checksum.
+url = "https://registry.npmjs.org/modern-web-guidance/-/modern-web-guidance-1.0.0.tgz"
+checksum.sha256 = "bd7aa623ad10710a9ad6678fdbcc0b890c903c54fd6abfc126ff42de01f0e577"
+exact = true
+stripComponents = 1
+refreshPeriod = "168h"
+exclude = ["*/.agents", "*/.claude-plugin", "*/.codex-plugin", "*/.cursor-plugin", "*/.github", "*/.grok-plugin", "*/assets", "*/gemini-extension.json", "*/kimi.plugin.json", "*/plugin.json", "*/policies", "*/skills/chrome-extensions"]
 {{- end }}

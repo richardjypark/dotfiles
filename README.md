@@ -313,12 +313,6 @@ so `chezmoi apply` sets only the tracked keys and keeps all other keys:
   `permissions.allow` rules `Bash`, `Bash(*)`, and `Bash(:*)`. For a one-time
   exception, use a per-run flag such as `codex --sandbox danger-full-access` or
   `claude --dangerously-skip-permissions`.
-- Claude Code plugins are not keys in `settings.json`. On the workstation role,
-  `run_onchange_after_35-setup-claude-plugins` runs `claude plugin marketplace add`
-  and `claude plugin install` for `modern-web-guidance@googlechrome` at user scope.
-  It needs `TRUST_ON_FIRST_USE_INSTALLERS=1` (for example `czuf`), skips the server
-  role, does nothing when the plugin is present, and retries on the next apply
-  after a failure. The plugin is not pinned: Claude Code manages its updates.
 - To stop managing a Codex or mise key, move its dotted path to `$retired` in
   the template, so apply also deletes it from existing files.
 - An invalid TOML or JSON file stops `chezmoi apply` with an error that names
