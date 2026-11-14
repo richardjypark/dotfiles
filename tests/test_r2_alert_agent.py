@@ -66,6 +66,7 @@ class FakeHost:
     def __init__(self):
         self.alerts: list[dict] = []
         self.collect_fails = False
+        self.planned_shutdown = None
         self.act_result = {"result": "repaired", "fault": "report 7200s old", "exit": 0}
         self.model = stream()
         self.calls: list[tuple[list[str], str | None, dict | None]] = []
@@ -78,7 +79,8 @@ class FakeHost:
                 if self.collect_fails:
                     return 255, "", "ssh: connect to host 192.0.2.1 port 22: Connection timed out"
                 return 0, json.dumps({"alerts": self.alerts, "apps": {"glazeprompt": "www.glazeprompt.com"},
-                                      "units": {}, "reports": {}, "journals": {}, "errors": []}), ""
+                                      "units": {}, "reports": {}, "journals": {}, "errors": [],
+                                      "planned_shutdown": self.planned_shutdown}), ""
             if command.startswith("act "):
                 return self.act_result["exit"], json.dumps(self.act_result), ""
             raise AssertionError(command)
@@ -310,6 +312,28 @@ class PollerTest(unittest.TestCase):
         self.host.collect_fails = False
         self.poll()
         self.assertEqual(self.sent[-1], "prod reachable again after 5 failed polls.")
+
+    def test_planned_reboot_gets_no_unreachable_post(self):
+        """Replay of 2026-11-14 06:00 UTC: SSH refused from 5 min before the reboot, 3 failed polls, then healthy."""
+        self.host.planned_shutdown = {"time": int(self.now + 120 + 400), "mode": "reboot"}
+        self.poll()
+        self.host.collect_fails = True
+        for _ in range(3):
+            self.assertEqual(self.poll(advance=130), 1)
+        self.host.collect_fails = False
+        self.host.planned_shutdown = None
+        self.poll()
+        self.assertEqual(self.sent, [])
+        self.assertNotIn("planned_shutdown", self.state)
+
+    def test_a_planned_reboot_that_does_not_come_back_is_an_outage(self):
+        self.host.planned_shutdown = {"time": int(self.now + 120 + 300), "mode": "reboot"}
+        self.poll()
+        self.host.collect_fails = True
+        for _ in range(12):
+            self.poll(advance=130)
+        self.assertEqual(len(self.sent), 1)
+        self.assertTrue(self.sent[0].startswith("prod unreachable from the agent host: "))
 
     def test_failed_telegram_send_is_retried_in_order(self):
         self.telegram_up = False
