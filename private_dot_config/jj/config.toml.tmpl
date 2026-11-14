@@ -15,7 +15,7 @@ pager = "less -FRX"
 editor = "sh -lc 'exec \"${EDITOR:-vi}\" \"$@\"' --"
 
 [git]
-# Push all bookmarks by default
+# Push only the bookmarks named on the command line, not every bookmark.
 push-all-bookmarks = false
 
 [remotes.origin]
