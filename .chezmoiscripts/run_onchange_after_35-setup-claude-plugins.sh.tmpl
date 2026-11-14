@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
+set -euo pipefail
+. "$HOME/.local/lib/chezmoi-helpers.sh"
+
+# Claude Code plugins that this repo installs at user scope.
+# Claude owns ~/.claude/settings.json, so install through the CLI, not the file.
+# Use the HTTPS URL: the GitHub shorthand clones over SSH and fails without a key.
+PLUGIN_MARKETPLACE_SOURCE="https://github.com/GoogleChrome/modern-web-guidance.git"
+PLUGIN_MARKETPLACE_NAME="googlechrome"
+PLUGIN_NAME="modern-web-guidance"
+PLUGIN_ID="${PLUGIN_NAME}@${PLUGIN_MARKETPLACE_NAME}"
+PLUGIN_STATE="claude-plugin-${PLUGIN_NAME}"
+
+# The plugin gives web-platform guidance for web development. Keep servers small.
+if [ "{{ includeTemplate "resolved-role" . }}" = "server" ]; then
+    vecho "Skipping Claude Code plugins on server role"
+    exit 0
+fi
+
+add_to_path "$HOME/.local/bin"
+
+if ! command -v claude >/dev/null 2>&1; then
+    eecho "Error: claude is not installed, so ${PLUGIN_ID} cannot be installed."
+    eecho "Fix Claude Code setup, then rerun chezmoi apply."
+    exit 1
+fi
+
+plugin_installed() {
+    claude plugin list 2>/dev/null | grep -Fq "$PLUGIN_ID"
+}
+
+marketplace_present() {
+    claude plugin marketplace list --json 2>/dev/null |
+        grep -Eq "\"name\"[[:space:]]*:[[:space:]]*\"${PLUGIN_MARKETPLACE_NAME}\""
+}
+
+if plugin_installed; then
+    vecho "Claude Code plugin ${PLUGIN_ID} is already installed"
+    mark_state "$PLUGIN_STATE"
+    exit 0
+fi
+
+# The marketplace clone and the plugin run third-party code from GitHub.
+if ! require_trust_for_remote_download "${PLUGIN_MARKETPLACE_SOURCE}"; then
+    exit 1
+fi
+
+if ! marketplace_present; then
+    eecho "Adding Claude Code marketplace ${PLUGIN_MARKETPLACE_NAME}..."
+    if ! claude plugin marketplace add "$PLUGIN_MARKETPLACE_SOURCE"; then
+        eecho "Error: could not add marketplace ${PLUGIN_MARKETPLACE_NAME}. Leaving state unset so setup can retry."
+        exit 1
+    fi
+fi
+
+eecho "Installing Claude Code plugin ${PLUGIN_ID}..."
+if ! claude plugin install "$PLUGIN_ID"; then
+    eecho "Error: could not install ${PLUGIN_ID}. Leaving state unset so setup can retry."
+    exit 1
+fi
+
+if ! plugin_installed; then
+    eecho "Error: ${PLUGIN_ID} does not show in the plugin list after install. Leaving state unset so setup can retry."
+    exit 1
+fi
+
+mark_state "$PLUGIN_STATE"
+eecho "Claude Code plugin ${PLUGIN_ID} installed."

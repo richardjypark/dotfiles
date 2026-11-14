@@ -600,5 +600,128 @@ hermes_current_ref() {{ echo fixture; }}
         self.assertNotIn('"cli"', extras)
 
 
+class ClaudePluginSetupTest(unittest.TestCase):
+    """Run the Claude plugin setup against a fake claude CLI, with no network."""
+
+    SCRIPT = "run_onchange_after_35-setup-claude-plugins.sh.tmpl"
+
+    @staticmethod
+    def render_for_role(role):
+        return subprocess.check_output(
+            ["chezmoi", "--source", str(ROOT), "execute-template"],
+            input=(ROOT / ".chezmoiscripts" / ClaudePluginSetupTest.SCRIPT).read_text(),
+            text=True, timeout=15, env=dict(os.environ, CHEZMOI_ROLE=role),
+        )
+
+    @classmethod
+    def setUpClass(cls):
+        cls.script = cls.render_for_role("workstation")
+        cls.server_script = cls.render_for_role("server")
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.base = Path(self.temp.name).resolve()
+        self.home = self.base / "home"
+        self.bin = self.home / ".local/bin"
+        self.bin.mkdir(parents=True)
+        self.state = self.base / "state"
+        lib = self.home / ".local/lib"
+        lib.mkdir()
+        shutil.copyfile(ROOT / "dot_local/private_lib/chezmoi-helpers.sh", lib / "chezmoi-helpers.sh")
+        shutil.copytree(ROOT / "dot_local/private_lib/chezmoi", lib / "chezmoi")
+        self.env = dict(os.environ, HOME=str(self.home), STATE_DIR=str(self.state),
+                        PATH=f"{self.bin}:/usr/bin:/bin", VERBOSE="false",
+                        TRUST_ON_FIRST_USE_INSTALLERS="1", CHEZMOI_FORCE_UPDATE="0",
+                        TEST_FAIL_STEP="")
+        self.env.pop("CHEZMOI_HELPERS_LOADED", None)
+        self.calls = self.home / "claude-calls"
+        executable(self.bin / "claude", '''#!/usr/bin/env bash
+set -eu
+printf '%s\\n' "$*" >> "$HOME/claude-calls"
+case "$1 $2" in
+    "plugin list")
+        if [ -f "$HOME/plugin-installed" ]; then echo "  modern-web-guidance@googlechrome"; fi ;;
+    "plugin marketplace")
+        case "$3" in
+            list) if [ -f "$HOME/marketplace-added" ]; then echo '[{"name": "googlechrome"}]'; else echo '[]'; fi ;;
+            add)
+                [ "$TEST_FAIL_STEP" = add ] && { echo 'fixture add failure' >&2; exit 1; }
+                touch "$HOME/marketplace-added" ;;
+        esac ;;
+    "plugin install")
+        [ "$TEST_FAIL_STEP" = install ] && { echo 'fixture install failure' >&2; exit 1; }
+        touch "$HOME/plugin-installed" ;;
+esac
+''')
+
+    def run_bash(self, script):
+        return subprocess.run(["/bin/bash", "-c", script], env=self.env,
+                              capture_output=True, text=True, timeout=20)
+
+    def calls_made(self):
+        return self.calls.read_text().splitlines() if self.calls.exists() else []
+
+    def test_installs_over_https_then_repeat_is_noop(self):
+        result = self.run_bash(self.script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("plugin marketplace add https://github.com/GoogleChrome/modern-web-guidance.git",
+                      self.calls_made())
+        self.assertIn("plugin install modern-web-guidance@googlechrome", self.calls_made())
+        self.assertTrue((self.state / "claude-plugin-modern-web-guidance.done").exists())
+        self.calls.unlink()
+        result = self.run_bash(self.script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(any(" add " in call or " install " in call for call in self.calls_made()))
+
+    def test_installed_plugin_needs_no_trust(self):
+        (self.home / "plugin-installed").touch()
+        self.env["TRUST_ON_FIRST_USE_INSTALLERS"] = "0"
+        result = self.run_bash(self.script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((self.state / "claude-plugin-modern-web-guidance.done").exists())
+
+    def test_missing_trust_refuses_and_leaves_state_unset(self):
+        self.env["TRUST_ON_FIRST_USE_INSTALLERS"] = "0"
+        result = self.run_bash(self.script)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("explicit trust", result.stdout)
+        self.assertFalse(any(" add " in call or " install " in call for call in self.calls_made()))
+        self.assertFalse(list(self.state.glob("claude-plugin-*.done")))
+
+    def test_existing_marketplace_is_not_added_again(self):
+        (self.home / "marketplace-added").touch()
+        result = self.run_bash(self.script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(any("marketplace add" in call for call in self.calls_made()))
+        self.assertTrue((self.home / "plugin-installed").exists())
+
+    def test_failures_are_visible_and_retryable(self):
+        for step in ("add", "install"):
+            with self.subTest(step=step):
+                for marker in ("marketplace-added", "plugin-installed"):
+                    (self.home / marker).unlink(missing_ok=True)
+                self.env["TEST_FAIL_STEP"] = step
+                result = self.run_bash(self.script)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"fixture {step} failure", result.stderr)
+                self.assertFalse(list(self.state.glob("claude-plugin-*.done")))
+        self.env["TEST_FAIL_STEP"] = ""
+        result = self.run_bash(self.script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(list(self.state.glob("claude-plugin-*.done")))
+
+    def test_missing_claude_is_an_error(self):
+        (self.bin / "claude").unlink()
+        result = self.run_bash(self.script)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("claude is not installed", result.stdout)
+
+    def test_server_role_skips_everything(self):
+        result = self.run_bash(self.server_script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.calls_made(), [])
+
+
 if __name__ == "__main__":
     unittest.main()
