@@ -66,23 +66,18 @@ exclusions, and canonical ownership rules.
 
 | If changing... | Inspect first | Validate with... |
 | --- | --- | --- |
-| Bootstrap or hardening behavior | `README.md`, bootstrap scripts, `chezmoi-bootstrap-operator` | `bash -n` on touched scripts, then `chezmoi diff` / `apply` / `status` |
-| `.chezmoiscripts/*` behavior | adjacent scripts, helper library, `chezmoi-script-maintainer` | `bash -n` or `chezmoi execute-template ... | bash -n`, then `chezmoi diff` / `apply` / `status` |
-| Version pins or externals | pin files, relevant setup scripts, `dotfiles-version-refresh` | template render checks, `chezmoi apply --refresh-externals`, then `chezmoi status` |
-| Shell or tmux behavior | `dot_zshrc.tmpl`, `dot_tmux.conf`, relevant `private_dot_config/*` files | `chezmoi diff` / `apply` / `status`, then `zsh -n ~/.zshrc` and/or `tmux source-file ~/.tmux.conf` |
-| Agent docs, skills, or Codex/Claude config | `AGENTS.md`, `CLAUDE.md`, `docs/tooling-and-skills.md`, `.claude/settings.local.json`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` | link/reference review, then `chezmoi diff` / `apply` / `status` |
+| Bootstrap or hardening behavior | `README.md`, bootstrap scripts, `chezmoi-bootstrap-operator` | `bash -n` on touched scripts, then `chezmoi diff` |
+| `.chezmoiscripts/*` behavior | adjacent scripts, helper library, `chezmoi-script-maintainer` | `bash -n` or `chezmoi execute-template ... | bash -n`, then `chezmoi diff` |
+| Version pins or externals | pin files, relevant setup scripts, `dotfiles-version-refresh` | template render checks, then `chezmoi apply --dry-run --refresh-externals` |
+| Shell or tmux behavior | `dot_zshrc.tmpl`, `dot_tmux.conf`, relevant `private_dot_config/*` files | `chezmoi diff` and `verify-dotfiles`; after an approved apply, `zsh -n ~/.zshrc` or `tmux source-file ~/.tmux.conf` |
+| Agent docs, skills, or Codex/Claude config | `AGENTS.md`, `CLAUDE.md`, `docs/tooling-and-skills.md`, `.claude/settings.local.json`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` | link and reference review, `tests/test_agent_instructions.py`, the skill-routing dry run, then `chezmoi diff` |
 | Test or CI behavior | `tests/`, `.github/workflows/`, relevant production callers | focused test while editing, then `./tests/all`; CI requires managed npm suites |
 
-Use focused tests during the edit loop. Run `./tests/all` before completing a task. Its default local mode does not install packages or use the network; it reports managed npm suites as skipped when dependencies are absent. CI sets `REQUIRE_MANAGED_NPM_TESTS=1`, so a skipped managed npm suite fails the job. Run `chezmoi apply` only at an approved verification gate.
+Use focused tests during the edit loop. Run `./tests/all` before completing a task. Its default local mode does not install packages, and it reports managed npm suites as skipped when dependencies are absent. Some suites query the npm registry, and a cold chezmoi cache downloads the externals, so a run without network access fails those suites. CI sets `REQUIRE_MANAGED_NPM_TESTS=1`, so a skipped managed npm suite fails the job. Run `chezmoi apply` only at an approved verification gate.
 
-## Plan Before Editing When
+## Planning
 
-- The change spans more than one subsystem.
-- The work touches bootstrap, hardening, agent operating docs, version pins, or externals.
-- The implementation needs multiple phases, multiple tools, or coordination with other agents.
-- The success criteria or validation path are not obvious at the start.
-
-Use `plans/README.md` for the canonical planning flow: deep repo read, `*-research.md`, `*-plan.md`, annotation/revision, then implementation.
+`AGENTS.md` says when to plan, and `plans/README.md` owns the planning workflow.
 
 ## Deep Dives
 

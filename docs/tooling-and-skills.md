@@ -2,23 +2,14 @@
 
 ## Agent Operating Stack
 
-- `AGENTS.md` — short control-plane rules for agents: safety, work sizing, skill routing, and validation.
+- `AGENTS.md` — short control-plane rules for agents: context, safety, publishing, planning triggers, validation, and enforced checks.
 - `ARCHITECTURE.md` — stable mental model of repo subsystems, invariants, and change routing.
 - `plans/README.md` — canonical planning workflow, including local research/plan artifacts, annotation, and progress tracking.
 - `README.md` and `docs/` — user-facing workflows and subsystem-specific deep dives.
 
 ## Planning Workflow
 
-Claude Code is the canonical planning workflow owner for this repo's high-impact work. The expected loop is:
-
-1. Deep-read the relevant subsystem.
-2. Write a local `*-research.md` artifact.
-3. Write a local `*-plan.md` artifact.
-4. Review and annotate the plan in the editor.
-5. Revise until the plan is decision-complete.
-6. Implement against that plan and keep the plan status current.
-
-Other agents (Codex, Pi, Hermes Agent) follow the same `plans/README.md` contract instead of a separate process.
+`AGENTS.md` says when to plan, and `plans/README.md` owns the workflow for every agent (Claude Code, Codex, Pi, Hermes Agent).
 
 ## Local Update Commands
 
@@ -94,7 +85,7 @@ Installed client paths are routed to the shared tree:
 
 This repo also tracks a project-local Claude policy file at `.claude/settings.local.json`. Treat it as repo policy, not as a personal escape hatch, keep its permissions narrow and domain-scoped, reserve tracked entries for core workflow primitives, and let one-off convenience/bootstrap commands rely on explicit approval instead of tracked pre-approval.
 
-The canonical skill-routing list lives in `AGENTS.md`. Keep detailed procedures in
+Each client routes to skills by their `SKILL.md` `name` and `description`; there is no separate routing list. Keep detailed procedures in
 the corresponding `private_dot_agents/private_skills/*/SKILL.md` files instead
 of copying the full catalog into secondary documentation.
 
