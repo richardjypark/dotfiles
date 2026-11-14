@@ -38,7 +38,10 @@ def load_agent():
 agent_module = load_agent()
 
 
-def alert(name, fingerprint=None, severity="warning", **labels):
+def alert(name, fingerprint=None, severity="warning", notify="telegram", **labels):
+    """An active alert. notify=None is an alert that Alertmanager does not page (quiet or digest)."""
+    if notify:
+        labels["notify"] = notify
     return {"fingerprint": fingerprint or f"fp-{name}", "startsAt": "2026-11-11T10:00:00Z",
             "labels": {"alertname": name, "severity": severity, **labels},
             "annotations": {"summary": f"{name} summary", "description": f"{name} description"},
@@ -63,6 +66,7 @@ class FakeHost:
     def __init__(self):
         self.alerts: list[dict] = []
         self.collect_fails = False
+        self.planned_shutdown = None
         self.act_result = {"result": "repaired", "fault": "report 7200s old", "exit": 0}
         self.model = stream()
         self.calls: list[tuple[list[str], str | None, dict | None]] = []
@@ -75,7 +79,8 @@ class FakeHost:
                 if self.collect_fails:
                     return 255, "", "ssh: connect to host 192.0.2.1 port 22: Connection timed out"
                 return 0, json.dumps({"alerts": self.alerts, "apps": {"glazeprompt": "www.glazeprompt.com"},
-                                      "units": {}, "reports": {}, "journals": {}, "errors": []}), ""
+                                      "units": {}, "reports": {}, "journals": {}, "errors": [],
+                                      "planned_shutdown": self.planned_shutdown}), ""
             if command.startswith("act "):
                 return self.act_result["exit"], json.dumps(self.act_result), ""
             raise AssertionError(command)
@@ -172,7 +177,7 @@ class PollerTest(unittest.TestCase):
         for _ in range(3):
             self.poll()
         self.assertEqual(len(self.host.model_calls()), 1)
-        self.assertEqual(len(self.sent), 2)
+        self.assertEqual(len(self.sent), 1)
         self.host.alerts[0]["startsAt"] = "2026-11-12T10:00:00Z"
         self.poll()
         self.assertEqual(len(self.host.model_calls()), 2, "a new startsAt is a new incident")
@@ -181,13 +186,25 @@ class PollerTest(unittest.TestCase):
         self.host.alerts = [alert(f"Storm{i}") for i in range(10)]
         self.poll()
         self.assertEqual(len(self.host.model_calls()), 1)
-        self.assertEqual(len(self.sent), 2)
-        self.assertTrue(self.sent[0].startswith("prod: 10 new alert(s)"))
+        self.assertEqual(len(self.sent), 1)
+        self.assertTrue(self.sent[0].startswith("prod triage note (model, unchecked):"))
+        self.assertEqual(self.sent[0].count("• Storm"), 10)
 
     def test_skips_watchdog_inhibited_and_silenced_alerts(self):
         inhibited, silenced = alert("A"), alert("B")
         inhibited["inhibited"], silenced["silenced"] = True, True
         self.host.alerts = [alert("Watchdog", severity="none"), inhibited, silenced]
+        self.poll()
+        self.assertEqual((self.sent, self.host.model_calls()), ([], []))
+
+    def test_an_alert_that_does_not_page_gets_no_post_and_no_call(self):
+        self.host.alerts = [alert("SustainedCpuUsageWarning", notify=None)]
+        self.poll()
+        self.poll(advance=900)
+        self.assertEqual((self.sent, self.host.model_calls()), ([], []))
+
+    def test_the_agent_ignores_its_own_stale_alert(self):
+        self.host.alerts = [alert("R2AgentPollerStale", notify=None), alert("R2AgentPollerStale", fingerprint="fp-2")]
         self.poll()
         self.assertEqual((self.sent, self.host.model_calls()), ([], []))
 
@@ -240,12 +257,12 @@ class PollerTest(unittest.TestCase):
         self.poll()
         self.assertEqual(len(self.host.model_calls()), 2)
 
-    def test_model_failure_never_blocks_the_notice(self):
+    def test_model_failure_still_posts_the_fixed_fields(self):
         self.host.model = (124, "", "timeout after 120s")
         self.host.alerts = [alert("New")]
         self.poll()
-        self.assertTrue(self.sent[0].startswith("prod: 1 new alert(s)"))
-        self.assertEqual(self.sent[1], "prod triage note (model, unchecked):\nsummary skipped: timeout after 120s")
+        self.assertEqual(self.sent, ["prod triage note (model, unchecked):\n• New (warning)\n  New summary\n"
+                                     "summary skipped: timeout after 120s"])
         self.claude.unlink()
         self.host.alerts = [alert("Next")]
         self.poll()
@@ -296,32 +313,57 @@ class PollerTest(unittest.TestCase):
         self.poll()
         self.assertEqual(self.sent[-1], "prod reachable again after 5 failed polls.")
 
+    def test_planned_reboot_gets_no_unreachable_post(self):
+        """Replay of 2026-11-14 06:00 UTC: SSH refused from 5 min before the reboot, 3 failed polls, then healthy."""
+        self.host.planned_shutdown = {"time": int(self.now + 120 + 400), "mode": "reboot"}
+        self.poll()
+        self.host.collect_fails = True
+        for _ in range(3):
+            self.assertEqual(self.poll(advance=130), 1)
+        self.host.collect_fails = False
+        self.host.planned_shutdown = None
+        self.poll()
+        self.assertEqual(self.sent, [])
+        self.assertNotIn("planned_shutdown", self.state)
+
+    def test_a_planned_reboot_that_does_not_come_back_is_an_outage(self):
+        self.host.planned_shutdown = {"time": int(self.now + 120 + 300), "mode": "reboot"}
+        self.poll()
+        self.host.collect_fails = True
+        for _ in range(12):
+            self.poll(advance=130)
+        self.assertEqual(len(self.sent), 1)
+        self.assertTrue(self.sent[0].startswith("prod unreachable from the agent host: "))
+
     def test_failed_telegram_send_is_retried_in_order(self):
         self.telegram_up = False
         self.host.alerts = [alert("New")]
+        self.poll()
+        self.host.alerts.append(alert("CaddyDown", severity="critical"))
         self.poll()
         self.assertEqual(len(self.state["outbox"]), 2)
         self.telegram_up = True
         self.poll()
         self.assertEqual(len(self.sent), 2)
-        self.assertTrue(self.sent[0].startswith("prod: 1 new alert(s)"))
+        self.assertTrue(self.sent[0].startswith("prod triage note (model, unchecked):"))
+        self.assertTrue(self.sent[1].startswith("prod: 1 new alert(s)"))
         self.assertEqual(self.state["outbox"], [])
 
     def calls_log(self):
         path = self.tmp / "calls.jsonl"
         return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
-    def test_short_incident_gets_the_notice_but_no_model_call(self):
+    def test_short_page_gets_no_post_and_no_model_call(self):
+        """Replay of 2026-11-14: the page fired 09:12:45-09:18:45 UTC and Alertmanager sent it once."""
         self.config["summary_delay_seconds"] = 300
-        self.host.alerts = [alert("HostPublicDnsResolutionFailed", severity="critical", notify="telegram")]
-        self.poll()
-        self.assertEqual(len(self.sent), 1, "the notice does not wait for the delay")
-        self.assertIn("A model note follows if an alert is still active after 5 min.", self.sent[0])
-        self.poll()
+        self.host.alerts = [alert("HostPublicDnsResolutionFailed", severity="critical")]
+        for advance in (0, 130, 130):
+            self.poll(advance=advance)
         self.host.alerts = []
-        self.poll()
+        self.poll(advance=130)
         self.assertEqual(self.host.model_calls(), [])
-        self.assertEqual(len(self.sent), 1)
+        self.assertLessEqual(len(self.sent), 1, "agent posts never exceed the one Alertmanager page")
+        self.assertEqual(self.sent, [])
         self.assertEqual([(r["alerts"], r["result"]) for r in self.calls_log()],
                          [(["HostPublicDnsResolutionFailed"], "not_needed")])
 
@@ -376,6 +418,122 @@ class PollerTest(unittest.TestCase):
         self.host.alerts = [alert("Three")]
         self.assertEqual(self.poll(), 0)
         self.assertTrue(self.sent[-1].startswith("prod triage note (model, unchecked):"))
+
+    def kill_and_restart(self, step):
+        """Run one poll that SIGTERM stops inside `step`, then load the saved state like the next run does."""
+        with self.assertRaises(SystemExit):
+            step()
+        self.state = json.loads((self.tmp / "state.json").read_text())
+
+    def test_a_kill_during_the_model_call_repeats_no_post_and_no_call(self):
+        self.host.alerts = [alert("UnitMemoryAtLimit")]
+        runner = host = self.host
+
+        def killing_runner(argv, **kwargs):
+            result = runner(argv, **kwargs)
+            if argv[0] != "ssh":
+                raise SystemExit(143)
+            return result
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=killing_runner,  # noqa: E731
+                                          sender=self.send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.poll()
+        self.assertEqual(len(host.model_calls()), 1, "the call is recorded before it starts")
+        self.assertEqual(self.sent, ["prod triage note (model, unchecked):\n• UnitMemoryAtLimit (warning)\n"
+                                     "  UnitMemoryAtLimit summary\nsummary skipped: the agent stopped during the model call"])
+
+    def test_a_kill_during_a_repair_never_repeats_it(self):
+        self.config["mode"] = "act"
+        self.host.alerts = [alert("HostHealthCheckStale", notify="telegram")]
+        runner = self.host
+
+        def killing_runner(argv, **kwargs):
+            result = runner(argv, **kwargs)
+            if argv[-1].startswith("act "):
+                raise SystemExit(143)
+            return result
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=killing_runner,  # noqa: E731
+                                          sender=self.send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.poll(advance=900)
+        self.assertEqual(len(self.host.acts()), 1)
+        self.assertEqual(len(self.sent), 2)
+        self.assertIn("repair collector-rerun r2-host-health for HostHealthCheckStale was interrupted", self.sent[1])
+
+    def test_a_kill_after_a_repair_never_repeats_it(self):
+        self.config["mode"] = "act"
+        self.host.alerts = [alert("HostHealthCheckStale", notify="telegram")]
+
+        def killing_send(text):
+            if text.startswith("prod: repair "):
+                raise SystemExit(143)
+            return self.send(text)
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=self.host,  # noqa: E731
+                                          sender=killing_send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.poll()
+        self.assertEqual(len(self.host.acts()), 1)
+        self.assertEqual(len(self.sent), 2)
+        self.assertEqual(self.sent[1], "prod: repair collector-rerun r2-host-health: repaired (report 7200s old)")
+
+    def test_a_kill_during_a_send_repeats_only_that_message(self):
+        self.host.alerts = [alert("UnitMemoryAtLimit")]
+
+        def killing_send(text):
+            self.send(text)
+            if "triage note" in text:
+                raise SystemExit(143)
+            return True
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=self.host,  # noqa: E731
+                                          sender=killing_send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.poll()
+        self.assertEqual(len(self.host.model_calls()), 1)
+        self.assertEqual([t.split("\n")[0] for t in self.sent],
+                         ["prod triage note (model, unchecked):", "prod triage note (model, unchecked):"],
+                         "Telegram may have the message: send it again")
+
+    def test_a_kill_during_the_notice_send_keeps_the_model_note_due(self):
+        self.host.alerts = [alert("CaddyDown", severity="critical"), alert("UnitMemoryAtLimit")]
+
+        def killing_send(text):
+            self.send(text)
+            raise SystemExit(143)
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=self.host,  # noqa: E731
+                                          sender=killing_send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.assertEqual(len(self.host.model_calls()), 1)
+        self.assertEqual([t.split("\n")[0] for t in self.sent],
+                         ["prod: 1 new alert(s)", "prod: 1 new alert(s)", "prod triage note (model, unchecked):"])
+
+    def test_sigterm_saves_the_state(self):
+        import signal
+        import socket
+        import subprocess
+        import time
+        with socket.socket() as server:
+            server.bind(("127.0.0.1", 0))
+            server.listen()
+            (self.config_dir / "config.json").write_text(json.dumps({
+                "ssh_target": "r2agent@127.0.0.1", "ssh_port": server.getsockname()[1],
+                "ssh_key": str(self.tmp / "no-key"), "known_hosts": str(self.tmp / "known_hosts")}))
+            (self.tmp / "state.json").write_text(json.dumps({"failures": 2}))
+            env = {"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "R2_ALERT_AGENT_CONFIG_DIR": str(self.config_dir),
+                   "R2_ALERT_AGENT_STATE_DIR": str(self.tmp)}
+            proc = subprocess.Popen([sys.executable, "-I", str(SCRIPT)], env=env,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            time.sleep(1.5)
+            proc.send_signal(signal.SIGTERM)
+            proc.communicate(timeout=20)
+        self.assertEqual(proc.returncode, 143)
+        state = json.loads((self.tmp / "state.json").read_text())
+        self.assertEqual(state["failures"], 2, "state is written, the stopped poll counts no failure")
+        self.assertIn("outbox", state, "the run saved its own state")
 
     def test_manual_act_rejects_odd_words_before_ssh(self):
         agent = agent_module.Agent(self.config, self.creds, self.state, runner=self.host, sender=self.send)
