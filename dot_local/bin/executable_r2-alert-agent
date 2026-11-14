@@ -18,6 +18,9 @@ One run is one poll. A systemd user timer starts it every 120 s.
 - Each model decision (call, skip, or not needed) goes to calls.jsonl in the
   state directory (mode 0600) with the input bundle, the note, and the token
   use, so the notes can be reviewed later.
+- State is saved before each send, repair, and model call, and on SIGTERM.
+  After a kill the next poll repeats at most the one message that was in
+  flight. It never repeats a repair or a model call.
 - Usage: `r2-alert-agent` (poll once), `r2-alert-agent act <repair> <target>`
   (run a tier A repair by hand with the same key and guards).
 """
@@ -28,6 +31,7 @@ import fcntl
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -202,11 +206,16 @@ class Agent:
         self.state["outbox"].append(clean(text, self.cfg["own_domains"], 4000))
         del self.state["outbox"][:-20]
 
+    def checkpoint(self) -> None:
+        save_json(STATE_DIR / "state.json", self.state)
+
     def flush(self) -> None:
+        self.checkpoint()
         while self.state["outbox"]:
             if not self.send(self.state["outbox"][0]):
                 return
             self.state["outbox"].pop(0)
+            self.checkpoint()
 
     # Model -------------------------------------------------------------------
 
@@ -262,6 +271,7 @@ class Agent:
                 "--safe-mode", "--no-session-persistence", "--permission-prompts", "none",
                 "--max-budget-usd", "0.05", "--output-format", "stream-json", "--verbose"]
         self.state["calls"].append(self.now)
+        self.checkpoint()
         started = time.monotonic()
         code, out, err = self.run(argv, stdin=bundle, timeout=120, env=env)
         duration = round(time.monotonic() - started, 1)
@@ -348,6 +358,14 @@ class Agent:
                 st["unreachable_notified"] = True
             self.flush()
             return 1
+        for incident in st["incidents"].values():
+            # Written before the action, replaced after it: here it means a kill stopped the last poll.
+            if incident.get("repair", {}).get("result") == "interrupted":
+                incident["repair"]["result"] = "unknown"
+                self.post(f"{label}: repair {incident['repair']['name']} for {incident['alertname']} was interrupted. "
+                          "The agent does not run it again. Check the host audit log.")
+            if incident.pop("summary_started", None) is not None:
+                self.post(f"{label} triage note (model, unchecked):\nsummary skipped: the agent stopped during the model call")
         if st.pop("unreachable_notified", False):
             self.post(f"{label} reachable again after {st['failures']} failed polls.")
         st["failures"] = 0
@@ -392,7 +410,6 @@ class Agent:
                           f"{incident['repair']['name']}. The agent stops here for this incident.")
                 results.append(alert)
             if incident.get("summary_due") is not None and self.now >= incident["summary_due"]:
-                del incident["summary_due"]
                 summarize.append(alert)
         # Fixed fields first: a slow repair or model call cannot delay the notice.
         if new_lines:
@@ -403,6 +420,8 @@ class Agent:
             self.post(notice)
             self.flush()
         for alert, incident, repair in to_repair:
+            incident["repair"] = {"name": " ".join(repair), "time": self.now, "result": "interrupted"}
+            self.checkpoint()
             result = self.act(*repair)
             incident["repair"] = {"name": " ".join(repair), "time": self.now, **result}
             detail = result.get("reason") or result.get("detail") or result.get("fault") or ""
@@ -411,7 +430,13 @@ class Agent:
                 results.append(alert)
         if summarize or results:
             names = [(a.get("labels") or {}).get("alertname", "?") for a in summarize + results]
+            started = [st["incidents"][f"{a.get('fingerprint')}@{a.get('startsAt')}"] for a in summarize + results]
+            for incident in started:
+                incident.pop("summary_due", None)
+                incident["summary_started"] = self.now
             text = self.summarize(self.bundle(summarize + results, report), names)
+            for incident in started:
+                incident.pop("summary_started", None)
             self.post(f"{label} triage note (model, unchecked):\n{text}")
         for key, incident in list(st["incidents"].items()):
             if key in seen:
@@ -431,6 +456,7 @@ class Agent:
 
 def main(argv: list[str]) -> int:
     STATE_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
+    signal.signal(signal.SIGTERM, stop_on_sigterm)
     with open(STATE_DIR / "lock", "w", encoding="utf-8") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -438,6 +464,12 @@ def main(argv: list[str]) -> int:
             log("another run holds the lock; exit")
             return 0
         return run_locked(argv)
+
+
+def stop_on_sigterm(signum, frame):
+    # systemd stops the unit with SIGTERM. SystemExit runs the finally blocks, so the
+    # state is saved and subprocess.run kills its child.
+    raise SystemExit(128 + signum)
 
 
 def run_locked(argv: list[str]) -> int:
