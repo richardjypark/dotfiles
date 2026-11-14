@@ -130,7 +130,7 @@ General-purpose skills vendored from upstream (provenance and refresh rules: `do
 
 ## Chezmoi Rules
 
-- Edit source files in this repo, then verify: `chezmoi diff` → `chezmoi apply` → `chezmoi status`.
+- Edit source files in this repo, then check the rendered result with `chezmoi diff`. Run `chezmoi apply` and `chezmoi status` only at an approved verification gate (see the Validation Checklist).
 - Use `chezmoi apply --refresh-externals` when changes affect `.chezmoiexternal.toml.tmpl`.
 - Role-aware: `CHEZMOI_ROLE=server` skips heavy tools; `CHEZMOI_PROFILE=omarchy` for Arch.
 - `dot_chezmoi.toml.tmpl` enables `git.autoCommit` and disables auto-push. Inspect status before and after chezmoi commands that can update the source, and do not create commits unless the user asks.

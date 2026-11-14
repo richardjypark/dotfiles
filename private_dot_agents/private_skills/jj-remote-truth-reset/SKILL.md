@@ -13,7 +13,7 @@ This skill is branch-agnostic. Do not assume `master`, `main`, or `dev`; detect 
 
 ## Core rule
 
-Do **not** fix per-repo trunk differences with a global `trunk()` alias in the chezmoi-managed jj config (`private_dot_config/jj/config.toml`). Let jj resolve `trunk()` per repo, and write a repo-local override only when one repo needs it.
+Do **not** fix per-repo trunk differences with a global `trunk()` alias in the chezmoi-managed jj config (`private_dot_config/jj/config.toml.tmpl`). Let jj resolve `trunk()` per repo, and write a repo-local override only when one repo needs it.
 
 ## Read first
 
