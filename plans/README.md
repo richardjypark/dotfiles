@@ -2,7 +2,7 @@
 
 Use `plans/` for local-only planning artifacts when a change needs reasoning beyond chat history.
 
-For substantial work, the canonical Codex workflow is:
+For substantial work, the canonical planning workflow is:
 
 1. Deep-read the relevant repo surfaces before proposing changes.
 2. Write `plans/YYYY-MM-DD-<slug>-research.md` with findings and constraints.

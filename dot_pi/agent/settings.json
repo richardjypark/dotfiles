@@ -1,10 +1,10 @@
 {
-  "lastChangelogVersion": "1.5.0",
+  "lastChangelogVersion": "1.5.2",
   "packages": [
     "https://github.com/davebcn87/pi-autoresearch@703a8f12ce80259d65bec41029c8136ce60686ff"
   ],
   "defaultProvider": "anthropic",
-  "defaultModel": "claude-haiku-5-5",
+  "defaultModel": "claude-opus-5-5",
   "defaultThinkingLevel": "max",
   "hideThinkingBlock": false,
   "compaction": {

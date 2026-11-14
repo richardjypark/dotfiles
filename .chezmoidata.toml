@@ -29,18 +29,18 @@ macos_x86_64_sha256 = "ce7ac70c3b7cf90f2273b4fa62d24576727c5fd55c60dc3820221c053
 macos_arm64_sha256 = "50129b527f7cd6aef82aebd4bb2b670bb56766adc509ef3279c4327aa3592255"
 
 [pinned.codex]
-version = "rust-v0.167.2"
-linux_x86_64_sha256 = "3d77be1748d35a4bb0e7f8752cde3b11890c63338e8c599f01eafa4a59e17b3d"
-linux_arm64_sha256 = "56b08c1214e062a5b61684bacb5033c4372a01062a47c87c49a32be83af70695"
-macos_x86_64_sha256 = "d0c2ff50bf7366ab89d8213a498eead05ca01515098b290fb37a9b8dcad3e054"
-macos_arm64_sha256 = "e791290651bce41938fb160b5de2bd9ff8bcf3401ca3e236c73f485fca4be1bb"
+version = "rust-v0.169.0"
+linux_x86_64_sha256 = "3b8ed091149cc63a59046b9f094bcfa21cdb4dda15ede441ce369bcee4a71ba0"
+linux_arm64_sha256 = "c8d0b4ab2a97c595b70b10412d36d0d5464dcef1e1d3246b073d48017cdf5a4f"
+macos_x86_64_sha256 = "0a3c392235b4712409495ced02bbe0662ce7a038232766d1c1c34af74e905c2f"
+macos_arm64_sha256 = "8a232260df7a12c5e83e0b4b7659e1c8d9259b41942517bc0068d8ab55c36461"
 
 [pinned.uv]
-version = "0.13.7"
-linux_x86_64_sha256 = "c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83"
-linux_arm64_sha256 = "71279f8d3c67241e807b9d8db872d1bf541579fb9f08b7d1eb1682196d1e57dc"
-macos_x86_64_sha256 = "20c47e4c1f630b8abaff8c291fa9b9aa300fef92c4fbff95adf198b55287cda7"
-macos_arm64_sha256 = "81b811b57e4624df7ed3aac148e0359100d9962f3d9dce00aec533dc2e086731"
+version = "0.13.8"
+linux_x86_64_sha256 = "5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91"
+linux_arm64_sha256 = "74f2f5c6024d397481db228db8fc25eed420db192243f88438c118e7e013e585"
+macos_x86_64_sha256 = "a04c2ffeac28b2003a2c13caf538ab425fcd7def3e4a41571f4a8fb370a66af3"
+macos_arm64_sha256 = "6b71028a6b904f2ae3340ef52e595512de807d06c0a20eaef2f692581b246558"
 
 [pinned.go]
 version = "go1.26.10"
@@ -55,7 +55,7 @@ extras = ["messaging", "pty", "honcho", "mcp", "acp"]
 
 [hermes.preferences]
 model_provider = "anthropic"
-model = "claude-haiku-5-5"
+model = "claude-opus-5-5"
 model_base_url = "https://api.anthropic.com"
 show_reasoning = true
 reasoning_effort = "max"
@@ -103,9 +103,9 @@ macos_x86_64_sha256 = "50a3491f73abc2fe81673171a85762d3bc2cc1680ccecadd983de99ad
 macos_arm64_sha256 = "c240d7f0ccb90c263a849fcdb09b7ee62630d921348ed6aafda86b9d577bc510"
 
 [pinned.tailscale]
-version = "1.104.6"
-linux_x86_64_sha256 = "82a85429f733e52fd1a95dedb2c8dd8cd46d6603504e566a56b1779c9a7a4809"
-linux_arm64_sha256 = "d0e4f297da3c428d02162c6235b9948e4ddc245c64502b7b05647da9b96a0971"
+version = "1.104.7"
+linux_x86_64_sha256 = "e56693ff74a64f2591b7e819c280635a100aae1ddfb0ef058fcd052b7cd8d16c"
+linux_arm64_sha256 = "d6bed2720310b328b861f943d7b4016c5358a9bad60575eb51e8143b79068484"
 
 [pinned.chezmoi]
 version = "2.74.1"
@@ -115,4 +115,4 @@ macos_x86_64_sha256 = "b2229c6ff9eb7d1f10d098aac94241da652dd7df989c7ef35df6777db
 macos_arm64_sha256 = "fbc7b86c7b36eb0448e2a99a616b6d32f022d1f3895076ad44f4c5d65a77fe60"
 
 [pinned.claude]
-npm_version = "2.1.322"
+npm_version = "2.1.325"
