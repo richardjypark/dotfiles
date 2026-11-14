@@ -97,8 +97,8 @@ To compare a configured model/provider explicitly:
 
 ```bash
 python3 scripts/eval-skill-routing.py \
-  --provider openai-codex \
-  --model gpt-5.6-sol
+  --provider anthropic \
+  --model claude-opus-5-5
 ```
 
 The output reports one PASS/FAIL line per case, exact-match accuracy, prompt

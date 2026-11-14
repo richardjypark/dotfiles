@@ -20,7 +20,7 @@ Use this skill when the task is primarily about repository history or publishing
 ## Choose the path
 
 1. **Local fast path (default):** status/log inspection, committing the current change, moving a named bookmark, and publishing an explicit bookmark.
-2. **Delegate** only complex history shaping, recovery, or ambiguous sync where a specialist loop is worth the extra turns. Use the `jj` subagent when the client has one; otherwise run `jj-fast-agent` from bash (heredoc for long task text, `--model default` when Spark is unavailable). Model and environment overrides are in `docs/tooling-and-skills.md`. If you delegate a routine task anyway, say: "fast path only; do not read docs/help unless a command fails; empty `@` after `jj commit` is normal; use `<bookmark>@<remote>` verification; report every mutating or failed command."
+2. **Delegate** only complex history shaping, recovery, or ambiguous sync where a specialist loop is worth the extra turns. Use the `jj` subagent when the client has one; otherwise run `jj-fast-agent` from bash (heredoc for long task text). Model and environment overrides are in `docs/tooling-and-skills.md`. If you delegate a routine task anyway, say: "fast path only; do not read docs/help unless a command fails; empty `@` after `jj commit` is normal; use `<bookmark>@<remote>` verification; report every mutating or failed command."
 3. Load `references/jj-reference.md` for history shaping, conflicts, recovery, revsets, and the interactive `jji` / `jjbi` / `jjfi` helpers.
 
 ## Local workflow

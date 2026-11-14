@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Agent operating guide for this chezmoi dotfiles repository.
-Applies to terminal agents (Codex, OpenCode, Claude Code, and similar).
+Applies to terminal agents (Claude Code, Codex, OpenCode, and similar).
 
 ## Mission
 
@@ -62,7 +62,7 @@ Higher-level harness/system instructions still take precedence over this file.
 ## Work Sizing
 
 - Small changes can be edited directly after inspection when they stay within one subsystem and have obvious validation.
-- Run a Codex planning phase before mutating the repo when the work:
+- Plan before you mutate the repo, with the workflow in `plans/README.md`, when the work:
   - spans multiple subsystems,
   - touches bootstrap, hardening, version pins, externals, or agent operating docs,
   - needs several iterations or coordination,
