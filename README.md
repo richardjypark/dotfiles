@@ -375,7 +375,7 @@ service tier explicitly keeps normal processing rather than OpenAI Priority
 Processing or Anthropic Fast Mode.
 The setup also keeps `~/.agents/skills` in Hermes'
 `skills.external_dirs`, so shared repo-managed skills such as
-`karpathy-guidelines` and `deli-auto-research` are available while local
+`deli-auto-research` and `jj` are available while local
 `~/.hermes/skills` copies still take precedence. Hermes 0.16.0 treats goal budgets as positive integer
 caps rather than supporting an unlimited sentinel, so the repo uses a high finite
 budget for long `/goal` runs while retaining a runaway-loop guardrail. When

@@ -81,11 +81,6 @@
       "expected_skill": "jj-remote-truth-reset"
     },
     {
-      "id": "surgical-code-review",
-      "request": "Review this refactor for hidden assumptions, unnecessary abstractions, and unrelated edits, then define concrete verification criteria.",
-      "expected_skill": "karpathy-guidelines"
-    },
-    {
       "id": "audit-verify-skill",
       "request": "Audit our existing verify-app skill and its feature map against the source and a live run, and ship one PR of proven corrections.",
       "expected_skill": "maintain-verification-skill"

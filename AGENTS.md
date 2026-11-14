@@ -101,7 +101,6 @@ Drop a row when its mistake can no longer happen.
 - `dotfiles-version-refresh` — version pins, externals, and refresh behavior across versioned tools.
 - `jj` — repository history, describe/commit/rebase/push/bookmark workflows.
 - `jj-remote-truth-reset` — repair bad local jj graphs by resetting to a repo-specific remote source-of-truth branch and fixing `trunk()` with repo-local overrides.
-- `karpathy-guidelines` — coding/review/refactor guidance for surfacing assumptions, keeping changes simple and surgical, and setting verifiable success criteria.
 - `brave-tor-policy-hardening` — non-optional macOS Brave Browser `TorDisabled=true` managed policy maintenance and drift repair.
 - `deli-auto-research` — unattended, long-horizon research/engineering orchestration with Hermes Kanban, bounded worker cards, independent verification, stall-aware pivots, and watchdogs.
 - `secret-leak-audit` — redacted audits for leaked secrets, tokens, keys, and PII in history and the worktree; use before commits that touch credentials, CI, or bootstrap.
