@@ -377,6 +377,124 @@ class PollerTest(unittest.TestCase):
         self.assertEqual(self.poll(), 0)
         self.assertTrue(self.sent[-1].startswith("prod triage note (model, unchecked):"))
 
+    def kill_and_restart(self, step):
+        """Run one poll that SIGTERM stops inside `step`, then load the saved state like the next run does."""
+        with self.assertRaises(SystemExit):
+            step()
+        self.state = json.loads((self.tmp / "state.json").read_text())
+
+    def test_a_kill_during_the_model_call_repeats_no_post_and_no_call(self):
+        self.host.alerts = [alert("UnitMemoryAtLimit")]
+        runner = host = self.host
+
+        def killing_runner(argv, **kwargs):
+            result = runner(argv, **kwargs)
+            if argv[0] != "ssh":
+                raise SystemExit(143)
+            return result
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=killing_runner,  # noqa: E731
+                                          sender=self.send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.poll()
+        self.assertEqual(len(host.model_calls()), 1, "the call is recorded before it starts")
+        self.assertEqual(len(self.sent), 2)
+        self.assertTrue(self.sent[0].startswith("prod: 1 new alert(s)"))
+        self.assertEqual(self.sent[1], "prod triage note (model, unchecked):\n"
+                                       "summary skipped: the agent stopped during the model call")
+
+    def test_a_kill_during_a_repair_never_repeats_it(self):
+        self.config["mode"] = "act"
+        self.host.alerts = [alert("HostHealthCheckStale", notify="telegram")]
+        runner = self.host
+
+        def killing_runner(argv, **kwargs):
+            result = runner(argv, **kwargs)
+            if argv[-1].startswith("act "):
+                raise SystemExit(143)
+            return result
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=killing_runner,  # noqa: E731
+                                          sender=self.send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.poll(advance=900)
+        self.assertEqual(len(self.host.acts()), 1)
+        self.assertEqual(len(self.sent), 2)
+        self.assertIn("repair collector-rerun r2-host-health for HostHealthCheckStale was interrupted", self.sent[1])
+
+    def test_a_kill_after_a_repair_never_repeats_it(self):
+        self.config["mode"] = "act"
+        self.host.alerts = [alert("HostHealthCheckStale", notify="telegram")]
+
+        def killing_send(text):
+            if text.startswith("prod: repair "):
+                raise SystemExit(143)
+            return self.send(text)
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=self.host,  # noqa: E731
+                                          sender=killing_send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.poll()
+        self.assertEqual(len(self.host.acts()), 1)
+        self.assertEqual(len(self.sent), 2)
+        self.assertEqual(self.sent[1], "prod: repair collector-rerun r2-host-health: repaired (report 7200s old)")
+
+    def test_a_kill_during_a_send_repeats_only_that_message(self):
+        self.host.alerts = [alert("UnitMemoryAtLimit")]
+
+        def killing_send(text):
+            self.send(text)
+            if "triage note" in text:
+                raise SystemExit(143)
+            return True
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=self.host,  # noqa: E731
+                                          sender=killing_send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.poll()
+        self.assertEqual(len(self.host.model_calls()), 1)
+        self.assertEqual([t.split("\n")[0] for t in self.sent],
+                         ["prod: 1 new alert(s)", "prod triage note (model, unchecked):",
+                          "prod triage note (model, unchecked):"], "Telegram may have the message: send it again")
+
+    def test_a_kill_during_the_notice_send_keeps_the_model_note_due(self):
+        self.host.alerts = [alert("UnitMemoryAtLimit")]
+
+        def killing_send(text):
+            self.send(text)
+            raise SystemExit(143)
+        poll = lambda: agent_module.Agent(self.config, self.creds, self.state, runner=self.host,  # noqa: E731
+                                          sender=killing_send, clock=lambda: self.now).run_once()
+        self.kill_and_restart(poll)
+        self.poll()
+        self.assertEqual(len(self.host.model_calls()), 1)
+        self.assertEqual([t.split("\n")[0] for t in self.sent],
+                         ["prod: 1 new alert(s)", "prod: 1 new alert(s)", "prod triage note (model, unchecked):"])
+
+    def test_sigterm_saves_the_state(self):
+        import signal
+        import socket
+        import subprocess
+        import time
+        with socket.socket() as server:
+            server.bind(("127.0.0.1", 0))
+            server.listen()
+            (self.config_dir / "config.json").write_text(json.dumps({
+                "ssh_target": "r2agent@127.0.0.1", "ssh_port": server.getsockname()[1],
+                "ssh_key": str(self.tmp / "no-key"), "known_hosts": str(self.tmp / "known_hosts")}))
+            (self.tmp / "state.json").write_text(json.dumps({"failures": 2}))
+            env = {"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "R2_ALERT_AGENT_CONFIG_DIR": str(self.config_dir),
+                   "R2_ALERT_AGENT_STATE_DIR": str(self.tmp)}
+            proc = subprocess.Popen([sys.executable, "-I", str(SCRIPT)], env=env,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            time.sleep(1.5)
+            proc.send_signal(signal.SIGTERM)
+            proc.communicate(timeout=20)
+        self.assertEqual(proc.returncode, 143)
+        state = json.loads((self.tmp / "state.json").read_text())
+        self.assertEqual(state["failures"], 2, "state is written, the stopped poll counts no failure")
+        self.assertIn("outbox", state, "the run saved its own state")
+
     def test_manual_act_rejects_odd_words_before_ssh(self):
         agent = agent_module.Agent(self.config, self.creds, self.state, runner=self.host, sender=self.send)
         self.assertEqual(agent.act("app-restart", "../etc")["reason"], "malformed repair or target")
