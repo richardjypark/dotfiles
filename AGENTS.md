@@ -59,6 +59,25 @@ Higher-level harness/system instructions still take precedence over this file.
 - Before you run tests, setup scripts, or `chezmoi apply`, save unpublished work outside the repository: describe it as a `jj` change, then run `git bundle create "${TMPDIR:-/tmp}/dotfiles-$(date +%Y%m%d-%H%M%S).bundle" --all`. The `.jj` and `.git` history lives in the working tree, so it cannot restore a deleted working tree.
 - Create and remove test directories only through `tests/lib/temp.sh`. If a test stops because it cannot create a temporary directory, fix the environment; do not work around the check.
 
+## Rule Enforcement
+
+Each row pairs a rule with the check that fails when an agent breaks it. A row
+that says "none" is a judgment call: nothing fails, so read it. When a
+correction repeats a rule that has no check, add the check in the same change.
+Drop a row when its mistake can no longer happen.
+
+| Rule | Enforced by |
+| --- | --- |
+| Create and remove shell-test directories only through `tests/lib/temp.sh` | `tests/test_temp_safety.py` (failed `mktemp`, removal guard, no raw `rm -rf`) |
+| A `run_onchange_*` script that sources `chezmoi-helpers.sh` includes `setup/helper-hashes.tmpl`; the template lists every module the entry point loads | `tests/test_helper_modules.py` (`SetupScriptContractTest`) |
+| A setup-script test must not read the host's mise, nvm, npm, or chezmoi state | `SetupFixture` in `tests/test_setup_recovery.py`; its guard test fails on a leak |
+| Keep dangerous-mode and permission-prompt bypasses out of tracked Claude settings | `private_dot_claude/modify_private_settings.json` resets them on apply; `tests/test_agent_instructions.py` |
+| No private paths, secrets, or personal emails in published history | `dotfiles-push`, the git hook, and `tests/test_publication_guards.py`; the `secret-scan` workflow in CI |
+| Changes reach `master` only through a pull request with passing checks | GitHub rulesets (`docs/secrets-management.md`); CI runs `./tests/all` |
+| Never disable the macOS Brave `TorDisabled=true` policy | `.chezmoiscripts/run_after_41-setup-brave-policy.sh` sets it on every apply; no test guards its removal |
+| Save unpublished work outside the repo before tests, setup scripts, or `chezmoi apply` | none |
+| No amends, no destructive git or jj operations, ask before deleting a file to fix a failure | none |
+
 ## Work Sizing
 
 - Small changes can be edited directly after inspection when they stay within one subsystem and have obvious validation.
