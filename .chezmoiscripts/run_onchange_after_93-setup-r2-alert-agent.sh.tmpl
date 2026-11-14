@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 # Units: {{ include "private_dot_config/systemd/user/r2-alert-agent.service" | sha256sum }} {{ include "private_dot_config/systemd/user/r2-alert-agent.timer" | sha256sum }}

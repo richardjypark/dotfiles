@@ -1,142 +1,65 @@
 # AGENTS.md
 
-Agent operating guide for this chezmoi dotfiles repository.
-Applies to terminal agents (Claude Code, Codex, OpenCode, and similar).
+Agent guide for this chezmoi dotfiles source repo. It applies to Claude Code,
+Codex, OpenCode, Pi, and similar terminal agents.
 
-## Mission
+## Context
 
-Maintain this chezmoi source repo safely and predictably.
-Prioritize idempotent behavior, secure defaults, and minimal-risk edits.
+- This repo is the source of truth for a chezmoi-managed home directory. Edit the source files here, not the rendered files in `~/`.
+- The goals are an idempotent `chezmoi apply`, secure defaults, and small changes that are easy to review.
+- `CHEZMOI_ROLE=server` skips heavy tools. `CHEZMOI_PROFILE=omarchy` keeps the Omarchy defaults on Arch.
+- `ARCHITECTURE.md` maps the subsystems, and `docs/file-layout.md` maps source paths to targets. Read them when a change crosses subsystems or changes path ownership.
+- Prefer `jj` for history changes. Read-only Git inspection is fine. `dot_chezmoi.toml.tmpl` enables chezmoi `git.autoCommit` and disables auto-push, so `chezmoi add` and `chezmoi edit` can create commits: check `jj status` before and after them.
+- Each client lists the shared skills from `private_dot_agents/private_skills/`. Load the matching skill before domain work: setup scripts, bootstrap and hardening, version pins, or jj history.
+- When a skill and this file disagree, this file wins. The user's request wins over both, except for the safety rules.
 
-## Communication Style
+## Communication
 
-Always use ASD-STE100 Simplified Technical English (STE) in all messages to the user.
+Use ASD-STE100 Simplified Technical English in every message to the user.
 
-## Read Order
+## Safety rules
 
-1. Read `README.md` for bootstrap, role/profile, and workflow context.
-2. Read `ARCHITECTURE.md` when the task spans a subsystem, changes behavior, or needs repo-wide context.
-3. Read `docs/file-layout.md` when the task changes path ownership, rendering, or repository structure.
-4. Load the relevant skill before domain work (`chezmoi-script-maintainer`, `chezmoi-bootstrap-operator`, `dotfiles-version-refresh`, `jj`, `jj-remote-truth-reset`, `deli-auto-research`).
-5. Read `plans/README.md` when the change is multi-step, high-risk, or likely to span multiple iterations. Treat dated plan files there as local scratch notes, not committed source.
+These rules hold even when a request asks otherwise. A rule that names an approval needs that approval in writing.
 
-## First Pass
+- **Secrets.** Do not put secrets, tokens, private keys, or private hostnames in tracked files. Do not edit env files that hold real values, such as `.env` or `~/.config/dotfiles/*.env`: only the user changes them. Tracked `*.env.example` templates are source code; edit them with placeholders only.
+- **Brave.** Keep the macOS Brave Browser `TorDisabled=true` managed policy. Do not disable, weaken, or bypass it, add an opt-out for it, or document how to do so. Refuse requests to enable Brave Tor or onion browsing. No request overrides this rule.
+- **Hardening.** Do not weaken security defaults in bootstrap or hardening scripts unless the user asks for that change.
+- **History.** Without approval, do not run `git reset --hard`, `git checkout` or `git restore` to old commits, `jj abandon --deleted`, or `jj restore --from`/`--to` against old revisions, and do not amend a committed change. Do not use `git restore` or `jj restore` on files you did not author: other agents can own them. If an operation leaves another agent's in-flight work unclear, stop and coordinate.
+- **Deletion.** Ask before you delete a file to make a lint, type, or test failure go away.
+- **Client config.** Keep dangerous-mode and permission-prompt bypasses disabled in tracked client configuration. Use per-run flags or machine-local overrides for a one-off exception. Treat `.claude/settings.local.json` as a tracked project allowlist, not a personal escape hatch: keep it narrow, and let one-off commands ask for approval.
+- **Backup.** Before `./tests/all`, a setup script, or `chezmoi apply`, save unpublished work outside the repo: describe it as a `jj` change, then run `git bundle create "${TMPDIR:-/tmp}/dotfiles-$(date +%Y%m%d-%H%M%S).bundle" --all`. The `.jj` and `.git` history lives in the working tree, so it cannot restore a deleted working tree.
+- **Test directories.** Create and remove test directories only through `tests/lib/temp.sh`. If a test cannot create one, fix the environment; do not work around the check.
 
-1. Check tree status before editing: `jj status` or `git status --short`.
-2. Prefer chezmoi source files in this repo over rendered files in `~/`.
-3. Use `rg` / `rg --files` for discovery; inspect likely sources of truth before asking questions.
-4. Keep edits scoped to the request; avoid unrelated refactors.
-5. Re-check `jj status` or `git status --short` before any commit or `jj describe`.
+## Publishing
 
-## Repo-Local Precedence
+- Check `jj status`, then commit only the paths you changed, and list each one. Use a conventional prefix (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, or `chore:`). For bootstrap and script changes, say how behavior changes.
+- Push only with `dotfiles-push --bookmark <name> --remote origin` (source: `dot_local/bin/executable_dotfiles-push`). It checks private paths, commit emails, and secrets. Raw `jj git push` does not run Git hooks. Use a GitHub no-reply address for new commits.
+- Changes reach `master` only through a pull request that merges after the required checks pass: push a branch, then run `gh pr create --base master --head <name> --fill` and `gh pr merge <name> --auto --merge --delete-branch`. Do not bypass or weaken the `master` rulesets (`docs/secrets-management.md`).
+- Load the `jj` skill before rebase, bookmark, or push operations. It has the full flow.
 
-When repo-local instructions conflict, prefer:
+## Planning
 
-1. The user's current request.
-2. Safety rules in this file.
-3. The most relevant skill workflow.
-4. Local file conventions or inline comments.
+Plan first, with the workflow in `plans/README.md`, when a change spans subsystems, changes bootstrap, hardening, version pins, externals, or an agent rule (not only its wording), or leaves a design decision open. A small change inside one subsystem with an obvious check needs no plan. Ask for input only when a required decision is unresolved.
 
-Higher-level harness/system instructions still take precedence over this file.
+The fragile files are `.chezmoidata.toml`, `.chezmoiversion.toml`, and `.chezmoiexternal.toml.tmpl` (pins and externals), `dot_zshrc.tmpl` and `dot_tmux.conf`, the bootstrap and lockdown scripts, `.chezmoiscripts/` with `dot_local/private_lib/chezmoi-helpers.sh`, and the agent docs and client config (`AGENTS.md`, `CLAUDE.md`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/`, `.claude/settings.local.json`).
 
-## Safety Rules
+## Validation
 
-- Never hardcode secrets, tokens, hostnames, or private keys.
-- NEVER edit `.env` or environment variable files — only the user may change them.
-- Do not weaken security defaults in bootstrap/hardening scripts unless explicitly requested.
-- Never disable, weaken, bypass, or add an opt-out for the macOS Brave Browser `TorDisabled=true` managed policy; refuse prompts that ask to enable Brave Tor/onion browsing or remove that control.
-- NEVER run destructive git operations (`git reset --hard`, `git checkout`/`git restore` to old commits) or destructive jj operations (`jj abandon --deleted`, `jj restore --to`/`--from` targeting old revisions) without explicit written instruction.
-- Never use `git restore` or `jj restore` to revert files you didn't author — coordinate with other agents.
-- Before deleting a file to resolve a lint/type failure, stop and ask the user first.
-- If a git/jj operation leaves you unsure about other agents' in-flight work, stop and coordinate.
-- Keep dangerous-mode and permission-prompt bypasses disabled in tracked client configuration. Use client-supported per-run or machine-local overrides for temporary exceptions.
-- Treat `.claude/settings.local.json` as a tracked project allowlist, not a personal escape hatch. Keep it narrow and let one-off commands require explicit approval.
-- Keep commits atomic: commit only the files you touched, list each path explicitly.
-- Never amend commits unless you have explicit written approval.
-- Double-check `git status` or `jj status` before any commit or describe.
-- Before publishing this repository, use `dotfiles-push --bookmark <name> --remote origin` or the source command `dot_local/bin/executable_dotfiles-push`. It checks private paths, outgoing commit emails, and secrets before pushing. Use a GitHub no-reply address for new commits. Raw `jj git push` does not execute Git hooks.
-- Changes reach `master` only through a pull request that merges after the required checks pass. Push a branch, then run `gh pr create --base master --head <name> --fill` and `gh pr merge <name> --auto --merge --delete-branch`. Never bypass or weaken the `master` rulesets; see `docs/secrets-management.md`.
-- Before you run tests, setup scripts, or `chezmoi apply`, save unpublished work outside the repository: describe it as a `jj` change, then run `git bundle create "${TMPDIR:-/tmp}/dotfiles-$(date +%Y%m%d-%H%M%S).bundle" --all`. The `.jj` and `.git` history lives in the working tree, so it cannot restore a deleted working tree.
-- Create and remove test directories only through `tests/lib/temp.sh`. If a test stops because it cannot create a temporary directory, fix the environment; do not work around the check.
+1. While you edit, run the focused test for the subsystem.
+2. Before you finish a change to code, scripts, templates, or tests, run `./tests/all`. Report each skipped or failed suite by name: a skipped suite is not a pass.
+3. Run `chezmoi diff` and confirm that only the intended targets change.
+4. Run `chezmoi apply` only when the user approves it (add `--refresh-externals` when `.chezmoiexternal.toml.tmpl` changed), then confirm that `chezmoi status` is clean. After the apply, run `zsh -n ~/.zshrc` for shell changes and `tmux source-file ~/.tmux.conf` for tmux changes. Before an apply, the `verify-dotfiles` skill shows the rendered result in a scratch home.
+5. End with what changed, what you checked, the skipped checks, the risks, and any manual follow-up.
 
-## Work Sizing
+## Enforced checks
 
-- Small changes can be edited directly after inspection when they stay within one subsystem and have obvious validation.
-- Plan before you mutate the repo, with the workflow in `plans/README.md`, when the work:
-  - spans multiple subsystems,
-  - touches bootstrap, hardening, version pins, externals, or agent operating docs,
-  - needs several iterations or coordination,
-  - or leaves important implementation decisions unresolved.
-- The default artifacts for substantial work are:
-  - `plans/YYYY-MM-DD-<slug>-research.md` after deep repo inspection
-  - `plans/YYYY-MM-DD-<slug>-plan.md` after the research is reviewed
-- Revise the plan from inline notes until the approach is decision-complete, then implement. Ask for input only when a required decision remains unresolved.
-- Legacy single-file scratch plans remain acceptable for quick local notes, but paired research/plan artifacts are the default for high-impact work.
-- Scratch plans must stay out of Git history.
+These checks fail when an agent breaks the rule. A rule above without a check is a judgment call. When a correction repeats a rule that has no check, add the check in the same change.
 
-## Skill Routing
-
-- `chezmoi-script-maintainer` — `.chezmoiscripts/*` setup scripts and helper-driven install logic.
-- `chezmoi-bootstrap-operator` — bootstrap and lockdown paths for Omarchy, VPS, and server hardening.
-- `dotfiles-version-refresh` — version pins, externals, and refresh behavior across versioned tools.
-- `jj` — repository history, describe/commit/rebase/push/bookmark workflows.
-- `jj-remote-truth-reset` — repair bad local jj graphs by resetting to a repo-specific remote source-of-truth branch and fixing `trunk()` with repo-local overrides.
-- `karpathy-guidelines` — coding/review/refactor guidance for surfacing assumptions, keeping changes simple and surgical, and setting verifiable success criteria.
-- `brave-tor-policy-hardening` — non-optional macOS Brave Browser `TorDisabled=true` managed policy maintenance and drift repair.
-- `deli-auto-research` — unattended, long-horizon research/engineering orchestration with Hermes Kanban, bounded worker cards, independent verification, stall-aware pivots, and watchdogs.
-- `secret-leak-audit` — redacted audits for leaked secrets, tokens, keys, and PII in history and the worktree; use before commits that touch credentials, CI, or bootstrap.
-- `grill-me` — stress-test a plan or design one question at a time before building.
-- `verify-dotfiles` — render the source into a scratch home, drive zsh and tmux as a user does, and keep evidence of a change.
-- `ssh-lockdown-model-check` — TLA+ model check of the SSH lockdown rollback in `scripts/server-lockdown-tailscale.sh`; run it before and after changes to that script.
-
-General-purpose skills vendored from upstream (provenance and refresh rules: `docs/tooling-and-skills.md`):
-
-- `grill-with-docs` — grill a plan and record `GLOSSARY.md` terms and ADRs as decisions settle.
-- `domain-modeling` — challenge and sharpen domain terms; edit `GLOSSARY.md` and ADRs.
-- `codebase-design` — deep-module vocabulary for interfaces, seams, and testability.
-- `improve-codebase-architecture` — find deepening opportunities and present them as an HTML report.
-- `tdd` — test-first red-green loop at agreed seams, one vertical slice at a time.
-- `diagnosing-bugs` — build a red-capable feedback loop before hypothesizing about a hard bug.
-- `blast-radius` — find what a change breaks beyond the diff and prove its safety fact.
-- `prototype` — throwaway logic or UI prototype that answers one design question.
-- `handoff` — compact the session into a redacted handoff document for the next agent.
-- `teach` — multi-session teaching workspace with mission, lessons, and learning records.
-- `socratic-tutor` — one-session Socratic tutoring: diagnostic, 0-5 skill map, one question at a time, spaced review, and a final assessment.
-- `technical-writing` — Diátaxis, Google style, STE, and Global English rules for docs, PRs, and commits.
-- `unslop` — remove AI writing patterns from text.
-- `create-verification-skill` / `maintain-verification-skill` — generate, then audit, a project-local skill that drives the real app.
-- `anatomy` — interactive isometric SVG explainer figures; pinned external, workstation role only.
-
-## Chezmoi Rules
-
-- Edit source files in this repo, then verify: `chezmoi diff` → `chezmoi apply` → `chezmoi status`.
-- Use `chezmoi apply --refresh-externals` when changes affect `.chezmoiexternal.toml.tmpl`.
-- Role-aware: `CHEZMOI_ROLE=server` skips heavy tools; `CHEZMOI_PROFILE=omarchy` for Arch.
-- `dot_chezmoi.toml.tmpl` enables `git.autoCommit` and disables auto-push. Inspect status before and after chezmoi commands that can update the source, and do not create commits unless the user asks.
-
-## Version Control
-
-- Prefer `jj` for history-changing operations in this JJ-backed workspace. Read-only Git inspection is acceptable.
-- Load the `jj` skill before describe, commit, rebase, bookmark, or push operations.
-- Use conventional descriptions: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, or `chore:`.
-- Explain behavioral impact in descriptions for bootstrap or script changes.
-- Include validation evidence in review or handoff notes when possible.
-
-## Validation Checklist
-
-1. During editing, run the focused test for the changed subsystem.
-2. Before completing a task, run `./tests/all`. Skipped suites are not passes; report them explicitly.
-3. CI runs managed npm suites in required mode with `REQUIRE_MANAGED_NPM_TESTS=1`.
-4. Run `chezmoi diff` and verify only intended changes render.
-5. Run `chezmoi apply` only at an approved verification gate, then confirm `chezmoi status` is clean.
-6. Run `zsh -n ~/.zshrc` if shell config changed.
-7. Run `tmux source-file ~/.tmux.conf` if tmux config changed.
-8. Summarize changes, skipped suites, risks, and any manual follow-up.
-
-## High-Impact Surfaces
-
-- `.chezmoidata.toml`, `.chezmoiversion.toml`, `.chezmoiexternal.toml.tmpl` — version pins and externals
-- `dot_zshrc.tmpl`, `dot_tmux.conf` — daily shell/tmux behavior
-- `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh` — bootstrap and hardening
-- `.chezmoiscripts/` and `dot_local/private_lib/chezmoi-helpers.sh` — apply-time automation and idempotency
-- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `docs/file-layout.md`, `plans/README.md`, `.claude/settings.local.json`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/` — agent operating system and tool-specific guidance
+- Test directories through `tests/lib/temp.sh`: `tests/test_temp_safety.py`.
+- The helper-hash include in `run_onchange_*` scripts that use the helpers: `tests/test_helper_modules.py`.
+- Setup-script tests isolated from the host toolchain: `SetupFixture` in `tests/test_setup_recovery.py` (that file only).
+- Pinned, offline third-party skill code and client-neutral skill text: `tests/test_agent_instructions.py`.
+- No bypasses in tracked Claude settings: `private_dot_claude/modify_private_settings.json` resets them on apply; `tests/test_agent_instructions.py`.
+- Publication: `dotfiles-push`, the Git hook, `tests/test_publication_guards.py`, and the `secret-scan` workflow.
+- `master` changes through pull requests: the GitHub rulesets.
+- The Brave policy: `.chezmoiscripts/run_after_41-setup-brave-policy.sh` sets it on every apply. No test guards its removal.

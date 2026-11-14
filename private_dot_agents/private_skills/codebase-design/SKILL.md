@@ -6,7 +6,7 @@ metadata:
   upstream:
     name: codebase-design
     url: https://github.com/mattpocock/skills/blob/main/skills/engineering/codebase-design/SKILL.md
-    commit: 49dd158d1076134a641b33efb035946536778336
+    commit: 5863806dd4e15c63174bee4e7515a4256792ecfa
 ---
 
 # Codebase Design

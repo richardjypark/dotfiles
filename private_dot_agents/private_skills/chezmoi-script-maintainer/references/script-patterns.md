@@ -4,16 +4,21 @@ Use these patterns for `.chezmoiscripts/*`.
 
 ## Canonical Header Pattern
 
+For a `run_onchange_*` template (`.sh.tmpl`) that uses the helpers:
+
 ```bash
 #!/usr/bin/env bash
+{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
-if state_exists "<task>"; then
+if should_skip_state "<task>"; then
   vecho "<task> already completed (state tracked)"
   exit 0
 fi
 ```
+
+The include line puts the helper hashes into the rendered script, so a helper edit makes chezmoi run the script again. `tests/test_helper_modules.py` fails when a `run_onchange_*` script that sources the helpers leaves it out. `should_skip_state` also honors a forced update (`czuf`); `state_exists` does not.
 
 The helpers provide `VERBOSE`, `STATE_DIR`, `vecho`, `eecho`, `state_exists`, `should_skip_state`, `mark_state`, `add_to_path`, and `run_quiet`.
 
@@ -29,19 +34,13 @@ Use `require_trust_for_remote_download "<source>"` for artifact downloads. Both 
 
 ## Role Gate Pattern
 
+The role comes from `CHEZMOI_ROLE` or the saved chezmoi data, so resolve it at render time:
+
 ```bash
-if [ "${CHEZMOI_ROLE:-}" = "server" ]; then
+if [ "{{ includeTemplate "resolved-role" . }}" = "server" ]; then
   vecho "Skipping <tool> setup on server role"
   exit 0
 fi
-```
-
-## Helper Hash Include
-
-Put this line near the top of a `run_onchange_*` template that uses the helpers:
-
-```text
-{{ includeTemplate "setup/helper-hashes.tmpl" . }}
 ```
 
 ## Existing Files to Reuse

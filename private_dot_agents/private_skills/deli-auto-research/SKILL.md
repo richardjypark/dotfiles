@@ -281,12 +281,15 @@ For a standard topology, use the swarm helper after configuring a suitable board
 
 ```bash
 hermes kanban swarm "<project goal and acceptance criteria>" \
-  --workers <explorer-profile>,<alternative-profile>,<refuter-profile> \
+  --worker "<explorer-profile>:G1-D1 <direction>" \
+  --worker "<alternative-profile>:G1-D2 <direction>" \
+  --worker "<refuter-profile>:G1-D3 refute <claim>" \
   --verifier <verifier-profile> \
-  --synthesizer <synthesizer-profile>
+  --synthesizer <synthesizer-profile> \
+  --idempotency-key "<project-id>:g1:swarm"
 ```
 
-When the helper in the installed Hermes version cannot expose deterministic idempotency keys for every generated worker, verifier, and synthesizer card, prefer explicit card creation for unattended projects.
+`--worker` takes `PROFILE:TITLE[:SKILL,SKILL]` and repeats once per worker. `--idempotency-key` covers only the root card, not the generated worker, verifier, and synthesizer cards, so prefer explicit card creation for unattended projects.
 
 For per-card policies, create an explicit graph. Each worker card should normally include:
 

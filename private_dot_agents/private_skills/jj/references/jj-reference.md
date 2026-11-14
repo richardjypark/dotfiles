@@ -26,7 +26,7 @@
 ## Quick Start
 
 - Confirm repository state: `jj status` (alias: `jj s`)
-- Inspect graph before changes: `jj log -r '::@' --limit 12` (alias: `jj l`)
+- Inspect graph before changes: `jj log -r '::@' --limit 12` (the `jj l` alias shows `@::`, the changes after `@`)
 - Show working-copy diff: `jj diff` (alias: `jj d`)
 - Show diff stats: `jj ds`
 - Inspect a specific change: `jj show -r <rev>` or `jj diff -r <rev>`
@@ -233,9 +233,9 @@ Every jj operation is recorded until it is garbage-collected.
 | `git add` | automatic | No staging area |
 | `git commit` | `jj commit` or `jj describe` + `jj new` | |
 | `git commit --amend` | `jj squash` | Moves `@` into `@-` |
-| `git stash` | `jj new` then `jj edit @-` | Leave changes in a new change |
+| `git stash` | `jj new @-` | Start a sibling change; the current work stays in its own change |
 | `git rebase` | `jj rebase` | |
-| `git cherry-pick` | `jj new <change-id>` + `jj squash` | |
+| `git cherry-pick` | `jj duplicate <rev> --onto @` | Copies the change onto `@` |
 | `git branch` | `jj bookmark create` | |
 | `git push` | `jj git push` | |
 | `git fetch` | `jj git fetch` | |

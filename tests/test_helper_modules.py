@@ -4,6 +4,7 @@
 import os
 import hashlib
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -199,6 +200,37 @@ esac
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 1)
             self.assertIn("-S requires a value", result.stderr)
+
+
+class SetupScriptContractTest(unittest.TestCase):
+    """A helper edit must re-run every run_onchange script that uses the helpers.
+
+    chezmoi runs a run_onchange script again only when its rendered text changes.
+    The hash template puts the helper hashes into that text.
+    """
+
+    INCLUDE = 'includeTemplate "setup/helper-hashes.tmpl"'
+    TEMPLATE = ROOT / ".chezmoitemplates/setup/helper-hashes.tmpl"
+
+    def test_run_onchange_scripts_that_source_the_helpers_include_their_hashes(self):
+        missing = sorted(
+            path.name for path in (ROOT / ".chezmoiscripts").glob("run_onchange_*")
+            if "chezmoi-helpers.sh" in path.read_text(encoding="utf-8")
+            and self.INCLUDE not in path.read_text(encoding="utf-8")
+        )
+        self.assertEqual(missing, [], (
+            "Add this line under the shebang of each script: "
+            '{{ includeTemplate "setup/helper-hashes.tmpl" . }}'))
+
+    def test_every_module_the_entry_point_loads_is_in_the_hash_template(self):
+        loaded = re.findall(r'\. "\$CHEZMOI_HELPERS_DIR/(chezmoi/[\w.-]+\.sh)"',
+                            HELPER.read_text(encoding="utf-8"))
+        self.assertTrue(loaded)
+        template = self.TEMPLATE.read_text(encoding="utf-8")
+        missing = [name for name in loaded
+                   if f'dot_local/private_lib/{name}' not in template]
+        self.assertEqual(missing, [], (
+            f"Add an include line for each module to {self.TEMPLATE.relative_to(ROOT)}"))
 
 
 if __name__ == "__main__":

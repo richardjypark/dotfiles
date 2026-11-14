@@ -86,6 +86,9 @@ logs/*
 
 # Claude Code - not needed on prod servers
 .chezmoiscripts/35-setup-claude-code.sh
+
+# Web front-end skill: its pinned package external is workstation-only.
+.agents/skills/modern-web-guidance
 {{ end }}
 
 # Preserve Omarchy defaults while still managing this repo.

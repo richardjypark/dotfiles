@@ -29,11 +29,18 @@ def executable(path, contents):
     path.chmod(0o755)
 
 
-class SetupRecoveryTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.claude = render("run_onchange_after_35-setup-claude-code.sh.tmpl")
-        cls.hermes = render("run_after_39-setup-hermes-agent.sh.tmpl")
+# Host variables that change how mise, nvm, npm, and XDG-aware tools find files.
+# A test that keeps them can read the maintainer's real toolchain.
+HOST_ENV_PREFIXES = ("MISE_", "NVM_", "XDG_", "NPM_", "npm_", "NODE_", "CHEZMOI_")
+
+
+class SetupFixture(unittest.TestCase):
+    """The one owner of the scratch home, helper library, and isolated environment.
+
+    Every test that runs a rendered setup script builds on this class, so no
+    test can see the host's mise, nvm, npm, or chezmoi state. Put a fake for
+    any host tool a script may call in self.bin; do not rely on PATH order.
+    """
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -48,13 +55,42 @@ class SetupRecoveryTest(unittest.TestCase):
         lib.mkdir()
         shutil.copyfile(self.helper, lib / "chezmoi-helpers.sh")
         shutil.copytree(ROOT / "dot_local/private_lib/chezmoi", lib / "chezmoi")
-        self.prefix = self.base / "npm"
-        self.env = dict(os.environ, HOME=str(self.home), STATE_DIR=str(self.state),
+        # The helpers ask mise first for node and npm. A mise in /usr/bin would
+        # answer from the host. This stub finds nothing, so the fake npm is used.
+        executable(self.bin / "mise", "#!/bin/sh\nexit 1\n")
+        self.env = {name: value for name, value in os.environ.items()
+                    if not name.startswith(HOST_ENV_PREFIXES)}
+        self.env.update(HOME=str(self.home), STATE_DIR=str(self.state),
                         PATH=f"{self.bin}:/usr/bin:/bin", VERBOSE="false",
                         GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL="/dev/null",
-                        TRUST_ON_FIRST_USE_INSTALLERS="0", CHEZMOI_FORCE_UPDATE="0",
-                        TEST_PREFIX=str(self.prefix), TEST_INSTALL_FAIL="0")
+                        TRUST_ON_FIRST_USE_INSTALLERS="0", CHEZMOI_FORCE_UPDATE="0")
         self.env.pop("CHEZMOI_HELPERS_LOADED", None)
+
+    def run_bash(self, script):
+        return subprocess.run(["/bin/bash", "-c", script], env=self.env,
+                              capture_output=True, text=True, timeout=20)
+
+    def test_host_toolchain_cannot_leak_into_the_fixture(self):
+        # A host mise or host variable would make scripts pass or fail by machine.
+        result = self.run_bash('command -v mise; mise which npm || echo no-npm-from-mise')
+        self.assertEqual(result.stdout.splitlines()[0], str(self.bin / "mise"))
+        self.assertIn("no-npm-from-mise", result.stdout)
+        # The fixture sets CHEZMOI_FORCE_UPDATE itself. Nothing else may match.
+        leaked = sorted(name for name in self.env
+                        if name.startswith(HOST_ENV_PREFIXES) and name != "CHEZMOI_FORCE_UPDATE")
+        self.assertEqual(leaked, [])
+
+
+class SetupRecoveryTest(SetupFixture):
+    @classmethod
+    def setUpClass(cls):
+        cls.claude = render("run_onchange_after_35-setup-claude-code.sh.tmpl")
+        cls.hermes = render("run_after_39-setup-hermes-agent.sh.tmpl")
+
+    def setUp(self):
+        super().setUp()
+        self.prefix = self.base / "npm"
+        self.env.update(TEST_PREFIX=str(self.prefix), TEST_INSTALL_FAIL="0")
         executable(self.bin / "npm", '''#!/usr/bin/env bash
 set -eu
 case "$1" in
@@ -73,10 +109,6 @@ case "$1" in
     *) exit 2 ;;
 esac
 ''')
-
-    def run_bash(self, script):
-        return subprocess.run(["/bin/bash", "-c", script], env=self.env,
-                              capture_output=True, text=True, timeout=20)
 
     def broken_claude(self):
         old = self.home / ".nvm/versions/node/old/bin/claude"

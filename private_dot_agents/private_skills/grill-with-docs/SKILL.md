@@ -10,4 +10,4 @@ metadata:
     commit: 49dd158d1076134a641b33efb035946536778336
 ---
 
-Call the Skill tool twice, for "grill-me" and "domain-modeling".
+Load the `grill-me` skill and the `domain-modeling` skill, then follow both.

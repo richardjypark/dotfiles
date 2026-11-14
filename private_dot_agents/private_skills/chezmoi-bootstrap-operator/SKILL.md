@@ -10,21 +10,21 @@ description: "Maintain bootstrap workflows for this dotfiles repo across Omarchy
 Use this skill when:
 
 - choosing the correct bootstrap command or flags for a machine role/profile
-- editing `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, or `scripts/server-lockdown-tailscale.sh`
+- editing `scripts/bootstrap-omarchy.sh`, `bootstrap-vps.sh`, `scripts/server-lockdown-tailscale.sh`, or `scripts/setup-personal-cloud-tailscale.sh`
 - changing bootstrap sequencing, trust gates, or server lockdown behavior
 
 ## Read first
 
-- `~/.local/share/chezmoi/AGENTS.md`
-- `~/.local/share/chezmoi/ARCHITECTURE.md`
 - `references/bootstrap-matrix.md`
+- `ARCHITECTURE.md` in the repo root, only when the change crosses subsystems
 
 ## Workflow
 
 1. Determine the target path:
    - Omarchy machine: `scripts/bootstrap-omarchy.sh`
    - Debian/Ubuntu VPS: `bootstrap-vps.sh`
-   - post-bootstrap hardening: `scripts/server-lockdown-tailscale.sh`
+   - post-bootstrap hardening (UFW): `scripts/server-lockdown-tailscale.sh`
+   - personal-cloud hardening (nftables): `scripts/setup-personal-cloud-tailscale.sh`, then `--lockdown` and `--confirm` from new Tailscale SSH sessions
 2. Load command and flag details from `references/bootstrap-matrix.md`.
 3. Apply the smallest safe change:
    - keep default-safe behavior (no implicit trust of remote installers)
@@ -51,7 +51,10 @@ Run these checks after edits:
 bash -n scripts/bootstrap-omarchy.sh
 bash -n scripts/server-lockdown-tailscale.sh
 bash -n bootstrap-vps.sh
+bash -n scripts/setup-personal-cloud-tailscale.sh
 ```
+
+Run `ssh-lockdown-model-check` before and after changes to `scripts/server-lockdown-tailscale.sh`.
 
 For behavior checks, run only the relevant command path from `references/bootstrap-matrix.md`.
 

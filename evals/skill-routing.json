@@ -81,11 +81,6 @@
       "expected_skill": "jj-remote-truth-reset"
     },
     {
-      "id": "surgical-code-review",
-      "request": "Review this refactor for hidden assumptions, unnecessary abstractions, and unrelated edits, then define concrete verification criteria.",
-      "expected_skill": "karpathy-guidelines"
-    },
-    {
       "id": "audit-verify-skill",
       "request": "Audit our existing verify-app skill and its feature map against the source and a live run, and ship one PR of proven corrections.",
       "expected_skill": "maintain-verification-skill"
@@ -139,6 +134,11 @@
       "id": "no-repo-skill",
       "request": "Write a three-line haiku about warm summer rain.",
       "expected_skill": "none"
+    },
+    {
+      "id": "modern-web-light-dismiss-dialog",
+      "request": "Build a settings modal that closes when I click outside it or press Escape, with an animated backdrop, in plain HTML and CSS.",
+      "expected_skill": "modern-web-guidance"
     }
   ]
 }

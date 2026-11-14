@@ -2,23 +2,14 @@
 
 ## Agent Operating Stack
 
-- `AGENTS.md` — short control-plane rules for agents: safety, work sizing, skill routing, and validation.
+- `AGENTS.md` — short control-plane rules for agents: context, safety, publishing, planning triggers, validation, and enforced checks.
 - `ARCHITECTURE.md` — stable mental model of repo subsystems, invariants, and change routing.
 - `plans/README.md` — canonical planning workflow, including local research/plan artifacts, annotation, and progress tracking.
 - `README.md` and `docs/` — user-facing workflows and subsystem-specific deep dives.
 
 ## Planning Workflow
 
-Claude Code is the canonical planning workflow owner for this repo's high-impact work. The expected loop is:
-
-1. Deep-read the relevant subsystem.
-2. Write a local `*-research.md` artifact.
-3. Write a local `*-plan.md` artifact.
-4. Review and annotate the plan in the editor.
-5. Revise until the plan is decision-complete.
-6. Implement against that plan and keep the plan status current.
-
-Other agents (Codex, Pi, Hermes Agent) follow the same `plans/README.md` contract instead of a separate process.
+`AGENTS.md` says when to plan, and `plans/README.md` owns the workflow for every agent (Claude Code, Codex, Pi, Hermes Agent).
 
 ## Local Update Commands
 
@@ -94,7 +85,7 @@ Installed client paths are routed to the shared tree:
 
 This repo also tracks a project-local Claude policy file at `.claude/settings.local.json`. Treat it as repo policy, not as a personal escape hatch, keep its permissions narrow and domain-scoped, reserve tracked entries for core workflow primitives, and let one-off convenience/bootstrap commands rely on explicit approval instead of tracked pre-approval.
 
-The canonical skill-routing list lives in `AGENTS.md`. Keep detailed procedures in
+Each client routes to skills by their `SKILL.md` `name` and `description`; there is no separate routing list. Keep detailed procedures in
 the corresponding `private_dot_agents/private_skills/*/SKILL.md` files instead
 of copying the full catalog into secondary documentation.
 
@@ -119,7 +110,7 @@ Vendored skills are copies of upstream MIT-licensed skills that live in the shar
 
 - Each `SKILL.md` frontmatter has `license: MIT` and `metadata.upstream` with the upstream `name` and `url`, plus the vendored `commit`. The older `grill-me` port has no recorded commit.
 - Each folder has `LICENSE.txt` with the upstream copyright notice.
-- Local edits stay small: rename references to match local skill names (upstream `grilling` is local `grill-me`), make Cursor-only paths client-neutral, and remove references to skills that are not vendored.
+- Local edits stay small: rename references to match local skill names (upstream `grilling` is local `grill-me`), make Cursor-only paths and client-only tool names (such as Claude's Skill tool) client-neutral, and remove references to skills that are not vendored.
 - To refresh one, diff the upstream folder between the recorded `commit` and the new commit, apply the change, keep the local edits, and update `commit`.
 
 Current upstream sources:
@@ -129,6 +120,8 @@ Current upstream sources:
 - `janestreet/agent_skills`: `socratic-tutor`.
 
 Large skills with bundled examples or tooling install as pinned chezmoi externals instead of repo copies. `anatomy` (wheresryan22/anatomy, about 12 MB) installs at `~/.agents/skills/anatomy` from a commit-pinned archive in `.chezmoiexternal.toml.tmpl`, on the workstation role only, because it needs Node.js and Chrome. Its gallery publish step runs `git` and `gh` and reads local Claude Code session logs for time and token counts. It runs only after the user approves a dry-run plan.
+
+`modern-web-guidance` (GoogleChrome, Apache-2.0) splits in two. The skill text is vendored in `private_dot_agents/private_skills/modern-web-guidance/` with small local edits listed in its frontmatter. The guides, search index, and CLI install at `~/.local/share/modern-web-guidance` from the checksum-pinned npm tarball in `.chezmoiexternal.toml.tmpl`, on the workstation role only. Upstream runs `npx -y modern-web-guidance@latest` on each call, which downloads a new release about every 1.6 days; the local skill runs the pinned copy with `node` and `DISABLE_TELEMETRY=1`, with no network. Do not install the upstream Claude Code plugin as well: it adds a second, unpinned copy. To update, diff the upstream `SKILL.md` and CLI, then bump `npm-version` in the skill, the tarball URL, and the checksum together; `tests/test_agent_instructions.py` checks that they agree.
 
 ## Future Machine Combination Pattern
 

@@ -15,6 +15,7 @@ Use this map to propagate version bumps safely.
 - `.chezmoiexternal.toml.tmpl`
   - Oh My Zsh archive commit URL
   - `anatomy` skill archive commit URL (wheresryan22/anatomy release commit). Review the upstream diff for new network calls, scripts, and publish behavior before you bump it. The v1.1.0 pin was added on 2026-10-12, before the seven-day age, as an approved exception.
+  - `modern-web-guidance` npm tarball URL and `checksum.sha256` (GoogleChrome). Diff the upstream `SKILL.md` and CLI first. Bump the tarball version, the checksum, and `npm-version` in `private_dot_agents/private_skills/modern-web-guidance/SKILL.md` together; `tests/test_agent_instructions.py` fails when they disagree. The 1.0.0 pin was added on 2026-11-14, before the seven-day age, as a reviewed exception.
 - `private_dot_config/mise/modify_config.toml`
   - Global Node and package-manager defaults for managed agent tools.
   - Project-specific Erlang, Elixir, Node, and package-manager versions belong in each project's `mise.toml`.
