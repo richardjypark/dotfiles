@@ -56,4 +56,4 @@ for f in .chezmoiscripts/*.tmpl; do chezmoi execute-template < "$f" | bash -n ||
 chezmoi apply --dry-run --refresh-externals
 ```
 
-Run `chezmoi diff` before finishing to confirm only intended pin updates. For Hermes Agent bumps on an enabled host, also run `TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply`, `hermes --version`, and `chezmoi status --exclude scripts`.
+Run `chezmoi diff` before finishing to confirm only intended pin updates. For Hermes Agent bumps on an enabled host, and after the user approves an apply, also run `TRUST_ON_FIRST_USE_INSTALLERS=1 chezmoi apply`, `hermes --version`, and `chezmoi status --exclude scripts`.

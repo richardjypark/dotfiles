@@ -120,4 +120,4 @@ jj --ignore-working-copy log -r "$local_only_revset" --no-graph --template 'comm
 git status --short
 ```
 
-After changing the chezmoi-managed jj config, run `chezmoi diff`, `chezmoi apply`, and `chezmoi status`.
+After changing the chezmoi-managed jj config, run `chezmoi diff`. Run `chezmoi apply` and `chezmoi status` only after the user approves an apply.

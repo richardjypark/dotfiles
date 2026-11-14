@@ -34,7 +34,7 @@ Use this skill when:
 Follow `references/script-patterns.md`:
 
 - Use `#!/usr/bin/env bash` and `set -euo pipefail`, then source `$HOME/.local/lib/chezmoi-helpers.sh`. It loads `chezmoi/core.sh`, `artifacts.sh`, and `npm.sh`, which set `VERBOSE`, `STATE_DIR`, `vecho`, and `eecho`. Do not define them again.
-- Track one-time work with `state_exists` / `should_skip_state` and `mark_state`.
+- Track one-time work with `should_skip_state` and `mark_state`. `should_skip_state` honors a forced update; use `state_exists` only when a forced update must not rerun the step.
 - Gate remote installers and downloads with `require_trust_for_remote_installer` or `require_trust_for_remote_download` (`TRUST_ON_FIRST_USE_INSTALLERS=1`).
 - Keep non-interactive defaults; use interactive sudo only behind `CHEZMOI_BOOTSTRAP_ALLOW_INTERACTIVE_SUDO`.
 - Prefer fast checks (command exists, version matches) before installers.

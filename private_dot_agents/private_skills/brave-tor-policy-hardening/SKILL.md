@@ -41,9 +41,9 @@ Use this skill when work touches:
 bash -n .chezmoiscripts/run_after_41-setup-brave-policy.sh
 bash -n dot_local/bin/executable_chezmoi-health-check
 chezmoi diff
-chezmoi apply
-chezmoi status
 ```
+
+Run `chezmoi apply` and `chezmoi status` only after the user approves an apply.
 
 On macOS, also verify the rendered policy when sudo is available:
 
