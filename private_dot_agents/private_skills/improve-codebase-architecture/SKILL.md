@@ -7,7 +7,7 @@ metadata:
   upstream:
     name: improve-codebase-architecture
     url: https://github.com/mattpocock/skills/blob/main/skills/engineering/improve-codebase-architecture/SKILL.md
-    commit: 49dd158d1076134a641b33efb035946536778336
+    commit: 5863806dd4e15c63174bee4e7515a4256792ecfa
 ---
 
 # Improve Codebase Architecture
@@ -30,7 +30,7 @@ This command is _informed_ by the project's domain model and built on a shared d
 
 Read the project's domain glossary (`GLOSSARY.md`) and any ADRs in the area you're touching first.
 
-Then spawn a sub-agent to walk the codebase. Don't follow rigid heuristics; explore organically and note where you experience friction:
+Then spawn a sub-agent with a fresh context window to walk the codebase. Don't follow rigid heuristics; explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow**, with an interface nearly as complex as the implementation?
