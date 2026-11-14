@@ -24,7 +24,7 @@ The resulting binary is linked to:
 ## Local Pi Agent Settings Override
 
 This repo tracks a default `~/.pi/agent/settings.json` with
-`defaultModel = "gpt-5.6-sol"` and `defaultThinkingLevel = "max"` (Pi's
+`defaultModel = "claude-opus-5-5"` and `defaultThinkingLevel = "max"` (Pi's
 maximum reasoning level). The tracked `~/.pi/agent/models.json` intentionally
 has no model overrides, so Pi's built-in and refreshed provider catalogs remain
 authoritative. On apply, only the tracked settings keys are set; keys that Pi
@@ -50,7 +50,7 @@ Example workflow for this repo:
 ```bash
 cp ~/.pi/agent/settings.json ~/.config/dotfiles/pi/settings.local.json
 # edit the local copy (for example defaultModel)
-jq '.defaultModel = "gpt-5.3-codex-spark"' \
+jq '.defaultModel = "claude-haiku-5-5"' \
   ~/.config/dotfiles/pi/settings.local.json \
   > ~/.config/dotfiles/pi/settings.local.json.tmp && \
   mv ~/.config/dotfiles/pi/settings.local.json.tmp ~/.config/dotfiles/pi/settings.local.json
