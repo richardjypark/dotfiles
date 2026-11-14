@@ -1,6 +1,11 @@
 README*
 plans/[0-9]*.md
 
+# The agent guide applies to this repo only. Clients read it from the repo
+# root; a copy in ~ would load in every project under the home directory.
+AGENTS.md
+CLAUDE.md
+
 # Machine-local environment files are never chezmoi targets, even if they exist in the source tree.
 .env
 .env.*

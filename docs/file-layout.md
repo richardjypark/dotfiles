@@ -33,8 +33,7 @@ for the complete naming and execution rules.
 
 | Source path | Target or role | Current classification |
 | --- | --- | --- |
-| `AGENTS.md` | `~/AGENTS.md` | Managed agent context |
-| `CLAUDE.md` | `~/CLAUDE.md` | Managed client context |
+| `AGENTS.md`, `CLAUDE.md` | Source-only (ignored target) | Agent guide for this repo; clients read it from the repo root |
 | `ARCHITECTURE.md` | `~/ARCHITECTURE.md` | Managed architecture context |
 | `docs/architecture-and-performance.md` | `~/docs/architecture-and-performance.md` | Managed documentation |
 | `docs/file-layout.md` | `~/docs/file-layout.md` | Managed documentation |
@@ -60,7 +59,6 @@ for the complete naming and execution rules.
 | `.chezmoitemplates/setup/helper-hashes.tmpl` | Source-only rendering input | Helper change detection for run-onchange scripts |
 | `.chezmoitemplates/resolved-role`, `.chezmoitemplates/resolved-profile` | Source-only rendering inputs | Shared role and profile selection |
 | `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl` | Executed during apply; no managed file target | Always-run Hermes setup |
-| `private_dot_codex/AGENTS.md.tmpl` | `~/.codex/AGENTS.md` | Managed Codex context |
 | `private_dot_codex/modify_private_config.toml` | `~/.codex/config.toml` | Merges managed Codex keys; keeps Codex-written state |
 | `dot_pi/agent/settings.json` | `~/.pi/agent/settings.json` (ignored target) | Managed keys merged by `run_after_98-pi-local-overrides`; keeps Pi-written keys |
 | `private_dot_claude/modify_private_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits, except unsafe permission settings are reset |
