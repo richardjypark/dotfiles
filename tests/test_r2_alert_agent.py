@@ -53,7 +53,8 @@ def stream(text="Likely cause: test.", *, code=0, is_error=False, five_hour=0.1,
             "unifiedWindows": {"five_hour": {"utilization": five_hour, "resetsAt": 2_000_000_000},
                                "seven_day": {"utilization": 0.2, "resetsAt": 2_000_000_000}}}},
         {"type": "result", "subtype": "success" if not is_error else "error_during_execution",
-         "is_error": is_error, "result": text},
+         "is_error": is_error, "result": text, "total_cost_usd": 0.0016,
+         "usage": {"input_tokens": 6163, "output_tokens": 800}},
     ]
     return code, "\n".join(json.dumps(line) for line in lines), ""
 
@@ -106,7 +107,8 @@ class PollerTest(unittest.TestCase):
         self.state: dict = {}
         self.now = 1_800_000_000.0
         self.config = {"mode": "observe", "ssh_target": "r2agent@192.0.2.1", "ssh_alias": "prod",
-                       "claude_bin": str(self.claude), "own_domains": ["glazeprompt.com"]}
+                       "claude_bin": str(self.claude), "own_domains": ["glazeprompt.com"],
+                       "summary_delay_seconds": 0}
         self.creds = {"CLAUDE_CODE_OAUTH_TOKEN": "test-token", "TELEGRAM_BOT_TOKEN": "x", "TELEGRAM_CHAT_ID": "1"}
         self.creds_mtime = 1.0
         self.telegram_up = True
@@ -158,6 +160,7 @@ class PollerTest(unittest.TestCase):
 
     def test_failed_repair_gets_one_model_call(self):
         self.config["mode"] = "act"
+        self.config["summary_delay_seconds"] = 300
         self.host.act_result = {"result": "failed", "detail": "app still does not answer", "exit": 3}
         self.host.alerts = [alert("BlackboxProbeDown", severity="critical", instance="https://www.glazeprompt.com")]
         self.poll()
@@ -303,6 +306,76 @@ class PollerTest(unittest.TestCase):
         self.assertEqual(len(self.sent), 2)
         self.assertTrue(self.sent[0].startswith("prod: 1 new alert(s)"))
         self.assertEqual(self.state["outbox"], [])
+
+    def calls_log(self):
+        path = self.tmp / "calls.jsonl"
+        return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+    def test_short_incident_gets_the_notice_but_no_model_call(self):
+        self.config["summary_delay_seconds"] = 300
+        self.host.alerts = [alert("HostPublicDnsResolutionFailed", severity="critical", notify="telegram")]
+        self.poll()
+        self.assertEqual(len(self.sent), 1, "the notice does not wait for the delay")
+        self.assertIn("A model note follows if an alert is still active after 5 min.", self.sent[0])
+        self.poll()
+        self.host.alerts = []
+        self.poll()
+        self.assertEqual(self.host.model_calls(), [])
+        self.assertEqual(len(self.sent), 1)
+        self.assertEqual([(r["alerts"], r["result"]) for r in self.calls_log()],
+                         [(["HostPublicDnsResolutionFailed"], "not_needed")])
+
+    def test_lasting_incident_gets_one_model_call_after_the_delay(self):
+        self.config["summary_delay_seconds"] = 300
+        self.host.alerts = [alert("UnitMemoryAtLimit")]
+        self.poll()
+        self.poll()
+        self.poll()
+        self.assertEqual(self.host.model_calls(), [], "240 s is less than the delay")
+        self.poll()
+        self.assertEqual(len(self.host.model_calls()), 1)
+        self.assertTrue(self.sent[-1].startswith("prod triage note (model, unchecked):"))
+        self.poll()
+        self.host.alerts = []
+        self.poll()
+        self.assertEqual(len(self.host.model_calls()), 1)
+        self.assertEqual([r["result"] for r in self.calls_log()], ["ok"])
+
+    def test_each_model_decision_is_logged_privately(self):
+        self.host.alerts = [alert("New")]
+        self.poll()
+        (record,) = self.calls_log()
+        self.assertEqual((record["alerts"], record["result"], record["model"]), (["New"], "ok", "claude-haiku-5-5"))
+        self.assertEqual(record["note"], "Likely cause: test.")
+        self.assertEqual((record["input_tokens"], record["output_tokens"], record["cost_usd"]), (6163, 800, 0.0016))
+        self.assertEqual(json.loads(record["bundle"])["alerts"][0]["labels"]["alertname"], "New")
+        self.assertEqual(record["time"], "2027-01-15T08:02:00Z")
+        self.assertEqual((self.tmp / "calls.jsonl").stat().st_mode & 0o777, 0o600)
+        self.host.model = (124, "", "timeout after 120s")
+        self.host.alerts = [alert("Slow")]
+        self.poll()
+        self.assertEqual((self.calls_log()[-1]["result"], self.calls_log()[-1]["reason"]),
+                         ("failed", "timeout after 120s"))
+        self.claude.unlink()
+        self.host.alerts = [alert("Blocked")]
+        self.poll()
+        self.assertEqual((self.calls_log()[-1]["result"], self.calls_log()[-1]["reason"]),
+                         ("skipped", "claude binary missing"))
+        self.assertNotIn("test-token", (self.tmp / "calls.jsonl").read_text())
+
+    def test_call_log_rotates_and_a_write_error_never_stops_the_poll(self):
+        self.config["call_log_max_bytes"] = 100
+        for name in ("One", "Two"):
+            self.host.alerts = [alert(name)]
+            self.poll()
+        self.assertEqual([r["alerts"] for r in self.calls_log()], [["Two"]])
+        old = (self.tmp / "calls.jsonl.1").read_text()
+        self.assertIn('"One"', old)
+        (self.tmp / "calls.jsonl").unlink()
+        (self.tmp / "calls.jsonl").mkdir()
+        self.host.alerts = [alert("Three")]
+        self.assertEqual(self.poll(), 0)
+        self.assertTrue(self.sent[-1].startswith("prod triage note (model, unchecked):"))
 
     def test_manual_act_rejects_odd_words_before_ssh(self):
         agent = agent_module.Agent(self.config, self.creds, self.state, runner=self.host, sender=self.send)
