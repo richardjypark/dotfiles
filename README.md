@@ -110,7 +110,7 @@ available if `chezmoi-health-check` reports policy drift.
 | `dotfiles-push --bookmark NAME [--remote NAME] [--dry-run]` | Checks private source paths, outgoing commit emails, and secrets before pushing one exact JJ bookmark. | Publish this repository. See [secrets management](docs/secrets-management.md) to activate Git hooks and the repository's guarded `jj push` alias on each machine. |
 | `chezmoi-rerun-script <source-script-path>` | Managed helper in `~/.local/bin/chezmoi-rerun-script`: clears chezmoi's remembered `run_onchange_*` state for the given source script so the next `chezmoi apply` reruns it. | Recover from manual deletions or force a one-off rerun of a bootstrap/setup script after local drift. |
 | `pi-agent-run [--model MODEL] <agent-markdown-file> [task...]` | Managed helper in `~/.local/bin/pi-agent-run`: runs a Pi markdown agent file non-interactively with its declared model and tools, or an override from `--model`/`PI_AGENT_RUN_MODEL`; use `--model default` for Pi's configured default model. | Reuse a Pi agent from another shell-driven CLI or script. |
-| `jj-fast-agent [--model MODEL] [task...]` | Managed wrapper in `~/.local/bin/jj-fast-agent`: runs the shared `jj` Pi agent, defaulting to `openai-codex/gpt-5.3-codex-spark:minimal` but overridable with `--model`, `JJ_FAST_AGENT_MODEL`, `PI_JJ_AGENT_MODEL`, or `JJ_AGENT_MODEL`; use `--model default` to use Pi's configured default model. | Fast jj/git-only delegation from tools that can run shell commands but do not support Pi subagents directly. |
+| `jj-fast-agent [--model MODEL] [task...]` | Managed wrapper in `~/.local/bin/jj-fast-agent`: runs the shared `jj` Pi agent, defaulting to `anthropic/claude-haiku-5-5:minimal` but overridable with `--model`, `JJ_FAST_AGENT_MODEL`, `PI_JJ_AGENT_MODEL`, or `JJ_AGENT_MODEL`; use `--model default` to use Pi's configured default model. | Fast jj/git-only delegation from tools that can run shell commands but do not support Pi subagents directly. |
 | `jj-sync-trunk` / `jj trunk-sync` | Managed helper in `~/.local/bin/jj-sync-trunk`: detects the current repo's remote default branch and sets a repo-local `trunk()` override when jj's built-in/common trunk resolution is missing or not durable. | Fix or verify per-repo jj trunk behavior without hardcoding `dev`, `main`, or `master` globally. |
 
 `cz*` commands are installed in `~/.local/bin` and do not rely on shell aliases.
@@ -360,7 +360,7 @@ this repo does not track `~/.hermes/config.yaml` or `~/.hermes/.env`. Non-sensit
 Hermes preferences live in `.chezmoidata.toml` under `[hermes.preferences]` and
 `[hermes.delegation]`, and the always-run Hermes setup script compares and
 applies them in one atomic config update on each
-`chezmoi apply`: `model.provider=anthropic`, `model.default=claude-haiku-5-5`,
+`chezmoi apply`: `model.provider=anthropic`, `model.default=claude-opus-5-5`,
 `model.base_url=https://api.anthropic.com`,
 `display.show_reasoning=true`, `agent.reasoning_effort=max`,
 `agent.service_tier=""` (normal speed), `agent.max_turns=1000`,
@@ -401,7 +401,7 @@ leaves the local checkout and `~/.hermes/` data in place for manual review/remov
 
 ### Optional OpenRouter paid-credit reserve agent
 
-`openrouter-agent` is a separate, manually invoked TypeScript TUI for times when the normal Codex
+`openrouter-agent` is a separate, manually invoked TypeScript TUI for times when the normal Claude
 allowance is unavailable. It does **not** change Hermes' default `anthropic` route, add an
 automatic provider fallback, or spend OpenRouter credits in the background. Installation is
 disabled by default and is opt-in per machine:
