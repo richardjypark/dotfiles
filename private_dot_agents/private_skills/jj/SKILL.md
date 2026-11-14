@@ -12,11 +12,6 @@ Use this skill when the task is primarily about repository history or publishing
 - To reset local jj to a remote source-of-truth branch, repair a divergent or conflicted graph, or fix per-repo `trunk()` behavior, also load `jj-remote-truth-reset`.
 - To inspect or edit this skill, the jj Pi agent, the JJFast command, or their wrapper scripts, work locally. Do not route back through the `jj` subagent or `jj-fast-agent`.
 
-## Read first
-
-- `~/.local/share/chezmoi/AGENTS.md`
-- `~/.local/share/chezmoi/ARCHITECTURE.md` when the VCS task is coupled to a larger repo change
-
 ## Choose the path
 
 1. **Local fast path (default):** status/log inspection, committing the current change, moving a named bookmark, and publishing an explicit bookmark.

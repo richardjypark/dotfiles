@@ -16,9 +16,8 @@ Use this skill when:
 
 ## Read first
 
-- `~/.local/share/chezmoi/AGENTS.md`
-- `~/.local/share/chezmoi/ARCHITECTURE.md`
 - `references/version-map.md`
+- `ARCHITECTURE.md` in the repo root, only when the change crosses subsystems
 
 ## Workflow
 
