@@ -11,5 +11,6 @@
   "seven_day_stop": 0.9,
   "unreachable_after": 3,
   "fault_stays_seconds": 600,
-  "bundle_max_bytes": 12000
+  "bundle_max_bytes": 12000,
+  "summary_delay_seconds": 300
 }
