@@ -481,13 +481,6 @@ if [ -d "$HOME/.codex" ] || is_installed codex; then
     # shellcheck disable=SC2088 # display label, not a path to expand
     check_symlink_target "$HOME/.codex/skills" "$SHARED_SKILLS_DIR" "~/.codex/skills"
 
-    CODEX_AGENTS_FILE="$HOME/.codex/AGENTS.md"
-    if [ -f "$CODEX_AGENTS_FILE" ]; then
-        check_pass "$CODEX_AGENTS_FILE exists"
-    else
-        check_warn "$CODEX_AGENTS_FILE missing"
-    fi
-
     CODEX_CONFIG_FILE="$HOME/.codex/config.toml"
     if [ -f "$CODEX_CONFIG_FILE" ]; then
         check_pass "$CODEX_CONFIG_FILE exists"

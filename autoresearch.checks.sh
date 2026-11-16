@@ -20,7 +20,6 @@ chezmoi execute-template < private_dot_codex/private_config.toml.tmpl \
   | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
 chezmoi cat "$HOME/.codex/config.toml" \
   | python3 -c 'import sys, tomllib; tomllib.loads(sys.stdin.read())'
-chezmoi cat "$HOME/.codex/AGENTS.md" >/dev/null
 chezmoi cat "$HOME/.claude/settings.json" \
   | python3 -c 'import sys, json; json.loads(sys.stdin.read())'
 chezmoi cat "$HOME/.pi/agent/settings.json" \

@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 import tomllib
 import unittest
 from pathlib import Path
@@ -20,11 +21,32 @@ class AgentInstructionPolicyTest(unittest.TestCase):
         claude = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
         self.assertEqual(claude, "# CLAUDE.md\n\n@AGENTS.md\n")
 
-    def test_codex_imports_the_canonical_root_guide(self) -> None:
-        codex = (REPO_ROOT / "private_dot_codex/AGENTS.md.tmpl").read_text(
-            encoding="utf-8"
-        )
-        self.assertEqual(codex, '{{ include "AGENTS.md" }}\n')
+    def test_guide_is_not_rendered_into_home(self) -> None:
+        # A copy in ~ loads in every project under the home directory.
+        targets = subprocess.check_output(
+            ["chezmoi", "--source", str(REPO_ROOT), "managed", "--path-style=relative",
+             "--exclude=externals,scripts"], text=True, timeout=60,
+        ).splitlines()
+        for target in ("AGENTS.md", "CLAUDE.md", ".codex/AGENTS.md"):
+            self.assertNotIn(target, targets)
+
+    def test_cleanup_removes_only_dotfiles_guide_copies(self) -> None:
+        script = REPO_ROOT / ".chezmoiscripts/run_onchange_after_95-remove-home-agent-guides.sh"
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / ".codex").mkdir()
+            (home / "AGENTS.md").write_text(
+                "# AGENTS.md\n\nAgent operating guide for this chezmoi dotfiles repository.\n")
+            (home / "CLAUDE.md").write_text("# CLAUDE.md\n\n@AGENTS.md\n")
+            user_guide = "# AGENTS.md\n\nMy own rules for every project.\n"
+            (home / ".codex/AGENTS.md").write_text(user_guide)
+            result = subprocess.run(["bash", str(script)], env={**os.environ, "HOME": str(home)},
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((home / "AGENTS.md").exists())
+            self.assertFalse((home / "CLAUDE.md").exists())
+            self.assertEqual((home / ".codex/AGENTS.md").read_text(), user_guide)
+            self.assertIn("Kept", result.stderr)
 
     def test_shared_guide_keeps_client_permission_policy(self) -> None:
         agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")

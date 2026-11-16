@@ -81,7 +81,7 @@ Installed client paths are routed to the shared tree:
 - `~/.codex/skills` → symlink to `~/.agents/skills`.
 - `~/.claude/skills` → symlink to `~/.agents/skills`.
 - Hermes Agent opt-in installs keep `~/.agents/skills` in `skills.external_dirs`, preserving local `~/.hermes/skills` precedence.
-- `~/.codex/AGENTS.md` → rendered include of the repo-root `AGENTS.md` so Codex starts from the same control-plane rules.
+- No client gets a global copy of `AGENTS.md`. Each client reads it from the repo root, so it applies only in this repo. `run_onchange_after_95-remove-home-agent-guides.sh` removes the old `~/AGENTS.md`, `~/CLAUDE.md`, and `~/.codex/AGENTS.md` copies.
 
 This repo also tracks a project-local Claude policy file at `.claude/settings.local.json`. Treat it as repo policy, not as a personal escape hatch, keep its permissions narrow and domain-scoped, reserve tracked entries for core workflow primitives, and let one-off convenience/bootstrap commands rely on explicit approval instead of tracked pre-approval.
 
