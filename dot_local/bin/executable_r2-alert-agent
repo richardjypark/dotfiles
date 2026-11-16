@@ -82,8 +82,6 @@ TIER_A = {
     "HostHealthCheckFailed": ("collector-rerun", "r2-host-health"),
     "RuntimeContractCheckStale": ("collector-rerun", "r2-runtime-contract"),
     "RuntimeContractCheckFailed": ("collector-rerun", "r2-runtime-contract"),
-    "UptimeRobotPollerStale": ("collector-rerun", "uptimerobot-poller"),
-    "UptimeRobotPollerFailed": ("collector-rerun", "uptimerobot-poller"),
     "GrafanaUnexpectedlyActive": ("grafana-idle-stop", "grafana"),
     "HostDown": ("node-exporter-restart", "node-exporter"),
 }
