@@ -9,7 +9,6 @@ plans/[0-9]*.md
 # Local autoresearch session artifacts
 /autoresearch*
 !/autoresearch.checks.sh
-/deli-auto-research*
 
 # Local Hermes runtime files may include cron scripts, logs, sessions, or credentials.
 /.hermes/

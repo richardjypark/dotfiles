@@ -3,3 +3,4 @@
 .agents/skills/chezmoi-repo-maintainer/agents/openai.yaml
 .agents/skills/chezmoi-repo-maintainer/references/validation-and-ci.md
 .agents/skills/karpathy-guidelines
+.agents/skills/deli-auto-research

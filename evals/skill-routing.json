@@ -31,11 +31,6 @@
       "expected_skill": "create-verification-skill"
     },
     {
-      "id": "unattended-long-research",
-      "request": "Set up an unattended week-long research project with durable Hermes Kanban tasks, independent verifier workers, stall pivots, and watchdog recovery.",
-      "expected_skill": "deli-auto-research"
-    },
-    {
       "id": "intermittent-failure-debug",
       "request": "Debug why checkout intermittently throws a timeout in production; build a reproduction loop that goes red before guessing at a cause.",
       "expected_skill": "diagnosing-bugs"
