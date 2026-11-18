@@ -61,7 +61,8 @@ for the complete naming and execution rules.
 | `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl` | Executed during apply; no managed file target | Always-run Hermes setup |
 | `private_dot_codex/modify_private_config.toml` | `~/.codex/config.toml` | Merges managed Codex keys; keeps Codex-written state |
 | `dot_pi/agent/settings.json` | `~/.pi/agent/settings.json` (ignored target) | Managed keys merged by `run_after_98-pi-local-overrides`; keeps Pi-written keys |
-| `private_dot_claude/modify_private_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits, except unsafe permission settings are reset |
+| `private_dot_claude/modify_private_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits, except unsafe permission settings are reset and the old default status line moves to `statusline.sh` |
+| `private_dot_claude/executable_statusline.sh` | `~/.claude/statusline.sh` | Claude Code status line: host, project, branch, model and effort, context and rate limits left |
 | `scripts/bootstrap-omarchy.sh` | `~/scripts/bootstrap-omarchy.sh` | Managed bootstrap entry point |
 | `scripts/set-chezmoi-local-data.py` | `~/scripts/set-chezmoi-local-data.py` | Saves machine-local role and profile before apply |
 | `bootstrap-vps.sh` | `~/bootstrap-vps.sh` | Managed bootstrap entry point |

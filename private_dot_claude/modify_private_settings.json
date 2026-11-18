@@ -2,7 +2,9 @@
 {{- /*
   Create ~/.claude/settings.json with the tracked defaults when it is missing.
   Claude owns later edits (model, hooks, status line), so keep every key and
-  print the file unchanged, except for these unsafe settings:
+  print the file unchanged, except for these settings:
+  - statusLine is set to the tracked ~/.claude/statusline.sh when it still
+    holds the old tracked default command. Other status lines stay.
   - skipDangerousModePermissionPrompt = true is set back to false.
   - enableAllProjectMcpServers = true is removed, so project MCP servers need
     approval again.
@@ -18,17 +20,22 @@
   "model": "claude-haiku-5-5",
   "statusLine": {
     "type": "command",
-    "command": "input=$(cat); cwd=$(echo \"$input\" | jq -r '.workspace.current_dir'); user=$(whoami); host=${HOSTNAME:-$(hostname)}; if [[ \"$EUID\" -eq 0 ]] || [[ \"$USER\" == \"root\" ]]; then context=\"$host\"; else context=\"$user@$host\"; fi; dir_name=$(basename \"$cwd\"); git_info=\"\"; if git -C \"$cwd\" --no-optional-locks rev-parse --git-dir >/dev/null 2>&1; then branch=$(git -C \"$cwd\" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git -C \"$cwd\" --no-optional-locks rev-parse --short HEAD 2>/dev/null); if [[ -n \"$branch\" ]]; then if ! git -C \"$cwd\" --no-optional-locks diff --quiet 2>/dev/null || ! git -C \"$cwd\" --no-optional-locks diff --cached --quiet 2>/dev/null; then git_info=\" ± $branch\"; else git_info=\" ✓ $branch\"; fi; fi; fi; venv_info=\"\"; if [[ -n \"$VIRTUAL_ENV\" ]]; then venv_name=$(basename \"$VIRTUAL_ENV\"); venv_info=\" 🐍($venv_name)\"; fi; printf \"%s %s%s%s\" \"$context\" \"$dir_name\" \"$git_info\" \"$venv_info\""
+    "command": "bash ~/.claude/statusline.sh"
   },
   "skipDangerousModePermissionPrompt": false,
   "effortLevel": "high"
 }
 ` -}}
+{{- $oldStatusCommand := get (fromJson `{"command": "input=$(cat); cwd=$(echo \"$input\" | jq -r '.workspace.current_dir'); user=$(whoami); host=${HOSTNAME:-$(hostname)}; if [[ \"$EUID\" -eq 0 ]] || [[ \"$USER\" == \"root\" ]]; then context=\"$host\"; else context=\"$user@$host\"; fi; dir_name=$(basename \"$cwd\"); git_info=\"\"; if git -C \"$cwd\" --no-optional-locks rev-parse --git-dir >/dev/null 2>&1; then branch=$(git -C \"$cwd\" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git -C \"$cwd\" --no-optional-locks rev-parse --short HEAD 2>/dev/null); if [[ -n \"$branch\" ]]; then if ! git -C \"$cwd\" --no-optional-locks diff --quiet 2>/dev/null || ! git -C \"$cwd\" --no-optional-locks diff --cached --quiet 2>/dev/null; then git_info=\" ± $branch\"; else git_info=\" ✓ $branch\"; fi; fi; fi; venv_info=\"\"; if [[ -n \"$VIRTUAL_ENV\" ]]; then venv_name=$(basename \"$VIRTUAL_ENV\"); venv_info=\" 🐍($venv_name)\"; fi; printf \"%s %s%s%s\" \"$context\" \"$dir_name\" \"$git_info\" \"$venv_info\""}`) "command" -}}
 {{- if not (.chezmoi.stdin | trim) -}}
 {{-   $defaults -}}
 {{- else -}}
 {{-   $settings := fromJson .chezmoi.stdin -}}
 {{-   $before := toJson $settings -}}
+{{-   $statusLine := get $settings "statusLine" -}}
+{{-   if and (kindIs "map" $statusLine) (eq (toString (get $statusLine "command")) $oldStatusCommand) -}}
+{{-     $_ := set $settings "statusLine" (get (fromJson $defaults) "statusLine") -}}
+{{-   end -}}
 {{-   if eq (toString (get $settings "skipDangerousModePermissionPrompt")) "true" -}}
 {{-     $_ := set $settings "skipDangerousModePermissionPrompt" false -}}
 {{-   end -}}
