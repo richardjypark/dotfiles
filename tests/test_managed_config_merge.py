@@ -187,6 +187,22 @@ claude = "latest"
         self.assertEqual(settings["model"], "opus")
         self.assertEqual(status, "")
 
+    def test_claude_migrates_only_the_old_default_status_line(self):
+        template = (ROOT / CLAUDE).read_text()
+        old = template.split('$oldStatusCommand := get (fromJson `', 1)[1].split("`", 1)[0]
+        old_command = json.loads(old)["command"]
+        tracked = {"type": "command", "command": "bash ~/.claude/statusline.sh"}
+        live = json.dumps({"model": "opus", "statusLine": {"type": "command", "command": old_command}})
+        settings, status = self.apply_to(CLAUDE, ".claude/settings.json", live, parse=json.loads)
+        self.assertEqual(settings["statusLine"], tracked)
+        self.assertEqual(settings["model"], "opus")
+        self.assertEqual(status, "")
+        custom = {"type": "command", "command": "my-status-line"}
+        settings, status = self.apply_to(CLAUDE, ".claude/settings.json",
+                                         json.dumps({"statusLine": custom}), parse=json.loads)
+        self.assertEqual(settings["statusLine"], custom)
+        self.assertEqual(status, "")
+
     def test_claude_keeps_safe_settings_byte_for_byte(self):
         live = '{"model": "sonnet", "permissions": {"defaultMode": "acceptEdits", "allow": ["Read"]},\n' \
                ' "skipDangerousModePermissionPrompt": false}\n'
