@@ -96,11 +96,11 @@ macos_x86_64_sha256 = "344e4d38787e0aa86dd522ae5462e6fb6da1227691f81a79ffed480a4
 macos_arm64_sha256 = "5362da8cb2928f98f3ce0ffda697cf0f8de70081db000dae316d6d3a404f6cf0"
 
 [pinned.bun]
-version = "bun-v1.4.4"
-linux_x86_64_sha256 = "bf8ccbfb2b0b80159e0f9a6d15c55317add8077534dbc6130a3edb52fccb395c"
-linux_arm64_sha256 = "baa6bb36f51d6e58561e02bbea825038a9df454f673d6d776e8bbf86f8c7850e"
-macos_x86_64_sha256 = "50a3491f73abc2fe81673171a85762d3bc2cc1680ccecadd983de99adf77977e"
-macos_arm64_sha256 = "c240d7f0ccb90c263a849fcdb09b7ee62630d921348ed6aafda86b9d577bc510"
+version = "bun-v1.4.5"
+linux_x86_64_sha256 = "94559b3b528995a49452f9f2404cec74f2efd7d06e0a000a8cd214b02c3666eb"
+linux_arm64_sha256 = "18656a3bf0ea5641f5796ae4213b75255579a70a0fded2f337933785568cdf84"
+macos_x86_64_sha256 = "a4972e778cce4b6a194d7d289f326aa61576d71d80b7a53e9da2f3739566e5fd"
+macos_arm64_sha256 = "b5d6bc2e13caf14e57c89661e89efd073ff16165b41bfe43882616410609cd10"
 
 [pinned.tailscale]
 version = "1.104.7"
@@ -115,4 +115,4 @@ macos_x86_64_sha256 = "b2229c6ff9eb7d1f10d098aac94241da652dd7df989c7ef35df6777db
 macos_arm64_sha256 = "fbc7b86c7b36eb0448e2a99a616b6d32f022d1f3895076ad44f4c5d65a77fe60"
 
 [pinned.claude]
-npm_version = "2.1.327"
+npm_version = "2.1.329"
