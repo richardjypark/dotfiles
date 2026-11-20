@@ -43,11 +43,12 @@ proposal. The CI tools gitleaks and actionlint, which the workflows build from
 `@openrouter/*` packages share one group
 because the agent and SDK versions must move together. All other minor and
 patch updates share a second group. Each other major update remains a separate
-proposal for review. Dependabot ignores `@openrouter/sdk` majors: every
-`@openrouter/agent` release up to 0.11.0 requires SDK `^0.13.7`, and an SDK
-major alone installs a second SDK copy that fails the type check. Remove that
-rule when an agent release accepts the new SDK major. Dependabot also ignores
-`@types/node` majors; change that major only with the Node runtime major.
+proposal for review. The `@openrouter/*` group includes majors, because each
+agent major requires one SDK major (agent 1.x requires SDK `^1.5.85`). An SDK
+major that no agent release accepts yet installs a second SDK copy and fails
+the type check; close that proposal and wait for the agent release. Dependabot
+ignores `@types/node` majors; change that major only with the Node runtime
+major.
 
 The two Pi package directories get no version proposals; their limit is zero,
 so Pi direct versions stay with the coordinated updater. Dependabot still
