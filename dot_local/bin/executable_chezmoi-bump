@@ -1586,11 +1586,26 @@ bump_all_cleanup_snapshots() {
     BUMP_ALL_OUTER_SNAPSHOT_PATHS=()
 }
 
+# Bash can run a pending signal trap in a command substitution that forked just
+# after the signal arrived. Only the main process owns the snapshots and the
+# lock. macOS bash 3.2 has no BASHPID, so ask a child for its parent PID.
+bump_all_in_main_process() {
+    local self="${BASHPID:-}"
+    if [ -z "$self" ]; then
+        self="$(exec sh -c 'printf %s "$PPID"')"
+    fi
+    [ "$self" = "$$" ]
+}
+
 bump_all_abort_outer_tx() {
     local original_rc="$1"
     local rollback_rc=0
 
     if [ "$BUMP_ALL_ACTIVE" = "false" ]; then
+        return "$original_rc"
+    fi
+
+    if ! bump_all_in_main_process; then
         return "$original_rc"
     fi
 

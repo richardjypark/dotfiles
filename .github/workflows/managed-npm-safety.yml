@@ -6,18 +6,25 @@ on:
     branches:
       - master
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# A new push to a pull request cancels its older run. Other runs never share a group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validation:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-24.04
-          - macos-26
+        # A push to the default branch has the tree that its pull request
+        # already tested (the required checks are strict). It runs only the
+        # Linux job, which saves the caches that pull requests restore.
+        os: ${{ fromJSON(github.event_name == 'push' && '["ubuntu-24.04"]' || '["ubuntu-24.04", "macos-26"]') }}
     runs-on: ${{ matrix.os }}
     env:
       npm_config_ignore_scripts: true
@@ -120,6 +127,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26'
+          cache-dependency-path: .github/tools/go.sum
 
       - name: Install actionlint on Linux
         if: runner.os == 'Linux'

@@ -62,6 +62,17 @@ assert_file_contains() {
     fail "$msg"
 }
 
+assert_output_line() {
+    local output="$1"
+    local expected="$2"
+    local msg="$3"
+    if printf '%s\n' "$output" | grep -Fxq "$expected"; then
+        pass "$msg"
+        return 0
+    fi
+    fail "$msg (output: ${output//$'\n'/ | })"
+}
+
 assert_file_not_contains() {
     local file="$1"
     local expected="$2"
@@ -211,6 +222,10 @@ set -euo pipefail
 
 sleep_seconds="${PI_NPM_SLEEP:-0}"
 behavior="${PI_NPM_BEHAVIOR:-ok}"
+
+if [ -n "${PI_NPM_STARTED_FILE:-}" ]; then
+    printf 'started\n' >"$PI_NPM_STARTED_FILE"
+fi
 
 if [ "$sleep_seconds" -gt 0 ]; then
     sleep "$sleep_seconds"
@@ -385,6 +400,7 @@ run_bump() {
         MOCK_PI_LATEST="${MOCK_PI_LATEST:-1.0.0}" \
         PI_NPM_BEHAVIOR="${PI_NPM_BEHAVIOR:-ok}" \
         PI_NPM_SLEEP="${PI_NPM_SLEEP:-0}" \
+        PI_NPM_STARTED_FILE="${PI_NPM_STARTED_FILE:-}" \
         bash "$BUMP_BIN" "$@" >"${log_file}" 2>&1
 }
 
@@ -414,6 +430,7 @@ run_bump_with_env() {
         MOCK_PI_LATEST="${MOCK_PI_LATEST:-1.0.0}" \
         PI_NPM_BEHAVIOR="${PI_NPM_BEHAVIOR:-ok}" \
         PI_NPM_SLEEP="${PI_NPM_SLEEP:-0}" \
+        PI_NPM_STARTED_FILE="${PI_NPM_STARTED_FILE:-}" \
         bash "$BUMP_BIN" "$@"
 }
 
@@ -444,6 +461,7 @@ run_bump_bg() {
         MOCK_PI_LATEST="${MOCK_PI_LATEST:-1.0.0}" \
         PI_NPM_BEHAVIOR="${PI_NPM_BEHAVIOR:-ok}" \
         PI_NPM_SLEEP="${PI_NPM_SLEEP:-0}" \
+        PI_NPM_STARTED_FILE="${PI_NPM_STARTED_FILE:-}" \
         bash "$BUMP_BIN" "$@" >"${log_file}" 2>&1 &
     BUMP_BG_PID=$!
 }
@@ -463,7 +481,7 @@ wait_for_progress() {
             return 0
         fi
 
-        if [ -f "$log_file" ] && grep -Fq "$marker" "$log_file"; then
+        if [ -n "$marker" ] && [ -f "$log_file" ] && grep -Fq "$marker" "$log_file"; then
             return 0
         fi
 
@@ -568,9 +586,52 @@ EOF
     remove_test_temp_dir "$fixture_dir"
 }
 
+# A command substitution that forks while a signal is pending can run the
+# parent's trap. Only the main process may roll back, or the parent later finds
+# its snapshots deleted and reports an incomplete rollback.
+test_subshell_signal_trap_leaves_rollback_to_main() {
+    local fixture_dir output
+    new_test_temp_dir fixture_dir
+    printf 'original\n' >"${fixture_dir}/snapshot"
+    printf 'changed\n' >"${fixture_dir}/target"
+    mkdir "${fixture_dir}/lock"
+
+    # shellcheck disable=SC2016
+    output="$(bash -c '
+        . "$1"
+        dir="$2"
+        BUMP_ALL_ACTIVE=true
+        BUMP_ALL_OUTER_SNAPSHOT_FILES=("${dir}/target")
+        BUMP_ALL_OUTER_SNAPSHOT_PATHS=("${dir}/snapshot")
+        BUMP_ALL_LOCK_ACQUIRED=true
+        BUMP_ALL_LOCK_DIR="${dir}/lock"
+        rc=0
+        ( bump_all_signal_trap 143 ) || rc=$?
+        echo "subshell_rc=${rc}"
+        [ -f "${dir}/snapshot" ] && echo snapshot_kept
+        [ -d "${dir}/lock" ] && echo lock_kept
+        grep -qx changed "${dir}/target" && echo target_untouched
+        rc=0
+        bump_all_abort_outer_tx 143 || rc=$?
+        echo "main_rc=${rc}"
+        grep -qx original "${dir}/target" && echo target_restored
+        [ -d "${dir}/lock" ] || echo lock_released
+    ' subshell-trap "$BUMP_BIN" "$fixture_dir" 2>&1)" || true
+
+    assert_output_line "$output" "subshell_rc=143" "Subshell trap should exit with the signal status"
+    assert_output_line "$output" "snapshot_kept" "Subshell trap should keep the outer snapshots"
+    assert_output_line "$output" "lock_kept" "Subshell trap should keep the bump lock"
+    assert_output_line "$output" "target_untouched" "Subshell trap should leave the rollback to the main process"
+    assert_output_line "$output" "main_rc=143" "Main rollback should complete after a subshell trap"
+    assert_output_line "$output" "target_restored" "Main rollback should restore the target"
+    assert_output_line "$output" "lock_released" "Main rollback should release the lock"
+
+    remove_test_temp_dir "$fixture_dir"
+}
+
 test_signal_rolls_back() {
     local fixture_dir log pid status
-    local MOCK_NEOVIM_LATEST MOCK_PI_LATEST PI_NPM_BEHAVIOR PI_NPM_SLEEP
+    local MOCK_NEOVIM_LATEST MOCK_PI_LATEST PI_NPM_BEHAVIOR PI_NPM_SLEEP PI_NPM_STARTED_FILE
     new_test_temp_dir fixture_dir
     create_stubs "$fixture_dir"
     render_fixture "$fixture_dir"
@@ -579,13 +640,18 @@ test_signal_rolls_back() {
     MOCK_PI_LATEST="2.0.0"
     PI_NPM_BEHAVIOR="ok"
     PI_NPM_SLEEP="4"
+    # Signal while bump waits for npm. Bash 5.2 can fail to parse a trap that
+    # runs while it expands a command substitution, and then exits with status
+    # 2 through the EXIT trap. A signal at a fixed quiet point keeps this test
+    # about rollback, not about that bash bug.
+    PI_NPM_STARTED_FILE="${fixture_dir}/npm-started"
 
     log="${fixture_dir}/run.log"
     run_bump_bg "$fixture_dir" "$log" --all --skip-sha
     pid="$BUMP_BG_PID"
 
-    if ! wait_for_progress "$fixture_dir" "$log" "pi: checking for updates..." 6; then
-        fail "Timed out waiting for bump progress before signalling"
+    if ! wait_for_progress "$fixture_dir" "$log" "" 6 "$PI_NPM_STARTED_FILE" "started"; then
+        fail "Timed out waiting for npm to start before signalling"
     fi
 
     if [ -n "${pid}" ]; then
@@ -716,6 +782,7 @@ run_test() {
 run_test "atomic rollback on later dependency failure" test_atomic_rollback_on_inner_failure
 run_test "atomic --all succeeds with multiple dependency mutations" test_atomic_success_multiple_targets
 run_test "atomic --all reports lock contention" test_lock_contention_fails
+run_test "subshell signal trap leaves rollback to main" test_subshell_signal_trap_leaves_rollback_to_main
 run_test "atomic --all restores on catchable signal" test_signal_rolls_back
 run_test "outer atomicity overrides per-dependency --no-rollback" test_no_rollback_flag_keeps_outer_atomicity
 run_test "no-update --all leaves no lock" test_no_update_run_leaves_no_lock
