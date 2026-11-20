@@ -35,15 +35,14 @@ updates:
     versioning-strategy: increase
     open-pull-requests-limit: 3
     ignore:
-      # Every @openrouter/agent release up to 0.11.0 requires @openrouter/sdk
-      # ^0.13.7. Remove this rule when an agent release accepts the new major.
-      - dependency-name: '@openrouter/sdk'
-        update-types: ['version-update:semver-major']
       # Change the Node types major only with the Node runtime major.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
     groups:
-      # The agent and SDK versions must move together.
+      # The agent and SDK versions must move together, majors included: each
+      # agent major requires one SDK major. An SDK major that no agent release
+      # accepts yet installs a second SDK copy and fails the type check; close
+      # that proposal.
       openrouter:
         patterns: ['@openrouter/*']
       application-non-major:
