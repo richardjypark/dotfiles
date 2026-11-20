@@ -6,7 +6,23 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # Stop before any suite runs if a private temporary directory is unavailable,
 # and run the suites from it so no suite depends on the caller's directory.
 new_test_temp_dir TESTS_WORK_DIR
-trap 'remove_test_temp_dir "$TESTS_WORK_DIR"' EXIT
+new_test_temp_dir SUITE_LOG_DIR
+cleanup() {
+    local pid
+    # SIGINT, like Ctrl-C, lets each suite run its own cleanup; SIGTERM does not.
+    for pid in $(jobs -p); do
+        kill -INT -- "-$pid" 2>/dev/null
+    done
+    wait 2>/dev/null
+    remove_test_temp_dir "$TESTS_WORK_DIR"
+    remove_test_temp_dir "$SUITE_LOG_DIR"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+# Job control puts each suite in its own process group, so cleanup can stop a
+# suite together with its child processes.
+set -m
 cd "$TESTS_WORK_DIR" || exit 1
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -14,6 +30,18 @@ SKIP_COUNT=0
 FAILED_SUITES=""
 REQUIRE_MANAGED_NPM_TESTS="${REQUIRE_MANAGED_NPM_TESTS:-0}"
 REQUIRE_ALL_TESTS="${REQUIRE_ALL_TESTS:-0}"
+TESTS_JOBS="${TESTS_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)}"
+case "$TESTS_JOBS" in
+    '' | *[!0-9]* | 0) TESTS_JOBS=1 ;;
+esac
+
+# Suites run in the background, at most TESTS_JOBS at a time. The report prints
+# each suite's output in declaration order, so the log reads like a serial run.
+# A suite has a PID, or a result that was known before it could start.
+SUITE_COUNT=0
+SUITE_NAMES=()
+SUITE_PIDS=()
+SUITE_KNOWN=()
 
 pass_suite() {
     PASS_COUNT=$((PASS_COUNT + 1))
@@ -31,22 +59,48 @@ skip_suite() {
     printf '[SKIP] %s\n' "$1"
 }
 
+known_suite() {
+    SUITE_NAMES[SUITE_COUNT]="$1"
+    SUITE_KNOWN[SUITE_COUNT]="$2"
+    SUITE_COUNT=$((SUITE_COUNT + 1))
+}
+
 run_suite() {
-    local name="$1"
-    local status
+    local name="$1" index="$SUITE_COUNT"
     shift
 
-    printf '\n==> %s\n' "$name"
-    if "$@"; then
-        pass_suite "$name"
-    else
-        status=$?
-        if [ "$status" -eq 77 ]; then
+    while [ "$(jobs -pr | wc -l)" -ge "$TESTS_JOBS" ]; do
+        sleep 0.1
+    done
+    (
+        "$@" > "$SUITE_LOG_DIR/$index.log" 2>&1 < /dev/null
+        printf '%s\n' "$?" > "$SUITE_LOG_DIR/$index.status"
+    ) &
+    SUITE_NAMES[index]="$name"
+    SUITE_PIDS[index]=$!
+    SUITE_COUNT=$((SUITE_COUNT + 1))
+}
+
+report_suites() {
+    local index name status
+    for ((index = 0; index < SUITE_COUNT; index++)); do
+        name="${SUITE_NAMES[index]}"
+        printf '\n==> %s\n' "$name"
+        case "${SUITE_KNOWN[index]:-}" in
+            fail) fail_suite "$name"; continue ;;
+            skip) skip_suite "$name"; continue ;;
+        esac
+        wait "${SUITE_PIDS[index]}" 2>/dev/null
+        cat "$SUITE_LOG_DIR/$index.log" 2>/dev/null
+        status="$(cat "$SUITE_LOG_DIR/$index.status" 2>/dev/null || echo 1)"
+        if [ "$status" = 0 ]; then
+            pass_suite "$name"
+        elif [ "$status" = 77 ]; then
             skip_suite "$name (one or more child checks were skipped)"
         else
             fail_suite "$name"
         fi
-    fi
+    done
 }
 
 run_lint_suite() {
@@ -56,9 +110,9 @@ run_lint_suite() {
 
     if ! command -v "$command_name" >/dev/null 2>&1; then
         if [ "${REQUIRE_LINT_TOOLS:-0}" = "1" ]; then
-            fail_suite "$name ($command_name is not installed)"
+            known_suite "$name ($command_name is not installed)" fail
         else
-            skip_suite "$name ($command_name is not installed)"
+            known_suite "$name ($command_name is not installed)" skip
         fi
         return
     fi
@@ -76,9 +130,9 @@ run_managed_npm_suite() {
 
     if ! managed_npm_available "$project_dir"; then
         if [ "$REQUIRE_MANAGED_NPM_TESTS" = "1" ]; then
-            fail_suite "$name (dependencies are not installed)"
+            known_suite "$name (dependencies are not installed)" fail
         else
-            skip_suite "$name (dependencies are not installed)"
+            known_suite "$name (dependencies are not installed)" skip
         fi
         return
     fi
@@ -163,6 +217,8 @@ run_managed_npm_suite \
     "OpenRouter agent" \
     "$REPO_ROOT/dot_local/share/openrouter-agent" \
     check_openrouter_agent
+
+report_suites
 
 printf '\nValidation summary: %s passed, %s failed, %s skipped\n' \
     "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"

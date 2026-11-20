@@ -26,6 +26,7 @@ jobs:
         # Linux job, which saves the caches that pull requests restore.
         os: ${{ fromJSON(github.event_name == 'push' && '["ubuntu-24.04"]' || '["ubuntu-24.04", "macos-26"]') }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     env:
       npm_config_ignore_scripts: true
       npm_config_fund: false
