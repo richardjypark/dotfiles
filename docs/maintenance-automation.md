@@ -50,6 +50,27 @@ the type check; close that proposal and wait for the agent release. Dependabot
 ignores `@types/node` majors; change that major only with the Node runtime
 major.
 
+The workflow `dependabot-auto-merge` turns on automatic merge for a narrow set
+of Dependabot proposals; GitHub merges them only after the four required checks
+pass. It runs on `pull_request_target`, so the workflow and
+`scripts/dependabot-auto-merge.py` always come from the default branch, and it
+reads the proposal only as Git data. A proposal is eligible only when:
+
+- `dependabot[bot]` opened it from this repository against the default branch;
+- every commit is a verified Dependabot commit from GitHub, or a GitHub
+  "Update branch" merge of the default branch;
+- it changes only the OpenRouter agent `package.json` and `package-lock.json`
+  or `.github/tools/go.mod` and `go.sum`, and at least one manifest;
+- each changed direct dependency is a patch or minor increase (a patch increase
+  for 0.x), with no added or removed dependency and no other manifest edit;
+- the default branch ruleset requires the four checks with base freshness.
+
+Everything else, including GitHub Actions updates, majors, lockfile-only
+proposals and unsigned commits, stays a manual review. A proposal that becomes
+ineligible after a new push has automatic merge turned off again. The strict
+checks still block a proposal that falls behind the default branch; use
+"Update branch" or `@dependabot rebase`, and automatic merge continues.
+
 The two Pi package directories get no version proposals; their limit is zero,
 so Pi direct versions stay with the coordinated updater. Dependabot still
 reports Pi alerts and tries security proposals. A proposal fails with
@@ -155,8 +176,8 @@ long-lived and needs periodic replacement.
 
 ## Activate routine updates after the pilot
 
-Require these exact successful contexts from GitHub Actions in the default
-branch ruleset: `gitleaks`, `validation (ubuntu-24.04)`,
+The default branch ruleset requires these exact successful contexts from
+GitHub Actions (since 2026-11-20): `gitleaks`, `validation (ubuntu-24.04)`,
 `validation (macos-26)` and `dependency-policy`. Keep base freshness and PR
 requirements active. The publisher checks those effective rules before it
 requests automatic merge. macOS currently runs the core suites; the full

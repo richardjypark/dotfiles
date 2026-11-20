@@ -1,0 +1,45 @@
+# pull_request_target uses this file and its script from the default branch.
+# The candidate is read as Git data; its scripts and dependencies are never
+# executed by this job. GitHub merges an eligible pull request only after every
+# required check passes; scripts/dependabot-auto-merge.py lists the rules.
+name: dependabot-auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  decide:
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out trusted base code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read the candidate and decide
+        run: |
+          git fetch --no-tags origin "$PR_HEAD"
+          python3 scripts/dependabot-auto-merge.py --repository "$GITHUB_REPOSITORY" \
+            --number "$PR_NUMBER" --base "$GITHUB_SHA" --head "$PR_HEAD" \
+            --apply --summary "$GITHUB_STEP_SUMMARY"
