@@ -59,7 +59,7 @@ The local command does not install packages or use the network. It reports manag
 REQUIRE_MANAGED_NPM_TESTS=1 ./tests/all
 ```
 
-The suites run in parallel, one per CPU core by default, and the report lists them in a fixed order. Set `TESTS_JOBS=1` to run them one at a time, for example to find a suite that fails only when another suite runs beside it.
+The suites run in parallel, one per CPU core by default, and the report lists them in a fixed order with each suite's duration. Set `TESTS_JOBS=1` to run them one at a time, for example to find a suite that fails only when another suite runs beside it.
 
 At an approved apply gate, verify rendered targets:
 

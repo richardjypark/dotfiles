@@ -28,6 +28,11 @@ if [ "${#templates[@]}" -gt 0 ]; then
         exit 1
     fi
     render_test_templates "$TEMP_DIR/rendered" "${templates[@]}"
+    # CI lints on Linux only, so also render for the other OS and lint any
+    # template whose output depends on it.
+    case "$(uname -s)" in Darwin) other_os=linux ;; *) other_os=darwin ;; esac
+    RENDER_OVERRIDE_DATA="{\"chezmoi\":{\"os\":\"$other_os\"}}" \
+        render_test_templates "$TEMP_DIR/rendered-$other_os" "${templates[@]}"
 fi
 
 targets=()
@@ -40,6 +45,13 @@ while IFS= read -r file; do
                 exit 1
             fi
             targets+=("$TEMP_DIR/rendered/$file")
+            if [ ! -f "$TEMP_DIR/rendered-$other_os/$file" ]; then
+                printf 'Cannot render %s for %s\n' "$file" "$other_os" >&2
+                exit 1
+            fi
+            if ! cmp -s "$TEMP_DIR/rendered/$file" "$TEMP_DIR/rendered-$other_os/$file"; then
+                targets+=("$TEMP_DIR/rendered-$other_os/$file")
+            fi
             ;;
         *)
             first_line=""

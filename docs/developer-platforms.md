@@ -57,10 +57,18 @@ the applications and volumes have been migrated and verified.
 ## Validation
 
 `./tests/all` runs ShellCheck on rendered Bash templates and Bash scripts at
-error severity, and actionlint on GitHub workflows. Local runs report a skip
-when a lint tool is absent. CI sets `REQUIRE_LINT_TOOLS=1`, so a missing tool
-fails validation. ShellCheck warning-level cleanup is separate from this
-first gate because existing scripts have warning debt.
+error severity, and actionlint on GitHub workflows. ShellCheck also renders
+each template for the other OS and checks any template whose output differs.
+Local runs report a skip when a lint tool is absent. The Linux CI job sets
+`REQUIRE_LINT_TOOLS=1`, so a missing tool fails validation. ShellCheck
+warning-level cleanup is separate from this first gate because existing
+scripts have warning debt.
+
+The macOS CI job sets `TESTS_PLATFORM_ONLY=1`. It omits the suites whose
+result cannot depend on the host: the lint suites, and the policy scripts
+that run only on GitHub's Ubuntu runners. The summary lists the omitted
+suites. Mark a new suite with `run_host_neutral_suite` only when it meets
+the same rule.
 
 Tests can use `rg`. CI installs ripgrep on Linux and macOS, and workstation
 bootstrap installs it locally. A check that text is absent must accept only

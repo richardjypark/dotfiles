@@ -45,18 +45,18 @@ SUITE_KNOWN=()
 
 pass_suite() {
     PASS_COUNT=$((PASS_COUNT + 1))
-    printf '[PASS] %s\n' "$1"
+    printf '[PASS] %s%s\n' "$1" "${2:+ (${2}s)}"
 }
 
 fail_suite() {
     FAIL_COUNT=$((FAIL_COUNT + 1))
     FAILED_SUITES="${FAILED_SUITES}${FAILED_SUITES:+, }$1"
-    printf '[FAIL] %s\n' "$1"
+    printf '[FAIL] %s%s\n' "$1" "${2:+ (${2}s)}"
 }
 
 skip_suite() {
     SKIP_COUNT=$((SKIP_COUNT + 1))
-    printf '[SKIP] %s\n' "$1"
+    printf '[SKIP] %s%s\n' "$1" "${2:+ (${2}s)}"
 }
 
 known_suite() {
@@ -73,8 +73,11 @@ run_suite() {
         sleep 0.1
     done
     (
+        started="$(date +%s)"
         "$@" > "$SUITE_LOG_DIR/$index.log" 2>&1 < /dev/null
-        printf '%s\n' "$?" > "$SUITE_LOG_DIR/$index.status"
+        status=$?
+        printf '%s\n' "$(($(date +%s) - started))" > "$SUITE_LOG_DIR/$index.seconds"
+        printf '%s\n' "$status" > "$SUITE_LOG_DIR/$index.status"
     ) &
     SUITE_NAMES[index]="$name"
     SUITE_PIDS[index]=$!
@@ -82,7 +85,7 @@ run_suite() {
 }
 
 report_suites() {
-    local index name status
+    local index name status seconds
     for ((index = 0; index < SUITE_COUNT; index++)); do
         name="${SUITE_NAMES[index]}"
         printf '\n==> %s\n' "$name"
@@ -93,14 +96,29 @@ report_suites() {
         wait "${SUITE_PIDS[index]}" 2>/dev/null
         cat "$SUITE_LOG_DIR/$index.log" 2>/dev/null
         status="$(cat "$SUITE_LOG_DIR/$index.status" 2>/dev/null || echo 1)"
+        seconds="$(cat "$SUITE_LOG_DIR/$index.seconds" 2>/dev/null || echo '?')"
         if [ "$status" = 0 ]; then
-            pass_suite "$name"
+            pass_suite "$name" "$seconds"
         elif [ "$status" = 77 ]; then
-            skip_suite "$name (one or more child checks were skipped)"
+            skip_suite "$name (one or more child checks were skipped)" "$seconds"
         else
-            fail_suite "$name"
+            fail_suite "$name" "$seconds"
         fi
     done
+}
+
+# TESTS_PLATFORM_ONLY=1 omits suites whose result cannot depend on the host:
+# CI-only policy code that runs only on GitHub's Ubuntu runners, and lint over
+# files that render the same on every OS. The Linux job still runs them.
+TESTS_PLATFORM_ONLY="${TESTS_PLATFORM_ONLY:-0}"
+OMITTED_SUITES=""
+
+run_host_neutral_suite() {
+    if [ "$TESTS_PLATFORM_ONLY" = "1" ]; then
+        OMITTED_SUITES="${OMITTED_SUITES}${OMITTED_SUITES:+, }$2"
+        return
+    fi
+    "$@"
 }
 
 run_lint_suite() {
@@ -179,16 +197,16 @@ run_suite "zsh startup behavior" python3 "$REPO_ROOT/tests/test_zsh_startup.py"
 run_suite "role and Pi overrides" python3 "$REPO_ROOT/tests/test_role_and_pi_overrides.py"
 run_suite "managed config merge" python3 "$REPO_ROOT/tests/test_managed_config_merge.py"
 run_suite "access guard behavior" python3 "$REPO_ROOT/tests/test_access_guards.py"
-run_lint_suite "ShellCheck" shellcheck "$REPO_ROOT/tests/lint-shell"
-run_lint_suite "actionlint" actionlint "$REPO_ROOT/tests/lint-actions"
+run_host_neutral_suite run_lint_suite "ShellCheck" shellcheck "$REPO_ROOT/tests/lint-shell"
+run_host_neutral_suite run_lint_suite "actionlint" actionlint "$REPO_ROOT/tests/lint-actions"
 run_suite "maintenance behavior" bash "$REPO_ROOT/tests/test-cz-maintenance.sh"
 run_suite "safe daily update policy" python3 "$REPO_ROOT/tests/test_safe_daily_updates.py"
-run_suite "maintenance candidate and publisher" python3 "$REPO_ROOT/tests/test_maintenance_publisher.py"
-run_suite "package lock change policy" python3 "$REPO_ROOT/tests/test_package_lock_changes.py"
-run_suite "Dependabot auto-merge rules" python3 "$REPO_ROOT/tests/test_dependabot_auto_merge.py"
-run_suite "outdated pull request cleanup" python3 "$REPO_ROOT/tests/test_close_outdated_prs.py"
+run_host_neutral_suite run_suite "maintenance candidate and publisher" python3 "$REPO_ROOT/tests/test_maintenance_publisher.py"
+run_host_neutral_suite run_suite "package lock change policy" python3 "$REPO_ROOT/tests/test_package_lock_changes.py"
+run_host_neutral_suite run_suite "Dependabot auto-merge rules" python3 "$REPO_ROOT/tests/test_dependabot_auto_merge.py"
+run_host_neutral_suite run_suite "outdated pull request cleanup" python3 "$REPO_ROOT/tests/test_close_outdated_prs.py"
 run_suite "production alert agent poller" python3 "$REPO_ROOT/tests/test_r2_alert_agent.py"
-run_suite "CI tool versions" python3 "$REPO_ROOT/tests/test_ci_versions.py"
+run_host_neutral_suite run_suite "CI tool versions" python3 "$REPO_ROOT/tests/test_ci_versions.py"
 run_suite "update-helper behavior" bash "$REPO_ROOT/tests/test-chezmoi-update-helpers.sh"
 run_suite "mise migration behavior" bash "$REPO_ROOT/tests/test-mise-migration.sh"
 run_suite "setup recovery behavior" python3 "$REPO_ROOT/tests/test_setup_recovery.py"
@@ -222,6 +240,9 @@ report_suites
 
 printf '\nValidation summary: %s passed, %s failed, %s skipped\n' \
     "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"
+if [ -n "$OMITTED_SUITES" ]; then
+    printf 'Omitted host-neutral suites (TESTS_PLATFORM_ONLY=1): %s\n' "$OMITTED_SUITES"
+fi
 if [ "$FAIL_COUNT" -ne 0 ]; then
     printf 'Failed suites: %s\n' "$FAILED_SUITES"
     exit 1

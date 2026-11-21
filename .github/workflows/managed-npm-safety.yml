@@ -129,9 +129,11 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y shellcheck zsh ripgrep
 
+      # ShellCheck and actionlint run in the Linux job, which also lints the
+      # macOS rendering of every template.
       - name: Install shell test tools on macOS
         if: runner.os == 'macOS'
-        run: brew install shellcheck actionlint ripgrep
+        run: brew install ripgrep
 
       - name: Set up Go for actionlint
         if: runner.os == 'Linux'
@@ -176,4 +178,4 @@ jobs:
 
       - name: Run portable core validation
         if: runner.os == 'macOS'
-        run: REQUIRE_LINT_TOOLS=1 ./tests/all
+        run: TESTS_PLATFORM_ONLY=1 ./tests/all
