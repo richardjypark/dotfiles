@@ -22,6 +22,8 @@ Use this map to propagate version bumps safely.
 - `.github/workflows/*.yml`
   - `go-version` follows the `[pinned.go]` minor line, and `node-version` follows the mise Node pin. `tests/test_ci_versions.py` checks both.
   - PyYAML in `managed-npm-safety.yml` has no updater. Bump `PYYAML_VERSION` and `PYYAML_SHA256` together; take the sdist SHA256 from the PyPI JSON API (`https://pypi.org/pypi/PyYAML/<version>/json`).
+- `.github/tools/shell-test-debs.sha256`
+  - The zsh, zsh-common, and ripgrep packages for the Linux CI job (Ubuntu 24.04, amd64), as `<sha256>  <file>` lines. Take each hash from the signed index with `apt-cache show <package>=<version>` on Ubuntu 24.04 amd64. A changed list changes the cache key, so the next run downloads and checks the new files.
 - `dot_local/bin/executable_dotfiles-secret-scan`
   - The local gitleaks default. Set it to the `.github/tools/go.mod` version when you merge a gitleaks update.
 

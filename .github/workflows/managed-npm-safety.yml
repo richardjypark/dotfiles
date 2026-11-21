@@ -125,9 +125,32 @@ jobs:
             dot_local/share/pi-maintenance-agent/package-lock.json
             dot_local/share/openrouter-agent/package-lock.json
 
+      # The Ubuntu mirror is slow and uneven, so the packages are cached. A
+      # cached package installs only if it matches the SHA256 committed in
+      # the list; apt does not check files it finds in a cache folder.
+      - name: Restore shell test packages on Linux
+        if: runner.os == 'Linux'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-debs
+          key: shell-test-debs-${{ hashFiles('.github/tools/shell-test-debs.sha256') }}
+
       - name: Install shell test tools on Linux
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y shellcheck zsh ripgrep
+        run: |
+          list="$GITHUB_WORKSPACE/.github/tools/shell-test-debs.sha256"
+          dir="$HOME/apt-debs"
+          mapfile -t specs < <(awk '{ split($2, p, "_"); print p[1] "=" p[2] }' "$list")
+          mapfile -t debs < <(awk -v dir="$dir" '{ print dir "/" $2 }' "$list")
+          if ! (cd "$dir" 2>/dev/null && sha256sum --check --strict --quiet "$list"); then
+            rm -rf "$dir"
+            mkdir -p "$dir"
+            sudo apt-get update -qq
+            (cd "$dir" && apt-get download -qq "${specs[@]}")
+            (cd "$dir" && sha256sum --check --strict "$list")
+          fi
+          sudo dpkg -i "${debs[@]}" > /dev/null
+          command -v shellcheck > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }
 
       # ShellCheck and actionlint run in the Linux job, which also lints the
       # macOS rendering of every template.
