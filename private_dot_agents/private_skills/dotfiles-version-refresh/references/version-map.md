@@ -21,7 +21,7 @@ Use this map to propagate version bumps safely.
   - Project-specific Erlang, Elixir, Node, and package-manager versions belong in each project's `mise.toml`.
 - `.github/workflows/*.yml`
   - `go-version` follows the `[pinned.go]` minor line, and `node-version` follows the mise Node pin. `tests/test_ci_versions.py` checks both.
-  - PyYAML in `managed-npm-safety.yml` has no updater.
+  - PyYAML in `managed-npm-safety.yml` has no updater. Bump `PYYAML_VERSION` and `PYYAML_SHA256` together; take the sdist SHA256 from the PyPI JSON API (`https://pypi.org/pypi/PyYAML/<version>/json`).
 - `dot_local/bin/executable_dotfiles-secret-scan`
   - The local gitleaks default. Set it to the `.github/tools/go.mod` version when you merge a gitleaks update.
 
