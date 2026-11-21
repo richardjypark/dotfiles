@@ -16,32 +16,40 @@ if ! command -v shellcheck >/dev/null 2>&1; then
     exit 0
 fi
 
-count=0
+templates=()
+while IFS= read -r file; do
+    case "$file" in
+        *.sh.tmpl) [ -f "$REPO_ROOT/$file" ] && templates+=("$file") ;;
+    esac
+done < <(test_shell_files)
+if [ "${#templates[@]}" -gt 0 ]; then
+    if ! command -v chezmoi >/dev/null 2>&1; then
+        printf 'chezmoi is required to render %s\n' "${templates[0]}" >&2
+        exit 1
+    fi
+    render_test_templates "$TEMP_DIR/rendered" "${templates[@]}"
+fi
+
+targets=()
 while IFS= read -r file; do
     [ -f "$REPO_ROOT/$file" ] || continue
     case "$file" in
         *.sh.tmpl)
-            if ! command -v chezmoi >/dev/null 2>&1; then
-                printf 'chezmoi is required to render %s\n' "$file" >&2
+            if [ ! -f "$TEMP_DIR/rendered/$file" ]; then
+                printf 'Cannot render %s\n' "$file" >&2
                 exit 1
             fi
-            render_test_template "$file" "$TEMP_DIR/rendered.sh"
-            shellcheck -S error -s bash "$TEMP_DIR/rendered.sh"
-            count=$((count + 1))
+            targets+=("$TEMP_DIR/rendered/$file")
             ;;
         *)
             first_line=""
             IFS= read -r first_line < "$REPO_ROOT/$file" || true
             case "$first_line" in
-                '#!'*bash*)
-                    shellcheck -S error -s bash "$REPO_ROOT/$file"
-                    count=$((count + 1))
-                    ;;
+                '#!'*bash*) targets+=("$REPO_ROOT/$file") ;;
                 *)
                     case "$file" in
                         dot_local/private_lib/chezmoi/*.sh|dot_local/private_lib/chezmoi/hermes/*.sh|tests/lib/*.sh)
-                            shellcheck -S error -s bash "$REPO_ROOT/$file"
-                            count=$((count + 1))
+                            targets+=("$REPO_ROOT/$file")
                             ;;
                     esac
                     ;;
@@ -49,5 +57,9 @@ while IFS= read -r file; do
             ;;
     esac
 done < <(test_shell_files)
+
+jobs="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
+printf '%s\0' "${targets[@]}" | xargs -0 -n 8 -P "$jobs" shellcheck -S error -s bash
+count="${#targets[@]}"
 
 printf 'ShellCheck: %s Bash files checked at error severity\n' "$count"
