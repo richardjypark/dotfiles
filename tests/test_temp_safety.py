@@ -58,8 +58,6 @@ class TempSafetyTest(unittest.TestCase):
             self.assertEqual(list(Path(directory).iterdir()), [])
 
     def test_removal_accepts_only_helper_directories(self):
-        # Every refused path is inside this test's own directory, so a broken
-        # guard can only remove test data.
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory).resolve()
             outside = base / "outside"

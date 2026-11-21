@@ -28,8 +28,6 @@ if [ "${#templates[@]}" -gt 0 ]; then
         exit 1
     fi
     render_test_templates "$TEMP_DIR/rendered" "${templates[@]}"
-    # CI lints on Linux only, so also render for the other OS and lint any
-    # template whose output depends on it.
     case "$(uname -s)" in Darwin) other_os=linux ;; *) other_os=darwin ;; esac
     RENDER_OVERRIDE_DATA="{\"chezmoi\":{\"os\":\"$other_os\"}}" \
         render_test_templates "$TEMP_DIR/rendered-$other_os" "${templates[@]}"

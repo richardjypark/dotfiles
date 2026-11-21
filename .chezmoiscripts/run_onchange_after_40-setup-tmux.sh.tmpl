@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 {{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
-# Rerun when tmux plugin/config content changes.
 TMUX_CONFIG_HASH="{{ include "dot_tmux.conf" | sha256sum }}"
 TMUX_STATE="tmux-setup-${TMUX_CONFIG_HASH}"
 . "$HOME/.local/lib/chezmoi-helpers.sh"
@@ -11,12 +10,10 @@ if should_skip_state "$TMUX_STATE"; then
     exit 0
 fi
 
-# Colors for output (only used in verbose mode)
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Local color-aware output wrappers
 cvecho() {
     if [ "$VERBOSE" = "true" ]; then
         echo -e "$@"
@@ -25,7 +22,6 @@ cvecho() {
 
 cvecho "${BLUE}Setting up tmux and tmux plugin manager...${NC}"
 
-# Fast exit if tmux and TPM are already properly set up (but mark state)
 TPM_DIR="$HOME/.tmux/plugins/tpm"
 if is_installed tmux && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; then
     cvecho "${GREEN}tmux and TPM are already installed and configured${NC}"
@@ -33,7 +29,6 @@ if is_installed tmux && [ -d "$TPM_DIR" ] && [ -f "$TPM_DIR/tpm" ]; then
     exit 0
 fi
 
-# Check if tmux is installed
 if ! is_installed tmux; then
     TMUX_INSTALLED=false
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -74,11 +69,9 @@ if ! is_installed tmux; then
     if [ "$TMUX_INSTALLED" = "false" ]; then
         eecho "Note: tmux not installed (requires sudo or manual install)"
         eecho "Install manually: sudo apt-get install tmux"
-        # Continue to set up TPM anyway for when tmux becomes available
     fi
 fi
 
-# Install Tmux Plugin Manager if not already installed
 if [ ! -d "$TPM_DIR" ]; then
     cvecho "Installing Tmux Plugin Manager..."
     if [ "$VERBOSE" = "true" ]; then
@@ -90,7 +83,6 @@ else
     cvecho "TPM already installed, skipping git clone"
 fi
 
-# Install plugins automatically (only if TPM binary exists)
 if [ -f "$TPM_DIR/bin/install_plugins" ]; then
     cvecho "Installing tmux plugins..."
     if [ "$VERBOSE" = "true" ]; then

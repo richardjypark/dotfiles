@@ -98,7 +98,6 @@ export async function loadOpenRouterApiKey(options: {
   const envFile = options.envFile ?? DEFAULT_ENV_FILE;
   try {
     const contents = await readPrivateRegularFile(envFile);
-    // Strip a leading byte-order mark; parseEnv would keep it in the first key.
     const parsed = parseEnv(contents.toString('utf8').replace(/^\uFEFF/, ''));
     const apiKey = parsed.OPENROUTER_API_KEY?.trim();
     if (!apiKey) {

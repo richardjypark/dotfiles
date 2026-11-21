@@ -41,7 +41,6 @@ fi
 
 vecho "Setting up Jujutsu (jj)..."
 
-# Fast exit if jj is already installed (but mark state)
 if is_installed jj && ! is_force_update; then
     CURRENT_JJ_VERSION="$(current_jj_version)"
     if [ -n "$CURRENT_JJ_VERSION" ] && version_ge "$CURRENT_JJ_VERSION" "$PINNED_JJ_CLEAN"; then
@@ -60,13 +59,11 @@ if is_installed jj && ! is_force_update; then
     fi
 fi
 
-# Detect platform
 if ! PLATFORM="$(platform_key)"; then
     exit 1
 fi
 
 install_via_package_manager() {
-    # Try native package managers first for Linux distros with jj packages
     if [[ "$PLATFORM" == linux-* ]]; then
         if command -v pacman >/dev/null 2>&1; then
             eecho "Installing Jujutsu via pacman..."
@@ -94,7 +91,6 @@ install_via_homebrew() {
 }
 
 install_via_binary() (
-    # Download pre-built binary from GitHub releases
     eecho "Installing Jujutsu from pinned pre-built binary..."
     if ! require_trust_for_remote_download "github.com/jj-vcs/jj"; then
         return 1
@@ -102,7 +98,6 @@ install_via_binary() (
 
     local expected_sha=""
 
-    # Determine binary name based on OS and architecture
     case "$PLATFORM" in
         linux-x86_64)
             BINARY_NAME="jj-${PINNED_JJ_VERSION}-x86_64-unknown-linux-musl.tar.gz"
@@ -131,7 +126,6 @@ install_via_binary() (
 
     mkdir -p "$INSTALL_DIR"
 
-    # Download and extract (TEMP_DIR cleaned up by trap)
     TEMP_DIR=$(mktemp -d) || return 1
     trap 'rm -rf "$TEMP_DIR"' EXIT
     local cache_file
@@ -145,7 +139,6 @@ install_via_binary() (
     cp "$cache_file" "$TEMP_DIR/jj.tar.gz" || return 1
     tar -xzf "$TEMP_DIR/jj.tar.gz" -C "$TEMP_DIR" || return 1
 
-    # Find and install the jj binary
     if [ -f "$TEMP_DIR/jj" ]; then
         install_checked_binary "$TEMP_DIR/jj" "$INSTALL_DIR/jj"
         return $?
@@ -174,7 +167,6 @@ install_via_binary() (
     return 1
 )
 
-# Try installation methods in order of preference
 if is_force_update; then
     if install_via_binary; then
         vecho "Installed via pre-built binary"
@@ -197,7 +189,6 @@ else
     exit 1
 fi
 
-# Verify installation
 INSTALLED_JJ_VERSION="$(current_jj_version)"
 if is_installed jj && [ -n "$INSTALLED_JJ_VERSION" ] && version_ge "$INSTALLED_JJ_VERSION" "$PINNED_JJ_CLEAN"; then
     if [ "$VERBOSE" = "true" ]; then

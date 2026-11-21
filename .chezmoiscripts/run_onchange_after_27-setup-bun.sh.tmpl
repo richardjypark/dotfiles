@@ -40,7 +40,6 @@ fi
 
 vecho "Setting up Bun..."
 
-# Ensure BUN_INSTALL is set for path checks
 export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
 add_to_path "$BUN_INSTALL/bin"
 
@@ -68,7 +67,6 @@ link_homebrew_bun_into_bun_install() {
 
 link_homebrew_bun_into_bun_install
 
-# Fast exit if bun is already installed (but mark state)
 if is_installed bun && ! is_force_update; then
     CURRENT_BUN_VERSION="$(current_bun_version)"
     if [ -n "$CURRENT_BUN_VERSION" ] && version_ge "$CURRENT_BUN_VERSION" "$PINNED_BUN_CLEAN"; then
@@ -174,7 +172,6 @@ install_via_release_binary() (
     install_checked_binary "$bin_path" "$BUN_INSTALL/bin/bun"
 )
 
-# Try installation methods in order of preference
 if [[ "$PLATFORM" == macos-* ]]; then
     if install_via_homebrew; then
         vecho "Installed via Homebrew"
@@ -195,7 +192,6 @@ else
     fi
 fi
 
-# Verify installation
 export PATH="$BUN_INSTALL/bin:$PATH"
 INSTALLED_BUN_VERSION="$(current_bun_version)"
 if is_installed bun && [ -n "$INSTALLED_BUN_VERSION" ] && version_ge "$INSTALLED_BUN_VERSION" "$PINNED_BUN_CLEAN"; then

@@ -114,8 +114,6 @@ download_and_verify() {
     return 0
 }
 
-# Activate only a command that starts successfully. Keep the old target until
-# the replacement has been copied and checked in the destination directory.
 install_checked_binary() {
     local source="$1" destination="$2" staged
     [ -f "$source" ] || return 1

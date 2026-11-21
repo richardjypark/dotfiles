@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Shared file discovery and rendering for syntax and ShellCheck.
 
 test_shell_files() {
     git -C "$REPO_ROOT" ls-files --cached --others --exclude-standard
@@ -12,11 +11,6 @@ render_test_template() {
         execute-template < "$REPO_ROOT/$source_file" > "$destination"
 }
 
-# render_test_templates DEST FILE...: render each source FILE to DEST/FILE.
-# Every chezmoi process reads the whole source tree, ignored node_modules
-# included, so one process renders all files. If the batch fails, each file
-# renders alone so the error names it; a file that fails is absent from DEST.
-# Set RENDER_OVERRIDE_DATA to a JSON object to override template data.
 render_test_templates() {
     local dest="$1" boundary="@@chezmoi-test-render-boundary@@" file template=""
     shift

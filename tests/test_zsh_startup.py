@@ -97,19 +97,14 @@ class ZshStartupTest(unittest.TestCase):
                     ["zsh", "-fc", f'source "{zshrc}"; print -r -- "mark=${{STARSHIP_MARK:-}}"'],
                     env={**env, "STARSHIP_OUT": output}, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                # The home has no ~/.config/shell; startup must still complete.
                 self.assertEqual(result.stderr, "")
                 return result.stdout.splitlines()[-1]
 
-            # A failed first run leaves no cache and no temporary file.
             self.assertEqual(start("fail"), "mark=")
             self.assertEqual(list(cache.parent.iterdir()), [])
-            # An empty cache from an older zshrc is replaced.
             cache.write_text("")
             self.assertEqual(start("one"), "mark=one")
-            # A current cache is used without a new generator run.
             self.assertEqual(start("two"), "mark=one")
-            # A failed refresh for a newer binary keeps the last good cache.
             newer = cache.stat().st_mtime + 10
             os.utime(starship, (newer, newer))
             self.assertEqual(start("fail"), "mark=one")

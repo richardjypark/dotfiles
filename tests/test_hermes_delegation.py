@@ -13,7 +13,7 @@ from pathlib import Path
 
 try:
     import yaml
-except ModuleNotFoundError:  # CI installs PyYAML; a local python3 can lack it.
+except ModuleNotFoundError:
     yaml = None
 
 
@@ -118,7 +118,6 @@ class HermesDelegationDefaultsTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # Exit 77 tells tests/all that a test was skipped; a skip is not a pass.
     program = unittest.main(exit=False)
     if not program.result.wasSuccessful():
         sys.exit(1)

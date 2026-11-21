@@ -143,7 +143,6 @@ printf 'call\\n' >> "$CURL_CALLS"
 cp "$FIXTURE_ARCHIVE" "$out"
 ''')
         self.tool(fake_bin / "uname", '#!/bin/sh\ncase "$1" in -s) echo Darwin ;; -m) echo arm64 ;; esac\n')
-        # Homebrew reports uv as installed and current.
         self.tool(fake_bin / "brew", '#!/bin/sh\ncase "$1" in\n    --prefix) echo "$FAKE_BREW_PREFIX" ;;\n'
                   '    list|outdated) ;;\n    *) echo "unexpected brew $*" >&2; exit 1 ;;\nesac\n')
         self.tool(self.managed_uv, self.fake_uv("0.0.1"))

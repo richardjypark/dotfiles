@@ -31,6 +31,7 @@ scripts/check-maintenance-candidate.py
 scripts/publish-maintenance-candidate.py
 scripts/check-package-lock-changes.py
 scripts/close-outdated-prs.py
+scripts/comment-ratchet.py
 
 # Ignore compiled zsh files
 *.zwc

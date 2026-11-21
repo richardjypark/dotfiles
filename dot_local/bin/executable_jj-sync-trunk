@@ -115,8 +115,6 @@ detect_remote_head_branch() {
     local detected=""
     local remote_head_ref=""
 
-    # Prefer the authoritative remote HEAD. This is network-backed but avoids
-    # relying on stale local origin/HEAD state.
     detected="$(git -C "$repo" ls-remote --symref "$selected_remote" HEAD 2>/dev/null \
         | awk '/^ref:/ { sub("refs/heads/", "", $2); print $2; exit }')"
     if [ -n "$detected" ]; then
@@ -124,14 +122,12 @@ detect_remote_head_branch() {
         return 0
     fi
 
-    # Fallback to cached refs/remotes/<remote>/HEAD if the network is unavailable.
     remote_head_ref="$(git -C "$repo" symbolic-ref -q --short "refs/remotes/${selected_remote}/HEAD" 2>/dev/null || true)"
     if [ -n "$remote_head_ref" ] && [ "$remote_head_ref" != "$selected_remote" ]; then
         printf '%s\n' "${remote_head_ref#"${selected_remote}"/}"
         return 0
     fi
 
-    # Last fallback: Git's cached remote metadata.
     git -C "$repo" remote show -n "$selected_remote" 2>/dev/null \
         | awk -F': ' '/HEAD branch/ && $2 != "(unknown)" && $2 != "(not queried)" { print $2; exit }'
 }

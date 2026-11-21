@@ -22,9 +22,6 @@ claude_link_points_to_nvm() {
 
 claude_installed_version() {
     local output
-    # Check the managed link by default, not the first claude on PATH. Another
-    # copy, such as Omarchy's mise claude@latest, can hide a stale link.
-    # A broken launcher is repairable. Do not let its exit status abort setup.
     if ! output="$("${1:-$CLAUDE_LINK_BIN}" --version 2>/dev/null)"; then
         return 0
     fi
@@ -37,8 +34,6 @@ claude_binary_ready() {
     [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"
 }
 
-# Replace an older managed copy only when the caller allows the npm download.
-# Trusted reviewed updates (dotfiles-update) do not set force update.
 claude_upgrade_allowed() {
     is_force_update || [ "$TRUST_ON_FIRST_USE_INSTALLERS" = "1" ]
 }
@@ -55,10 +50,8 @@ add_to_path "$HOME/.local/bin"
 
 vecho "Setting up Claude Code..."
 
-# Fast exit if the managed claude is already installed and working (but mark state)
 installed_version="$(claude_installed_version)"
 if claude_link_points_to_nvm; then
-    # Keep the old link until the new npm installation succeeds.
     installed_version=""
 fi
 if [ -n "$installed_version" ]; then
@@ -118,7 +111,6 @@ link_claude_binary() {
     npm_claude_version="$(claude_installed_version "$npm_claude_bin")"
     [ -n "$npm_claude_version" ] && version_ge "$npm_claude_version" "$PINNED_CLAUDE_NPM_VERSION" || return 1
 
-    # npm may already use ~/.local as its prefix. Never create a self-link.
     [ "$npm_claude_bin" != "$CLAUDE_LINK_BIN" ] || return 0
 
     mkdir -p "$HOME/.local/bin" || return 1
@@ -149,7 +141,6 @@ if ! require_trust_for_remote_installer "npm registry package download"; then
     exit 1
 fi
 
-# The postinstall links the native claude binary; approve only this package's scripts.
 if ! "$NPM_CMD" install -g --allow-scripts=@anthropic-ai/claude-code "@anthropic-ai/claude-code@${PINNED_CLAUDE_NPM_VERSION}"; then
     eecho "Error: Claude Code npm installation failed. Leaving state unset so setup can retry."
     exit 1
@@ -161,7 +152,6 @@ if ! link_claude_binary; then
     exit 1
 fi
 
-# Verify installation
 installed_version="$(claude_installed_version)"
 if [ -n "$installed_version" ] && version_ge "$installed_version" "$PINNED_CLAUDE_NPM_VERSION"; then
     eecho "Claude Code installed successfully: $("$CLAUDE_LINK_BIN" --version 2>/dev/null)"

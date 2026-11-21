@@ -167,7 +167,6 @@ class Telegram:
             with urllib.request.urlopen(request, timeout=10) as response:
                 return json.load(response).get("ok") is True
         except (urllib.error.URLError, OSError, ValueError) as exc:
-            # The URL holds the token: log only the error class and status.
             log(f"telegram send failed: {type(exc).__name__} {getattr(exc, 'code', '')}")
             return False
 
@@ -184,8 +183,6 @@ class Agent:
         self.creds_mtime = creds_mtime
         for key, default in (("incidents", {}), ("calls", []), ("outbox", []), ("failures", 0)):
             state.setdefault(key, default)
-
-    # SSH ---------------------------------------------------------------------
 
     def ssh(self, command: str, timeout: float):
         argv = ["ssh", "-F", "none", "-p", str(int(self.cfg["ssh_port"])), "-i", os.path.expanduser(self.cfg["ssh_key"]),
@@ -207,8 +204,6 @@ class Agent:
         result.setdefault("exit", code)
         return result
 
-    # Messages ----------------------------------------------------------------
-
     def post(self, text: str) -> None:
         self.state["outbox"].append(clean(text, self.cfg["own_domains"], 4000))
         del self.state["outbox"][:-20]
@@ -223,8 +218,6 @@ class Agent:
                 return
             self.state["outbox"].pop(0)
             self.checkpoint()
-
-    # Model -------------------------------------------------------------------
 
     def record_call(self, names: list[str], result: str, **fields) -> None:
         """Append one model decision to calls.jsonl. A write error never stops the poll."""
@@ -326,8 +319,6 @@ class Agent:
             data["journals"].pop(sorted(data["journals"])[-1])
             text = json.dumps(data, sort_keys=True)
         return text[: self.cfg["bundle_max_bytes"]]
-
-    # Poll --------------------------------------------------------------------
 
     def collect(self) -> tuple[dict | None, str]:
         code, out, err = self.ssh("collect", timeout=45)

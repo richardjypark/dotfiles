@@ -79,7 +79,6 @@ if [[ "$SOURCE_SCRIPT" != /* ]] && [ -n "$SOURCE_DIR" ]; then
     SOURCE_SCRIPT="$SOURCE_DIR/$SOURCE_SCRIPT"
 fi
 
-# The ${array[@]+...} form keeps an empty array safe under `set -u` in bash 3.2 (macOS).
 target_path="$(chezmoi ${chezmoi_args[@]+"${chezmoi_args[@]}"} target-path --source-path "$SOURCE_SCRIPT")"
 chezmoi ${chezmoi_args[@]+"${chezmoi_args[@]}"} state delete --bucket=entryState --key "$target_path" >/dev/null 2>&1 || true
 

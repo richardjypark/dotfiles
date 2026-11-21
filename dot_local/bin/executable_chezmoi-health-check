@@ -5,12 +5,11 @@ set -euo pipefail
 # shellcheck disable=SC2034 # sourced helper logging reads VERBOSE.
 VERBOSE=true
 
-# Colors (if terminal supports them)
 if [ -t 1 ]; then
     RED=$'\033[0;31m'
     GREEN=$'\033[0;32m'
     YELLOW=$'\033[0;33m'
-    NC=$'\033[0m' # No Color
+    NC=$'\033[0m'
 else
     RED=''
     GREEN=''
@@ -18,12 +17,10 @@ else
     NC=''
 fi
 
-# Counters for summary
 PASS_COUNT=0
 WARN_COUNT=0
 FAIL_COUNT=0
 
-# Check function - pass/fail with message
 check_pass() {
     vecho "${GREEN}[PASS]${NC} $1"
     PASS_COUNT=$((PASS_COUNT + 1))
@@ -192,7 +189,6 @@ vecho ""
 vecho "=== Environment Health Check ==="
 vecho ""
 
-# 1. Shell configuration
 vecho "--- Shell Configuration ---"
 
 if [ -f "$HOME/.zshrc" ]; then
@@ -213,7 +209,6 @@ else
     check_fail "Oh My Zsh not installed"
 fi
 
-# Check ZSH plugins
 for plugin in zsh-syntax-highlighting zsh-autosuggestions; do
     if [ -d "$HOME/.oh-my-zsh/custom/plugins/$plugin" ]; then
         check_pass "ZSH plugin: $plugin"
@@ -222,7 +217,6 @@ for plugin in zsh-syntax-highlighting zsh-autosuggestions; do
     fi
 done
 
-# 2. Essential tools
 vecho ""
 vecho "--- Essential Tools ---"
 
@@ -261,11 +255,9 @@ for tool in czu czuf czl czm czclean czb czvc chezmoi-rerun-script chezmoi-bump 
     fi
 done
 
-# 3. Development tools (installed by setup scripts)
 vecho ""
 vecho "--- Development Tools ---"
 
-# Make the global mise Node runtime visible in non-interactive checks.
 if command -v mise >/dev/null 2>&1; then
     MISE_NODE_PATH="$(mise which node 2>/dev/null || true)"
     if [ -n "$MISE_NODE_PATH" ] && [ -x "$MISE_NODE_PATH" ]; then
@@ -275,7 +267,6 @@ if command -v mise >/dev/null 2>&1; then
     fi
 fi
 
-# fzf
 if is_installed fzf; then
     FZF_VERSION=$(fzf --version 2>/dev/null | awk '{print $1}' || echo "unknown")
     FZF_PINNED="$(get_pinned_version "fzf" || true)"
@@ -288,7 +279,6 @@ else
     check_warn "fzf not installed"
 fi
 
-# bat / batcat
 if is_installed bat; then
     BAT_VERSION=$(bat --version 2>/dev/null | awk '{print $2}' || echo "unknown")
     check_pass "bat: $BAT_VERSION"
@@ -299,7 +289,6 @@ else
     check_warn "bat/batcat not installed"
 fi
 
-# delta
 if is_installed delta; then
     DELTA_VERSION=$(delta --version 2>/dev/null | awk '{print $2}' || echo "unknown")
     check_pass "delta: $DELTA_VERSION"
@@ -307,7 +296,6 @@ else
     check_warn "delta not installed"
 fi
 
-# eza / exa
 if is_installed eza; then
     EZA_VERSION=$(eza --version 2>/dev/null | head -1 || echo "unknown")
     check_pass "eza: $EZA_VERSION"
@@ -318,7 +306,6 @@ else
     check_warn "eza/exa not installed"
 fi
 
-# Neovim
 if is_installed nvim; then
     NVIM_VERSION="$(nvim --version 2>/dev/null | head -1 || echo "unknown")"
     NVIM_PINNED="$(get_pinned_version "neovim" || true)"
@@ -327,7 +314,6 @@ else
     check_warn "neovim not installed"
 fi
 
-# Starship
 if is_installed starship; then
     STARSHIP_VERSION="$(starship --version 2>/dev/null | head -1 || echo "unknown")"
     STARSHIP_PINNED="$(get_pinned_version "starship" || true)"
@@ -336,7 +322,6 @@ else
     check_warn "starship not installed"
 fi
 
-# Go
 if is_installed go; then
     GO_VERSION="$(go version 2>/dev/null || echo "unknown")"
     GO_PINNED="$(get_pinned_data_value "pinned.go" "version" || true)"
@@ -345,7 +330,6 @@ else
     check_warn "go not installed"
 fi
 
-# Project runtimes
 if is_installed mise; then
     check_pass "mise: $(mise --version 2>/dev/null || echo unknown)"
     if mise exec -- node --version >/dev/null 2>&1; then
@@ -357,7 +341,6 @@ else
     check_warn "mise not installed"
 fi
 
-# uv (Python)
 if is_installed uv; then
     UV_VERSION=$(uv --version 2>/dev/null | awk '{print $2}' || echo "unknown")
     UV_PINNED="$(get_pinned_version "uv" || true)"
@@ -366,7 +349,6 @@ else
     check_warn "uv not installed"
 fi
 
-# Jujutsu (jj)
 if is_installed jj; then
     JJ_VERSION=$(jj version 2>/dev/null | awk '{print $2}' || echo "unknown")
     JJ_PINNED="$(get_pinned_version "jj" || true)"
@@ -375,7 +357,6 @@ else
     check_warn "jj not installed"
 fi
 
-# Claude Code
 if is_installed claude; then
     CLAUDE_VERSION="$(claude --version 2>/dev/null | head -1 || echo "unknown")"
     CLAUDE_PINNED="$(get_pinned_version "claude_code_npm" || true)"
@@ -387,7 +368,6 @@ else
     check_warn "Claude Code not installed"
 fi
 
-# Codex CLI
 if is_installed codex; then
     CODEX_VERSION="$(codex --version 2>/dev/null | awk '{print $NF}' || echo "unknown")"
     CODEX_PINNED="$(get_pinned_version "codex" || true)"
@@ -396,7 +376,6 @@ else
     check_warn "Codex CLI not installed"
 fi
 
-# Bun
 if is_installed bun; then
     BUN_VERSION=$(bun --version 2>/dev/null || echo "unknown")
     BUN_PINNED="$(get_pinned_version "bun" || true)"
@@ -405,7 +384,6 @@ else
     check_warn "bun not installed"
 fi
 
-# Tailscale
 if is_installed tailscale; then
     TAILSCALE_VERSION="$(tailscale version 2>/dev/null | awk 'NR==1{print $1}' || echo "unknown")"
     TAILSCALE_PINNED="$(get_pinned_version "tailscale" || true)"
@@ -414,7 +392,6 @@ else
     check_warn "tailscale not installed"
 fi
 
-# pnpm
 if is_installed pnpm; then
     PNPM_VERSION=$(pnpm --version 2>/dev/null || echo "unknown")
     check_pass "pnpm: $PNPM_VERSION"
@@ -422,7 +399,6 @@ else
     check_warn "pnpm not installed"
 fi
 
-# yarn
 if is_installed yarn; then
     YARN_VERSION=$(yarn --version 2>/dev/null || echo "unknown")
     check_pass "yarn: $YARN_VERSION"
@@ -430,12 +406,10 @@ else
     check_warn "yarn not installed"
 fi
 
-# Tmux
 if is_installed tmux; then
     TMUX_VERSION=$(tmux -V 2>/dev/null | awk '{print $2}' || echo "unknown")
     check_pass "tmux: $TMUX_VERSION"
 
-    # Check TPM (Tmux Plugin Manager)
     if [ -d "$HOME/.tmux/plugins/tpm" ]; then
         check_pass "TPM (Tmux Plugin Manager) installed"
     else
@@ -445,7 +419,6 @@ else
     check_warn "tmux not installed"
 fi
 
-# 4. Configuration files
 vecho ""
 vecho "--- Configuration Files ---"
 
@@ -466,7 +439,6 @@ else
     check_warn "$HOME/.config/shell/ directory missing"
 fi
 
-# 5. Agent configuration
 vecho ""
 vecho "--- Agent Configuration ---"
 
@@ -628,7 +600,6 @@ PY
     fi
 fi
 
-# 6. State tracking
 vecho ""
 vecho "--- State Tracking ---"
 
@@ -639,7 +610,6 @@ else
     check_warn "State directory not initialized"
 fi
 
-# 7. Bootstrap security flags (if bootstrap-vps.sh was used)
 vecho ""
 vecho "--- Bootstrap Security Defaults ---"
 
@@ -715,7 +685,6 @@ check_private_runtime_path "$HOME/.hermes" "Hermes runtime directory"
 check_private_runtime_path "$HOME/.hermes/config.yaml" "Hermes configuration"
 check_private_runtime_path "$HOME/.config/dotfiles" "Local dotfiles input directory"
 
-# 8. Browser security policies
 if [[ "$(uname -s)" == "Darwin" ]]; then
     vecho ""
     vecho "--- Browser Security Policies ---"
@@ -754,7 +723,6 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     fi
 fi
 
-# Summary
 TOTAL=$((PASS_COUNT + WARN_COUNT + FAIL_COUNT))
 
 if [ "$FAIL_COUNT" -gt 0 ]; then

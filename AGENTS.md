@@ -60,6 +60,7 @@ These checks fail when an agent breaks the rule. A rule above without a check is
 - Setup-script tests isolated from the host toolchain: `SetupFixture` in `tests/test_setup_recovery.py` (that file only).
 - Pinned, offline third-party skill code and client-neutral skill text: `tests/test_agent_instructions.py`.
 - No bypasses in tracked Claude settings: `private_dot_claude/modify_private_settings.json` resets them on apply; `tests/test_agent_instructions.py`.
+- No new code comments in repo-authored scripts (`docs/adr/0001-no-code-comments.md`): `tests/test_comment_ratchet.py` against `tests/comment-baseline.tsv`. Load the `delete-comment` skill to lower the baseline.
 - Publication: `dotfiles-push`, the Git hook, `tests/test_publication_guards.py`, and the `secret-scan` workflow.
 - `master` changes through pull requests: the GitHub rulesets.
 - The Brave policy: `.chezmoiscripts/run_after_41-setup-brave-policy.sh` sets it on every apply. No test guards its removal.

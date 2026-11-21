@@ -149,7 +149,6 @@ def publish(source, repository, base, login, run_id, attempt, bundle=None, exist
     else:
         candidate.git(source, "config", "--local", "user.name", login)
         candidate.git(source, "config", "--local", "user.email", email)
-        # The helper contains no token. gh reads the short-lived token from its environment.
         candidate.git(source, "config", "--local", "credential.helper", "")
         candidate.git(source, "config", "--local", "credential.https://github.com.helper", "!gh auth git-credential")
         if not (Path(source) / ".jj").exists():

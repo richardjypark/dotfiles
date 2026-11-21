@@ -4,11 +4,9 @@ set -euo pipefail
 VERBOSE="${VERBOSE:-false}"
 STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
 
-# Performance summary for chezmoi setup (always show a minimal summary)
 echo ""
 echo "=== Chezmoi Setup Complete ==="
 
-# Count how many setup steps were skipped vs executed
 SKIPPED_COUNT=0
 if [ -d "$STATE_DIR" ]; then
     set -- "$STATE_DIR"/*.done
@@ -32,8 +30,6 @@ is_installed() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Show verbose mode information
-# Include the configured Node runtime in this non-interactive script.
 if command -v mise >/dev/null 2>&1; then
     MISE_NODE="$(mise which node 2>/dev/null || true)"
     if [ -n "$MISE_NODE" ] && [ -x "$MISE_NODE" ]; then

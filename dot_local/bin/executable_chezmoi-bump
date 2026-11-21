@@ -1,25 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# chezmoi-bump — Automated dependency version bumper for chezmoi dotfiles
-# Queries latest versions for all 13 pinned dependencies, fetches SHA256
-# checksums where needed, and edits pinned source files in place.
-#
-# Usage:
-#   chezmoi-bump --check             # Report all deps (like chezmoi-check-versions but complete)
-#   chezmoi-bump jj uv               # Bump specific deps
-#   chezmoi-bump --all               # Bump everything with available updates
-#   chezmoi-bump --dry-run jj        # Show what would change without writing
-#   chezmoi-bump --skip-sha --all    # Version-only bump (no artifact downloads)
-
 CACHE_DIR="${CACHE_DIR:-$HOME/.cache}"
 CHEZMOI_DIR="${CHEZMOI_DIR:-$HOME/.local/share/chezmoi}"
 CACHE_FILE="$CACHE_DIR/chezmoi-bump-check.txt"
 LATEST_CACHE_FILE="$CACHE_DIR/chezmoi-bump-latest.tsv"
-CACHE_MAX_AGE=86400  # 24 hours
+CACHE_MAX_AGE=86400
 
-# --- Globals set by parse_args ---
-MODE="bump"          # check | bump
+MODE="bump"
 AUTOMATIC=false
 PATCH_ONLY=false
 INVENTORY=false
@@ -36,7 +24,6 @@ MANIFEST_OUT=""
 MANIFEST_MULTI=false
 DEPS_TO_BUMP=()
 
-# Global --all transaction state (outer atomicity)
 BUMP_ALL_LOCK_DIR=""
 BUMP_ALL_LOCK_ACQUIRED=false
 BUMP_ALL_ACTIVE=false
@@ -56,13 +43,11 @@ BUMP_ALL_REQUIRED_TARGET_FILES=(
     "dot_pi/agent/settings.json"
 )
 
-# --- Transaction exit codes ---
 EXIT_CONTRACT_BUILD_FAILED=10
 EXIT_APPLY_FAILED=11
 EXIT_VERIFY_FAILED=12
 EXIT_ROLLBACK_FAILED=13
 
-# --- Color helpers (disabled when not a terminal) ---
 if [ -t 1 ]; then
     RED=$'\033[0;31m'
     GREEN=$'\033[0;32m'
@@ -96,15 +81,12 @@ ALL_DEPS=(
 
 LATEST_CACHE_ROWS=()
 
-# Return file mtime as epoch seconds. Falls back to 0 when unavailable.
 cache_mtime_epoch() {
     local file="$1"
     local mtime
 
-    # GNU stat (Linux)
     mtime="$(stat -c %Y "$file" 2>/dev/null || true)"
     if [[ ! "$mtime" =~ ^[0-9]+$ ]]; then
-        # BSD stat (macOS/BSD)
         mtime="$(stat -f %m "$file" 2>/dev/null || true)"
     fi
     if [[ ! "$mtime" =~ ^[0-9]+$ ]]; then
@@ -145,10 +127,6 @@ latest_cache_lookup() {
     local name="$1"
     awk -F'|' -v name="$name" '$1 == name { print $2 "|" $3; exit }' "$LATEST_CACHE_FILE" 2>/dev/null
 }
-
-# ============================================================================
-# Argument parsing
-# ============================================================================
 
 parse_args() {
     if [ "${CHEZMOI_AUTOMATIC_UPDATES:-0}" = "1" ]; then
@@ -313,10 +291,6 @@ Dependencies: neovim, jj, codex, uv, starship, bun, tailscale, chezmoi,
 EOF
 }
 
-# ============================================================================
-# Prerequisites
-# ============================================================================
-
 validate_prerequisites() {
     if ! command -v curl >/dev/null 2>&1; then
         echo "${RED}Error: curl is required${RESET}" >&2
@@ -332,13 +306,6 @@ validate_prerequisites() {
     fi
 }
 
-# ============================================================================
-# GitHub / npm API helpers
-# ============================================================================
-
-# Use the gh CLI login when GITHUB_TOKEN is unset. The token is not exported;
-# only _curl_gh and the release-eligibility helper receive it.
-# Set CHEZMOI_BUMP_GH_AUTH=0 to disable the lookup.
 load_github_token() {
     local token=""
     if [ -n "${GITHUB_TOKEN:-}" ] || [ "${CHEZMOI_BUMP_GH_AUTH:-1}" = "0" ]; then
@@ -358,7 +325,6 @@ _curl_gh() {
         -H "User-Agent: chezmoi-bump"
     )
     if [ -n "${GITHUB_TOKEN:-}" ]; then
-        # Send the header through a stdin config so the token is not in argv (ps).
         printf 'header = "Authorization: Bearer %s"\n' "$GITHUB_TOKEN" |
             curl -fsSL --retry 2 -K - "${headers[@]}" "$url" 2>/dev/null || true
         return 0
@@ -366,13 +332,11 @@ _curl_gh() {
     curl -fsSL --retry 2 "${headers[@]}" "$url" 2>/dev/null || true
 }
 
-# Get latest release tag from GitHub. Handles special cases.
 github_latest_tag() {
     local repo="$1"
     local dep_name="${2:-}"
     local response tag
 
-    # Codex: filter for non-prerelease rust-v tags
     if [ "$dep_name" = "codex" ]; then
         response="$(_curl_gh "https://api.github.com/repos/${repo}/releases?per_page=30")"
         if [ -z "$response" ]; then echo ""; return 0; fi
@@ -383,14 +347,12 @@ github_latest_tag() {
                 | first | .tag_name // empty
             ' 2>/dev/null || true)"
         else
-            # Fallback: grep for rust-v tags, skip prerelease
             tag="$(printf '%s' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\(rust-v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -1)"
         fi
         echo "$tag"
         return 0
     fi
 
-    # Bun: tag is "bun-vX.Y.Z"
     if [ "$dep_name" = "bun" ]; then
         response="$(_curl_gh "https://api.github.com/repos/${repo}/releases/latest")"
         if [ -z "$response" ]; then echo ""; return 0; fi
@@ -403,16 +365,13 @@ github_latest_tag() {
         return 0
     fi
 
-    # Standard: /releases/latest
     response="$(_curl_gh "https://api.github.com/repos/${repo}/releases/latest")"
 
-    # If no releases (404), fall back to tags API
     if [ -z "$response" ]; then
         github_latest_tag_from_tags "$repo"
         return 0
     fi
 
-    # Detect rate limit
     if printf '%s' "$response" | grep -q '"rate limit"' 2>/dev/null ||
        printf '%s' "$response" | grep -q '"API rate limit exceeded"' 2>/dev/null; then
         echo "${YELLOW}Warning: GitHub API rate limit hit. Run 'gh auth login' or set GITHUB_TOKEN for 5000 req/hr.${RESET}" >&2
@@ -426,7 +385,6 @@ github_latest_tag() {
         tag="$(printf '%s' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
     fi
 
-    # If releases exist but tag_name is empty, fall back to tags
     if [ -z "$tag" ]; then
         github_latest_tag_from_tags "$repo"
         return 0
@@ -435,7 +393,6 @@ github_latest_tag() {
     echo "$tag"
 }
 
-# Fallback: get latest tag from the tags API (for repos without GitHub Releases)
 github_latest_tag_from_tags() {
     local repo="$1"
     local response tag
@@ -443,7 +400,6 @@ github_latest_tag_from_tags() {
     if [ -z "$response" ]; then echo ""; return 0; fi
 
     if command -v jq >/dev/null 2>&1; then
-        # Get first tag that looks like a release version (skip alpha/beta/rc)
         tag="$(printf '%s' "$response" | jq -r '
             [.[] | .name | select(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))]
             | first // empty
@@ -683,10 +639,6 @@ get_current_pi_version() {
     printf '%s\n' "$cli_version"
 }
 
-# ============================================================================
-# Current version extraction
-# ============================================================================
-
 get_current_version() {
     local dep_name="$1"
     local version_format="$2"
@@ -720,10 +672,6 @@ get_current_version() {
             ;;
     esac
 }
-
-# ============================================================================
-# Latest version fetching (normalizes to stored format)
-# ============================================================================
 
 resolve_automatic_candidate() {
     local name="$1" source="$2" current="$3"
@@ -767,7 +715,6 @@ EOF
         return 0
     fi
 
-    # npm dependency
     if [[ "$source" == npm:* ]]; then
         local package="${source#npm:}"
         if [ "$dep_name" = "pi" ]; then
@@ -783,19 +730,15 @@ EOF
         raw_tag="$(tailscale_latest_installable_version)"
         if [ -z "$raw_tag" ]; then echo ""; return 0; fi
     else
-        # GitHub dependency
         raw_tag="$(github_latest_tag "$source" "$dep_name")"
         if [ -z "$raw_tag" ]; then echo ""; return 0; fi
     fi
 
-    # Normalize to match stored format
     case "$version_format" in
         raw)
-            # Strip v prefix if present (uv, fzf, tailscale, chezmoi, zsh-syntax-highlighting store without v)
             echo "${raw_tag#v}"
             ;;
         v)
-            # Ensure v prefix (neovim, jj, starship, zsh-autosuggestions store with v)
             if [[ "$raw_tag" != v* ]]; then
                 echo "v${raw_tag}"
             else
@@ -803,21 +746,14 @@ EOF
             fi
             ;;
         bun)
-            # Bun tags are "bun-vX.Y.Z" — return as-is
             echo "$raw_tag"
             ;;
         codex)
-            # Codex tags are "rust-vX.Y.Z" — return as-is
             echo "$raw_tag"
             ;;
     esac
 }
 
-# ============================================================================
-# SHA256 fetching strategies
-# ============================================================================
-
-# Validate a SHA256 string: exactly 64 hex chars
 validate_sha256() {
     local sha="$1"
     if [[ "$sha" =~ ^[0-9a-f]{64}$ ]]; then
@@ -839,8 +775,6 @@ compute_sha256_file() {
     return 1
 }
 
-# Strategy: download artifact and compute sha256 (stream, no disk)
-# Usage: sha256_download_compute URL
 sha256_download_compute() {
     local url="$1"
     local sha tmp_file
@@ -869,8 +803,6 @@ artifact_url_exists() {
     curl -fsSLI --retry 2 "$url" >/dev/null 2>&1
 }
 
-# Strategy: download <asset>.sha256 sidecar file
-# Usage: sha256_sidecar URL
 sha256_sidecar() {
     local url="$1"
     local sha
@@ -882,8 +814,6 @@ sha256_sidecar() {
     fi
 }
 
-# Strategy: download SHASUMS256.txt and grep for asset filename
-# Usage: sha256_shasums MANIFEST_URL ASSET_FILENAME
 sha256_shasums() {
     local manifest_url="$1"
     local asset_name="$2"
@@ -907,25 +837,10 @@ sha256_shasums() {
     fi
 }
 
-# Build asset URLs for a given dep and version, fetch SHA256 for each platform.
-# Sets global arrays: PLATFORM_NAMES=() and PLATFORM_SHAS=()
-PLATFORM_NAMES=()
-PLATFORM_SHAS=()
-INSTALLABILITY_ERRORS=()
+TAB=$'\t'
 
-reset_installability_errors() {
-    INSTALLABILITY_ERRORS=()
-}
-
-record_installability_error() {
-    INSTALLABILITY_ERRORS+=("$1")
-}
-
-print_installability_errors() {
-    local err
-    for err in "${INSTALLABILITY_ERRORS[@]-}"; do
-        echo "    - ${err}"
-    done
+checksum_error() {
+    printf 'error\t%s\n' "$1"
 }
 
 fetch_checksums() {
@@ -933,10 +848,6 @@ fetch_checksums() {
     local version="$2"
     local sha_strategy="$3"
     local num_platforms="$4"
-
-    PLATFORM_NAMES=()
-    PLATFORM_SHAS=()
-    reset_installability_errors
 
     if [ "$sha_strategy" = "none" ] || [ "$num_platforms" = "0" ]; then
         return 0
@@ -946,11 +857,9 @@ fetch_checksums() {
         return 0
     fi
 
-    # Strip version prefixes for URL construction where needed
     local raw_ver="$version"
     case "$dep_name" in
-        uv|tailscale|chezmoi|fzf) raw_ver="${version#v}" ;;  # already raw, but be safe
-        bun) raw_ver="${version#bun-v}" ;;  # "bun-v1.3.9" -> "1.3.9"
+        bun) raw_ver="${version#bun-v}" ;;
     esac
 
     local base_url
@@ -1039,7 +948,6 @@ fetch_checksums() {
 
     local i sha url manifest_url
     for i in "${!platform_keys[@]}"; do
-        PLATFORM_NAMES+=("${platform_keys[$i]}_sha256")
         local asset="${asset_names[$i]}"
         url=""
         manifest_url=""
@@ -1054,30 +962,25 @@ fetch_checksums() {
             sidecar)
                 url="${base_url}/${asset}"
                 if ! artifact_url_exists "$url"; then
-                    record_installability_error "${dep_name}: missing artifact ${asset} (${url})"
-                    PLATFORM_SHAS+=("")
+                    checksum_error "${dep_name}: missing artifact ${asset} (${url})"
                     continue
                 fi
                 sha="$(sha256_sidecar "$url")"
                 ;;
             shasums)
-                # Bun uses SHASUMS256.txt
                 url="${base_url}/${asset}"
                 manifest_url="${base_url}/SHASUMS256.txt"
                 if ! artifact_url_exists "$url"; then
-                    record_installability_error "${dep_name}: missing artifact ${asset} (${url})"
-                    PLATFORM_SHAS+=("")
+                    checksum_error "${dep_name}: missing artifact ${asset} (${url})"
                     continue
                 fi
                 sha="$(sha256_shasums "$manifest_url" "$asset")"
                 ;;
             checksums_txt)
-                # chezmoi uses chezmoi_X.Y.Z_checksums.txt
                 url="${base_url}/${asset}"
                 manifest_url="${base_url}/chezmoi_${raw_ver}_checksums.txt"
                 if ! artifact_url_exists "$url"; then
-                    record_installability_error "${dep_name}: missing artifact ${asset} (${url})"
-                    PLATFORM_SHAS+=("")
+                    checksum_error "${dep_name}: missing artifact ${asset} (${url})"
                     continue
                 fi
                 sha="$(sha256_shasums "$manifest_url" "$asset")"
@@ -1085,14 +988,11 @@ fetch_checksums() {
             pkgs_tailscale)
                 url="https://pkgs.tailscale.com/stable/${asset}"
                 if ! artifact_url_exists "$url"; then
-                    record_installability_error "${dep_name}: missing artifact ${asset} (${url})"
-                    PLATFORM_SHAS+=("")
+                    checksum_error "${dep_name}: missing artifact ${asset} (${url})"
                     continue
                 fi
-                # Tailscale sidecar is at .sha256 URL
                 sha="$(curl -fsSL --retry 2 "${url}.sha256" 2>/dev/null | awk '{print $1}')"
                 if ! validate_sha256 "$sha"; then
-                    # Fallback: download and compute
                     sha="$(sha256_download_compute "$url")"
                 fi
                 ;;
@@ -1102,26 +1002,20 @@ fetch_checksums() {
             local downloaded_sha
             downloaded_sha="$(sha256_download_compute "$url")"
             if [ "$downloaded_sha" != "$sha" ]; then
-                record_installability_error "${dep_name}: checksum mismatch for ${asset}"
+                checksum_error "${dep_name}: checksum mismatch for ${asset}"
                 sha=""
             fi
         fi
 
         if [ -z "$sha" ] || ! validate_sha256 "$sha"; then
-            record_installability_error "${dep_name}: checksum unavailable for ${asset}"
+            checksum_error "${dep_name}: checksum unavailable for ${asset}"
             echo "  ${YELLOW}Warning: Failed to get SHA256 for ${asset}${RESET}" >&2
-            PLATFORM_SHAS+=("")
         else
-            PLATFORM_SHAS+=("$sha")
+            printf 'sha\t%s_sha256\t%s\n' "${platform_keys[$i]}" "$sha"
         fi
     done
 }
 
-# ============================================================================
-# TOML editing
-# ============================================================================
-
-# Return all values for KEY in SECTION, one per line.
 toml_get_values_in_section() {
     local file="$1"
     local section="$2"
@@ -1207,8 +1101,6 @@ toml_section_exists() {
     grep -q "^\\[$section\\]\$" "$file" 2>/dev/null
 }
 
-# Update one TOML key exactly once and only if old value matches.
-# Usage: update_toml_key_exact FILE SECTION KEY OLD_VALUE NEW_VALUE
 update_toml_key_exact() {
     local file="$1"
     local section="$2"
@@ -1251,7 +1143,6 @@ update_toml_key_exact() {
         return 1
     fi
 
-    # Validate: non-empty and contains the section
     if [ ! -s "$tmpfile" ]; then
         rm -f "$tmpfile"
         echo "${RED}Error: TOML edit produced empty file for [$section].$key${RESET}" >&2
@@ -1336,10 +1227,6 @@ display_repo_path() {
 invalidate_version_cache() {
     rm -f "$CACHE_FILE" "$LATEST_CACHE_FILE" "$CACHE_DIR/chezmoi-version-check.txt" 2>/dev/null || true
 }
-
-# ============================================================================
-# Bump transaction contract
-# ============================================================================
 
 TX_DEP_NAME=""
 TX_CURRENT_VERSION=""
@@ -1441,8 +1328,6 @@ tx_cleanup_snapshots() {
     TX_SNAPSHOT_FILES=()
     TX_SNAPSHOT_PATHS=()
 }
-
-# --- Global atomicity state for --all ------------------------------------------------
 
 bump_all_lock_path() {
     local state_root="${XDG_STATE_HOME:-$HOME/.local/state}"
@@ -1586,9 +1471,6 @@ bump_all_cleanup_snapshots() {
     BUMP_ALL_OUTER_SNAPSHOT_PATHS=()
 }
 
-# Bash can run a pending signal trap in a command substitution that forked just
-# after the signal arrived. Only the main process owns the snapshots and the
-# lock. macOS bash 3.2 has no BASHPID, so ask a child for its parent PID.
 bump_all_in_main_process() {
     local self="${BASHPID:-}"
     if [ -z "$self" ]; then
@@ -1816,6 +1698,7 @@ EOF
 
 build_dep_manifest() {
     local dep_name="$1"
+    local checksums="${4:-}"
     local current="$2"
     local latest="$3"
     local data_file="$CHEZMOI_DIR/.chezmoidata.toml"
@@ -1837,14 +1720,10 @@ build_dep_manifest() {
                 "$latest" \
                 "$(display_repo_path "$data_file") [pinned.${dep_name}] version"
 
-            if [ "${#PLATFORM_NAMES[@]}" -gt 0 ] && [ "$SKIP_SHA" != "true" ]; then
-                local i sha_key sha_val sha_current
-                for i in "${!PLATFORM_NAMES[@]}"; do
-                    sha_key="${PLATFORM_NAMES[$i]}"
-                    sha_val="${PLATFORM_SHAS[$i]}"
-                    if [ -z "$sha_val" ]; then
-                        continue
-                    fi
+            if [ -n "$checksums" ] && [ "$SKIP_SHA" != "true" ]; then
+                local kind sha_key sha_val sha_current
+                while IFS=$'\t' read -r kind sha_key sha_val; do
+                    [ "$kind" = sha ] && [ -n "$sha_val" ] || continue
                     if ! sha_current="$(toml_get_single_value "$data_file" "pinned.${dep_name}" "$sha_key" 2>/dev/null)"; then
                         tx_fail "Missing expected key $(display_repo_path "$data_file") [pinned.${dep_name}] ${sha_key}"
                         return 1
@@ -1856,7 +1735,9 @@ build_dep_manifest() {
                         "$sha_current" \
                         "$sha_val" \
                         "$(display_repo_path "$data_file") [pinned.${dep_name}] ${sha_key}"
-                done
+                done <<EOF
+$checksums
+EOF
             fi
             ;;
         claude)
@@ -2114,8 +1995,9 @@ run_bump_transaction() {
     local dep_name="$1"
     local current="$2"
     local latest="$3"
+    local checksums="${4:-}"
 
-    if ! build_dep_manifest "$dep_name" "$current" "$latest"; then
+    if ! build_dep_manifest "$dep_name" "$current" "$latest" "$checksums"; then
         echo "  ${RED}${TX_LAST_ERROR:-Contract build failed}${RESET}" >&2
         return "$EXIT_CONTRACT_BUILD_FAILED"
     fi
@@ -2171,10 +2053,6 @@ run_bump_transaction() {
     return 0
 }
 
-# ============================================================================
-# Dep info helpers
-# ============================================================================
-
 dep_field() {
     local dep_entry="$1"
     local field_num="$2"
@@ -2194,7 +2072,6 @@ find_dep_entry() {
     return 1
 }
 
-# Normalize versions for comparison (strip common prefixes)
 normalize_for_compare() {
     local ver="$1"
     ver="${ver#v}"
@@ -2203,8 +2080,6 @@ normalize_for_compare() {
     echo "$ver"
 }
 
-# Compare two normalized versions.
-# Prints: -1 if left < right, 0 if equal, 1 if left > right
 compare_versions() {
     local left="$1"
     local right="$2"
@@ -2214,7 +2089,6 @@ compare_versions() {
         return 0
     fi
 
-    # Numeric dotted versions are compared segment-by-segment.
     if [[ "$left" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]] && [[ "$right" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
         awk -v a="$left" -v b="$right" '
         BEGIN {
@@ -2232,7 +2106,6 @@ compare_versions() {
         return 0
     fi
 
-    # Fallback lexical compare for non-standard versions.
     if [ "$left" \< "$right" ]; then
         echo "-1"
     else
@@ -2240,12 +2113,7 @@ compare_versions() {
     fi
 }
 
-# ============================================================================
-# Check mode: report all deps
-# ============================================================================
-
 run_check() {
-    # Check cache
     if [ "$FORCE" = "false" ] && cache_is_fresh "$CACHE_FILE" && cache_is_fresh "$LATEST_CACHE_FILE"; then
         cat "$CACHE_FILE"
         echo ""
@@ -2322,15 +2190,10 @@ run_check() {
 
     echo "$output"
 
-    # Cache results (strip color codes for cache; ignore write failures)
     mkdir -p "$(dirname "$CACHE_FILE")" 2>/dev/null || true
     printf '%s\n' "$output" | awk '{ gsub(/\033\[[0-9;]*m/, ""); print }' > "$CACHE_FILE" 2>/dev/null || true
     latest_cache_write
 }
-
-# ============================================================================
-# Pi dependency bump helpers
-# ============================================================================
 
 pi_package_json_files() {
     printf '%s\n' \
@@ -2500,8 +2363,6 @@ PY
         return 1
     fi
 
-    # `read` consumes one line only. Keep both values on one non-whitespace
-    # delimiter-separated line so an empty root or installed value is preserved.
     IFS='|' read -r root_version installed_version <<EOF
 $versions
 EOF
@@ -2777,10 +2638,6 @@ EOF
     return 0
 }
 
-# ============================================================================
-# Bump all dependencies in a single outer transaction
-# ============================================================================
-
 run_all_dependency_transactions() {
     local -a deps=("$@")
     local dep dep_rc
@@ -2844,10 +2701,6 @@ run_all_dependency_transactions() {
     return 0
 }
 
-# ============================================================================
-# Bump a single dependency
-# ============================================================================
-
 bump_dep() {
     local dep_name="$1"
     local entry
@@ -2885,7 +2738,7 @@ bump_dep() {
 
     if [ "$cmp" = "0" ]; then
         echo "  ${GREEN}Already up to date: ${current}${RESET}"
-        return 2  # 2 = already current (distinct from 0=bumped, 1=failed)
+        return 2
     fi
 
     if [ "$cmp" = "1" ]; then
@@ -2900,31 +2753,20 @@ bump_dep() {
         return $?
     fi
 
-    # Fetch checksums if applicable
+    local checksums=""
     if [ "$sha_strategy" != "none" ] && [ "$num_platforms" != "0" ] && [ "$SKIP_SHA" != "true" ]; then
         echo "  Fetching SHA256 checksums..."
-        fetch_checksums "$dep_name" "$latest" "$sha_strategy" "$num_platforms"
-
-        # Check if any SHA failed
-        local sha_ok=true
-        for sha in "${PLATFORM_SHAS[@]-}"; do
-            if [ -z "$sha" ]; then
-                sha_ok=false
-                break
-            fi
-        done
-
-        if [ "$sha_ok" = "false" ] || [ "${#INSTALLABILITY_ERRORS[@]}" -gt 0 ]; then
+        checksums="$(fetch_checksums "$dep_name" "$latest" "$sha_strategy" "$num_platforms")"
+        if [ "$(printf '%s\n' "$checksums" | grep -c '^sha'"$TAB")" != "$num_platforms" ] \
+            || printf '%s\n' "$checksums" | grep -q '^error'"$TAB"; then
             echo "  ${RED}Installability gate failed — refusing to pin ${dep_name}${RESET}"
-            if [ "${#INSTALLABILITY_ERRORS[@]}" -gt 0 ]; then
-                print_installability_errors
-            fi
+            printf '%s\n' "$checksums" | awk -F'\t' '$1 == "error" { print "    - " $2 }'
             return 1
         fi
     fi
 
     if [ "$DRY_RUN" = "true" ]; then
-        if ! build_dep_manifest "$dep_name" "$current" "$latest"; then
+        if ! build_dep_manifest "$dep_name" "$current" "$latest" "$checksums"; then
             echo "  ${RED}${TX_LAST_ERROR:-Contract build failed}${RESET}" >&2
             return "$EXIT_CONTRACT_BUILD_FAILED"
         fi
@@ -2945,7 +2787,7 @@ bump_dep() {
     fi
 
     local tx_rc=0
-    run_bump_transaction "$dep_name" "$current" "$latest" || tx_rc=$?
+    run_bump_transaction "$dep_name" "$current" "$latest" "$checksums" || tx_rc=$?
     if [ "$tx_rc" -ne 0 ]; then
         return "$tx_rc"
     fi
@@ -2953,10 +2795,6 @@ bump_dep() {
     echo "  ${GREEN}Done${RESET}"
     return 0
 }
-
-# ============================================================================
-# Main
-# ============================================================================
 
 write_automatic_report() {
     [ -n "$REPORT_OUT" ] || return 0
@@ -2990,7 +2828,6 @@ PY
         return 0
     fi
 
-    # Bump mode
     local bumped=0
     local failed=0
     local skipped=0
@@ -3057,7 +2894,6 @@ EOF
     fi
 
     if [ "$BUMP_ALL" = "true" ]; then
-        # Gather all deps with available updates
         echo "Scanning all dependencies for updates..."
         echo ""
         local use_latest_cache=false
@@ -3162,10 +2998,10 @@ EOF
         local rc=0
         bump_dep "$dep" || rc=$?
         case "$rc" in
-            0) bumped=$((bumped + 1)) ;;    # Successfully bumped
-            2) skipped=$((skipped + 1)) ;;  # Already current
+            0) bumped=$((bumped + 1)) ;;
+            2) skipped=$((skipped + 1)) ;;
             *)
-                failed=$((failed + 1))      # Error
+                failed=$((failed + 1))
                 if [ "$overall_rc" -eq 0 ]; then
                     overall_rc="$rc"
                 fi
@@ -3174,7 +3010,6 @@ EOF
         echo ""
     done
 
-    # Summary
     echo "─────────────────────────────────"
     if [ "$DRY_RUN" = "true" ]; then
         echo "${YELLOW}Dry run complete.${RESET} Planned: ${bumped}  Skipped: ${skipped}  Failed: ${failed}"

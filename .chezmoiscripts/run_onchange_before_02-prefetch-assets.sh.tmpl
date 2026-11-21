@@ -2,7 +2,6 @@
 {{ includeTemplate "setup/helper-hashes.tmpl" . }}
 set -euo pipefail
 
-# Load helpers from the selected source before the home library is updated.
 CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path 2>/dev/null || true)}"
 if [ -z "$CHEZMOI_SOURCE_DIR" ]; then
     CHEZMOI_SOURCE_DIR="$HOME/.local/share/chezmoi"

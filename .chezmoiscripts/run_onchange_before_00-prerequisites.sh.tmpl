@@ -32,7 +32,6 @@ chezmoi_meets_pinned_version() {
     [ -n "$version" ] && version_ge "$version" "$PINNED_CHEZMOI_CLEAN"
 }
 
-# Determine sudo availability lazily so warm applies avoid probing it unless needed.
 CAN_SUDO=""
 ensure_can_sudo() {
     if [ -n "$CAN_SUDO" ]; then
@@ -59,8 +58,6 @@ install_optional_interactive_tools() {
         return 0
     fi
 
-    # Best-effort installs for interactive tools. Keep non-fatal because package
-    # names vary by distro and these commands have shell fallbacks.
     if ! is_installed delta; then
         if command -v apt-get >/dev/null 2>&1; then
             if apt-cache show git-delta >/dev/null 2>&1; then
@@ -108,7 +105,6 @@ install_optional_interactive_tools() {
     mark_state "prerequisites-optional-tools"
 }
 
-# State tracking with inline fallback validation
 if should_skip_state "prerequisites-setup"; then
     if is_installed zsh && is_installed git && is_installed curl && is_installed jq \
         && chezmoi_meets_pinned_version && (is_installed bat || is_installed batcat); then
@@ -120,7 +116,6 @@ fi
 
 vecho "Checking prerequisites..."
 
-# Fast exit if all essential tools are already available
 if is_installed zsh && is_installed git && is_installed curl && is_installed jq \
     && chezmoi_meets_pinned_version && (is_installed bat || is_installed batcat); then
     install_optional_interactive_tools
@@ -129,10 +124,7 @@ if is_installed zsh && is_installed git && is_installed curl && is_installed jq 
     exit 0
 fi
 
-# Only attempt package installations if we have passwordless sudo rights
 if ensure_can_sudo; then
-    # Check if essential packages are missing. jq is essential because
-    # apply-time scripts use it, for example the Pi settings merge.
     MISSING_PACKAGES=""
     for pkg in zsh git curl wget make gcc jq; do
         if ! is_installed "$pkg"; then
@@ -143,7 +135,6 @@ if ensure_can_sudo; then
         MISSING_PACKAGES="$MISSING_PACKAGES bat"
     fi
 
-    # Only install if we actually need packages
     if [ -n "$MISSING_PACKAGES" ]; then
         eecho "Installing missing packages:$MISSING_PACKAGES"
 
@@ -185,7 +176,6 @@ else
         fi
     fi
 
-    # Check if any packages are actually missing before warning
     MISSING=""
     for pkg in zsh git curl wget make gcc jq; do
         if ! is_installed "$pkg"; then
@@ -208,7 +198,6 @@ else
     fi
 fi
 
-# Create directories if they don't exist (no root needed)
 for dir in "$HOME/.local/bin" "$HOME/.local/share"; do
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
@@ -216,7 +205,6 @@ for dir in "$HOME/.local/bin" "$HOME/.local/share"; do
     fi
 done
 
-# Add .local/bin to PATH if not already there
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     if ! grep -q '\.local/bin' "$HOME/.profile" 2>/dev/null; then
         printf "%s\n" "export PATH=\"\$HOME/.local/bin:\$PATH\"" >>"$HOME/.profile"
@@ -326,7 +314,6 @@ install_chezmoi_via_pinned_release() (
     install_checked_binary "$chezmoi_bin" "$HOME/.local/bin/chezmoi"
 )
 
-# Install or update chezmoi when the active binary is below the repo pin.
 if ! chezmoi_meets_pinned_version; then
     if is_installed chezmoi; then
         eecho "Updating chezmoi from $(current_chezmoi_version || echo unknown) to pinned ${PINNED_CHEZMOI_CLEAN} or newer..."

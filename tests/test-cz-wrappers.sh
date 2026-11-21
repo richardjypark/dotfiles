@@ -622,7 +622,6 @@ test_czl_plain_arch_fallback() {
     create_fixture "$fixture"
     reset_test_state
     export CZL_PACMAN_LOCK="$fixture/no-lock"
-    # Keep host Omarchy commands out of this plain-Arch fixture.
     rm "$fixture/bin/omarchy"
     for tool in bash cat python3; do
         ln -s "$(command -v "$tool")" "$fixture/bin/$tool"

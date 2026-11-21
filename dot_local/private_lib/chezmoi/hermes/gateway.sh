@@ -41,9 +41,7 @@ ensure_gateway_service() {
     fi
 
     eecho "Ensuring Hermes gateway user service is enabled for this always-on host..."
-    # Hermes 0.15 prompts before starting/enabling the service; keep chezmoi
-    # non-interactive and let the explicit systemctl call below enforce state.
-    printf 'n\nn\n' | run_quiet run_hermes_cli gateway install
+    run_quiet run_hermes_cli gateway install --no-start-now --no-start-on-login </dev/null
     systemctl --user daemon-reload
     if [ "$VERBOSE" = "true" ]; then
         systemctl --user enable --now "$SERVICE_UNIT"

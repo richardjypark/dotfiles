@@ -10,14 +10,6 @@ hermes_ready() {
     HERMES_HOME="$HERMES_HOME_DIR" "$HERMES_BIN" --version >/dev/null 2>&1
 }
 
-repair_hermes_npm_lock_metadata() {
-    # Older setup used npm install, which removed esbuild peer metadata.
-    # Recover only that exact rewrite; staged edits and other changes stay put.
-    [ "$(git -C "$INSTALL_DIR" status --porcelain)" = ' M package-lock.json' ] || return 0
-    [ -x "$VENV_DIR/bin/python" ] || return 0
-    "$VENV_DIR/bin/python" "$HERMES_LIB_DIR/lock_metadata.py" "$INSTALL_DIR" "$STATE_DIR"
-}
-
 checkout_hermes_ref() {
     if ! command -v git >/dev/null 2>&1; then
         eecho "Error: git is required before Hermes Agent setup. Install git, then rerun chezmoi apply."
@@ -37,7 +29,6 @@ checkout_hermes_ref() {
         remove_hermes_tui_diff_color_patch
         remove_hermes_tui_status_patch
         remove_hermes_tui_git_branch_patch
-        repair_hermes_npm_lock_metadata
         local checkout_status
         checkout_status="$(git -C "$INSTALL_DIR" status --porcelain)" || return 1
         if [ -n "$checkout_status" ]; then

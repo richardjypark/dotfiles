@@ -45,7 +45,6 @@ if [ -z "${OMARCHY_PATH:-}" ]; then
     exit 1
 fi
 
-# The diff snapshots the current change. Do not rename existing user work.
 require_clean_chezmoi_reviewed_source
 require_merged_chezmoi_source
 description="$(jj --ignore-working-copy -R "$CHEZMOI_SOURCE_DIR_RESOLVED" log -r @ --no-graph --template description)"

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Publish one named JJ bookmark only after the source and history checks pass.
 set -euo pipefail
 
 remote=origin
@@ -35,7 +34,6 @@ guard="$repo_root/scripts/check-public-files.py"
 scanner="$repo_root/dot_local/bin/executable_dotfiles-secret-scan"
 [[ -f "$guard" && -x "$scanner" ]] || { printf 'ERROR: source publication guards are missing\n' >&2; exit 1; }
 
-# Export/snapshot the current JJ state before resolving its Git bookmark.
 jj status --quiet
 target="$(git rev-parse --verify "refs/heads/$bookmark^{commit}")"
 python3 "$guard" --source "$repo_root" --remote "$remote" --head "$target"

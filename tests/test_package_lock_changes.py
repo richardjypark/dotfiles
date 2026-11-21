@@ -109,10 +109,11 @@ class ReviewTest(unittest.TestCase):
         self.assertEqual(rows[0]["package"], "@scope/pkg")
 
     def test_minimum_age_matches_the_host_default(self):
-        npm_helpers = (ROOT / "dot_local/private_lib/chezmoi/npm.sh").read_text()
-        default = re.search(r'value="\$\{CHEZMOI_NPM_MIN_VERSION_AGE_DAYS:-(\d+)\}"', npm_helpers)
-        self.assertIsNotNone(default)
-        self.assertEqual(int(default.group(1)), checker.MIN_AGE_DAYS)
+        for source in ("dot_local/private_lib/chezmoi/npm.sh", "dot_local/bin/executable_chezmoi-bump"):
+            with self.subTest(source=source):
+                defaults = re.findall(r'value="\$\{CHEZMOI_NPM_MIN_VERSION_AGE_DAYS:-(\d+)\}"',
+                                      (ROOT / source).read_text())
+                self.assertEqual([int(value) for value in defaults], [checker.MIN_AGE_DAYS])
 
 
 class CommandTest(unittest.TestCase):

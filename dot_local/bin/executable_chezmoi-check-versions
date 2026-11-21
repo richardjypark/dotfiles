@@ -1,21 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# chezmoi-check-versions — report seven-day stable candidates for external pins
-# Usage: chezmoi-check-versions [--force]
-
-CACHE_MAX_AGE=86400  # 24 hours in seconds
+CACHE_MAX_AGE=86400
 CHEZMOI_DIR="${CHEZMOI_DIR:-$HOME/.local/share/chezmoi}"
 
-# Return file mtime as epoch seconds. Falls back to 0 when unavailable.
 cache_mtime_epoch() {
     local file="$1"
     local mtime
 
-    # GNU stat (Linux)
     mtime="$(stat -c %Y "$file" 2>/dev/null || true)"
     if [[ ! "$mtime" =~ ^[0-9]+$ ]]; then
-        # BSD stat (macOS/BSD)
         mtime="$(stat -f %m "$file" 2>/dev/null || true)"
     fi
     if [[ ! "$mtime" =~ ^[0-9]+$ ]]; then
@@ -25,7 +19,6 @@ cache_mtime_epoch() {
     echo "$mtime"
 }
 
-# Parse args
 FORCE=false
 case "${1:-}" in
     --force|-f) FORCE=true ;;
@@ -57,7 +50,6 @@ PY
 )"
 CACHE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/chezmoi-version-check-seven-day-${cache_key}.txt"
 
-# Check cache freshness
 if [ "$FORCE" = "false" ] && [ -f "$CACHE_FILE" ]; then
     cache_mtime="$(cache_mtime_epoch "$CACHE_FILE")"
     cache_age=$(( $(date +%s) - cache_mtime ))
@@ -69,15 +61,11 @@ if [ "$FORCE" = "false" ] && [ -f "$CACHE_FILE" ]; then
     fi
 fi
 
-# Extract pinned version from chezmoi config files
-# Returns: "version source_file"
 get_pinned_fzf() {
-    # Check .chezmoiexternal.toml.tmpl for the fzf clone branch tag
     sed -n '/^\["\.local\/share\/fzf"\]/,/^\[/{s/.*"--branch", "\([^"]*\)".*/\1/p;}' "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1 | sed 's/^v//'
 }
 
 get_pinned_zsh_syntax_highlighting() {
-    # URL contains the tag: .../archive/refs/tags/0.8.0.tar.gz
     sed -n '/zsh-syntax-highlighting/,/refreshPeriod/s|.*refs/tags/\([^"]*\)\.tar\.gz.*|\1|p' \
         "$CHEZMOI_DIR/.chezmoiexternal.toml.tmpl" | head -1 | sed 's/^v//'
 }
@@ -90,7 +78,6 @@ get_pinned_zsh_autosuggestions() {
 echo "Checking seven-day stable release eligibility..."
 echo ""
 
-# Build results table
 results=""
 has_update=false
 API_ERROR_COUNT=0
@@ -130,7 +117,6 @@ check_dep "fzf" "$(get_pinned_fzf)" "junegunn/fzf"
 check_dep "zsh-syntax-highlighting" "$(get_pinned_zsh_syntax_highlighting)" "zsh-users/zsh-syntax-highlighting"
 check_dep "zsh-autosuggestions" "$(get_pinned_zsh_autosuggestions)" "zsh-users/zsh-autosuggestions"
 
-# Format output
 output="| Dependency | Pinned | Candidate | Status |
 |---|---|---|---|$(echo -e "$results")"
 
@@ -155,7 +141,6 @@ fi
 
 echo "$output"
 
-# Cache only complete results.
 if [ "$API_ERROR_COUNT" -eq 0 ]; then
     mkdir -p "$(dirname "$CACHE_FILE")"
     temporary="$(mktemp "${CACHE_FILE}.XXXXXXXX")"
@@ -164,7 +149,6 @@ if [ "$API_ERROR_COUNT" -eq 0 ]; then
     mv "$temporary" "$CACHE_FILE"
 fi
 
-# Distinct non-zero exit for incomplete checks caused by API/network errors.
 if [ "$API_ERROR_COUNT" -gt 0 ]; then
     exit 2
 fi

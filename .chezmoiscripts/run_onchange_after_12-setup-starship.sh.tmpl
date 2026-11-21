@@ -42,7 +42,6 @@ fi
 
 vecho "Setting up Starship prompt..."
 
-# Fast exit if starship is already installed and working (but mark state)
 if is_installed starship && ! is_force_update; then
     CURRENT_STARSHIP_VERSION="$(current_starship_version)"
     if [ -n "$CURRENT_STARSHIP_VERSION" ] && version_ge "$CURRENT_STARSHIP_VERSION" "$PINNED_STARSHIP_CLEAN"; then
@@ -100,7 +99,6 @@ install_via_release_binary() (
 
     download_url="https://github.com/starship/starship/releases/download/${PINNED_STARSHIP_VERSION}/${asset_name}"
     cache_file="$CACHE_DIR/starship-${PINNED_STARSHIP_VERSION}-${platform}.tar.gz"
-    # macOS mktemp ignores TMPDIR without a template.
     temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/starship.XXXXXXXX")" || return 1
     trap 'rm -rf "$temp_dir"' EXIT
 
@@ -136,7 +134,6 @@ else
     exit 1
 fi
 
-# Verify installation
 INSTALLED_STARSHIP_VERSION="$(current_starship_version)"
 if is_installed starship && [ -n "$INSTALLED_STARSHIP_VERSION" ] && version_ge "$INSTALLED_STARSHIP_VERSION" "$PINNED_STARSHIP_CLEAN"; then
     if [ "$VERBOSE" = "true" ]; then
