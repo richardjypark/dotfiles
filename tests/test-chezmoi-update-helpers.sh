@@ -11,7 +11,6 @@ PASS_COUNT=0
 FAIL_COUNT=0
 SKIP_COUNT=0
 TEST_FIXTURE_ROOT=""
-# Fixtures replace PATH, so find the real tools before any test runs.
 REAL_JJ="$(command -v jj 2>/dev/null || true)"
 REAL_GIT="$(command -v git 2>/dev/null || true)"
 
@@ -300,9 +299,6 @@ test_prepare_failures_propagate() {
     expect_eq "$status" "8" "rebase failure status propagates" || return 1
 }
 
-# A remote that rewrites trunk history makes the fetch move @ onto root().
-# Real jj must keep the tracked files on disk and keep ignored files out of @,
-# with and without the managed snapshot.auto-update-stale setting.
 check_prepare_after_trunk_rewrite() {
     local case_dir="$1" auto_update_stale="$2" repo changes label="auto-update-stale=$2"
     mkdir -p "$case_dir"

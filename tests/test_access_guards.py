@@ -178,7 +178,6 @@ class LockdownRollbackTest(unittest.TestCase):
             waiting = subprocess.Popen(["bash", str(rollback)], env=env)
             time.sleep(0.5)
             self.assertIsNone(waiting.poll(), "rollback.sh must wait for the lock")
-            # --confirm removes the state directory while it holds the lock.
             shutil.rmtree(self.root / "run/dotfiles-ssh-lockdown")
         finally:
             holder.communicate(b"\n", timeout=10)

@@ -106,8 +106,6 @@ def remote_check(source, env):
     head = re.search(r"^([0-9a-f]{40}|[0-9a-f]{64})\s+HEAD$", output, re.MULTILINE)
     if not branch or not head:
         raise CheckFailure("Remote HEAD did not identify a default branch and commit")
-    # In a colocated JJ workspace, Git HEAD is the checked-out parent. Comparing
-    # with the empty JJ working commit would report an update on every run.
     local = checked(["git", "-C", str(source), "rev-parse", "--verify", "HEAD"], env, LOCAL_TIMEOUT)
     if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", local):
         raise CheckFailure("Cannot identify the local source parent")
@@ -146,8 +144,6 @@ def aur_check(env):
 
 
 def pin_check(source, state, env):
-    # The installed scanner executes this source helper. Do not execute local
-    # helper changes merely because a daily timer fired.
     helper = "dot_local/private_lib/chezmoi/stable-release-eligibility.py"
     revision = checked(
         ["jj", "--ignore-working-copy", "-R", str(source), "log", "-r", "trunk()",

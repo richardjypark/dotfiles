@@ -4,3 +4,4 @@
 .agents/skills/chezmoi-repo-maintainer/references/validation-and-ci.md
 .agents/skills/karpathy-guidelines
 .agents/skills/deli-auto-research
+.local/lib/chezmoi/hermes/lock_metadata.py

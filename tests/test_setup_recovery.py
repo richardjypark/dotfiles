@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Exercise setup recovery without network access or host installations."""
 
-import copy
-import json
 import os
 from pathlib import Path
 import re
@@ -29,8 +27,6 @@ def executable(path, contents):
     path.chmod(0o755)
 
 
-# Host variables that change how mise, nvm, npm, and XDG-aware tools find files.
-# A test that keeps them can read the maintainer's real toolchain.
 HOST_ENV_PREFIXES = ("MISE_", "NVM_", "XDG_", "NPM_", "npm_", "NODE_", "CHEZMOI_")
 
 
@@ -55,8 +51,6 @@ class SetupFixture(unittest.TestCase):
         lib.mkdir()
         shutil.copyfile(self.helper, lib / "chezmoi-helpers.sh")
         shutil.copytree(ROOT / "dot_local/private_lib/chezmoi", lib / "chezmoi")
-        # The helpers ask mise first for node and npm. A mise in /usr/bin would
-        # answer from the host. This stub finds nothing, so the fake npm is used.
         executable(self.bin / "mise", "#!/bin/sh\nexit 1\n")
         self.env = {name: value for name, value in os.environ.items()
                     if not name.startswith(HOST_ENV_PREFIXES)}
@@ -71,11 +65,9 @@ class SetupFixture(unittest.TestCase):
                               capture_output=True, text=True, timeout=20)
 
     def test_host_toolchain_cannot_leak_into_the_fixture(self):
-        # A host mise or host variable would make scripts pass or fail by machine.
         result = self.run_bash('command -v mise; mise which npm || echo no-npm-from-mise')
         self.assertEqual(result.stdout.splitlines()[0], str(self.bin / "mise"))
         self.assertIn("no-npm-from-mise", result.stdout)
-        # The fixture sets CHEZMOI_FORCE_UPDATE itself. Nothing else may match.
         leaked = sorted(name for name in self.env
                         if name.startswith(HOST_ENV_PREFIXES) and name != "CHEZMOI_FORCE_UPDATE")
         self.assertEqual(leaked, [])
@@ -256,77 +248,6 @@ esac
         self.assertIn("fixture npm install error", result.stderr)
         self.assertEqual((self.bin / "claude").resolve(), old)
         self.assertFalse(list(self.state.glob("claude-code-*.done")))
-
-    def init_hermes(self):
-        self.checkout = self.base / "hermes"
-        self.checkout.mkdir()
-        self.git("init", "-q")
-        self.lock = self.checkout / "package-lock.json"
-        self.original = {"lockfileVersion": 3, "packages": {
-            "node_modules/@esbuild/darwin-arm64": {"version": "1.0.0", "peer": True},
-            "node_modules/other": {"version": "2.0.0", "peer": True},
-        }}
-        self.lock.write_text(json.dumps(self.original))
-        self.git("add", "package-lock.json")
-        self.git("-c", "user.name=Test", "-c", "user.email=test@example.invalid",
-                 "-c", "commit.gpgsign=false", "commit", "-qm", "fixture")
-        self.legacy = copy.deepcopy(self.original)
-        del self.legacy["packages"]["node_modules/@esbuild/darwin-arm64"]["peer"]
-        self.lock.write_text(json.dumps(self.legacy))
-        venv = self.base / "venv/bin"
-        venv.mkdir(parents=True)
-        (venv / "python").symlink_to(sys.executable)
-        self.env.update(INSTALL_DIR=str(self.checkout), VENV_DIR=str(venv.parent))
-
-    def git(self, *args):
-        return subprocess.check_output(["git", "-C", str(self.checkout), *args],
-                                       text=True, stderr=subprocess.STDOUT, env=self.env, timeout=15)
-
-    def repair_lock(self):
-        return self.run_bash(f'''set -euo pipefail
-HERMES_LIB_DIR="{ROOT}/dot_local/private_lib/chezmoi/hermes"
-. "{ROOT}/dot_local/private_lib/chezmoi/hermes/install.sh"
-repair_hermes_npm_lock_metadata
-''')
-
-    def test_legacy_lock_repair_keeps_backup_and_is_idempotent(self):
-        self.init_hermes()
-        before = self.lock.read_bytes()
-        result = self.repair_lock()
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.git("status", "--porcelain"), "")
-        backups = list(self.state.glob("hermes-package-lock-*.json"))
-        self.assertEqual(len(backups), 1)
-        self.assertEqual(backups[0].read_bytes(), before)
-        self.assertEqual(backups[0].stat().st_mode & 0o777, 0o600)
-        self.assertEqual(self.repair_lock().returncode, 0)
-        self.assertEqual(list(self.state.glob("hermes-package-lock-*.json")), backups)
-
-    def test_real_edits_staged_edits_and_untracked_files_are_preserved(self):
-        for change in ("version", "other-peer", "staged", "untracked"):
-            with self.subTest(change=change):
-                # Each scenario uses an independent temporary checkout.
-                with tempfile.TemporaryDirectory() as directory:
-                    previous = self.base
-                    self.base = Path(directory).resolve()
-                    self.init_hermes()
-                    if change == "version":
-                        self.legacy["packages"]["node_modules/other"]["version"] = "3.0.0"
-                    elif change == "other-peer":
-                        del self.legacy["packages"]["node_modules/other"]["peer"]
-                    self.lock.write_text(json.dumps(self.legacy))
-                    if change == "staged":
-                        self.git("add", "package-lock.json")
-                    elif change == "untracked":
-                        (self.checkout / "notes.txt").write_text("user work")
-                    before = self.lock.read_bytes()
-                    status = self.git("status", "--porcelain")
-                    result = self.repair_lock()
-                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                    self.assertEqual(self.lock.read_bytes(), before)
-                    self.assertEqual(self.git("status", "--porcelain"), status)
-                    self.assertFalse(list(self.state.glob("hermes-package-lock-*.json")))
-                    self.base = previous
 
     def test_tui_install_uses_ci_and_reports_npm_errors(self):
         self.env.update(INSTALL_DIR=str(self.home), TUI_DIR=str(self.home),

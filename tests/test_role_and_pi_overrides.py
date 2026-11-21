@@ -12,7 +12,7 @@ import unittest
 
 try:
     import yaml
-except ModuleNotFoundError:  # CI installs PyYAML; a local python3 can lack it.
+except ModuleNotFoundError:
     yaml = None
 
 
@@ -272,12 +272,10 @@ class RoleAndOverrideTest(unittest.TestCase):
                 return subprocess.run(["bash", "-"], input=rendered, text=True, env=env,
                                       capture_output=True)
 
-            # A missing file gets the managed settings.
             self.assertEqual(run().returncode, 0)
             self.assertEqual(json.loads(target.read_text()), managed)
             self.assertEqual(target.stat().st_mode & 0o777, 0o600)
 
-            # Pi-written keys stay, managed drift is reset, and a match is not rewritten.
             drifted = {**managed, "theme": "dark", "defaultModel": "local",
                        "compaction": {**managed["compaction"], "enabled": False, "extra": 1}}
             target.write_text(json.dumps(drifted))
@@ -291,12 +289,10 @@ class RoleAndOverrideTest(unittest.TestCase):
             self.assertEqual(run().returncode, 0)
             self.assertEqual(target.stat().st_mtime_ns, mtime)
 
-            # Invalid JSON fails without a write.
             target.write_text("{")
             self.assertNotEqual(run().returncode, 0)
             self.assertEqual(target.read_text(), "{")
 
-            # An empty file is treated as missing.
             target.write_text("")
             self.assertEqual(run().returncode, 0)
             self.assertEqual(json.loads(target.read_text()), managed)
@@ -310,7 +306,6 @@ class RoleAndOverrideTest(unittest.TestCase):
             helper = home / ".local/lib/chezmoi-helpers.sh"
             helper.parent.mkdir(parents=True)
             helper.write_text('eecho() { printf "%s\\n" "$*"; }\nvecho() { :; }\n')
-            # A PATH with the tools the script needs, but no jq.
             tools = Path(directory) / "bin"
             tools.mkdir()
             for name in ("bash", "cat", "chmod", "cmp", "dirname", "install", "mkdir",
@@ -323,12 +318,10 @@ class RoleAndOverrideTest(unittest.TestCase):
                 return subprocess.run([str(tools / "bash"), "-"], input=rendered, text=True,
                                       env=env, capture_output=True)
 
-            # A new host without jq still gets the managed settings.
             result = run()
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(target.read_text()), managed)
 
-            # An existing file without jq is kept, and apply does not fail.
             target.write_text(json.dumps({**managed, "theme": "dark", "defaultModel": "local"}))
             before = target.read_bytes()
             result = run()
@@ -338,7 +331,6 @@ class RoleAndOverrideTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # Exit 77 tells tests/all that a test was skipped; a skip is not a pass.
     program = unittest.main(exit=False)
     if not program.result.wasSuccessful():
         sys.exit(1)

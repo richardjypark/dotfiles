@@ -16,7 +16,7 @@ import urllib.request
 
 REGISTRY = "https://registry.npmjs.org"
 LOCKFILES = ("package-lock.json", "npm-shrinkwrap.json")
-MIN_AGE_DAYS = 3  # The host default, CHEZMOI_NPM_MIN_VERSION_AGE_DAYS in npm.sh.
+MIN_AGE_DAYS = 3
 MAX_LOCKFILE = 16 * 1024 * 1024
 MAX_PACKUMENT = 64 * 1024 * 1024
 MAX_CHANGED = 1000

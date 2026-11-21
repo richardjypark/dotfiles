@@ -5,8 +5,6 @@ set -euo pipefail
 CODEX_BIN_DIR="$HOME/.local/bin"
 CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
 CODEX_RELEASES_DIR="$CODEX_HOME_DIR/packages/standalone/releases"
-# Prefer the repo-managed Codex entry point in ~/.local/bin during validation.
-# Non-interactive update wrappers can inherit Homebrew before ~/.local/bin.
 export PATH="$CODEX_BIN_DIR${PATH:+:$PATH}"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
@@ -103,13 +101,11 @@ if should_skip_state "$CODEX_STATE"; then
     vecho "Codex state exists but managed binary is missing; re-running setup."
 fi
 
-# Skip on server role to keep server footprint minimal.
 if [ "{{ includeTemplate "resolved-role" . }}" = "server" ]; then
     vecho "Skipping Codex setup on server role"
     exit 0
 fi
 
-# Fast exit if Codex and its command host are already complete.
 if codex_binary_ready && ! is_force_update; then
     CURRENT_CODEX_VERSION="$(current_codex_version)"
     if [ -n "$CURRENT_CODEX_VERSION" ] && version_ge "$CURRENT_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
@@ -131,7 +127,6 @@ install_via_homebrew() {
     fi
 
     if brew list --cask codex >/dev/null 2>&1; then
-        # Already installed — check if upgrade is actually needed
         if ! brew outdated --cask codex 2>/dev/null | grep -q codex; then
             eecho "Codex CLI already at latest version (Homebrew)"
             return 0
@@ -276,7 +271,6 @@ if [ -z "$CODEX_INSTALL_METHOD" ]; then
 fi
 vecho "Codex installation method: $CODEX_INSTALL_METHOD"
 
-# Verify installation
 INSTALLED_CODEX_VERSION="$(current_codex_version)"
 if codex_binary_ready && [ -n "$INSTALLED_CODEX_VERSION" ] && version_ge "$INSTALLED_CODEX_VERSION" "$PINNED_CODEX_CLEAN"; then
     if [ "$VERBOSE" = "true" ]; then

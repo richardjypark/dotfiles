@@ -4,13 +4,9 @@ set -euo pipefail
 . "$HOME/.local/lib/chezmoi-helpers.sh"
 
 UV_DIR="$HOME/.local/bin"
-# Prefer the repo-managed uv in ~/.local/bin while this script validates and
-# installs the pinned version. add_to_path only appends missing paths, but uv may
-# already exist later in PATH after Homebrew in non-interactive update wrappers.
 export PATH="$UV_DIR${PATH:+:$PATH}"
 CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
-# Use chezmoi template syntax to read Python version
 {{- with .python }}
 PYTHON_VERSION="{{ .version }}"
 {{- else }}
@@ -124,7 +120,6 @@ install_uv_from_pinned_release() (
         return 1
     fi
 
-    # Activation replaces a Homebrew link only after the new command works.
     install_checked_binary "$uv_binary" "$UV_DIR/uv" || return 1
     hash -r 2>/dev/null || true
 
@@ -168,7 +163,6 @@ homebrew_uv_path() {
     return 1
 }
 
-# Ask Homebrew's binary itself: an older pinned copy in $UV_DIR comes first in PATH.
 homebrew_uv_version() {
     local uv_path="$1"
     local line=""
@@ -177,7 +171,6 @@ homebrew_uv_version() {
     normalize_version_token "$line"
 }
 
-# Check if uv is already installed
 UV_NEEDS_INSTALL=true
 if is_installed uv && ! is_force_update; then
     CURRENT_UV_VERSION="$(current_uv_version)"
@@ -192,7 +185,6 @@ if is_installed uv && ! is_force_update; then
 fi
 
 if [ "$UV_NEEDS_INSTALL" = "true" ]; then
-    # Ensure .local/bin exists
     mkdir -p "$UV_DIR"
 
     platform=""
@@ -224,7 +216,6 @@ if [ "$UV_NEEDS_INSTALL" = "true" ]; then
                     fi
 
                     if [ -n "$HOMEBREW_UV_VERSION" ] && version_ge "$HOMEBREW_UV_VERSION" "$PINNED_UV_CLEAN"; then
-                        # Link Homebrew's uv into $UV_DIR; this replaces an older pinned copy there.
                         ln -sf "$HOMEBREW_UV" "$UV_DIR/uv"
                         hash -r 2>/dev/null || true
                     else
@@ -264,18 +255,15 @@ if [ -z "$INSTALLED_UV_VERSION" ] || ! version_ge "$INSTALLED_UV_VERSION" "$PINN
     exit 1
 fi
 
-# Check if Python is already installed via uv
 if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
     vecho "Python $PYTHON_VERSION is already installed via uv"
     mark_state "$UV_STATE"
     exit 0
 fi
 
-# Install Python via uv
 vecho "Installing Python $PYTHON_VERSION via uv..."
 run_quiet uv python install "$PYTHON_VERSION"
 
-# Verify Python installation
 if uv python list 2>/dev/null | grep -q "$PYTHON_VERSION"; then
     vecho "Python $PYTHON_VERSION installed successfully via uv"
     if [ "$VERBOSE" = "true" ]; then

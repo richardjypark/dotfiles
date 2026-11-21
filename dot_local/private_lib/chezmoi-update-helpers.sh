@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# chezmoi-update-helpers.sh — shared functions for czu/czuf/czl/czm
-# Sourced by ~/.local/bin/czu, ~/.local/bin/czuf, ~/.local/bin/czl, and ~/.local/bin/czm
 
 # Internal cache: never trust an inherited value that has not passed validation.
 CHEZMOI_SOURCE_DIR_RESOLVED=""
@@ -294,7 +292,6 @@ chezmoi_prepare_jj_update() {
     local quiet=--quiet
     [ "${VERBOSE:-false}" = "true" ] && quiet=""
 
-    # jj-sync-trunk fetches with --ignore-working-copy, so record local edits first.
     (cd "$repo" && jj ${quiet:+"$quiet"} -R "$repo" util snapshot) || return $?
 
     if [ -n "$quiet" ]; then
@@ -303,16 +300,10 @@ chezmoi_prepare_jj_update() {
         (cd "$repo" && jj-sync-trunk --remote "$remote") || return $?
     fi
 
-    # A rewritten remote trunk shares only root() with @: the fetch abandoned
-    # the old trunk commits and moved @ onto root().
     if [ -n "$(jj --ignore-working-copy -R "$repo" log --no-graph -r 'heads(::@ & ::trunk()) & root()' -T 'commit_id' 2>/dev/null)" ]; then
         chezmoi_update_error "warning: trunk history was rewritten on $remote; moving the working-copy change onto the new trunk. Old local copies can remain; see the jj-remote-truth-reset skill."
     fi
 
-    # Rebase first, then update the files. A rebase that updates the files
-    # itself first checks out the empty root() tree after a rewrite: that
-    # deletes every tracked file, .gitignore too, and the next snapshot then
-    # adds every ignored file to @.
     (cd "$repo" && jj ${quiet:+"$quiet"} --ignore-working-copy -R "$repo" rebase -d 'trunk()') || return $?
     (cd "$repo" && jj ${quiet:+"$quiet"} -R "$repo" workspace update-stale) || return $?
 }
@@ -329,7 +320,6 @@ run_with_optional_output_sanitizer() {
     "$@"
 }
 
-# Use the same runtime resolver as apply-time setup.
 CHEZMOI_UPDATE_HELPERS_DIR="${BASH_SOURCE[0]%/*}"
 if [ "$CHEZMOI_UPDATE_HELPERS_DIR" = "${BASH_SOURCE[0]}" ]; then CHEZMOI_UPDATE_HELPERS_DIR=.; fi
 . "$CHEZMOI_UPDATE_HELPERS_DIR/chezmoi/npm.sh" || return 1

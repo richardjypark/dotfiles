@@ -198,8 +198,6 @@ ensure_hermes_tui_diff_color_patch() {
 }
 
 restore_hermes_tui_diff_skin_lines() {
-    # Older setup wrote static colors over the skin-native diff lines. Put the
-    # native lines back only when the result matches the checked-out file.
     local theme_file="$INSTALL_DIR/$HERMES_TUI_DIFF_THEME_FILE"
     tui_diff_skin_managed_ready || return 1
 

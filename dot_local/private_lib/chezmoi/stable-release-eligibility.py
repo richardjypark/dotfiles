@@ -137,7 +137,6 @@ def fetch_json(url):
         headers["Accept"] = "application/vnd.github+json"
     request = urllib.request.Request(url, headers=headers)
     if origin.netloc == "api.github.com" and os.environ.get("GITHUB_TOKEN"):
-        # urllib does not copy this header when it follows a redirect.
         request.add_unredirected_header("Authorization", "Bearer " + os.environ["GITHUB_TOKEN"])
     with urllib.request.build_opener(MetadataRedirectHandler()).open(request, timeout=20) as response:
         return json.load(response)

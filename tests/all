@@ -3,13 +3,10 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 . "$REPO_ROOT/tests/lib/temp.sh"
-# Stop before any suite runs if a private temporary directory is unavailable,
-# and run the suites from it so no suite depends on the caller's directory.
 new_test_temp_dir TESTS_WORK_DIR
 new_test_temp_dir SUITE_LOG_DIR
 cleanup() {
     local pid
-    # SIGINT, like Ctrl-C, lets each suite run its own cleanup; SIGTERM does not.
     for pid in $(jobs -p); do
         kill -INT -- "-$pid" 2>/dev/null
     done
@@ -20,8 +17,6 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-# Job control puts each suite in its own process group, so cleanup can stop a
-# suite together with its child processes.
 set -m
 cd "$TESTS_WORK_DIR" || exit 1
 PASS_COUNT=0
@@ -35,9 +30,6 @@ case "$TESTS_JOBS" in
     '' | *[!0-9]* | 0) TESTS_JOBS=1 ;;
 esac
 
-# Suites run in the background, at most TESTS_JOBS at a time. The report prints
-# each suite's output in declaration order, so the log reads like a serial run.
-# A suite has a PID, or a result that was known before it could start.
 SUITE_COUNT=0
 SUITE_NAMES=()
 SUITE_PIDS=()
@@ -107,9 +99,6 @@ report_suites() {
     done
 }
 
-# TESTS_PLATFORM_ONLY=1 omits suites whose result cannot depend on the host:
-# CI-only policy code that runs only on GitHub's Ubuntu runners, and lint over
-# files that render the same on every OS. The Linux job still runs them.
 TESTS_PLATFORM_ONLY="${TESTS_PLATFORM_ONLY:-0}"
 OMITTED_SUITES=""
 
@@ -189,6 +178,14 @@ check_openrouter_agent() {
     )
 }
 
+if ! python3 -c 'import yaml' >/dev/null 2>&1; then
+    if yaml_path="$(bash "$REPO_ROOT/tests/lib/pyyaml-path.sh")"; then
+        export PYTHONPATH="$yaml_path${PYTHONPATH:+:$PYTHONPATH}"
+    else
+        printf '[NOTE] The pinned PyYAML copy is unavailable; YAML test cases will be skipped.\n'
+    fi
+fi
+
 run_suite "temporary directory safety" python3 "$REPO_ROOT/tests/test_temp_safety.py"
 run_suite "publication privacy guards" python3 "$REPO_ROOT/tests/test_publication_guards.py"
 run_suite "shell syntax" "$REPO_ROOT/tests/syntax"
@@ -200,6 +197,7 @@ run_suite "access guard behavior" python3 "$REPO_ROOT/tests/test_access_guards.p
 run_host_neutral_suite run_lint_suite "ShellCheck" shellcheck "$REPO_ROOT/tests/lint-shell"
 run_host_neutral_suite run_lint_suite "actionlint" actionlint "$REPO_ROOT/tests/lint-actions"
 run_suite "maintenance behavior" bash "$REPO_ROOT/tests/test-cz-maintenance.sh"
+run_suite "chezmoi-bump checksum hand-off" python3 "$REPO_ROOT/tests/test_chezmoi_bump_checksums.py"
 run_suite "safe daily update policy" python3 "$REPO_ROOT/tests/test_safe_daily_updates.py"
 run_host_neutral_suite run_suite "maintenance candidate and publisher" python3 "$REPO_ROOT/tests/test_maintenance_publisher.py"
 run_host_neutral_suite run_suite "package lock change policy" python3 "$REPO_ROOT/tests/test_package_lock_changes.py"
@@ -221,6 +219,7 @@ run_suite "skill-routing unit tests" python3 "$REPO_ROOT/tests/test_eval_skill_r
 run_suite "skill-routing catalog dry run" python3 "$REPO_ROOT/scripts/eval-skill-routing.py" --dry-run
 run_suite "Hermes delegation defaults" python3 "$REPO_ROOT/tests/test_hermes_delegation.py"
 run_suite "agent instruction policy" python3 "$REPO_ROOT/tests/test_agent_instructions.py"
+run_host_neutral_suite run_suite "comment ratchet" python3 "$REPO_ROOT/tests/test_comment_ratchet.py"
 run_suite "managed package layout" python3 "$REPO_ROOT/tests/test_managed_package_layout.py"
 
 run_managed_npm_suite \

@@ -3,7 +3,6 @@ set -uo pipefail
 
 REPO_ROOT="${TEST_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)}"
 . "$REPO_ROOT/tests/lib/shell-files.sh"
-# Load the temp helper beside this script; REPO_ROOT can be a test fixture.
 . "$(dirname "${BASH_SOURCE[0]}")/lib/temp.sh"
 PASS_COUNT=0
 FAIL_COUNT=0

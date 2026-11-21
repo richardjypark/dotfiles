@@ -5,8 +5,6 @@ set -euo pipefail
 BRAVE_POLICY_DOMAIN="com.brave.Browser"
 BRAVE_POLICY_KEY="TorDisabled"
 
-# If someone accidentally runs chezmoi through sudo, still target the login
-# user whose Brave profile should be managed.
 if [ "$(id -u)" = "0" ] && [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER:-}" != "root" ]; then
     BRAVE_POLICY_USER="$SUDO_USER"
 else
@@ -78,9 +76,6 @@ persist_mcx_policy() {
         return 1
     fi
 
-    # /Library/Managed Preferences is an MCX cache. Direct plist writes can be
-    # discarded when macOS rebuilds managed preferences at login/reboot, so make
-    # the local Directory Services MCXSettings record the durable source.
     run_privileged dscl . -mcxset "$BRAVE_POLICY_RECORD" "$BRAVE_POLICY_DOMAIN" "$BRAVE_POLICY_KEY" always -bool 1
 
     if command -v mcxrefresh >/dev/null 2>&1; then

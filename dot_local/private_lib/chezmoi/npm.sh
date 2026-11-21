@@ -1,5 +1,3 @@
-# --- Managed npm Safety Helpers ---
-
 npm_validate_automatic_policy() {
     [ "${CHEZMOI_AUTOMATIC_UPDATES:-0}" = "1" ] || return 0
     if [ "${CHEZMOI_NPM_MIN_VERSION_AGE_DAYS:-7}" != "7" ]; then
@@ -134,8 +132,6 @@ npm_query_publish_metadata_json() {
 
     if [ "${CHEZMOI_AUTOMATIC_UPDATES:-0}" = "1" ]; then
         node_cmd="$(resolve_node_cmd)" || return 1
-        # Query the public origin directly; scoped registries in .npmrc must
-        # not supply publication times for automatic proposals.
         metadata="$("$node_cmd" -e '
 fetch(`https://registry.npmjs.org/${encodeURIComponent(process.argv[1])}`, {
   redirect: "error", signal: AbortSignal.timeout(20000), headers: {"Cache-Control": "no-cache"}
@@ -351,9 +347,6 @@ npm_verify_installed_lockfile() {
     python3 "$CHEZMOI_HELPERS_DIR/chezmoi/npm-lock-install.py" "${args[@]}"
 }
 
-# macOS LaunchServices can give a reused PID a stale app entry; node then aborts
-# (exit 134) while npm sets process.title. A second process gets a new PID.
-# The notice goes to stderr so captured npm output stays clean.
 npm_retry_abort() {
     local status
     "$@" && return 0

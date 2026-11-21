@@ -134,6 +134,11 @@
       "id": "modern-web-light-dismiss-dialog",
       "request": "Build a settings modal that closes when I click outside it or press Escape, with an animated backdrop, in plain HTML and CSS.",
       "expected_skill": "modern-web-guidance"
+    },
+    {
+      "id": "comment-ratchet-cleanup",
+      "request": "The comment ratchet failed after my edit to chezmoi-bump. Go through the comments in that script, delete the ones that just repeat the code, and move the real design reasons into an ADR.",
+      "expected_skill": "delete-comment"
     }
   ]
 }

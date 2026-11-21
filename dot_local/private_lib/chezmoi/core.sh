@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# chezmoi-helpers.sh — shared helper library for chezmoi scripts
-# Sourced by all .chezmoiscripts/ files via: . "$HOME/.local/lib/chezmoi-helpers.sh"
-
-# --- Output Helpers ---
 
 VERBOSE="${VERBOSE:-false}"
 
@@ -14,22 +10,17 @@ vecho() {
 
 eecho() { echo "$@"; }
 
-# --- State Tracking ---
-
 STATE_DIR="${STATE_DIR:-$HOME/.cache/chezmoi-state}"
 
-# Check if a setup step was completed
 state_exists() {
     [ -f "$STATE_DIR/$1.done" ]
 }
 
-# Mark a setup step as complete
 mark_state() {
     mkdir -p "$STATE_DIR" || return 1
     touch "$STATE_DIR/$1.done"
 }
 
-# Clear a setup state (useful for forced re-runs)
 clear_state() {
     rm -f "$STATE_DIR/$1.done"
 }
@@ -50,9 +41,6 @@ should_skip_state() {
     return 1
 }
 
-# --- PATH Management ---
-
-# Add a directory to PATH if not already present
 add_to_path() {
     case ":$PATH:" in
         *":$1:"*) ;;
@@ -60,15 +48,10 @@ add_to_path() {
     esac
 }
 
-# --- Command Detection ---
-
-# Check if a command is available
 is_installed() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Shared Homebrew formula flow. The caller selects whether quiet mode retries
-# without --quiet, preserving package-specific fallback behavior.
 brew_install_formula() {
     local formula="$1" label="$2" quiet_retry="${3:-false}" action="install"
     is_installed brew || return 1
@@ -92,12 +75,9 @@ brew_install_formula() {
     fi
 }
 
-# --- Privilege Escalation ---
-
 TRUST_ON_FIRST_USE_INSTALLERS="${TRUST_ON_FIRST_USE_INSTALLERS:-0}"
 CHEZMOI_DISABLE_SUDO="${CHEZMOI_DISABLE_SUDO:-0}"
 
-# Download/cache settings
 CHEZMOI_PREFETCH_JOBS="${CHEZMOI_PREFETCH_JOBS:-4}"
 CHEZMOI_DOWNLOAD_CACHE_DIR="${CHEZMOI_DOWNLOAD_CACHE_DIR:-$HOME/.cache/chezmoi-downloads}"
 
@@ -110,7 +90,6 @@ sudo_disabled() {
     return 1
 }
 
-# Check if we can run privileged commands (root or passwordless sudo)
 ensure_sudo() {
     if sudo_disabled; then
         return 1
@@ -130,7 +109,6 @@ ensure_sudo() {
     return 1
 }
 
-# Run a command with privilege escalation if needed
 run_privileged() {
     if sudo_disabled; then
         return 1
@@ -164,10 +142,6 @@ require_trust_for_remote_download() {
     return 0
 }
 
-# --- Convenience Wrappers ---
-
-# Run a command, suppressing stdout/stderr unless VERBOSE=true.
-# Usage: run_quiet cmd arg1 arg2 ...
 run_quiet() {
     local output_file status
     if [ "$VERBOSE" = "true" ]; then
@@ -190,11 +164,6 @@ run_quiet() {
     fi
 }
 
-# --- Version Comparison ---
-
-# Generic semver comparison (MAJOR.MINOR.PATCH).
-# Returns 0 (true) if $1 >= $2, 1 (false) otherwise.
-# Usage: version_ge "1.2.3" "1.2.0" && echo "ok"
 version_ge() {
     local current required
     local c1 c2 c3 r1 r2 r3

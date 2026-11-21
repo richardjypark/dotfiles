@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# VPS Bootstrap & Hardening Script
-# Assumes: Debian/Ubuntu, running as root, SSH keys already on the box.
-#
-# Usage:
-#   USERNAME=rich DOTFILES_REPO=https://github.com/you/dotfiles.git ./bootstrap-vps.sh
-#
-# Safety:
-#   Remote access changes use the separate staged lockdown script.
-
-# --- Configuration (override via environment) --------------------------------
-
 USERNAME="${USERNAME:-rich}"
 DOTFILES_REPO="${DOTFILES_REPO:-https://github.com/YOURNAME/dotfiles.git}"
 SSH_PORT="${SSH_PORT:-22}"
@@ -37,8 +26,6 @@ F2B_FINDTIME="${F2B_FINDTIME:-10m}"
 F2B_BANTIME="${F2B_BANTIME:-1h}"
 
 export DEBIAN_FRONTEND=noninteractive
-
-# --- Logging & helpers -------------------------------------------------------
 
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
   LOG_FILE="/var/log/bootstrap.log"
@@ -110,8 +97,6 @@ authorized_keys_has_key() {
   ssh-keygen -l -f "$1" >/dev/null 2>&1
 }
 
-# --- Validation --------------------------------------------------------------
-
 validate() {
   [[ "${EUID}" -eq 0 ]] || { echo "ERROR: Must run as root."; exit 1; }
 
@@ -160,8 +145,6 @@ validate() {
   vecho "Validation passed"
 }
 
-# --- System preparation ------------------------------------------------------
-
 system_update() {
   echo "== System update =="
   wait_for_apt_lock
@@ -200,8 +183,6 @@ configure_locale() {
   update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 2>/dev/null || true
 }
 
-# --- User setup --------------------------------------------------------------
-
 setup_user() {
   echo "== User setup =="
 
@@ -223,7 +204,6 @@ setup_user() {
     echo "Passwordless sudo was not configured by this run. Review any existing user sudo rule."
   fi
 
-  # Copy root's SSH keys to the new user (opt-in only)
   if [[ "${COPY_ROOT_AUTH_KEYS}" == "1" ]]; then
     if [[ -f /root/.ssh/authorized_keys ]]; then
       local target_keys="$USER_HOME/.ssh/authorized_keys" key_line
@@ -285,13 +265,10 @@ ensure_ssh_access() {
   }
 }
 
-# --- SSH hardening -----------------------------------------------------------
-
 harden_sshd() {
   echo "== SSH hardening =="
   apt_install openssh-server
 
-  # Remove weak host keys; ensure Ed25519 + RSA exist
   rm -f /etc/ssh/ssh_host_{dsa,ecdsa}_key{,.pub}
   [[ -f /etc/ssh/ssh_host_ed25519_key ]] || \
     ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N "" >/dev/null
@@ -382,8 +359,6 @@ restore_sshd_dropin() {
   systemctl restart ssh || systemctl restart sshd || true
 }
 
-# --- Firewall ----------------------------------------------------------------
-
 configure_ufw() {
   echo "== Firewall =="
   apt_install ufw
@@ -398,8 +373,6 @@ configure_ufw() {
 
   ufw --force enable
 }
-
-# --- Kernel hardening --------------------------------------------------------
 
 harden_kernel() {
   echo "== Kernel hardening =="
@@ -449,8 +422,6 @@ EOF
   sysctl --system >/dev/null 2>&1
 }
 
-# --- Auto-updates ------------------------------------------------------------
-
 configure_unattended_upgrades() {
   echo "== Auto security updates =="
   apt_install unattended-upgrades
@@ -460,8 +431,6 @@ APT::Periodic::Unattended-Upgrade "1";
 EOF
   systemctl enable unattended-upgrades || true
 }
-
-# --- fail2ban ----------------------------------------------------------------
 
 configure_fail2ban() {
   echo "== fail2ban =="
@@ -476,7 +445,6 @@ findtime = ${F2B_FINDTIME}
 bantime = ${F2B_BANTIME}
 EOF
 
-  # Whitelist Tailscale CGNAT range so fail2ban never bans Tailscale peers
   if command -v tailscale >/dev/null 2>&1; then
     cat > /etc/fail2ban/jail.d/tailscale-whitelist.conf <<'EOF'
 [DEFAULT]
@@ -488,12 +456,9 @@ EOF
   systemctl restart fail2ban
 }
 
-# --- Tailscale ---------------------------------------------------------------
-
 install_tailscale() {
   echo "== Tailscale =="
   if command -v tailscale >/dev/null 2>&1; then
-    # Ensure the non-root user can manage Tailscale without sudo
     tailscale set --operator="${USERNAME}" 2>/dev/null || true
     vecho "Already installed"
     return 0
@@ -509,8 +474,6 @@ install_tailscale() {
     echo "WARNING: tailscale package not available in apt sources. Install manually and rerun if needed."
   fi
 }
-
-# --- Dotfiles ----------------------------------------------------------------
 
 install_dotfiles() {
   echo "== Dotfiles =="
@@ -579,7 +542,6 @@ install_dotfiles() {
       rm -f "$deb_path"
       chezmoi_bin="$(command -v chezmoi)"
     fi
-    # Installer may ignore -b and put it in ~/.local/bin; move it if so
     if [[ ! -x "${chezmoi_bin}" && -x "${HOME}/.local/bin/chezmoi" ]]; then
       cp "${HOME}/.local/bin/chezmoi" "${chezmoi_bin}"
       chmod 755 "${chezmoi_bin}"
@@ -592,8 +554,6 @@ install_dotfiles() {
   sudo -u "${USERNAME}" -H env "CHEZMOI_ROLE=server" "VERBOSE=${VERBOSE}" "TRUST_ON_FIRST_USE_INSTALLERS=${TRUST_ON_FIRST_USE_INSTALLERS}" \
     "${chezmoi_bin}" apply
 }
-
-# --- Verification ------------------------------------------------------------
 
 verify() {
   echo "== Verification =="
@@ -617,7 +577,6 @@ verify() {
     fi
   }
 
-  # Wrap commands that need pipes or || in bash -c
   check "User ${USERNAME} exists"     id -u "${USERNAME}"
   if [[ "${ALLOW_PASSWORDLESS_SUDO}" == "1" ]]; then
     check "Passwordless sudo"         sudo -u "${USERNAME}" sudo -n true
@@ -660,8 +619,6 @@ verify() {
   return 0
 }
 
-# --- Summary -----------------------------------------------------------------
-
 print_summary() {
   local minutes=$(( SECONDS / 60 )) seconds=$(( SECONDS % 60 ))
   local root_status="key-only" ts_status="not installed"
@@ -701,8 +658,6 @@ print_summary() {
   echo "  5. Confirm from another new Tailscale SSH session within five minutes"
   echo ""
 }
-
-# --- Main --------------------------------------------------------------------
 
 PHASE_TIMINGS=()
 

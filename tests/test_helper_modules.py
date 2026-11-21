@@ -171,7 +171,6 @@ esac
         self.assertFalse(any(path.startswith(".chezmoitemplates/") for path in managed))
 
     def test_rerun_script_works_without_flags_on_system_bash(self):
-        # macOS /bin/bash is 3.2, where an empty "${array[@]}" fails under `set -u`.
         script = ROOT / "dot_local/bin/executable_chezmoi-rerun-script"
         with tempfile.TemporaryDirectory() as directory:
             stub_dir = Path(directory)

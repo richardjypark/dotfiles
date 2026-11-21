@@ -27,10 +27,8 @@ eval "$(jq -r '
 rst=$'\033[0m' dim=$'\033[2m' bold=$'\033[1m'
 red=$'\033[31m' green=$'\033[32m' yellow=$'\033[33m'
 blue=$'\033[34m' magenta=$'\033[35m' cyan=$'\033[36m'
-# Nerd Font / Powerline branch symbol U+E0A0, as UTF-8 bytes for bash 3.2.
 branch_glyph=$'\xee\x82\xa0'
 
-# Green above 50% left, yellow from 21% to 50%, red at 20% or less.
 pct_color() {
   if (($1 <= 20)); then
     printf '%s' "$red"
@@ -43,7 +41,6 @@ pct_color() {
 
 out="${dim}${HOSTNAME:-$(hostname)}${rst}"
 
-# Project directory, plus the current subdirectory when it is different.
 [[ -z $proj ]] && proj=$cwd
 [[ -n $proj ]] && out+=" ${bold}${blue}${proj##*/}${rst}"
 if [[ -n $cwd && $cwd != "$proj" ]]; then
@@ -54,9 +51,6 @@ if [[ -n $cwd && $cwd != "$proj" ]]; then
   fi
 fi
 
-# Branch. Yellow with "*" = uncommitted changes, green = clean.
-# A colocated jj repo has a detached Git HEAD, so use the nearest jj bookmark
-# (or the jj change ID). A plain detached HEAD shows as "@<commit>".
 if [[ -n $cwd ]] && git -C "$cwd" --no-optional-locks rev-parse --git-dir >/dev/null 2>&1; then
   branch=$(git -C "$cwd" --no-optional-locks symbolic-ref --short -q HEAD 2>/dev/null)
   if [[ -z $branch ]] && command -v jj >/dev/null 2>&1; then
@@ -79,23 +73,19 @@ if [[ -n $cwd ]] && git -C "$cwd" --no-optional-locks rev-parse --git-dir >/dev/
   fi
 fi
 
-# Worktree: shown only inside a linked Git worktree or a Claude worktree session.
 [[ -n $wt ]] && out+=" ${magenta}wt:${wt}${rst}"
 
 [[ -n ${VIRTUAL_ENV:-} ]] && out+=" ${dim}venv:${VIRTUAL_ENV##*/}${rst}"
 
-# Model, effort level, and a fast-mode mark.
 if [[ -n $model ]]; then
   out+=" ${cyan}${model}${rst}"
   [[ -n $effort ]] && out+="${dim}·${rst}${effort}"
   [[ $fast == "true" ]] && out+="${yellow}⚡${rst}"
 fi
 
-# Context window that remains.
 sep=" ${dim}│${rst} "
 [[ -n $ctx ]] && out+="${sep}${dim}context${rst} $(pct_color "$ctx")${ctx}% left${rst}"
 
-# 5-hour rate limit that remains. The reset time shows at 20% or less.
 if [[ -n $h5 ]]; then
   out+="${sep}${dim}5-hour limit${rst} $(pct_color "$h5")${h5}% left${rst}"
   if ((h5 <= 20)) && [[ -n $h5_reset ]]; then
@@ -104,7 +94,6 @@ if [[ -n $h5 ]]; then
   fi
 fi
 
-# 7-day rate limit: shown only when 20% or less remains.
 [[ -n $d7 ]] && ((d7 <= 20)) && out+="${sep}${dim}7-day limit${rst} ${red}${d7}% left${rst}"
 
 printf '%s' "$out"

@@ -10,26 +10,6 @@ FZF_TARGET="$FZF_BIN_PATH/fzf"
 PINNED_FZF_VERSION="{{ ((include ".chezmoiversion.toml") | fromToml).versions.fzf }}"
 FZF_STATE="fzf-setup-${PINNED_FZF_VERSION}"
 
-# Earlier external pulls followed master, so a checkout can be ahead of the
-# pinned tag. Return it to the tag when the tag is local; this needs no network.
-align_fzf_repo_to_local_tag() {
-    local target_tag tag_commit
-
-    if [ -z "$PINNED_FZF_VERSION" ] || [ ! -d "$FZF_REPO_PATH/.git" ] || ! is_installed git; then
-        return 0
-    fi
-    target_tag="v${PINNED_FZF_VERSION#v}"
-    tag_commit="$(git -C "$FZF_REPO_PATH" rev-parse -q --verify "refs/tags/${target_tag}^{commit}" 2>/dev/null)" || return 0
-    if [ "$(git -C "$FZF_REPO_PATH" rev-parse HEAD 2>/dev/null)" != "$tag_commit" ]; then
-        git -C "$FZF_REPO_PATH" checkout -f --quiet "$target_tag" >/dev/null 2>&1 \
-            && eecho "Moved the fzf checkout back to pinned tag ${target_tag}"
-    fi
-    return 0
-}
-
-align_fzf_repo_to_local_tag
-
-# State tracking with version validation fallback
 if should_skip_state "$FZF_STATE"; then
     if is_installed fzf; then
         vecho "fzf setup already completed (state tracked)"
@@ -37,7 +17,6 @@ if should_skip_state "$FZF_STATE"; then
     fi
 fi
 
-# Check if fzf needs reinstalling (version mismatch or missing)
 NEEDS_INSTALL=false
 INSTALLED_VERSION=""
 if ! is_installed fzf || [ ! -f "$FZF_TARGET" ]; then
@@ -47,7 +26,6 @@ else
 fi
 
 if [ "$NEEDS_INSTALL" = "false" ] && [ -f "$FZF_REPO_PATH/install" ]; then
-    # Extract version from the install script (format: version=X.Y.Z)
     REPO_VERSION=$(grep '^version=' "$FZF_REPO_PATH/install" 2>/dev/null | head -1 | cut -d= -f2)
     if [ -n "$REPO_VERSION" ] && [ "$REPO_VERSION" != "$INSTALLED_VERSION" ]; then
         vecho "Version mismatch: repo=$REPO_VERSION installed=$INSTALLED_VERSION"
@@ -75,10 +53,8 @@ if [ "$NEEDS_INSTALL" = "false" ]; then
     exit 0
 fi
 
-# Create bin directory if it doesn't exist
 mkdir -p "$FZF_BIN_PATH"
 
-# Verify that chezmoi has properly cloned the repository
 if [ ! -d "$FZF_REPO_PATH" ] || [ ! -f "$FZF_REPO_PATH/install" ]; then
     eecho "Error: fzf repository not properly initialized at $FZF_REPO_PATH"
     eecho "This might indicate that chezmoi external file setup hasn't completed yet."
@@ -114,21 +90,17 @@ sync_fzf_repo_tag
 
 cd "$FZF_REPO_PATH" || exit 1
 
-# Install binary (suppress output unless verbose)
 if [ "$VERBOSE" = "true" ]; then
     ./install --bin
 else
     ./install --bin >/dev/null 2>&1
 fi
 
-# Create or update symlink
 rm -f "$FZF_TARGET"
 ln -s "$FZF_REPO_PATH/bin/fzf" "$FZF_TARGET"
 
-# Shell integrations are loaded directly from $FZF_BASE/shell/ in fzf.sh
 vecho "fzf shell integrations loaded from repository files"
 
-# Verify installation
 if [ ! -x "$FZF_TARGET" ]; then
     eecho "Error: fzf installation failed"
     exit 1

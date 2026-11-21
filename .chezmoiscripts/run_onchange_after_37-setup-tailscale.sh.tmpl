@@ -27,7 +27,6 @@ current_tailscale_version() {
     normalize_version_token "$line"
 }
 
-# `tailscale status` fails when this machine is logged out or tailscaled is stopped.
 print_tailscale_login_note() {
     if ! tailscale status --peers=false >/dev/null 2>&1; then
         eecho "Note: Run 'tailscale up' to authenticate and connect to your tailnet"
@@ -71,7 +70,6 @@ fi
 
 vecho "Setting up Tailscale..."
 
-# Fast exit if tailscale is already installed (but mark state)
 if is_installed tailscale && ! is_force_update; then
     CURRENT_TAILSCALE_VERSION="$(current_tailscale_version)"
     if [ -n "$CURRENT_TAILSCALE_VERSION" ] && version_ge "$CURRENT_TAILSCALE_VERSION" "$PINNED_TAILSCALE_VERSION"; then
@@ -103,7 +101,6 @@ vecho "Detected platform: $PLATFORM"
 ALLOW_VERSION_LAG="false"
 
 if [ "$OS_FAMILY" = "macos" ]; then
-    # macOS: Use Homebrew
     if is_installed brew; then
         TAILSCALE_BREW_CASK="$(tailscale_brew_cask_token)"
         BREW_ACTION="install"
@@ -135,10 +132,6 @@ if [ "$OS_FAMILY" = "macos" ]; then
         if [ "$BREW_TAILSCALE_OK" != "true" ]; then
             eecho "Warning: Homebrew Tailscale $BREW_ACTION failed; continuing with installed version if available."
         fi
-        # Homebrew casks can lag Tailscale's upstream stable release, and this
-        # repo does not manage a pinned macOS Tailscale app artifact. Treat the
-        # cask like other package-manager installs: warn, mark a lag state, and
-        # retry exact-version tracking on a later apply once Homebrew catches up.
         ALLOW_VERSION_LAG="true"
     else
         eecho "Warning: Homebrew not available. Please install Tailscale from https://tailscale.com/download/mac"
@@ -239,7 +232,6 @@ else
     exit 0
 fi
 
-# Verify installation
 INSTALLED_TAILSCALE_VERSION="$(current_tailscale_version)"
 if is_installed tailscale && [ -n "$INSTALLED_TAILSCALE_VERSION" ] && version_ge "$INSTALLED_TAILSCALE_VERSION" "$PINNED_TAILSCALE_VERSION"; then
     if [ "$VERBOSE" = "true" ]; then

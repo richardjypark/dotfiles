@@ -586,9 +586,6 @@ EOF
     remove_test_temp_dir "$fixture_dir"
 }
 
-# A command substitution that forks while a signal is pending can run the
-# parent's trap. Only the main process may roll back, or the parent later finds
-# its snapshots deleted and reports an incomplete rollback.
 test_subshell_signal_trap_leaves_rollback_to_main() {
     local fixture_dir output
     new_test_temp_dir fixture_dir
@@ -640,10 +637,6 @@ test_signal_rolls_back() {
     MOCK_PI_LATEST="2.0.0"
     PI_NPM_BEHAVIOR="ok"
     PI_NPM_SLEEP="4"
-    # Signal while bump waits for npm. Bash 5.2 can fail to parse a trap that
-    # runs while it expands a command substitution, and then exits with status
-    # 2 through the EXIT trap. A signal at a fixed quiet point keeps this test
-    # about rollback, not about that bash bug.
     PI_NPM_STARTED_FILE="${fixture_dir}/npm-started"
 
     log="${fixture_dir}/run.log"

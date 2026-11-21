@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Compatibility entry point for apply and bootstrap scripts.
 if [ -n "${CHEZMOI_HELPERS_LOADED:-}" ]; then return 0 2>/dev/null || true; fi
 CHEZMOI_HELPERS_DIR="${BASH_SOURCE[0]%/*}"
 if [ "$CHEZMOI_HELPERS_DIR" = "${BASH_SOURCE[0]}" ]; then CHEZMOI_HELPERS_DIR=.; fi

@@ -7,21 +7,43 @@ from pathlib import Path
 import subprocess
 import tempfile
 import tomllib
+from typing import NamedTuple
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CLAUDE = "private_dot_claude/modify_private_settings.json"
-# (source, target, managed key path, drift value, tool text, tool key path, tool value)
+
+
+class MergeCase(NamedTuple):
+    source: str
+    target: str
+    managed_path: tuple[str, ...]
+    drift_value: str
+    tool_text: str
+    tool_path: tuple[str, ...]
+    tool_value: str
+
+
 CASES = (
-    ("private_dot_codex/modify_private_config.toml", ".codex/config.toml",
-     ("model",), "gpt-older",
-     '\n[hooks.state."/tmp/hooks.json:session_start:0:0"]\ntrusted_hash = "sha256:abc"\n',
-     ("hooks", "state", "/tmp/hooks.json:session_start:0:0", "trusted_hash"), "sha256:abc"),
-    ("private_dot_config/mise/modify_config.toml", ".config/mise/config.toml",
-     ("tools", "node"), "1.0.0",
-     '\n[tools.extra]\nversion = "latest"\n',
-     ("tools", "extra", "version"), "latest"),
+    MergeCase(
+        source="private_dot_codex/modify_private_config.toml",
+        target=".codex/config.toml",
+        managed_path=("model",),
+        drift_value="gpt-older",
+        tool_text='\n[hooks.state."/tmp/hooks.json:session_start:0:0"]\ntrusted_hash = "sha256:abc"\n',
+        tool_path=("hooks", "state", "/tmp/hooks.json:session_start:0:0", "trusted_hash"),
+        tool_value="sha256:abc",
+    ),
+    MergeCase(
+        source="private_dot_config/mise/modify_config.toml",
+        target=".config/mise/config.toml",
+        managed_path=("tools", "node"),
+        drift_value="1.0.0",
+        tool_text='\n[tools.extra]\nversion = "latest"\n',
+        tool_path=("tools", "extra", "version"),
+        tool_value="latest",
+    ),
 )
 
 
@@ -33,8 +55,10 @@ def lookup(config, path):
 
 class ManagedConfigMergeTest(unittest.TestCase):
     def test_modify_templates_keep_tool_keys_and_reset_managed_drift(self):
-        for (source_name, target_name, managed_path, drift_value,
-             tool_text, tool_path, tool_value) in CASES:
+        for case in CASES:
+            source_name, target_name = case.source, case.target
+            managed_path, drift_value = case.managed_path, case.drift_value
+            tool_text, tool_path, tool_value = case.tool_text, case.tool_path, case.tool_value
             with self.subTest(target=target_name), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 source = root / "source" / source_name
@@ -53,20 +77,17 @@ class ManagedConfigMergeTest(unittest.TestCase):
                     return subprocess.run(command + list(args), env=env, check=True,
                                           capture_output=True, text=True).stdout
 
-                # A new file gets the managed text with its comments.
                 chezmoi("apply", "--no-tty")
                 created = target.read_text()
                 self.assertTrue(created.startswith("#"))
                 expected = lookup(tomllib.loads(created), managed_path)
 
-                # Tool-written keys are not drift: no status line and no rewrite.
                 target.write_text(created + tool_text)
                 with_tool_keys = target.read_bytes()
                 self.assertEqual(chezmoi("status"), "")
                 chezmoi("apply", "--no-tty")
                 self.assertEqual(target.read_bytes(), with_tool_keys)
 
-                # Managed drift is reset and tool-written keys stay.
                 target.write_text(created.replace(f'"{expected}"', f'"{drift_value}"', 1) + tool_text)
                 self.assertIn(target_name, chezmoi("status"))
                 chezmoi("apply", "--no-tty")
