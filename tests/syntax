@@ -71,9 +71,9 @@ check_template() {
                 fi
             done
         done
-    elif ! render_test_template "$file" "$rendered"; then
+    elif [ ! -f "$RENDERED_DIR/$file" ]; then
         fail "$file (template rendering failed)"
-    elif bash -n "$rendered"; then
+    elif bash -n "$RENDERED_DIR/$file"; then
         pass
     else
         fail "$file (rendered shell syntax)"
@@ -94,6 +94,17 @@ check_startup_files() {
         fi
     done
 }
+
+RENDERED_DIR="$TEMP_DIR/rendered"
+if command -v chezmoi >/dev/null 2>&1; then
+    templates=()
+    while IFS= read -r file; do
+        case "$file" in
+            .chezmoiscripts/*.sh.tmpl) [ -f "$REPO_ROOT/$file" ] && templates+=("$file") ;;
+        esac
+    done < <(test_shell_files)
+    render_test_templates "$RENDERED_DIR" ${templates[@]+"${templates[@]}"}
+fi
 
 check_startup_files
 

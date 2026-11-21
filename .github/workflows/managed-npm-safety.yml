@@ -26,6 +26,7 @@ jobs:
         # Linux job, which saves the caches that pull requests restore.
         os: ${{ fromJSON(github.event_name == 'push' && '["ubuntu-24.04"]' || '["ubuntu-24.04", "macos-26"]') }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     env:
       npm_config_ignore_scripts: true
       npm_config_fund: false
@@ -37,12 +38,22 @@ jobs:
         with:
           persist-credentials: false
 
+      # The tests need only yaml.safe_load, which PyYAML's pure-Python package
+      # provides. The pinned source archive is checked and unpacked; no
+      # installer or build code runs.
       - name: Install Hermes config test dependency
         shell: bash
+        env:
+          PYYAML_VERSION: 6.0.3
+          PYYAML_SHA256: d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f
         run: |
-          python3 -m venv "$RUNNER_TEMP/hermes-test-venv"
-          "$RUNNER_TEMP/hermes-test-venv/bin/pip" install PyYAML==6.0.3
-          printf '%s\n' "$RUNNER_TEMP/hermes-test-venv/bin" >> "$GITHUB_PATH"
+          archive="$RUNNER_TEMP/pyyaml-$PYYAML_VERSION.tar.gz"
+          curl --fail --location --silent --show-error --proto '=https' --output "$archive" \
+            "https://files.pythonhosted.org/packages/source/p/pyyaml/pyyaml-$PYYAML_VERSION.tar.gz"
+          printf '%s  %s\n' "$PYYAML_SHA256" "$archive" | shasum -a 256 --check
+          mkdir -p "$RUNNER_TEMP/pyyaml"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/pyyaml" --strip-components=2 "pyyaml-$PYYAML_VERSION/lib/yaml"
+          printf 'PYTHONPATH=%s\n' "$RUNNER_TEMP/pyyaml" >> "$GITHUB_ENV"
 
       - name: Install verified jj for publication tests
         shell: bash
@@ -114,13 +125,38 @@ jobs:
             dot_local/share/pi-maintenance-agent/package-lock.json
             dot_local/share/openrouter-agent/package-lock.json
 
+      # The Ubuntu mirror is slow and uneven, so the packages are cached. A
+      # cached package installs only if it matches the SHA256 committed in
+      # the list; apt does not check files it finds in a cache folder.
+      - name: Restore shell test packages on Linux
+        if: runner.os == 'Linux'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/apt-debs
+          key: shell-test-debs-${{ hashFiles('.github/tools/shell-test-debs.sha256') }}
+
       - name: Install shell test tools on Linux
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y shellcheck zsh ripgrep
+        run: |
+          list="$GITHUB_WORKSPACE/.github/tools/shell-test-debs.sha256"
+          dir="$HOME/apt-debs"
+          mapfile -t specs < <(awk '{ split($2, p, "_"); print p[1] "=" p[2] }' "$list")
+          mapfile -t debs < <(awk -v dir="$dir" '{ print dir "/" $2 }' "$list")
+          if ! (cd "$dir" 2>/dev/null && sha256sum --check --strict --quiet "$list"); then
+            rm -rf "$dir"
+            mkdir -p "$dir"
+            sudo apt-get update -qq
+            (cd "$dir" && apt-get download -qq "${specs[@]}")
+            (cd "$dir" && sha256sum --check --strict "$list")
+          fi
+          sudo dpkg -i "${debs[@]}" > /dev/null
+          command -v shellcheck > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }
 
+      # ShellCheck and actionlint run in the Linux job, which also lints the
+      # macOS rendering of every template.
       - name: Install shell test tools on macOS
         if: runner.os == 'macOS'
-        run: brew install shellcheck actionlint ripgrep
+        run: brew install ripgrep
 
       - name: Set up Go for actionlint
         if: runner.os == 'Linux'
@@ -165,4 +201,4 @@ jobs:
 
       - name: Run portable core validation
         if: runner.os == 'macOS'
-        run: REQUIRE_LINT_TOOLS=1 ./tests/all
+        run: TESTS_PLATFORM_ONLY=1 ./tests/all
