@@ -43,6 +43,8 @@ Use this map to propagate version bumps safely.
   - Keep managed Go setup aligned with `.chezmoidata.toml` `[pinned.go]`.
 - `.chezmoiscripts/run_after_39-setup-hermes-agent.sh.tmpl` and `dot_local/private_lib/chezmoi/hermes/`
   - Keep the managed Hermes checkout, uv extras, local TUI patch sentinels, TUI prebuild, gateway service behavior, and public preference convergence aligned with `.chezmoidata.toml` `[pinned.hermes_agent]` and `[hermes.*]` data.
+- `private_dot_agents/private_skills/socratic-tutor/` and other skills from `janestreet/agent_skills`
+  - Do not edit by hand. Review the upstream diff, then run `python3 scripts/sync-upstream-skills.py`. It updates `metadata.upstream.commit` and every file in the folder. The daily `upstream-skills` workflow opens an issue when upstream changes.
 
 ## Documentation Touchpoints
 

@@ -32,6 +32,7 @@ scripts/publish-maintenance-candidate.py
 scripts/check-package-lock-changes.py
 scripts/close-outdated-prs.py
 scripts/comment-ratchet.py
+scripts/sync-upstream-skills.py
 
 # Ignore compiled zsh files
 *.zwc

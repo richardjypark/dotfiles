@@ -1,0 +1,57 @@
+name: upstream-skills
+
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-skills
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GIT_TERMINAL_PROMPT: '0'
+      ISSUE_TITLE: Upstream agent skills changed
+    steps:
+      - name: Check out trusted default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Compare vendored skills with upstream
+        id: check
+        run: |
+          set +e
+          python3 -I scripts/sync-upstream-skills.py --check --report "$RUNNER_TEMP/upstream-skills.md" > /dev/null
+          status=$?
+          set -e
+          if [ "$status" -gt 1 ]; then exit "$status"; fi
+          cat "$RUNNER_TEMP/upstream-skills.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -eq 1 ]; then echo changed=true; else echo changed=false; fi >> "$GITHUB_OUTPUT"
+      - name: Open, update, or close the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGED: ${{ steps.check.outputs.changed }}
+        run: |
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --author app/github-actions \
+            --search "\"$ISSUE_TITLE\" in:title" --json number,title \
+            --jq 'map(select(.title == env.ISSUE_TITLE)) | .[0].number // empty')"
+          body="$RUNNER_TEMP/upstream-skills.md"
+          if [ "$CHANGED" = true ] && [ -n "$number" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          elif [ "$CHANGED" = true ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body-file "$body"
+          elif [ -n "$number" ]; then
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" --comment "The vendored skills match upstream again."
+          fi
