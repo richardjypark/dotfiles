@@ -219,6 +219,7 @@ run_suite "skill-routing unit tests" python3 "$REPO_ROOT/tests/test_eval_skill_r
 run_suite "skill-routing catalog dry run" python3 "$REPO_ROOT/scripts/eval-skill-routing.py" --dry-run
 run_suite "Hermes delegation defaults" python3 "$REPO_ROOT/tests/test_hermes_delegation.py"
 run_suite "agent instruction policy" python3 "$REPO_ROOT/tests/test_agent_instructions.py"
+run_host_neutral_suite run_suite "upstream skill sync" python3 "$REPO_ROOT/tests/test_upstream_skill_sync.py"
 run_host_neutral_suite run_suite "comment ratchet" python3 "$REPO_ROOT/tests/test_comment_ratchet.py"
 run_suite "managed package layout" python3 "$REPO_ROOT/tests/test_managed_package_layout.py"
 
