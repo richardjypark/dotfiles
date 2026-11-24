@@ -113,9 +113,10 @@ Expected GitHub settings:
   require a pull request with 0 approvals and merge commits only; no bypass
   actors. Merge commits keep the branch commit IDs, so local JJ history stays
   valid after the merge.
-- Ruleset "Required checks" (default branch): require `gitleaks` and
-  `validation (ubuntu-24.04)` from GitHub Actions, with the branch up to
-  date; no bypass actors.
+- Ruleset "Required checks" (default branch): require `gitleaks`,
+  `validation (ubuntu-24.04)`, `validation (macos-26)`, and the
+  `dependency-policy` commit status, with the branch up to date; no bypass
+  actors.
 - Actions policy "allow-pull-request-target-for-trusted-gates" (active):
   allow only `pull_request_target` for `maintenance-policy.yml` and
   `dependabot-auto-merge.yml`. From December 2, 2026, GitHub blocks
@@ -136,9 +137,8 @@ active.
 
 The [maintenance publisher](maintenance-automation.md) uses a scoped GitHub App
 and the same guarded push path. Its pilot defaults to manual review. Automatic
-merge additionally requires macOS validation and the trusted `dependency-policy`
-commit status. Configure those checks after a successful live pilot; do not
-remove current checks to activate the publisher.
+merge depends on the macOS validation and trusted `dependency-policy` checks
+above; do not remove any required check to activate the publisher.
 
 Check the live rules and recent rule results:
 
