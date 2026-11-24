@@ -43,10 +43,11 @@ private key-loading path and does not require a second credential file.
 This repo checks both file names and secret values:
 
 1. **CI trigger:** `.github/workflows/secret-scan.yml` scans the full Git
-   history and checked-out worktree on pull requests, pushes to every branch,
-   a weekly schedule, and manual dispatch. It also rejects tracked ignored
-   files and personal email addresses in new commits. Scanner output is fully
-   redacted. The default branch requires the `gitleaks` check; see
+   history and checked-out worktree on pull requests, pushes to `master`, a
+   weekly schedule, and manual dispatch. Other branches are scanned by their
+   pull request and, before every push, by `dotfiles-push`. It also rejects
+   tracked ignored files and personal email addresses in new commits. Scanner
+   output is fully redacted. The default branch requires the `gitleaks` check; see
    [Publishing to master](#publishing-to-master).
 2. **Local helper:** `dotfiles-secret-scan` runs the same redacted checks from a
    clone. Before `chezmoi apply` has rendered the helper, run the source script
