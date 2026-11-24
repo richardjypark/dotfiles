@@ -219,6 +219,7 @@ Shell preview behavior:
 | Pi maintenance agent | Skip | `~/.config/dotfiles/pi-maintenance-agent.enabled` on Omarchy | Pinned Node through mise |
 | OpenRouter Agent | Skip | `~/.config/dotfiles/openrouter-agent.enabled` | Pinned Node through mise |
 | Hermes TUI | Skip | `~/.config/dotfiles/hermes-agent.enabled` | Pinned Node for the local TUI build |
+| Private skills | Same as workstation | `~/.config/dotfiles/private-skills.repos`: one `<git-url> [<checkout-dir>]` per line | Git; clones to `~/.local/share/private-skills/<repo>` by default, links each `skills/<name>/` into `~/.agents/skills/`, pulls only on a forced update (`czuf`) |
 
 Examples:
 
