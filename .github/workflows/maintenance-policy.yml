@@ -4,21 +4,19 @@ name: maintenance-policy
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
 
 concurrency:
-  group: dependency-policy-${{ github.event.pull_request.number }}-${{ github.event.action == 'edited' && !github.event.changes.base && 'edit' || 'check' }}
+  group: dependency-policy-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   policy:
     name: verify-dependency-policy
-    if: >-
-      github.event.pull_request.base.ref == github.event.repository.default_branch &&
-      (github.event.action != 'edited' || github.event.changes.base)
+    if: github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
