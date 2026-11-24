@@ -115,6 +115,12 @@ Expected GitHub settings:
 - Ruleset "Required checks" (default branch): require `gitleaks` and
   `validation (ubuntu-24.04)` from GitHub Actions, with the branch up to
   date; no bypass actors.
+- Actions policy "allow-pull-request-target-for-trusted-gates" (active):
+  allow only `pull_request_target` for `maintenance-policy.yml` and
+  `dependabot-auto-merge.yml`. From December 2, 2026, GitHub blocks
+  `pull_request_target` in public repositories that have no Actions event
+  policy. Both workflows check out the base commit and read the pull request
+  only as Git data, so they must stay on `pull_request_target`.
 - Repository: merge commits only, auto-merge on, delete branch on merge on.
 - Secret scanning and push protection on. GitHub does not turn on
   non-provider patterns or validity checks for this repository; the local
@@ -138,6 +144,7 @@ Check the live rules and recent rule results:
 ```bash
 gh api 'repos/{owner}/{repo}/rules/branches/master'
 gh api 'repos/{owner}/{repo}/rulesets/rule-suites?ref=refs/heads/master'
+gh api 'repos/{owner}/{repo}/actions/policies'
 ```
 
 ## Public identity and private source files
