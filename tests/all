@@ -215,6 +215,7 @@ run_suite "maintenance wrapper behavior" bash "$REPO_ROOT/tests/test-cz-wrappers
 run_suite "background update checks" bash "$REPO_ROOT/tests/test-background-updates.sh"
 run_suite "interactive host updates" bash "$REPO_ROOT/tests/test-dotfiles-update.sh"
 run_suite "background update timer setup" bash "$REPO_ROOT/tests/test-update-check-setup.sh"
+run_suite "private skills hook" bash "$REPO_ROOT/tests/test-private-skills.sh"
 run_suite "skill-routing unit tests" python3 "$REPO_ROOT/tests/test_eval_skill_routing.py"
 run_suite "skill-routing catalog dry run" python3 "$REPO_ROOT/scripts/eval-skill-routing.py" --dry-run
 run_suite "Hermes delegation defaults" python3 "$REPO_ROOT/tests/test_hermes_delegation.py"
