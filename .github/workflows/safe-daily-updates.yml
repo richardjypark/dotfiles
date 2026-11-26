@@ -93,7 +93,7 @@ jobs:
           PY
       - name: Set up Go for the pinned scanner
         if: steps.inspect.outputs.mode == 'new' && (inputs.publish || vars.DOTFILES_MAINTENANCE_PUBLISH == 'true')
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: '1.26'
       - name: Build and scan bounded candidate data
@@ -140,7 +140,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up Go for the pinned scanner
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: '1.26'
       - name: Install verified tools before minting a write token
@@ -180,7 +180,7 @@ jobs:
           fi
       - name: Mint a repository-scoped publication token
         id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           client-id: ${{ vars.DOTFILES_MAINTENANCE_APP_CLIENT_ID }}
           private-key: ${{ secrets.DOTFILES_MAINTENANCE_APP_PRIVATE_KEY }}
