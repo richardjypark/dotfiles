@@ -11,8 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@openrouter/agent": "1.2.1",
-    "@openrouter/sdk": "1.5.100",
+    "@openrouter/agent": "1.2.2",
+    "@openrouter/sdk": "1.5.121",
     "glob": "14.0.6",
     "zod": "4.6.7"
   },
