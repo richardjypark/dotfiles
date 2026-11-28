@@ -147,10 +147,20 @@ run_managed_npm_suite() {
     run_suite "$name" "$suite_fn"
 }
 
+verify_npm_lock() {
+    local install="npm ci --ignore-scripts --no-fund --no-audit"
+    [[ " $* " == *" --include-dev "* ]] && install+=" --include=dev"
+    python3 "$REPO_ROOT/dot_local/private_lib/chezmoi/npm-lock-install.py" "$PWD" "$@" && return 0
+    printf '[HINT] node_modules does not match package-lock.json. Reinstall it, then run again:\n' >&2
+    printf '  (cd %q && %s)\n' "$PWD" "$install" >&2
+    printf '  In the Claude Code sandbox, add: --cache "$TMPDIR/npm-cache"\n' >&2
+    return 1
+}
+
 check_pi_cli() {
     (
         cd "$REPO_ROOT/dot_local/share/pi-cli"
-        python3 "$REPO_ROOT/dot_local/private_lib/chezmoi/npm-lock-install.py" "$PWD" || exit $?
+        verify_npm_lock || exit $?
         ./node_modules/.bin/pi --version
     )
 }
@@ -159,7 +169,7 @@ check_pi_maintenance_agent() {
     (
         set -e
         cd "$REPO_ROOT/dot_local/share/pi-maintenance-agent"
-        python3 "$REPO_ROOT/dot_local/private_lib/chezmoi/npm-lock-install.py" "$PWD" || exit $?
+        verify_npm_lock || exit $?
         ./node_modules/.bin/pi --version
         npm test
     )
@@ -171,7 +181,7 @@ check_openrouter_agent() {
         new_test_temp_dir build_dir
         trap 'remove_test_temp_dir "$build_dir"' EXIT
         cd "$REPO_ROOT/dot_local/share/openrouter-agent"
-        python3 "$REPO_ROOT/dot_local/private_lib/chezmoi/npm-lock-install.py" "$PWD" --include-dev || exit $?
+        verify_npm_lock --include-dev || exit $?
         npm run typecheck &&
             npm test &&
             npm run build -- --outDir "$build_dir"
