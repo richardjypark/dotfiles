@@ -37,9 +37,9 @@
     "deny": [
       "Bash(git push *)",
       "Bash(jj git push *)",
-      "Read(*.env)",
-      "Read(.env.*)",
-      "Read(!.env.example)",
+      "Read(**/*.env)",
+      "Read(**/.env.*)",
+      "Read(!**/.env.example)",
       "Read(~/.config/dotfiles/*.env)",
       "Read(~/.ssh/id_*)",
       "Read(!~/.ssh/*.pub)",
