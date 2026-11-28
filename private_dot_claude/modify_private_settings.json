@@ -11,6 +11,13 @@
   - permissions.defaultMode = "bypassPermissions" is removed.
   - Blanket shell rules "Bash", "Bash(*)", and "Bash(:*)" are removed from
     permissions.allow.
+  - permissions.deny always holds the managed credential-file read rules
+    ($managedDeny), so Claude cannot read those files in any project. Rules the
+    user adds stay. The sandbox enforces Read deny rules for shell commands too.
+  - autoMode.allow always holds $testsAllow, so the auto-mode classifier lets
+    the dotfiles repo run its own ./tests/all. A new list starts with
+    "$defaults" so the built-in rules stay. autoMode is read only from user
+    settings, not from the repo's project settings.
   For a one-time exception, use a per-run flag such as
   `claude --dangerously-skip-permissions`, not this file.
   Invalid JSON fails closed: apply stops, names the file, and does not change
@@ -26,41 +33,77 @@
   "effortLevel": "high"
 }
 ` -}}
+{{- $managedDeny := list
+      "Read(~/.ssh/id_*)" "Read(!~/.ssh/*.pub)" "Read(~/.config/gh/hosts.yml)"
+      "Read(~/.git-credentials)" "Read(~/.aws/credentials)" "Read(~/.codex/auth.json)"
+      "Read(~/.claude/.credentials.json)" "Read(~/.config/dotfiles/*.env)" -}}
+{{- $testsAllow := "Running ./tests/all in ~/.local/share/chezmoi is allowed: it is the dotfiles repo's own test suite, its tests create and remove directories only through tests/lib/temp.sh, and a PreToolUse hook bundles the repo outside the working tree before it runs." -}}
 {{- $oldStatusCommand := get (fromJson `{"command": "input=$(cat); cwd=$(echo \"$input\" | jq -r '.workspace.current_dir'); user=$(whoami); host=${HOSTNAME:-$(hostname)}; if [[ \"$EUID\" -eq 0 ]] || [[ \"$USER\" == \"root\" ]]; then context=\"$host\"; else context=\"$user@$host\"; fi; dir_name=$(basename \"$cwd\"); git_info=\"\"; if git -C \"$cwd\" --no-optional-locks rev-parse --git-dir >/dev/null 2>&1; then branch=$(git -C \"$cwd\" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git -C \"$cwd\" --no-optional-locks rev-parse --short HEAD 2>/dev/null); if [[ -n \"$branch\" ]]; then if ! git -C \"$cwd\" --no-optional-locks diff --quiet 2>/dev/null || ! git -C \"$cwd\" --no-optional-locks diff --cached --quiet 2>/dev/null; then git_info=\" ± $branch\"; else git_info=\" ✓ $branch\"; fi; fi; fi; venv_info=\"\"; if [[ -n \"$VIRTUAL_ENV\" ]]; then venv_name=$(basename \"$VIRTUAL_ENV\"); venv_info=\" 🐍($venv_name)\"; fi; printf \"%s %s%s%s\" \"$context\" \"$dir_name\" \"$git_info\" \"$venv_info\""}`) "command" -}}
-{{- if not (.chezmoi.stdin | trim) -}}
-{{-   $defaults -}}
-{{- else -}}
-{{-   $settings := fromJson .chezmoi.stdin -}}
-{{-   $before := toJson $settings -}}
-{{-   $statusLine := get $settings "statusLine" -}}
-{{-   if and (kindIs "map" $statusLine) (eq (toString (get $statusLine "command")) $oldStatusCommand) -}}
-{{-     $_ := set $settings "statusLine" (get (fromJson $defaults) "statusLine") -}}
+{{- $fresh := not (.chezmoi.stdin | trim) -}}
+{{- $settings := fromJson (ternary $defaults .chezmoi.stdin $fresh) -}}
+{{- $before := toJson $settings -}}
+{{- $statusLine := get $settings "statusLine" -}}
+{{- if and (kindIs "map" $statusLine) (eq (toString (get $statusLine "command")) $oldStatusCommand) -}}
+{{-   $_ := set $settings "statusLine" (get (fromJson $defaults) "statusLine") -}}
+{{- end -}}
+{{- if eq (toString (get $settings "skipDangerousModePermissionPrompt")) "true" -}}
+{{-   $_ := set $settings "skipDangerousModePermissionPrompt" false -}}
+{{- end -}}
+{{- if eq (toString (get $settings "enableAllProjectMcpServers")) "true" -}}
+{{-   $_ := unset $settings "enableAllProjectMcpServers" -}}
+{{- end -}}
+{{- $permissions := get $settings "permissions" -}}
+{{- if kindIs "map" $permissions -}}
+{{-   if eq (toString (get $permissions "defaultMode")) "bypassPermissions" -}}
+{{-     $_ := unset $permissions "defaultMode" -}}
 {{-   end -}}
-{{-   if eq (toString (get $settings "skipDangerousModePermissionPrompt")) "true" -}}
-{{-     $_ := set $settings "skipDangerousModePermissionPrompt" false -}}
-{{-   end -}}
-{{-   if eq (toString (get $settings "enableAllProjectMcpServers")) "true" -}}
-{{-     $_ := unset $settings "enableAllProjectMcpServers" -}}
-{{-   end -}}
-{{-   $permissions := get $settings "permissions" -}}
-{{-   if kindIs "map" $permissions -}}
-{{-     if eq (toString (get $permissions "defaultMode")) "bypassPermissions" -}}
-{{-       $_ := unset $permissions "defaultMode" -}}
-{{-     end -}}
-{{-     $allow := get $permissions "allow" -}}
-{{-     if kindIs "slice" $allow -}}
-{{-       $kept := list -}}
-{{-       range $allow -}}
-{{-         if not (has (toString .) (list "Bash" "Bash(*)" "Bash(:*)")) -}}
-{{-           $kept = append $kept . -}}
-{{-         end -}}
+{{-   $allow := get $permissions "allow" -}}
+{{-   if kindIs "slice" $allow -}}
+{{-     $kept := list -}}
+{{-     range $allow -}}
+{{-       if not (has (toString .) (list "Bash" "Bash(*)" "Bash(:*)")) -}}
+{{-         $kept = append $kept . -}}
 {{-       end -}}
-{{-       $_ := set $permissions "allow" $kept -}}
 {{-     end -}}
+{{-     $_ := set $permissions "allow" $kept -}}
 {{-   end -}}
-{{-   if eq $before (toJson $settings) -}}
-{{-     .chezmoi.stdin -}}
-{{-   else -}}
-{{-     toPrettyJson $settings -}}
+{{- end -}}
+{{- if eq (toString (get $settings "permissions")) "" -}}
+{{-   $_ := set $settings "permissions" dict -}}
+{{- end -}}
+{{- $permissions = get $settings "permissions" -}}
+{{- if kindIs "map" $permissions -}}
+{{-   $deny := get $permissions "deny" -}}
+{{-   if eq (toString $deny) "" -}}
+{{-     $deny = list -}}
 {{-   end -}}
+{{-   if kindIs "slice" $deny -}}
+{{-     range $managedDeny -}}
+{{-       if not (has . $deny) -}}
+{{-         $deny = append $deny . -}}
+{{-       end -}}
+{{-     end -}}
+{{-     $_ := set $permissions "deny" $deny -}}
+{{-   end -}}
+{{- end -}}
+{{- if eq (toString (get $settings "autoMode")) "" -}}
+{{-   $_ := set $settings "autoMode" dict -}}
+{{- end -}}
+{{- $autoMode := get $settings "autoMode" -}}
+{{- if kindIs "map" $autoMode -}}
+{{-   $modeAllow := get $autoMode "allow" -}}
+{{-   if eq (toString $modeAllow) "" -}}
+{{-     $modeAllow = list "$defaults" -}}
+{{-   end -}}
+{{-   if kindIs "slice" $modeAllow -}}
+{{-     if not (has $testsAllow $modeAllow) -}}
+{{-       $modeAllow = append $modeAllow $testsAllow -}}
+{{-     end -}}
+{{-     $_ := set $autoMode "allow" $modeAllow -}}
+{{-   end -}}
+{{- end -}}
+{{- if and (not $fresh) (eq $before (toJson $settings)) -}}
+{{-   .chezmoi.stdin -}}
+{{- else -}}
+{{-   toPrettyJson $settings -}}
 {{- end -}}

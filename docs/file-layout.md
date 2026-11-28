@@ -62,7 +62,7 @@ for the complete naming and execution rules.
 | `.chezmoiscripts/run_after_42-setup-private-skills.sh` | Executed during apply; links skills from the private repos in the unmanaged `~/.config/dotfiles/private-skills.repos` into `~/.agents/skills/` | Never replaces a real folder or a foreign link; no config file means no action |
 | `private_dot_codex/modify_private_config.toml` | `~/.codex/config.toml` | Merges managed Codex keys; keeps Codex-written state |
 | `dot_pi/agent/settings.json` | `~/.pi/agent/settings.json` (ignored target) | Managed keys merged by `run_after_98-pi-local-overrides`; keeps Pi-written keys |
-| `private_dot_claude/modify_private_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits, except unsafe permission settings are reset and the old default status line moves to `statusline.sh` |
+| `private_dot_claude/modify_private_settings.json` | `~/.claude/settings.json` | Created when missing; Claude owns later edits, except unsafe permission settings are reset, the managed credential-file deny rules and the `./tests/all` auto-mode entry are kept present, and the old default status line moves to `statusline.sh` |
 | `private_dot_claude/executable_statusline.sh` | `~/.claude/statusline.sh` | Claude Code status line: host, project, branch, model and effort, context and rate limits left |
 | `scripts/bootstrap-omarchy.sh` | `~/scripts/bootstrap-omarchy.sh` | Managed bootstrap entry point |
 | `scripts/set-chezmoi-local-data.py` | `~/scripts/set-chezmoi-local-data.py` | Saves machine-local role and profile before apply |
@@ -94,6 +94,7 @@ These paths remain in the source repository and do not render into `$HOME`:
 | `docs/skill-routing-eval.md` | Skill-evaluation rule |
 | Dated `plans/*.md` | `plans/[0-9]*.md` rule |
 | `.claude/settings.local.json` | Client-local repository configuration |
+| `.claude/hooks/` | Claude Code hooks registered in `.claude/settings.local.json` |
 | Generated `node_modules/`, build output, and Python bytecode | Generated-file rules |
 
 `plans/README.md` is an exception to the dated-plan rule and is managed. The

@@ -49,7 +49,7 @@ exclusions, and canonical ownership rules.
 
 ### Agent Operating System
 
-- Key files: `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `.claude/settings.local.json`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/`
+- Key files: `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `plans/README.md`, `.claude/settings.local.json`, `.claude/hooks/`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/`
 - Responsibility: tell agents how to inspect, plan, edit, validate, and hand off work in this repo
 - Constraints: keep root instructions short, push detail into deeper docs/skills, keep `private_dot_agents/private_skills/` as the canonical skill source tree, and treat `private_dot_codex/` / `private_dot_claude/` as client-routing or client-config surfaces unless a tool-specific difference is intentional
 

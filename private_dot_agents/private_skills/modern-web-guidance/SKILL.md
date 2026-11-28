@@ -1,6 +1,6 @@
 ---
 name: modern-web-guidance
-description: "Search tool for modern web development best practices. MANDATORY: Execute FIRST for all HTML/CSS and clientside JS tasks. Do NOT skip — web APIs evolve rapidly and training weights contain obsolete patterns. Trigger immediately for: modals/dialogs/popovers, tables, dark mode, anchor positioning, container queries, view transitions, scroll-driven animations, parallax/reveals, forms, validation, autofill, accessibility, custom selects, scrollbars, CWV (LCP, INP, CLS), content-visibility, fetch priority, image optimization, security, passkeys, HTML sanitization, web components, dates/timezones, built-in AI, WebAssembly, standard HTML/CSS/DOM in frameworks, etc. DO NOT trigger for: backend (SQL, ORMs, API routes), infra/scripts (CI/CD, Docker, Actions, Python/Go, Git), or tooling/trivial (Vite, tsconfig, ESLint, tests, copy/renames, 3P docs), etc."
+description: "Look up current web platform guidance before writing or changing web UI, HTML, CSS, or client-side JavaScript: dialogs and popovers, forms, validation and autofill, layout and animation (container queries, anchor positioning, view transitions, scroll-driven effects), accessibility, Core Web Vitals and image loading, dates and time zones, HTML sanitization, passkeys, web components, and WebAssembly. Training data lags the web platform, so check here first. Not for backend, infrastructure, build tooling, or tests."
 license: Apache-2.0
 metadata:
   upstream:
@@ -11,7 +11,8 @@ metadata:
     Runs the pinned local CLI from ~/.local/share/modern-web-guidance with node
     instead of the upstream npx call, turns telemetry off on every call, drops
     the telemetry-only --skill-version flag, replaces the npx section with
-    "Running the CLI", and puts the description on one line.
+    "Running the CLI", and rewrites the description as one line without the
+    MANDATORY wording and the long trigger list.
 ---
 
 # Modern Web Guidance

@@ -11,6 +11,57 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:release-assets.githubusercontent.com)",
       "WebFetch(domain:pkgs.tailscale.com)"
+    ],
+    "ask": [
+      "Bash(git reset --hard *)",
+      "Bash(git checkout *)",
+      "Bash(git restore *)",
+      "Bash(git clean *)",
+      "Bash(git switch *)",
+      "Bash(git stash drop *)",
+      "Bash(git stash clear *)",
+      "Bash(git commit *--amend*)",
+      "Bash(jj abandon *)",
+      "Bash(jj restore *)",
+      "Bash(jj op restore *)",
+      "Bash(jj op abandon *)",
+      "Bash(chezmoi apply *)",
+      "Bash(chezmoi update *)",
+      "Bash(chezmoi init *)",
+      "Bash(chezmoi purge *)",
+      "Bash(chezmoi destroy *)",
+      "Bash(rm -r *)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)"
+    ],
+    "deny": [
+      "Bash(git push *)",
+      "Bash(jj git push *)",
+      "Read(*.env)",
+      "Read(.env.*)",
+      "Read(!.env.example)",
+      "Read(~/.config/dotfiles/*.env)",
+      "Read(~/.ssh/id_*)",
+      "Read(!~/.ssh/*.pub)",
+      "Read(~/.config/gh/hosts.yml)",
+      "Read(~/.git-credentials)",
+      "Read(~/.aws/credentials)",
+      "Read(~/.codex/auth.json)",
+      "Read(~/.claude/.credentials.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.claude/hooks/backup-before-risky.py\"",
+            "timeout": 300
+          }
+        ]
+      }
     ]
   },
   "sandbox": {

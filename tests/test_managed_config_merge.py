@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -13,6 +14,14 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 CLAUDE = "private_dot_claude/modify_private_settings.json"
+
+
+def claude_managed_rules():
+    """Return the credential deny rules and the autoMode entry that the Claude template keeps present."""
+    template = (ROOT / CLAUDE).read_text()
+    deny_block = template.split("$managedDeny := list", 1)[1].split("-}}", 1)[0]
+    tests_allow = template.split('$testsAllow := "', 1)[1].split('" -}}', 1)[0]
+    return re.findall(r'"([^"]+)"', deny_block), tests_allow
 
 
 class MergeCase(NamedTuple):
@@ -202,7 +211,9 @@ claude = "latest"
         settings, status = self.apply_to(CLAUDE, ".claude/settings.json", live, parse=json.loads)
         self.assertIs(settings["skipDangerousModePermissionPrompt"], False)
         self.assertNotIn("enableAllProjectMcpServers", settings)
-        self.assertEqual(settings["permissions"], {"allow": ["Bash(git status)", "Read"]})
+        deny, tests_allow = claude_managed_rules()
+        self.assertEqual(settings["permissions"], {"allow": ["Bash(git status)", "Read"], "deny": deny})
+        self.assertEqual(settings["autoMode"], {"allow": ["$defaults", tests_allow]})
         self.assertEqual(settings["hooks"]["SessionStart"][0]["hooks"][0]["command"], "x >/dev/null 2>&1")
         self.assertEqual(settings["env"], {"EXAMPLE": "keep"})
         self.assertEqual(settings["model"], "opus")
@@ -224,9 +235,22 @@ claude = "latest"
         self.assertEqual(settings["statusLine"], custom)
         self.assertEqual(status, "")
 
+    def test_claude_keeps_user_rules_and_adds_managed_rules_once(self):
+        deny, tests_allow = claude_managed_rules()
+        live = json.dumps({"permissions": {"deny": ["Read(./private.txt)", deny[0]]},
+                           "autoMode": {"allow": ["My own trusted bucket"], "environment": ["$defaults"]}})
+        settings, status = self.apply_to(CLAUDE, ".claude/settings.json", live, parse=json.loads)
+        self.assertEqual(settings["permissions"]["deny"], ["Read(./private.txt)"] + deny)
+        self.assertEqual(settings["autoMode"], {"allow": ["My own trusted bucket", tests_allow],
+                                                "environment": ["$defaults"]})
+        self.assertEqual(status, "")
+
     def test_claude_keeps_safe_settings_byte_for_byte(self):
-        live = '{"model": "sonnet", "permissions": {"defaultMode": "acceptEdits", "allow": ["Read"]},\n' \
-               ' "skipDangerousModePermissionPrompt": false}\n'
+        deny, tests_allow = claude_managed_rules()
+        live = json.dumps({"model": "sonnet",
+                           "permissions": {"defaultMode": "acceptEdits", "allow": ["Read"], "deny": deny},
+                           "autoMode": {"allow": ["$defaults", tests_allow]},
+                           "skipDangerousModePermissionPrompt": False}, indent=1) + "\n"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "source" / CLAUDE
@@ -249,6 +273,10 @@ claude = "latest"
             subprocess.run(command + ["apply", "--no-tty"], env=env, check=True, capture_output=True)
             created = json.loads(target.read_text())
             self.assertIs(created["skipDangerousModePermissionPrompt"], False)
+            self.assertEqual(created["permissions"]["deny"], deny)
+            self.assertEqual(created["autoMode"]["allow"], ["$defaults", tests_allow])
+            self.assertEqual(subprocess.run(command + ["status"], env=env, check=True,
+                                            capture_output=True, text=True).stdout, "")
             self.assertEqual(target.stat().st_mode & 0o777, 0o600)
 
 
