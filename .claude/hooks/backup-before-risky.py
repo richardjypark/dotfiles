@@ -106,6 +106,7 @@ def bundle(repo: Path) -> Path:
     os.umask(0o077)
     target = backup_dir()
     target.mkdir(mode=0o700, parents=True, exist_ok=True)
+    target.chmod(0o700)
     snapshot_working_tree(repo)
     path = target / f"dotfiles-{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}.bundle"
     git(repo, "bundle", "create", str(path), "--all")

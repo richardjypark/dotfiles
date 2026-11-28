@@ -82,9 +82,20 @@ class ClaudeHarnessRulesTest(unittest.TestCase):
 
     def test_irreversible_actions_are_denied(self) -> None:
         deny = self.settings()["permissions"]["deny"]
-        for rule in ("Bash(git push *)", "Bash(jj git push *)", "Read(*.env)",
+        for rule in ("Bash(git push *)", "Bash(jj git push *)", "Read(**/*.env)", "Read(**/.env.*)",
                      "Read(~/.config/dotfiles/*.env)", "Read(~/.ssh/id_*)"):
             self.assertIn(rule, deny)
+
+    def test_read_deny_rules_use_forms_the_sandbox_enforces(self) -> None:
+        template = (REPO_ROOT / "private_dot_claude/modify_private_settings.json").read_text(encoding="utf-8")
+        managed = re.findall(r'"(Read\([^"]+\))"', template.split("$managedDeny := list", 1)[1].split("-}}", 1)[0])
+        rules = [r for r in self.settings()["permissions"]["deny"] if r.startswith("Read(")] + managed
+        self.assertGreater(len(managed), 0)
+        for rule in rules:
+            pattern = rule[len("Read("):-1].lstrip("!")
+            with self.subTest(rule=rule):
+                self.assertTrue(pattern.startswith(("**/", "~/", "//", "/")),
+                                "A bare pattern such as *.env binds only the Read tool, not the sandbox; use **/*.env")
 
     def test_approval_rules_prompt_despite_broad_allows(self) -> None:
         ask = self.settings()["permissions"]["ask"]
@@ -156,6 +167,8 @@ class ClaudeHarnessRulesTest(unittest.TestCase):
                 (hooks / name).write_text(f"#!/bin/sh\necho {name} >> '{marker}'\n")
                 (hooks / name).chmod(0o755)
             subprocess.run(["git", "-C", str(repo), "config", "core.hooksPath", "planted-hooks"], check=True)
+            backups.mkdir(mode=0o755)
+            backups.chmod(0o755)
             result = self.run_backup("./tests/all", repo, backups)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(marker.exists(), marker.read_text() if marker.exists() else "")
