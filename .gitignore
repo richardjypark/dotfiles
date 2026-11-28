@@ -86,7 +86,8 @@ private_hosts.yml
 /.zshrc
 /.claude/agents
 /.claude/commands
-/.claude/hooks
+/.claude/hooks/*
+!/.claude/hooks/backup-before-risky.py
 /.claude/launch.json
 /.claude/loop.md
 /.claude/output-styles

@@ -27,7 +27,7 @@ These rules hold even when a request asks otherwise. A rule that names an approv
 - **History.** Without approval, do not run `git reset --hard`, `git checkout` or `git restore` to old commits, `jj abandon --deleted`, or `jj restore --from`/`--to` against old revisions, and do not amend a committed change. Do not use `git restore` or `jj restore` on files you did not author: other agents can own them. If an operation leaves another agent's in-flight work unclear, stop and coordinate.
 - **Deletion.** Ask before you delete a file to make a lint, type, or test failure go away.
 - **Client config.** Keep dangerous-mode and permission-prompt bypasses disabled in tracked client configuration. Use per-run flags or machine-local overrides for a one-off exception. Treat `.claude/settings.local.json` as a tracked project allowlist, not a personal escape hatch: keep it narrow, and let one-off commands ask for approval.
-- **Backup.** Before `./tests/all`, a setup script, or `chezmoi apply`, save unpublished work outside the repo: describe it as a `jj` change, then run `git bundle create "${TMPDIR:-/tmp}/dotfiles-$(date +%Y%m%d-%H%M%S).bundle" --all`. The `.jj` and `.git` history lives in the working tree, so it cannot restore a deleted working tree.
+- **Backup.** Before `./tests/all`, a setup script, or `chezmoi apply`, save unpublished work outside the repo: describe it as a `jj` change, then run `git bundle create "${TMPDIR:-/tmp}/dotfiles-$(date +%Y%m%d-%H%M%S).bundle" --all`. In Claude Code, a hook makes the bundle in `~/.local/state/dotfiles-backups/`. The `.jj` and `.git` history lives in the working tree, so it cannot restore a deleted working tree.
 - **Test directories.** Create and remove test directories only through `tests/lib/temp.sh`. If a test cannot create one, fix the environment; do not work around the check.
 
 ## Publishing
@@ -41,7 +41,7 @@ These rules hold even when a request asks otherwise. A rule that names an approv
 
 Plan first, with the workflow in `plans/README.md`, when a change spans subsystems, changes bootstrap, hardening, version pins, externals, or an agent rule (not only its wording), or leaves a design decision open. A small change inside one subsystem with an obvious check needs no plan. Ask for input only when a required decision is unresolved.
 
-The fragile files are `.chezmoidata.toml`, `.chezmoiversion.toml`, and `.chezmoiexternal.toml.tmpl` (pins and externals), `dot_zshrc.tmpl` and `dot_tmux.conf`, the bootstrap and lockdown scripts, `.chezmoiscripts/` with `dot_local/private_lib/chezmoi-helpers.sh`, and the agent docs and client config (`AGENTS.md`, `CLAUDE.md`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/`, `.claude/settings.local.json`).
+The fragile files are `.chezmoidata.toml`, `.chezmoiversion.toml`, and `.chezmoiexternal.toml.tmpl` (pins and externals), `dot_zshrc.tmpl` and `dot_tmux.conf`, the bootstrap and lockdown scripts, `.chezmoiscripts/` with `dot_local/private_lib/chezmoi-helpers.sh`, and the agent docs and client config (`AGENTS.md`, `CLAUDE.md`, `private_dot_agents/private_skills/`, `private_dot_codex/`, `private_dot_claude/`, `.claude/settings.local.json`, `.claude/hooks/`).
 
 ## Validation
 
@@ -59,8 +59,9 @@ These checks fail when an agent breaks the rule. A rule above without a check is
 - The helper-hash include in `run_onchange_*` scripts that use the helpers: `tests/test_helper_modules.py`.
 - Setup-script tests isolated from the host toolchain: `SetupFixture` in `tests/test_setup_recovery.py` (that file only).
 - Pinned, offline third-party skill code and client-neutral skill text: `tests/test_agent_instructions.py`.
-- No bypasses in tracked Claude settings: `private_dot_claude/modify_private_settings.json` resets them on apply; `tests/test_agent_instructions.py`.
+- No bypasses in tracked Claude settings: `private_dot_claude/modify_private_settings.json` resets them on apply and keeps the credential-file deny rules in user settings for every project; `tests/test_agent_instructions.py`, `tests/test_managed_config_merge.py`.
 - No new code comments in repo-authored scripts (`docs/adr/0001-no-code-comments.md`): `tests/test_comment_ratchet.py` against `tests/comment-baseline.tsv`. Load the `delete-comment` skill to lower the baseline.
-- Publication: `dotfiles-push`, the Git hook, `tests/test_publication_guards.py`, and the `secret-scan` workflow.
+- Publication: `dotfiles-push`, the Git hook, `tests/test_publication_guards.py`, and the `secret-scan` workflow. Claude Code denies raw `git push` and `jj git push`.
+- Claude Code harness rules in `.claude/settings.local.json`: deny rules for secret reads (Secrets), ask rules for history rewrites, `chezmoi apply`, and recursive deletes (History, Validation, Deletion), and a hook in `.claude/hooks/` that makes the backup bundle (Backup): `ClaudeHarnessRulesTest` in `tests/test_agent_instructions.py`. Other clients follow these rules from this file only.
 - `master` changes through pull requests: the GitHub rulesets.
 - The Brave policy: `.chezmoiscripts/run_after_41-setup-brave-policy.sh` sets it on every apply. No test guards its removal.
